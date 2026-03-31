@@ -452,7 +452,7 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
             let mut r = state_names.iter().collect::<Vec<_>>();
             r.sort();
             return Err(anyhow!(
-                "Mismatch between provided state {l:?} and plan subjects and subscription names {r:?}."
+                "Mismatch between provided subjects {l:?} and plan subjects and subscription names {r:?}."
             ));
         }
 
@@ -1086,7 +1086,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Mismatch between provided state [\"processor_1\", \"processor_2\", \"processor_3\", \"state_1\", \"state_2\", \"state_3\"] and plan subjects and subscription names [\"processor_1\", \"state_1\"]."
+                "Mismatch between provided subjects [\"processor_1\", \"processor_2\", \"processor_3\", \"state_1\", \"state_2\", \"state_3\"] and plan subjects and subscription names [\"processor_1\", \"state_1\"]."
             ),
         }
 
@@ -1109,7 +1109,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Mismatch between provided state [\"processor_1\", \"processor_2\", \"processor_3\", \"state_1\", \"state_2\", \"state_3\"] and plan subjects and subscription names [\"not_found\", \"processor_1\", \"processor_2\", \"processor_3\", \"state_1\", \"state_2\"]."
+                "Mismatch between provided subjects [\"processor_1\", \"processor_2\", \"processor_3\", \"state_1\", \"state_2\", \"state_3\"] and plan subjects and subscription names [\"not_found\", \"processor_1\", \"processor_2\", \"processor_3\", \"state_1\", \"state_2\"]."
             ),
         }
         Ok(())

@@ -95,7 +95,7 @@ impl ProcessorTrait for ObjectStoreProcessor {
         diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<RuntimeEnv>,
     ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
-        println!("ObjectStoreProcessor");
+        println!("Starting processor {}", self.get_name());
         // Extract out the config
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
@@ -363,6 +363,7 @@ impl Stream for ObjectStoreStream {
                         // Get operation
                         let store = self.store.as_ref().unwrap().clone();
                         let path = self.path.as_ref().unwrap().clone();
+                        dbg!(&path);
 
                         // Add in any addition `GetOptions`
                         if let Some(_options) = self.config.as_ref().unwrap().get_options.as_ref() {
@@ -488,6 +489,7 @@ impl Stream for ObjectStoreStream {
                             ObjectStoreOptsType::Get => {
                                 // Extract out the metadata
                                 self.meta.replace(result.meta.clone());
+                                dbg!(&self.meta.as_ref().unwrap().location);
 
                                 // Ready the stream for polling
                                 let fut = Box::pin(result.bytes());
@@ -609,6 +611,7 @@ impl Stream for ObjectStoreStream {
 
                         // Make the object store batch
                         let location = vec![self.meta.as_ref().unwrap().location.to_string()];
+                            dbg!(&self.meta.as_ref().unwrap().location);
                         let bucket = vec![
                             self.config
                                 .as_ref()

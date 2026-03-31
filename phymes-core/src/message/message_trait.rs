@@ -81,6 +81,7 @@ impl IPCMessage {
             let names = table.get_column_as_vec_str("name");
             let publishers = table.get_column_as_vec_str("publisher");
             let subjects = table.get_column_as_vec_str("subject");
+            dbg!(&subjects);
             let formats = table
                 .get_column_as_vec_str("format")
                 .into_iter()

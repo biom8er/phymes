@@ -175,8 +175,8 @@ The [`phymes-core`], [`phymes-ml`], [`phymes-data`], [`phymes-agents`], [`phymes
 
 ## Roadmap
 
-1. More production-ready agentic AI examples
-2. Expanded benchmark of hardware accelerated accelerated Data operators
+1. More production-ready agentic AI examples beyond simple chatbot, tool call, and RAG agents.
+2. Expanded benchmark of hardware accelerated accelerated Data operators, ML models, and Agentic AI workflows and their primitives.
 3. See [issues] for more...
 
 ## Community

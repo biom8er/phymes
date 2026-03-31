@@ -46,7 +46,7 @@ use serde_json::{Map, Value};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OpenAlexResponseWorks {
     pub results: Vec<Work>,
-    pub meta: Meta,
+    pub meta: Option<Meta>,
 }
 
 impl JsonSchemaTrait for OpenAlexResponseWorks {

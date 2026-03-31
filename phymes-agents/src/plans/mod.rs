@@ -17,6 +17,8 @@ mod generate_text_session;
 mod melt_study_data_session;
 mod next_superstep_session;
 mod next_task_session;
+#[cfg(feature = "api")]
+mod open_alex_agent_session;
 mod patch_workspace_session;
 mod retrieve_text_session;
 mod sync_content_session;
