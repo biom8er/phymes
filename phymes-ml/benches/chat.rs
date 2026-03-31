@@ -1,5 +1,5 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use phymes_core::{TableTrait, from_diagnostics_to_tables};
+use phymes_core::{SubjectTrait, from_diagnostics_to_tables};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, MetricBuilderTrait, SpanBuilder,
 };

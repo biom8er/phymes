@@ -12,12 +12,13 @@ use axum::{
 // General imports
 use anyhow::Result;
 use bytes::Bytes;
-use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
+use futures::TryStreamExt;
+use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait, SubscriptionTrait};
 use phymes_agents::{SessionStreamStep, SessionStreamStepTrait, create_message_map};
 use phymes_core::{
-    BuilderTrait, CsvFormat, DataFormat, IPCMessageBuilder,
-    JoinUserInboxSessionContextsMermaidDiagrams, MessageBuilderTrait, MessageTrait, TableBuilder,
-    TableBuilderTrait, TableTrait,
+    BuildableTrait, BuilderTrait, CsvFormat, DataFormat, IPCMessageBuilder,
+    JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait,
+    Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription,
 };
 
 // Library imports
@@ -31,7 +32,7 @@ pub async fn session_put_state(
         String,
         Vec<JoinUserInboxSessionContextsMermaidDiagrams>,
     )>,
-    State((_, mut state)): State<(UserState, ServerState)>,
+    State((users, mut state)): State<(UserState, ServerState)>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
@@ -51,7 +52,9 @@ pub async fn session_put_state(
                 .contains_key(&current_user)
             {
                 // Initialize the user session contexts
-                let _session_names = match state.make_session_contexts(&user_session_contexts, true)
+                let _session_names = match state
+                    .make_session_contexts(&user_session_contexts, true, users.users.runtime_env())
+                    .await
                 {
                     Ok(session_names) => session_names,
                     Err(err) => {
@@ -59,18 +62,6 @@ pub async fn session_put_state(
                             .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 };
-
-                // Read in any updates to the session context
-                match state.read_session_contexts(
-                    &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                    &current_user,
-                ) {
-                    Ok(()) => tracing::info!("Read state for {}", current_user),
-                    Err(e) => tracing::info!(
-                        "Failed to read the session stream state {e:?} for {}",
-                        current_user
-                    ),
-                }
             }
 
             let session_ctx_arc = match state
@@ -87,19 +78,15 @@ pub async fn session_put_state(
             };
 
             // Extract the payload as bytes
-            let schema = if let Some(subject) = session_ctx_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(payload.get_subject())
+            let schema = if let Some(schema) = session_ctx_arc.subjects().get(payload.get_subject())
             {
-                subject.try_read().unwrap().get_schema()
+                schema.clone()
             } else {
-                return JsonError::new("Failed to get the session stream state".to_string())
+                return JsonError::new("Failed to get the schema for the session".to_string())
                     .to_response(StatusCode::INTERNAL_SERVER_ERROR);
             };
             let bytes = match payload.get_format() {
-                DataFormat::Csv(csv_format) => TableBuilder::new()
+                DataFormat::Csv(csv_format) => SubjectBuilder::new()
                     .with_schema(schema)
                     .with_name(payload.get_subject())
                     .with_csv(
@@ -115,7 +102,7 @@ pub async fn session_put_state(
                     .unwrap(),
                 DataFormat::CsvDefault => {
                     let csv_format = CsvFormat::default();
-                    TableBuilder::new()
+                    SubjectBuilder::new()
                         .with_schema(schema)
                         .with_name(payload.get_subject())
                         .with_csv(
@@ -133,7 +120,7 @@ pub async fn session_put_state(
                 DataFormat::JsonDefault => {
                     let json_value: Vec<serde_json::Value> =
                         serde_json::from_slice(payload.get_message()).unwrap();
-                    TableBuilder::new()
+                    SubjectBuilder::new()
                         .with_schema(schema)
                         .with_name(payload.get_subject())
                         .with_json_values(&json_value)
@@ -143,7 +130,7 @@ pub async fn session_put_state(
                         .to_ipc_stream()
                         .unwrap()
                 }
-                DataFormat::Bytes => TableBuilder::new()
+                DataFormat::Bytes => SubjectBuilder::new()
                     .with_schema(schema)
                     .with_name(payload.get_subject())
                     .with_bytes(payload.get_message())
@@ -173,17 +160,11 @@ pub async fn session_put_state(
             if let Err(e) = SessionStreamStep::update_subjects_and_changelog_from_messages(
                 &session_ctx_arc,
                 messages,
-            ) {
+                0,
+            )
+            .await
+            {
                 return JsonError::new(format!("Failed to update the session stream state {e:?}"))
-                    .to_response(StatusCode::INTERNAL_SERVER_ERROR);
-            }
-
-            // Write the updates to disk
-            if let Err(e) = state.write_session_contexts(
-                &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                &current_user,
-            ) {
-                return JsonError::new(format!("Failed to write the session stream state {e:?}"))
                     .to_response(StatusCode::INTERNAL_SERVER_ERROR);
             }
 
@@ -228,7 +209,7 @@ pub async fn session_get_state(
         String,
         Vec<JoinUserInboxSessionContextsMermaidDiagrams>,
     )>,
-    State((_, mut state)): State<(UserState, ServerState)>,
+    State((users, mut state)): State<(UserState, ServerState)>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
@@ -248,7 +229,9 @@ pub async fn session_get_state(
                 .contains_key(&current_user)
             {
                 // Initialize the user session contexts
-                let _session_names = match state.make_session_contexts(&user_session_contexts, true)
+                let _session_names = match state
+                    .make_session_contexts(&user_session_contexts, true, users.users.runtime_env())
+                    .await
                 {
                     Ok(session_names) => session_names,
                     Err(err) => {
@@ -256,113 +239,79 @@ pub async fn session_get_state(
                             .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 };
-
-                // Read in any updates to the session context
-                match state.read_session_contexts(
-                    &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                    &current_user,
-                ) {
-                    Ok(()) => tracing::info!("Read state for {}", current_user),
-                    Err(e) => tracing::info!(
-                        "Failed to read the session stream state {e:?} for {}",
-                        current_user
-                    ),
-                }
             }
 
-            match state
+            let session_ctx_arc = match state
                 .session_contexts
                 .write()
                 .get(payload.get_session_name())
             {
-                Some(session_ctx_arc) => {
-                    // Update the row counts just in case...
-                    session_ctx_arc
-                        .try_write()
-                        .unwrap()
-                        .update_subject_num_rows_table();
-
-                    match payload.get_format() {
-                        DataFormat::Bytes => {
-                            // Get the subject table as a json object
-                            let buf = session_ctx_arc
-                                .try_read()
-                                .unwrap()
-                                .get_states()
-                                .get(payload.get_subject())
-                                .unwrap()
-                                .try_read()
-                                .unwrap()
-                                .to_bytes()
-                                .unwrap();
-                            Body::from(buf).into_response()
-                        }
-                        DataFormat::Csv(csv_format) => {
-                            // Get the subject table as a csv string
-                            let out = session_ctx_arc
-                                .try_read()
-                                .unwrap()
-                                .get_states()
-                                .get(payload.get_subject())
-                                .unwrap()
-                                .try_read()
-                                .unwrap()
-                                .to_csv(csv_format.delimiter, csv_format.header)
-                                .unwrap();
-                            let buf = Bytes::from(out);
-                            Body::from(buf).into_response()
-                        }
-                        DataFormat::CsvDefault => {
-                            // Get the subject table as a csv string
-                            let csv_format = CsvFormat::default();
-                            let out = session_ctx_arc
-                                .try_read()
-                                .unwrap()
-                                .get_states()
-                                .get(payload.get_subject())
-                                .unwrap()
-                                .try_read()
-                                .unwrap()
-                                .to_csv(csv_format.delimiter, csv_format.header)
-                                .unwrap();
-                            let buf = Bytes::from(out);
-                            Body::from(buf).into_response()
-                        }
-                        DataFormat::Json(_) | DataFormat::JsonDefault => {
-                            // Get the subject table as a json string
-                            let out = session_ctx_arc
-                                .try_read()
-                                .unwrap()
-                                .get_states()
-                                .get(payload.get_subject())
-                                .unwrap()
-                                .try_read()
-                                .unwrap()
-                                .to_json()
-                                .unwrap();
-                            let buf = Bytes::from(out);
-                            Body::from(buf).into_response()
-                        }
-                        DataFormat::Ipc => {
-                            // Get the subject table as a csv string
-                            let out = session_ctx_arc
-                                .try_read()
-                                .unwrap()
-                                .get_states()
-                                .get(payload.get_subject())
-                                .unwrap()
-                                .try_read()
-                                .unwrap()
-                                .to_ipc_stream()
-                                .unwrap();
-                            let buf = Bytes::from(out);
-                            Body::from(buf).into_response()
-                        }
-                        _ => unimplemented!(),
-                    }
+                Some(session_ctx_arc) => session_ctx_arc.clone(),
+                None => {
+                    return JsonError::new("Failed to get the session stream state".to_string())
+                        .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                 }
-                None => JsonError::new("Failed to get the session stream state".to_string())
-                    .to_response(StatusCode::INTERNAL_SERVER_ERROR),
+            };
+
+            // Update the row counts just in case...
+            let _ = session_ctx_arc.update_subject_num_rows().await;
+
+            // Read the subject
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: payload.get_subject().to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
+            .unwrap()
+            .unwrap()
+            .try_collect()
+            .await
+            .unwrap();
+            if batches.is_empty() {
+                Body::from(Bytes::new()).into_response()
+            } else {
+                let subject = Subject::get_builder()
+                    .with_name(payload.get_subject())
+                    .with_record_batches(batches)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                match payload.get_format() {
+                    DataFormat::Bytes => {
+                        // Get the subject as bytes
+                        let buf = subject.to_bytes().unwrap();
+                        Body::from(buf).into_response()
+                    }
+                    DataFormat::Csv(csv_format) => {
+                        // Get the subject table as a csv string
+                        let out = subject
+                            .to_csv(csv_format.delimiter, csv_format.header)
+                            .unwrap();
+                        let buf = Bytes::from(out);
+                        Body::from(buf).into_response()
+                    }
+                    DataFormat::CsvDefault => {
+                        // Get the subject table as a csv string
+                        let csv_format = CsvFormat::default();
+                        let out = subject
+                            .to_csv(csv_format.delimiter, csv_format.header)
+                            .unwrap();
+                        let buf = Bytes::from(out);
+                        Body::from(buf).into_response()
+                    }
+                    DataFormat::Json(_) | DataFormat::JsonDefault => {
+                        // Get the subject table as a json string
+                        let out = subject.to_json().unwrap();
+                        let buf = Bytes::from(out);
+                        Body::from(buf).into_response()
+                    }
+                    DataFormat::Ipc => {
+                        // Get the subject table as a csv string
+                        let out = subject.to_ipc_stream().unwrap();
+                        let buf = Bytes::from(out);
+                        Body::from(buf).into_response()
+                    }
+                    _ => unimplemented!(),
+                }
             }
         }
         Err(JsonRejection::MissingJsonContentType(_err)) => {

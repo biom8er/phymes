@@ -12,8 +12,8 @@ use anyhow::Result;
 use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
 use phymes_core::{
     AvailableSchemaTrait, AvailableSubjects, BuilderTrait, CsvFormat, DataFormat,
-    JoinUserInboxSessionContextsMermaidDiagrams, MessageTrait, TableBuilder, TableBuilderTrait,
-    TableTrait,
+    JoinUserInboxSessionContextsMermaidDiagrams, MessageTrait, SubjectBuilder, SubjectBuilderTrait,
+    SubjectTrait,
 };
 
 // Library imports
@@ -47,7 +47,9 @@ pub async fn session_build(
                 .contains_key(&current_user)
             {
                 // Initialize the user session contexts
-                let _session_names = match state.make_session_contexts(&user_session_contexts, true)
+                let _session_names = match state
+                    .make_session_contexts(&user_session_contexts, true, users.users.runtime_env())
+                    .await
                 {
                     Ok(session_names) => session_names,
                     Err(err) => {
@@ -55,23 +57,11 @@ pub async fn session_build(
                             .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 };
-
-                // Read in any updates to the session context
-                match state.read_session_contexts(
-                    &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                    &current_user,
-                ) {
-                    Ok(()) => tracing::info!("Read state for {}", current_user),
-                    Err(e) => tracing::info!(
-                        "Failed to read the session stream state {e:?} for {}",
-                        current_user
-                    ),
-                }
             }
 
             // Extract out the Mermaid table
             let table = match payload.get_format() {
-                DataFormat::Csv(csv_format) => TableBuilder::new()
+                DataFormat::Csv(csv_format) => SubjectBuilder::new()
                     .with_schema(AvailableSubjects::SessionMermaid.to_schema())
                     .with_name(payload.get_subject())
                     .with_csv(
@@ -85,7 +75,7 @@ pub async fn session_build(
                     .unwrap(),
                 DataFormat::CsvDefault => {
                     let csv_format = CsvFormat::default();
-                    TableBuilder::new()
+                    SubjectBuilder::new()
                         .with_schema(AvailableSubjects::SessionMermaid.to_schema())
                         .with_name(payload.get_subject())
                         .with_csv(
@@ -101,7 +91,7 @@ pub async fn session_build(
                 DataFormat::JsonDefault => {
                     let json_value: Vec<serde_json::Value> =
                         serde_json::from_slice(payload.get_message()).unwrap();
-                    TableBuilder::new()
+                    SubjectBuilder::new()
                         .with_schema(AvailableSubjects::SessionMermaid.to_schema())
                         .with_name(payload.get_subject())
                         .with_json_values(&json_value)
@@ -109,14 +99,14 @@ pub async fn session_build(
                         .build()
                         .unwrap()
                 }
-                DataFormat::Bytes => TableBuilder::new()
+                DataFormat::Bytes => SubjectBuilder::new()
                     .with_schema(AvailableSubjects::SessionMermaid.to_schema())
                     .with_name(payload.get_subject())
                     .with_bytes(payload.get_message())
                     .unwrap()
                     .build()
                     .unwrap(),
-                DataFormat::Ipc => TableBuilder::new_from_ipc_stream(payload.get_message())
+                DataFormat::Ipc => SubjectBuilder::new_from_ipc_stream(payload.get_message())
                     .unwrap()
                     .with_name(payload.get_subject())
                     .build()
@@ -154,7 +144,10 @@ pub async fn session_build(
                 .collect::<Vec<JoinUserInboxSessionContextsMermaidDiagrams>>();
 
             // Add the new mermaid diagrams to the user session contexts
-            let _session_names = match state.make_session_contexts(&combined, true) {
+            let _session_names = match state
+                .make_session_contexts(&combined, true, users.users.runtime_env())
+                .await
+            {
                 Ok(session_names) => session_names,
                 Err(err) => {
                     return JsonError::new(err.to_string())
@@ -179,16 +172,8 @@ pub async fn session_build(
                         .get_column_as_vec_primitive::<i64>("timestamp")
                         .unwrap(),
                 )
+                .await
                 .unwrap();
-
-            // Write the updates to disk
-            if let Err(e) = state.write_session_contexts(
-                &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                &current_user,
-            ) {
-                return JsonError::new(format!("Failed to write the session stream state {e:?}"))
-                    .to_response(StatusCode::INTERNAL_SERVER_ERROR);
-            }
 
             // Send the response
             Body::from(serde_json::to_string("State updated with new sessions.").unwrap())

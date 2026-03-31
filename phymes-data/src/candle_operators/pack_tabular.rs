@@ -1,12 +1,17 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, io::Write};
 
 use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
+use flate2::{
+    Compression,
+    write::{DeflateEncoder, GzEncoder, ZlibEncoder},
+};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, CsvFormat, DataFormat, Function, FunctionParameters,
-    JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableTrait, Tool,
-    ToolType, create_attachments_batch, create_chat_record_batch,
+    AvailableSubjects, BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, Function,
+    FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Subject,
+    SubjectBuilderTrait, SubjectTrait, Tool, ToolType, create_attachments_batch,
+    create_chat_record_batch, create_object_store_batch, make_extension, make_filename,
 };
 use phymes_diagnostics::create_timestamp_micros;
 use serde::{Deserialize, Serialize};
@@ -17,7 +22,9 @@ use crate::{ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTr
 /// Extract tabular data in either CSV or JSON format from Bytes
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct PackTabular {
+    encoding: DataEncoding,
     format: DataFormat,
+    schema: AvailableSubjects,
     doc_name: String,
 }
 
@@ -85,15 +92,28 @@ impl DataOperatorTrait for PackTabular {
     where
         Self: Sized,
     {
+        let encoding = config.encoding.clone().ok_or(anyhow!(
+            "Missing `encoding` for `{}`.",
+            Self::get_static_name()
+        ))?;
         let format = config.format.clone().ok_or(anyhow!(
             "Missing `format` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let schema = config.schema.ok_or(anyhow!(
+            "Missing `schema` for `{}`.",
             Self::get_static_name()
         ))?;
         let doc_name = config.doc_name.clone().ok_or(anyhow!(
             "Missing `doc_name` for `{}`.",
             Self::get_static_name()
         ))?;
-        Ok(PackTabular { format, doc_name })
+        Ok(PackTabular {
+            encoding,
+            format,
+            schema,
+            doc_name,
+        })
     }
     fn forward(
         &self,
@@ -101,22 +121,56 @@ impl DataOperatorTrait for PackTabular {
         _rhs_args: Option<&[RecordBatch]>,
         _device: &Device,
     ) -> Result<RecordBatch> {
-        pack_tabular(lhs_args, &self.format, &self.doc_name)
+        pack_tabular(
+            lhs_args,
+            &self.encoding,
+            &self.format,
+            &self.schema,
+            &self.doc_name,
+        )
     }
 }
 
-/// Helper function to convert a [Table] into the desired output [DataFormat]
+/// Helper function to encode
+fn encode_bytes(encoding: &DataEncoding, bytes: &[u8]) -> Result<Vec<u8>> {
+    let bytes_encoded = match encoding {
+        DataEncoding::Deflate => {
+            let mut encoder = DeflateEncoder::new(Vec::new(), Compression::default());
+            encoder.write_all(bytes)?;
+            encoder.finish()?
+        }
+        DataEncoding::Zlib => {
+            let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+            encoder.write_all(bytes)?;
+            encoder.finish()?
+        }
+        DataEncoding::Gz => {
+            let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+            encoder.write_all(bytes)?;
+            encoder.finish()?
+        }
+        DataEncoding::None => bytes.to_vec(),
+    };
+    Ok(bytes_encoded)
+}
+
+/// Helper function to convert a [Subject] into the desired output [DataFormat]
 ///
 /// # Arguments
-/// `table` - the [Table] containing the data
+/// `table` - the [Subject] containing the data
+/// `encoding` - the desired output [DataEncoding]
 /// `format` - the desired output [DataFormat]
+/// `schema` - the desired output [AvailableSubjects]
 /// `content` - Optional string to include JUST the contents of column data `content`
 ///   which is needed for some tool calling and visualization generation methods
 pub fn table_and_data_format_to_record_batch(
-    table: &Table,
+    table: &Subject,
+    encoding: &DataEncoding,
     format: &DataFormat,
+    schema: &AvailableSubjects,
     content: Option<&str>,
 ) -> Result<RecordBatch> {
+    // Pack in the specified data format with the specified encoding
     match format {
         DataFormat::None => {
             // Extract out the content
@@ -129,22 +183,42 @@ pub fn table_and_data_format_to_record_batch(
                 serde_json::to_string(&table.to_json_object()?)?
             };
             // Wrap into a record batch
-            create_chat_record_batch(
-                vec!["tool".to_string()], // DM: Change when upgrading to Qwen 3 "function"
-                vec![content],
-                vec![create_timestamp_micros()],
-            )
+            match schema {
+                AvailableSubjects::Messages => create_chat_record_batch(
+                    vec!["tool".to_string()], // DM: Change when upgrading to Qwen 3 "function"
+                    vec![content],
+                    vec![create_timestamp_micros()],
+                ),
+                _ => Err(anyhow!(
+                    "Schema `{schema}` is not yet support for DataFormat `{format}`."
+                )),
+            }
         }
         DataFormat::Csv(csv_format) => {
             // Convert to CSV and wrap into a blob batch
             let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
-            create_attachments_batch(
-                vec![table.get_name().to_string()],
-                vec![format.to_extension().to_string()],
-                vec![bytes],
-                vec!["assistant".to_string()],
-                vec![create_timestamp_micros()],
-            )
+            let bytes = encode_bytes(encoding, &bytes)?;
+            let extension = make_extension(format, encoding);
+            let filename = make_filename(table.get_name(), format, encoding);
+            match schema {
+                AvailableSubjects::Attachments => create_attachments_batch(
+                    vec![table.get_name().to_string()],
+                    vec![extension],
+                    vec![bytes],
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                ),
+                AvailableSubjects::ObjectStore => create_object_store_batch(
+                    vec![filename],
+                    vec![table.get_name().to_string()],
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                    vec![bytes],
+                ),
+                _ => Err(anyhow!(
+                    "Schema `{schema}` is not yet support for DataFormat `{format}`."
+                )),
+            }
         }
         DataFormat::CsvDefault => {
             // Convert to CSV and wrap into a blob batch
@@ -152,35 +226,80 @@ pub fn table_and_data_format_to_record_batch(
                 ..Default::default()
             };
             let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
-            create_attachments_batch(
-                vec![table.get_name().to_string()],
-                vec![format.to_extension().to_string()],
-                vec![bytes],
-                vec!["assistant".to_string()],
-                vec![create_timestamp_micros()],
-            )
+            let bytes = encode_bytes(encoding, &bytes)?;
+            let extension = make_extension(format, encoding);
+            let filename = make_filename(table.get_name(), format, encoding);
+            match schema {
+                AvailableSubjects::Attachments => create_attachments_batch(
+                    vec![table.get_name().to_string()],
+                    vec![extension],
+                    vec![bytes],
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                ),
+                AvailableSubjects::ObjectStore => create_object_store_batch(
+                    vec![filename],
+                    vec![table.get_name().to_string()],
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                    vec![bytes],
+                ),
+                _ => Err(anyhow!(
+                    "Schema `{schema}` is not yet support for DataFormat `{format}`."
+                )),
+            }
         }
         DataFormat::Bytes => {
             // Convert to bytes directly
             let bytes = table.to_bytes()?;
-            create_attachments_batch(
-                vec![table.get_name().to_string()],
-                vec![format.to_extension().to_string()],
-                vec![bytes.to_vec()],
-                vec!["assistant".to_string()],
-                vec![create_timestamp_micros()],
-            )
+            let bytes = encode_bytes(encoding, &bytes)?;
+            let extension = make_extension(format, encoding);
+            let filename = make_filename(table.get_name(), format, encoding);
+            match schema {
+                AvailableSubjects::Attachments => create_attachments_batch(
+                    vec![table.get_name().to_string()],
+                    vec![extension],
+                    vec![bytes.to_vec()],
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                ),
+                AvailableSubjects::ObjectStore => create_object_store_batch(
+                    vec![filename],
+                    vec![table.get_name().to_string()],
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                    vec![bytes.to_vec()],
+                ),
+                _ => Err(anyhow!(
+                    "Schema `{schema}` is not yet support for DataFormat `{format}`."
+                )),
+            }
         }
         DataFormat::Json(_) | DataFormat::JsonDefault | DataFormat::JsonSchema => {
             // Convert to JSON
             let bytes = table.to_json()?;
-            create_attachments_batch(
-                vec![table.get_name().to_string()],
-                vec![format.to_extension().to_string()],
-                vec![bytes],
-                vec!["assistant".to_string()],
-                vec![create_timestamp_micros()],
-            )
+            let bytes = encode_bytes(encoding, &bytes)?;
+            let extension = make_extension(format, encoding);
+            let filename = make_filename(table.get_name(), format, encoding);
+            match schema {
+                AvailableSubjects::Attachments => create_attachments_batch(
+                    vec![table.get_name().to_string()],
+                    vec![extension],
+                    vec![bytes],
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                ),
+                AvailableSubjects::ObjectStore => create_object_store_batch(
+                    vec![filename],
+                    vec![table.get_name().to_string()],
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                    vec![bytes],
+                ),
+                _ => Err(anyhow!(
+                    "Schema `{schema}` is not yet support for DataFormat `{format}`."
+                )),
+            }
         }
         DataFormat::Html | DataFormat::Txt => {
             // Extract out the values column and concatenate into a single String to form the document
@@ -189,15 +308,61 @@ pub fn table_and_data_format_to_record_batch(
                 .into_iter()
                 .flatten()
                 .collect::<Vec<_>>();
-            create_attachments_batch(
-                vec![table.get_name().to_string()],
-                vec![format.to_extension().to_string()],
-                vec![bytes],
-                vec!["assistant".to_string()],
-                vec![create_timestamp_micros()],
-            )
+            let bytes = encode_bytes(encoding, &bytes)?;
+            let extension = make_extension(format, encoding);
+            let filename = make_filename(table.get_name(), format, encoding);
+            match schema {
+                AvailableSubjects::Messages => create_chat_record_batch(
+                    vec!["tool".to_string()], // DM: Change when upgrading to Qwen 3 "function"
+                    vec![String::from_utf8(bytes)?],
+                    vec![create_timestamp_micros()],
+                ),
+                AvailableSubjects::Attachments => create_attachments_batch(
+                    vec![table.get_name().to_string()],
+                    vec![extension],
+                    vec![bytes],
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                ),
+                AvailableSubjects::ObjectStore => create_object_store_batch(
+                    vec![filename],
+                    vec![table.get_name().to_string()],
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                    vec![bytes],
+                ),
+                _ => Err(anyhow!(
+                    "Schema `{schema}` is not yet support for DataFormat `{format}`."
+                )),
+            }
         }
-        DataFormat::Pdf | DataFormat::Ipc | DataFormat::Xml | DataFormat::Owl => {
+        DataFormat::Ipc => {
+            // Convert to JSON
+            let bytes = table.to_ipc_stream()?;
+            let bytes = encode_bytes(encoding, &bytes)?;
+            let extension = make_extension(format, encoding);
+            let filename = make_filename(table.get_name(), format, encoding);
+            match schema {
+                AvailableSubjects::Attachments => create_attachments_batch(
+                    vec![table.get_name().to_string()],
+                    vec![extension],
+                    vec![bytes],
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                ),
+                AvailableSubjects::ObjectStore => create_object_store_batch(
+                    vec![filename],
+                    vec![table.get_name().to_string()],
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                    vec![bytes],
+                ),
+                _ => Err(anyhow!(
+                    "Schema `{schema}` is not yet support for DataFormat `{format}`."
+                )),
+            }
+        }
+        DataFormat::Pdf | DataFormat::Xml | DataFormat::Owl => {
             Err(anyhow!("{format} format is not yet supported."))
         }
     }
@@ -207,27 +372,33 @@ pub fn table_and_data_format_to_record_batch(
 #[instrument(skip(lhs_args, format))]
 pub fn pack_tabular(
     lhs_args: &[RecordBatch],
+    encoding: &DataEncoding,
     format: &DataFormat,
+    schema: &AvailableSubjects,
     doc_name: &str,
 ) -> Result<RecordBatch> {
     // Pack the values
-    let args_table = Table::get_builder()
+    let args_table = Subject::get_builder()
         .with_name(doc_name)
         .with_record_batches(lhs_args.to_vec())?
         .build()?
         .concat_record_batches()?;
 
     // Convert to the desired format
-    let batch = table_and_data_format_to_record_batch(&args_table, format, None)?;
+    let batch = table_and_data_format_to_record_batch(&args_table, encoding, format, schema, None)?;
     Ok(batch)
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{
+        io::{Cursor, Read},
+        sync::Arc,
+    };
 
     use crate::candle_data::test_candle_ops_processor::make_embeddings_record_batch_str_f32;
     use arrow::array::{ArrayRef, StringArray};
+    use flate2::read::GzDecoder;
 
     use super::*;
 
@@ -246,12 +417,14 @@ mod tests {
         // Pack the tabular data
         let result = pack_tabular(
             &[lhs_batch],
+            &DataEncoding::None,
             &DataFormat::None,
+            &AvailableSubjects::Messages,
             "test_pack_tabular_message_format",
         )?;
 
         // Wrap the results in a table
-        let partitions = Table::get_builder()
+        let partitions = Subject::get_builder()
             .with_name("pack_tabular")
             .with_record_batches(vec![result])?
             .build()?
@@ -273,7 +446,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_pack_tabular_blob_formats() -> Result<()> {
+    async fn test_pack_tabular_blob_formats_none_encoding() -> Result<()> {
         // Create the input
         let lhs_ids_vec = vec!["1", "2", "3"];
         let ids_ar: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec));
@@ -282,12 +455,14 @@ mod tests {
         // Pack the tabular data
         let result = pack_tabular(
             &[lhs_batch],
+            &DataEncoding::None,
             &DataFormat::CsvDefault,
+            &AvailableSubjects::Attachments,
             "test_pack_tabular_blob_formats",
         )?;
 
         // Wrap the results in a table
-        let partitions = Table::get_builder()
+        let partitions = Subject::get_builder()
             .with_name("pack_tabular")
             .with_record_batches(vec![result])?
             .build()?
@@ -305,6 +480,54 @@ mod tests {
         let mut contents_str = Vec::new();
         for contents in contents_vec.into_iter() {
             contents_str.push(String::from_utf8(contents)?);
+        }
+        let contents_join = contents_str.join("");
+        assert_eq!(contents_join, "lhs_pk\n1\n2\n3\n");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_pack_tabular_blob_formats_gz_encoding() -> Result<()> {
+        // Create the input
+        let lhs_ids_vec = vec!["1", "2", "3"];
+        let ids_ar: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec));
+        let lhs_batch = RecordBatch::try_from_iter(vec![("lhs_pk", ids_ar)])?;
+
+        // Pack the tabular data
+        let result = pack_tabular(
+            &[lhs_batch],
+            &DataEncoding::Gz,
+            &DataFormat::CsvDefault,
+            &AvailableSubjects::Attachments,
+            "test_pack_tabular_blob_formats",
+        )?;
+
+        // Wrap the results in a table
+        let partitions = Subject::get_builder()
+            .with_name("pack_tabular")
+            .with_record_batches(vec![result])?
+            .build()?
+            .concat_record_batches()?;
+
+        // Check the results
+        assert_eq!(partitions.count_rows(), 1);
+        assert_eq!(
+            partitions.get_column_as_vec_str("filename"),
+            ["test_pack_tabular_blob_formats"]
+        );
+        assert_eq!(partitions.get_column_as_vec_str("extension"), ["csv.gz"]);
+        assert_eq!(partitions.get_column_as_vec_str("metadata"), ["assistant"]);
+        let contents_vec = partitions.get_column_as_vec_nested_primitive::<u8>("bytes")?;
+        let mut contents_str = Vec::new();
+        for contents in contents_vec.into_iter() {
+            // Decompress the contents
+            let cursor = Cursor::new(contents);
+            let mut decoder = GzDecoder::new(cursor);
+            let mut out = Vec::new();
+            let _ = decoder.read_to_end(&mut out)?;
+            // Convert to string
+            contents_str.push(String::from_utf8(out)?);
         }
         let contents_join = contents_str.join("");
         assert_eq!(contents_join, "lhs_pk\n1\n2\n3\n");

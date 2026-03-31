@@ -7,7 +7,10 @@ use axum::{
     middleware,
     routing::{get_service, post},
 };
-#[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+use phymes_core::RuntimeEnv;
+#[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
+use phymes_core::{BuildableTrait, BuilderTrait, RuntimeEnvBuilderTrait, make_store};
+#[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
     limit::RequestBodyLimitLayer,
@@ -16,7 +19,7 @@ use tower_http::{
 };
 
 // General imports
-#[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+#[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
 use crate::server::server_config::ServerConfig;
 #[allow(unused_imports)]
 use anyhow::Result;
@@ -24,7 +27,7 @@ use anyhow::Result;
 use parking_lot::RwLock;
 #[allow(unused_imports)]
 use std::sync::Arc;
-#[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+#[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
 use tokio::net::TcpListener;
 
 // From lib
@@ -42,9 +45,12 @@ pub struct AppBuilder {
 }
 
 impl AppBuilder {
-    pub fn new(user_session_context_name: Option<&str>) -> Self {
+    pub async fn new(
+        user_session_context_name: Option<&str>,
+        runtime_env: &Arc<RuntimeEnv>,
+    ) -> Result<Self> {
         // Application state
-        let user_state = UserState::new(user_session_context_name);
+        let user_state = UserState::new(user_session_context_name, runtime_env).await?;
         let server_state = ServerState::new();
 
         // Router
@@ -86,24 +92,24 @@ impl AppBuilder {
                 )),
             )
             .with_state((user_state.clone(), server_state));
-        Self { app }
+        Ok(Self { app })
     }
 
-    #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+    #[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
     fn with_fallback(self, dir: &str) -> Self {
         Self {
             app: self.app.fallback(get_service(ServeDir::new(dir))),
         }
     }
 
-    #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+    #[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
     fn with_trace_layer(self) -> Self {
         Self {
             app: self.app.layer(TraceLayer::new_for_http()),
         }
     }
 
-    #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+    #[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
     fn with_cors_layer(self) -> Self {
         // CORS
         let cors_layer = if cfg!(debug_assertions) {
@@ -120,7 +126,7 @@ impl AppBuilder {
         }
     }
 
-    #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+    #[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
     fn with_max_body_limit(self) -> Self {
         use axum::extract::DefaultBodyLimit;
         let limit = RequestBodyLimitLayer::new(1024 * 1024 * 1000); // 1000 MB
@@ -134,13 +140,13 @@ impl AppBuilder {
     }
 }
 
-#[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+#[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
 pub struct Server {
     /// Server configuration
     config: Arc<RwLock<ServerConfig>>,
 }
 
-#[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+#[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
 impl Server {
     /// Create a new server from a configuration
     pub fn new(config: ServerConfig) -> Self {
@@ -153,7 +159,35 @@ impl Server {
     pub async fn run(&self) -> Result<()> {
         // initialize the front-end
         let frontend = async {
-            let app: Router = AppBuilder::new(None)
+            let runtime_env = if let (Some(backend), Some(bucket)) = (
+                self.config
+                    .try_read()
+                    .unwrap()
+                    .object_store_backend
+                    .as_ref(),
+                self.config.try_read().unwrap().object_store_bucket.as_ref(),
+            ) {
+                let store = make_store(
+                    backend,
+                    Some(bucket),
+                    self.config.try_read().unwrap().object_store_config.as_ref(),
+                )
+                .unwrap();
+                let config = self.config.try_read().unwrap();
+                let config = config.object_store_config.clone().unwrap_or_default();
+                RuntimeEnv::get_builder()
+                    .with_name("Serverless App Runtime Environment")
+                    .with_object_store(store)
+                    .with_object_store_backend(backend)
+                    .with_object_store_config(&config)
+                    .build_arc()
+                    .unwrap()
+            } else {
+                Arc::new(RuntimeEnv::default())
+            };
+            let app: Router = AppBuilder::new(None, &runtime_env)
+                .await
+                .unwrap()
                 .with_fallback(self.config.try_read().unwrap().assets_dir.as_str())
                 .with_trace_layer()
                 .with_cors_layer()

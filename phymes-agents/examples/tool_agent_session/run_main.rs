@@ -6,7 +6,6 @@
 
 use anyhow::Result;
 use futures::TryStreamExt;
-use parking_lot::RwLock;
 use phymes_agents::{
     AvailableInterfaceSubjects, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait,
     SessionStream, ToolAgentSession, create_message_map,
@@ -14,7 +13,7 @@ use phymes_agents::{
 use phymes_core::{
     AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
     ChatBuilderTraitExt, CsvFormat, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait,
-    TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
+    Publication, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_data::test_extract_tabular_data::make_scores_table;
 use phymes_diagnostics::HashMap;
@@ -23,14 +22,14 @@ use std::sync::Arc;
 pub async fn run_main() -> Result<()> {
     // initialize the session
     let tool_agent_session = ToolAgentSession::default();
-    let session_ctx = tool_agent_session
+    let (session_ctx, session_messages) = tool_agent_session
         .build()
         .with_name(tool_agent_session.session_context_name)
         .add_session_interface(None)?
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-    let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+    let session_ctx_arc = Arc::new(session_ctx);
 
     // Make the tabular data
     let csv_format = CsvFormat::default();
@@ -38,32 +37,35 @@ pub async fn run_main() -> Result<()> {
     let bytes = tabular_data.to_csv(csv_format.delimiter, csv_format.header)?;
 
     // Wrap into the message
-    let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+    let chat = AvailableInterfaceSubjects::UserMessages.to_subject_builder(None)
         .append_new_user_query_str("Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `[score]`.", "user")?
         .build()?;
     let chat_message = IPCMessage::get_builder()
         .with_message(chat.to_ipc_stream()?)
         .with_subject(chat.get_name())
-        .with_update(&TablePublication::Extend {
-            table_name: chat.get_name().to_string(),
+        .with_update(&Publication::Extend {
+            subject_name: chat.get_name().to_string(),
         })
         .with_publisher(tool_agent_session.session_context_name)
         .make_name()?
         .build()?;
     let blob = AvailableInterfaceSubjects::UserCsv
-        .to_table_builder(None)
+        .to_subject_builder(None)
         .with_attachment(None, Some("csv"), &bytes, None)?
         .build()?;
     let blob_message = IPCMessage::get_builder()
         .with_message(blob.to_ipc_stream()?)
         .with_subject(blob.get_name())
-        .with_update(&TablePublication::Extend {
-            table_name: blob.get_name().to_string(),
+        .with_update(&Publication::Extend {
+            subject_name: blob.get_name().to_string(),
         })
         .with_publisher(tool_agent_session.session_context_name)
         .make_name()?
         .build()?;
     let message_map = create_message_map(vec![chat_message, blob_message]);
+    let _ = session_ctx_arc
+        .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+        .await;
     let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
     let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
@@ -80,7 +82,7 @@ pub async fn run_main() -> Result<()> {
         })
         .flatten()
         .collect::<Vec<_>>();
-    let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
+    let json_data = SubjectBuilder::new_from_ipc_stream(&bytes)?
         .with_name("")
         .build()?
         .to_json_object()?;
@@ -102,7 +104,7 @@ pub async fn run_main() -> Result<()> {
         })
         .flatten()
         .collect::<Vec<_>>();
-    let attachment_data = TableBuilder::new_from_ipc_stream(&bytes)?
+    let attachment_data = SubjectBuilder::new_from_ipc_stream(&bytes)?
         .with_name("")
         .build()?
         .to_json_object()?;

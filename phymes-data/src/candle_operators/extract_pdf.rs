@@ -382,7 +382,7 @@ pub fn make_pdf_document(contents: &[&str]) -> Document {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{BuildableTrait, BuilderTrait, Table, TableBuilderTrait, TableTrait};
+    use phymes_core::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 
     use super::*;
 
@@ -397,7 +397,7 @@ mod tests {
         let batch = extract_pdf(&docs).unwrap();
 
         // Check the results
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name("")
             .with_record_batches(vec![batch])
             .unwrap()

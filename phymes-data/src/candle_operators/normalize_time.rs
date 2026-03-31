@@ -8,7 +8,7 @@ use arrow::{
 use candle_core::{Device, Tensor};
 use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
-    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+    MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType,
 };
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -113,7 +113,7 @@ impl DataOperatorTrait for NormalizeTime {
 /// Compute the normalized time and duration
 fn normalize_time_tensor(
     lhs_values: &[&str],
-    lhs_table: &Table,
+    lhs_table: &Subject,
     device: &Device,
 ) -> Result<(Vec<i64>, Vec<i64>, Vec<i64>)> {
     // Determine the minimum start time
@@ -187,7 +187,7 @@ pub fn normalize_time(
     }
 
     // Wrap the lhs into an ArrowTable and extract out the start and end times
-    let lhs_table = Table::get_builder()
+    let lhs_table = Subject::get_builder()
         .with_name("normalize_time")
         .with_record_batches(vec![lhs_sorted])?
         .build()?;
@@ -287,7 +287,7 @@ mod tests {
             &[lhs_batch_1, lhs_batch_2],
             &device,
         )?;
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;
@@ -339,7 +339,7 @@ mod tests {
             &[lhs_batch_1, lhs_batch_2],
             &device,
         )?;
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;

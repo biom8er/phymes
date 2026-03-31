@@ -91,7 +91,7 @@ query_array=$(echo "$query_bytes" | xargs | tr ' ' ',')
 # Make the message to send to the server
 # Be sure to replace EMAIL with your actual email!
 # Note that the session_name = email + session_plan (which we also use for the publisher)
-message=$(printf '{"name":"query","subject":"UserMessages","publisher":"EMAILChat","message":[%s],"update":{"Extend":{"table_name":"UserMessages"}},"session_name":"EMAILChat","format":"Bytes","stream":false}' "$query_array")
+message=$(printf '{"name":"query","subject":"UserMessages","publisher":"EMAILChat","message":[%s],"update":{"Extend":{"subject_name":"UserMessages"}},"session_name":"EMAILChat","format":"Bytes","stream":false}' "$query_array")
 
 # Make the chat request to the server
 # Be sure to replace JWTTOKEN with your actual JWT token!

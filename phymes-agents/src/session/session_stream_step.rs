@@ -1,24 +1,22 @@
 use anyhow::{Result, anyhow};
-use arrow::record_batch::RecordBatch;
-use futures::TryStreamExt;
-use parking_lot::RwLock;
+use futures::{FutureExt, TryStreamExt};
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessage, IPCMessageBuilder,
     IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjectsMap,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, TableBuilder,
-    TableBuilderTrait, TablePublication, TableTrait, TaskTrait, create_error_message_map,
+    Publication, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap,
+    SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_error_message_map,
     create_error_message_map_stream, create_session_tasks_run_log_batch,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap, Span,
-    SpanBuilder, TraceBuilderTrait, TraceRecord,
+    SpanBuilder, TraceBuilderTrait, TraceRecord, create_timestamp_micros,
 };
 use std::sync::Arc;
 use tokio::task::JoinSet;
 use tracing::{Level, event};
 
 use crate::{
-    SessionContext, create_message_map,
+    SessionContext, SubscriptionTrait, TaskTrait, create_message_map,
     plans::{NextSuperstepSession, NextTaskSession},
 };
 
@@ -55,13 +53,13 @@ pub trait SessionStreamStepTrait {
     ///   perform computations on the subjects messages, and publish the resulting messages
     ///   to the session_context.
     ///
-    /// - Subjects: The tables (data) that compose the session_context of the application.
+    /// - Subjects: The data that compose the session_context of the application.
     ///
     /// - Computation: Each task performs a user-defined computation during each
     ///   super-step as defined by the processor network and based on its subscriptions
     ///   that have changed in the previous super-step.
     ///
-    /// - Messages: Subset of the session_context tables that are passed to tasks at each super-step.
+    /// - Messages: Subset of the session_context subjects that are passed to tasks at each super-step.
     ///   Messages are used for communication and coordination between tasks.
     ///
     /// # Usage
@@ -80,19 +78,19 @@ pub trait SessionStreamStepTrait {
     ///
     /// [IPCMessageMap] if any of the subscribing session sujects were updated and None otherwise.
     fn run_superstep(
-        session_context: Arc<RwLock<SessionContext>>,
+        session_context: Arc<SessionContext>,
         messages: IPCMessageMap,
     ) -> impl std::future::Future<Output = Result<Option<IPCMessageMap>>> + Send;
 
     /// Enter the superstep span generating the [Span], [TraceRecord], and [Diagnostics]
     fn enter_span(
         subject_messages: &IPCMessageMap,
-        session_context: &Arc<RwLock<SessionContext>>,
+        session_context: &Arc<SessionContext>,
         step: u32,
     ) -> Result<(Vec<Diagnostics>, Span, TraceRecord)> {
         // Create the span for the session
         let span = SpanBuilder::default()
-            .with_span(session_context.read().get_name())
+            .with_span(session_context.get_name())
             .build()?;
 
         // Initialize the channels for collecting the metrics, events, and traces)
@@ -102,16 +100,14 @@ pub trait SessionStreamStepTrait {
         diagnostics_vec.push(diagnostics);
 
         // Trace the session step
-        let trace = diagnostic_builder.clone().messages(
-            line!(),
-            file!(),
-            session_context.read().get_name(),
-        );
-        trace.enter(&subject_messages.values().collect::<Vec<_>>());
-        let event =
+        let trace =
             diagnostic_builder
                 .clone()
-                .info(line!(), file!(), session_context.read().get_name());
+                .messages(line!(), file!(), session_context.get_name());
+        trace.enter(&subject_messages.values().collect::<Vec<_>>());
+        let event = diagnostic_builder
+            .clone()
+            .info(line!(), file!(), session_context.get_name());
         event.insert("superstep", &serde_json::Value::Number(step.into()));
 
         Ok((diagnostics_vec, span, trace))
@@ -119,149 +115,207 @@ pub trait SessionStreamStepTrait {
 
     /// Exit the span
     fn exit_span(
-        session_context: &Arc<RwLock<SessionContext>>,
+        session_context: &Arc<SessionContext>,
         messages: &IPCMessageMap,
         diagnostics_vec: Vec<Diagnostics>,
         trace: TraceRecord,
-    ) -> Result<()> {
-        trace.exit(&messages.values().collect::<Vec<_>>());
-        let (_metrics_updated, _traces_updated, _events_updated) = session_context
-            .write()
-            .update_metrics_table(&diagnostics_vec)?;
+        step: u32,
+    ) -> impl std::future::Future<Output = Result<()>> + Send {
+        async move {
+            trace.exit(&messages.values().collect::<Vec<_>>());
+            session_context
+                .update_metrics_subjects(&diagnostics_vec, step)
+                .await?;
 
-        Ok(())
+            Ok(())
+        }
     }
 
     /// Update the session context subjects from messages including updating the subjects change log
     fn update_subjects_and_changelog_from_messages(
-        session_context: &Arc<RwLock<SessionContext>>,
+        session_context: &Arc<SessionContext>,
         messages: IPCMessageMap,
-    ) -> Result<()> {
-        // Update the session_context and handle any errors
-        let session_context_name = session_context.read().get_name().to_string();
-        let (update, errors) = session_context
-            .write()
-            .update_subjects_from_messages(messages);
+        step: u32,
+    ) -> impl std::future::Future<Output = Result<()>> + Send {
+        async move {
+            // Update the session_context and handle any errors
+            let session_context_name = session_context.get_name().to_string();
+            let (changelog, meta, errors) = session_context
+                .update_subjects_from_messages(messages, step)
+                .await;
 
-        let mut messages = Vec::new();
-        if let Some(table) = update {
-            let message = IPCMessageBuilder::new()
-                .with_subject(table.get_name())
-                .with_publisher(&session_context_name)
-                .with_update(&TablePublication::Extend {
-                    table_name: table.get_name().to_string(),
-                })
-                .with_message(table.to_ipc_stream()?)
-                .make_random_name()?
-                .build()?;
-            messages.push(message);
-        }
-
-        // Update the errors
-        if let Some(table) = errors {
-            let message = IPCMessageBuilder::new()
-                .with_subject(table.get_name())
-                .with_publisher(&session_context_name)
-                .with_update(&TablePublication::Extend {
-                    table_name: AvailableSubjects::SessionErrors.to_string(),
-                })
-                .with_message(table.to_ipc_stream()?)
-                .make_random_name()?
-                .build()?;
-            let mut message_map = HashMap::<String, IPCMessage>::new();
-            let _ = message_map.insert(message.get_name().to_string(), message);
-            let (update, _errors) = session_context
-                .write()
-                .update_subjects_from_messages(message_map);
-
-            if let Some(table) = update {
+            let mut messages = Vec::new();
+            if let Some(subject) = changelog {
                 let message = IPCMessageBuilder::new()
-                    .with_subject(table.get_name())
+                    .with_subject(subject.get_name())
                     .with_publisher(&session_context_name)
-                    .with_update(&TablePublication::Extend {
-                        table_name: table.get_name().to_string(),
+                    .with_update(&Publication::Extend {
+                        subject_name: subject.get_name().to_string(),
                     })
-                    .with_message(table.to_ipc_stream()?)
+                    .with_message(subject.to_ipc_stream()?)
                     .make_random_name()?
                     .build()?;
                 messages.push(message);
             }
+            if let Some(subject) = meta {
+                let message = IPCMessageBuilder::new()
+                    .with_subject(subject.get_name())
+                    .with_publisher(&session_context_name)
+                    .with_update(&Publication::Extend {
+                        subject_name: subject.get_name().to_string(),
+                    })
+                    .with_message(subject.to_ipc_stream()?)
+                    .make_random_name()?
+                    .build()?;
+                messages.push(message);
+            }
+
+            // Update the errors
+            if let Some(subject) = errors {
+                let message = IPCMessageBuilder::new()
+                    .with_subject(subject.get_name())
+                    .with_publisher(&session_context_name)
+                    .with_update(&Publication::Extend {
+                        subject_name: AvailableSubjects::SessionErrors.to_string(),
+                    })
+                    .with_message(subject.to_ipc_stream()?)
+                    .make_random_name()?
+                    .build()?;
+                let mut message_map = HashMap::<String, IPCMessage>::new();
+                let _ = message_map.insert(message.get_name().to_string(), message);
+                let (update, meta, _errors) = session_context
+                    .update_subjects_from_messages(message_map, step)
+                    .await;
+
+                if let Some(subject) = update {
+                    let message = IPCMessageBuilder::new()
+                        .with_subject(subject.get_name())
+                        .with_publisher(&session_context_name)
+                        .with_update(&Publication::Extend {
+                            subject_name: subject.get_name().to_string(),
+                        })
+                        .with_message(subject.to_ipc_stream()?)
+                        .make_random_name()?
+                        .build()?;
+                    messages.push(message);
+                }
+                if let Some(subject) = meta {
+                    let message = IPCMessageBuilder::new()
+                        .with_subject(subject.get_name())
+                        .with_publisher(&session_context_name)
+                        .with_update(&Publication::Extend {
+                            subject_name: subject.get_name().to_string(),
+                        })
+                        .with_message(subject.to_ipc_stream()?)
+                        .make_random_name()?
+                        .build()?;
+                    messages.push(message);
+                }
+            }
+
+            // Update the subjects change log
+            let messages = create_message_map(messages);
+            let _ = session_context
+                .update_subjects_from_messages(messages, step)
+                .await;
+
+            Ok(())
         }
-
-        // Update the subjects change log
-        let messages = create_message_map(messages);
-        let _ = session_context
-            .write()
-            .update_subjects_from_messages(messages);
-
-        Ok(())
     }
 
     /// Update the session context subjects from the ran tasks including the subjects change log
     fn update_subjects_and_changelog_from_tasks(
-        session_context: &Arc<RwLock<SessionContext>>,
+        session_context: &Arc<SessionContext>,
         tasks: HashMap<(String, String), ProcessorSubjectsMap>,
-    ) -> Result<()> {
-        // Create the tasks run log message
-        let step = session_context.read().current_superstep()?;
-        let session_context_name = session_context.read().get_name().to_string();
-        let (session_names, (task_names, timestamps)): (Vec<_>, (Vec<_>, Vec<_>)) = tasks
-            .into_iter()
-            .map(|((task_name, session_name), _)| (session_name, (task_name, step as i64)))
-            .unzip();
-        let tasks_run_log_batch =
-            create_session_tasks_run_log_batch(session_names, task_names, timestamps)?;
-        let tasks_run_log_table = AvailableSubjects::SessionTasksRunLog
-            .to_table(None, Some(vec![tasks_run_log_batch]))?;
-        let messages = create_message_map(vec![
-            IPCMessageBuilder::new()
-                .with_subject(tasks_run_log_table.get_name())
-                .with_publisher(&session_context_name)
-                .with_update(&TablePublication::Extend {
-                    table_name: tasks_run_log_table.get_name().to_string(),
+        step: u32,
+    ) -> impl std::future::Future<Output = Result<()>> + Send {
+        async move {
+            // Create the tasks run log message
+            let session_context_name = session_context.get_name().to_string();
+            let (session_names, (task_names, (supersteps, timestamps))): (
+                Vec<_>,
+                (Vec<_>, (Vec<_>, Vec<_>)),
+            ) = tasks
+                .into_iter()
+                .map(|((task_name, session_name), _)| {
+                    (
+                        session_name,
+                        (task_name, (step as i64, create_timestamp_micros())),
+                    )
                 })
-                .with_message(tasks_run_log_table.to_ipc_stream()?)
-                .make_random_name()?
-                .build()?,
-        ]);
-
-        // Update the tasks run log
-        let (update, errors) = session_context
-            .write()
-            .update_subjects_from_messages(messages);
-        if let Some(table) = errors {
-            let error = table.get_column_as_vec_str("content").join("; ");
-            return Err(anyhow!(error));
-        }
-
-        // Update the subjects change log
-        if let Some(table) = update {
+                .unzip();
+            let tasks_run_log_batch = create_session_tasks_run_log_batch(
+                session_names,
+                task_names,
+                supersteps,
+                timestamps,
+            )?;
+            let tasks_run_log_table = AvailableSubjects::SessionTasksRunLog
+                .to_subject(None, Some(vec![tasks_run_log_batch]))?;
             let messages = create_message_map(vec![
                 IPCMessageBuilder::new()
-                    .with_subject(table.get_name())
+                    .with_subject(tasks_run_log_table.get_name())
                     .with_publisher(&session_context_name)
-                    .with_update(&TablePublication::Extend {
-                        table_name: table.get_name().to_string(),
+                    .with_update(&Publication::Extend {
+                        subject_name: tasks_run_log_table.get_name().to_string(),
                     })
-                    .with_message(table.to_ipc_stream()?)
+                    .with_message(tasks_run_log_table.to_ipc_stream()?)
                     .make_random_name()?
                     .build()?,
             ]);
-            let (_update, errors) = session_context
-                .write()
-                .update_subjects_from_messages(messages);
+
+            // Update the tasks run log
+            let (changelog, meta, errors) = session_context
+                .update_subjects_from_messages(messages, step)
+                .await;
             if let Some(table) = errors {
                 let error = table.get_column_as_vec_str("content").join("; ");
                 return Err(anyhow!(error));
             }
-        }
 
-        Ok(())
+            // Update the subjects change log
+            let mut messages = Vec::new();
+            if let Some(subject) = changelog {
+                let message = IPCMessageBuilder::new()
+                    .with_subject(subject.get_name())
+                    .with_publisher(&session_context_name)
+                    .with_update(&Publication::Extend {
+                        subject_name: subject.get_name().to_string(),
+                    })
+                    .with_message(subject.to_ipc_stream()?)
+                    .make_random_name()?
+                    .build()?;
+                messages.push(message);
+            }
+            if let Some(subject) = meta {
+                let message = IPCMessageBuilder::new()
+                    .with_subject(subject.get_name())
+                    .with_publisher(&session_context_name)
+                    .with_update(&Publication::Extend {
+                        subject_name: subject.get_name().to_string(),
+                    })
+                    .with_message(subject.to_ipc_stream()?)
+                    .make_random_name()?
+                    .build()?;
+                messages.push(message);
+            }
+            let messages = create_message_map(messages);
+            let (_update, _meta, errors) = session_context
+                .update_subjects_from_messages(messages, step)
+                .await;
+            if let Some(table) = errors {
+                let error = table.get_column_as_vec_str("content").join("; ");
+                return Err(anyhow!(error));
+            }
+
+            Ok(())
+        }
+        .boxed()
     }
 
     /// Get the next superstep using the [NextSuperstepSession] pre-compiled tasks and [SessionContext] helpers
     fn next_superstep(
-        session_context: &Arc<RwLock<SessionContext>>,
+        session_context: &Arc<SessionContext>,
     ) -> impl std::future::Future<Output = u32> + Send {
         async move {
             // Compute the current superstep
@@ -283,23 +337,23 @@ pub trait SessionStreamStepTrait {
 
             // Return the next superstep
             session_context
-                .read()
                 .current_superstep()
+                .await
                 .unwrap_or_else(|err| panic!("Error `{err}` reading the `current_superstep`."))
         }
     }
 
     /// Get the current superstep handling any initialization
     fn current_superstep(
-        session_context: &Arc<RwLock<SessionContext>>,
+        session_context: &Arc<SessionContext>,
     ) -> impl std::future::Future<Output = u32> + Send {
         async move {
-            let (step, next) = match session_context.read().current_superstep() {
+            let (step, next) = match session_context.current_superstep().await {
                 Ok(step) => (step, false),
                 Err(_err) => (
                     session_context
-                        .read()
                         .increment_superstep()
+                        .await
                         .unwrap_or_default(),
                     true,
                 ),
@@ -314,12 +368,12 @@ pub trait SessionStreamStepTrait {
 
     /// Increment the superstep
     fn increment_superstep(
-        session_context: &Arc<RwLock<SessionContext>>,
+        session_context: &Arc<SessionContext>,
     ) -> impl std::future::Future<Output = u32> + Send {
         async move {
             let _step = session_context
-                .read()
                 .increment_superstep()
+                .await
                 .unwrap_or_default();
             Self::next_superstep(session_context).await
         }
@@ -327,30 +381,21 @@ pub trait SessionStreamStepTrait {
 
     /// Get the next tasks to run using the [NextTaskSession] pre-compiled tasks and [SessionContext] helpers
     fn next_tasks(
-        session_context: &Arc<RwLock<SessionContext>>,
+        session_context: &Arc<SessionContext>,
     ) -> impl std::future::Future<Output = HashMap<(String, String), ProcessorSubjectsMap>> + Send
     {
         async move {
             // Check if there are tasks subscribe and publish available, and determine them if not
-            if session_context
-                .read()
-                .get_states()
-                .get(
-                    AvailableSubjects::SessionTasksSubscribePublish
-                        .to_string()
-                        .as_str(),
-                )
-                .unwrap_or_else(|| {
-                    panic!(
-                        "Missing table for `{}` in session `{}`.",
-                        AvailableSubjects::SessionTasksSubscribePublish,
-                        session_context.read().get_name()
-                    )
-                })
-                .read()
-                .count_rows()
-                == 0
-            {
+            let rt = session_context.runtime_env.clone();
+            let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string() }
+                .subscribe_to_subject(&rt, session_context.get_name()).unwrap()
+                .ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` while getting the next task.", 
+                    AvailableSubjects::SessionTasksSubscribePublish,
+                    session_context.get_name()
+                )).unwrap()
+                .try_collect()
+                .await.unwrap();
+            if subscriptions.is_empty() {
                 let next_task_messages = NextTaskSession::default()
                     .as_task_messages()
                     .unwrap_or_else(|_err| {
@@ -358,7 +403,7 @@ pub trait SessionStreamStepTrait {
                     });
                 for messages in next_task_messages.into_iter() {
                     if messages.is_empty() {
-                        if let Err(_err) = session_context.read().tasks_subscribe() {
+                        if let Err(_err) = session_context.tasks_subscribe().await {
                             return HashMap::<(String, String), ProcessorSubjectsMap>::new();
                         }
                     } else if let Err(_err) = SessionStreamStepMinimal::run_superstep(
@@ -373,7 +418,7 @@ pub trait SessionStreamStepTrait {
             }
 
             // Return the tasks subscribe and publish if availabe or an empty map
-            match session_context.read().tasks_subscribe_publish() {
+            match session_context.tasks_subscribe_publish().await {
                 Ok(tasks) => tasks,
                 Err(_err) => HashMap::<(String, String), ProcessorSubjectsMap>::new(),
             }
@@ -397,7 +442,7 @@ pub trait SessionStreamStepTrait {
     /// * [SendableRecordBatchStreamMessageMap] - Subject streams from running the task
     /// * [SendableRecordBatchStreamMessageMap] - User streams from the running task
     fn run_tasks(
-        session_context: &Arc<RwLock<SessionContext>>,
+        session_context: &Arc<SessionContext>,
         tasks: &HashMap<(String, String), ProcessorSubjectsMap>,
         diagnostics_vec: &mut Option<Vec<Diagnostics>>,
         span: &Option<Span>,
@@ -409,13 +454,12 @@ pub trait SessionStreamStepTrait {
 
             // Clone the task
             let task = session_context
-                .read()
-                .get_tasks()
+                .tasks()
                 .get(task_name)
                 .unwrap_or_else(|| {
                     panic!(
                         "Missing task `{task_name}` in session `{}`.",
-                        session_context.read().get_name()
+                        session_context.get_name()
                     )
                 })
                 .clone();
@@ -436,7 +480,8 @@ pub trait SessionStreamStepTrait {
             match task.run(
                 diagnostic_builder.as_ref(),
                 processor_subjects_map,
-                session_context.read().get_states(),
+                session_context.runtime_env(),
+                session_context.get_name(),
             ) {
                 Ok(result) => {
                     for (resp_name, resp) in result.into_iter() {
@@ -478,8 +523,7 @@ pub trait SessionStreamStepTrait {
 
                 // Spawn the future
                 join_set.spawn(async move {
-                    let result: Result<Vec<RecordBatch>> =
-                        resp.get_message_own().try_collect().await;
+                    let result: Result<Vec<_>> = resp.get_message_own().try_collect().await;
                     (resp_name, result)
                 });
             });
@@ -495,7 +539,7 @@ pub trait SessionStreamStepTrait {
                     Ok((resp_name, resp)) => {
                         // Check the response
                         let message_map = match resp {
-                            Ok(batches) => match TableBuilder::new()
+                            Ok(batches) => match SubjectBuilder::new()
                                 .with_name(resp_name.as_str())
                                 .with_record_batches(batches)
                             {
@@ -542,14 +586,15 @@ pub struct SessionStreamStep {}
 
 impl SessionStreamStepTrait for SessionStreamStep {
     async fn run_superstep(
-        session_context: Arc<RwLock<SessionContext>>,
+        session_context: Arc<SessionContext>,
         messages: IPCMessageMap,
     ) -> Result<Option<IPCMessageMap>> {
         // Get the next superstep handling any initialization
         let step = Self::current_superstep(&session_context).await;
+        // dbg!(&step);
 
         // Start the diagnostics
-        let (mut diagnostics_vec, span, trace) = if session_context.read().get_diagnostics() {
+        let (mut diagnostics_vec, span, trace) = if session_context.get_diagnostics() {
             let (diagnostics_vec, span, trace) =
                 Self::enter_span(&messages, &session_context, step)?;
             (Some(diagnostics_vec), Some(span), Some(trace))
@@ -559,7 +604,8 @@ impl SessionStreamStepTrait for SessionStreamStep {
 
         // Update the session context with the incoming messages
         if !messages.is_empty() {
-            Self::update_subjects_and_changelog_from_messages(&session_context, messages)?;
+            Self::update_subjects_and_changelog_from_messages(&session_context, messages, step)
+                .await?;
         }
 
         // Retrieve the task subscriptions and corresponding publications
@@ -574,7 +620,9 @@ impl SessionStreamStepTrait for SessionStreamStep {
                     &HashMap::<String, IPCMessage>::new(),
                     diagnostics_vec,
                     trace,
-                )?;
+                    step,
+                )
+                .await?;
             }
 
             Ok(None)
@@ -595,8 +643,10 @@ impl SessionStreamStepTrait for SessionStreamStep {
             )?;
 
             // Update the tasks run log
-            Self::update_subjects_and_changelog_from_tasks(&session_context, subject_tasks)?;
-            Self::update_subjects_and_changelog_from_tasks(&session_context, session_tasks)?;
+            Self::update_subjects_and_changelog_from_tasks(&session_context, subject_tasks, step)
+                .await?;
+            Self::update_subjects_and_changelog_from_tasks(&session_context, session_tasks, step)
+                .await?;
 
             // Increment the superstep
             let _step = Self::increment_superstep(&session_context).await;
@@ -604,9 +654,7 @@ impl SessionStreamStepTrait for SessionStreamStep {
             // Join each of the response futures
             let subject_batches = match Self::join_message_streams(subject_streams).await {
                 Ok(subject_batches) => subject_batches,
-                Err(err) => {
-                    create_error_message_map(&err, session_context.read().get_name(), true)?
-                }
+                Err(err) => create_error_message_map(&err, session_context.get_name(), true)?,
             };
 
             // Update the session context with the incoming messages
@@ -614,13 +662,22 @@ impl SessionStreamStepTrait for SessionStreamStep {
                 Self::update_subjects_and_changelog_from_messages(
                     &session_context,
                     subject_batches,
-                )?;
+                    step,
+                )
+                .await?;
             }
 
             // Join each of the response futures
             let user_batches = Self::join_message_streams(user_streams).await?;
             if let (Some(diagnostics_vec), Some(trace)) = (diagnostics_vec, trace) {
-                Self::exit_span(&session_context, &user_batches, diagnostics_vec, trace)?;
+                Self::exit_span(
+                    &session_context,
+                    &user_batches,
+                    diagnostics_vec,
+                    trace,
+                    step,
+                )
+                .await?;
             }
 
             Ok(Some(user_batches))
@@ -652,7 +709,7 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
 
             // Spawn the future
             join_set.spawn(async move {
-                let result: Result<Vec<RecordBatch>> = resp.get_message_own().try_collect().await;
+                let result: Result<Vec<_>> = resp.get_message_own().try_collect().await;
                 (resp_name, result)
             });
         });
@@ -667,7 +724,7 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
             // Check the response
             let (resp_name, resp) = response?;
             let batches = resp?;
-            let table = TableBuilder::new()
+            let table = SubjectBuilder::new()
                 .with_name(resp_name.as_str())
                 .with_record_batches(batches)?
                 .build()?;
@@ -687,14 +744,14 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
 
     /// Minimal implementation of `run_superstep` without error handling and diagnostics
     async fn run_superstep(
-        session_context: Arc<RwLock<SessionContext>>,
+        session_context: Arc<SessionContext>,
         messages: IPCMessageMap,
     ) -> Result<Option<IPCMessageMap>> {
         // Update the session context with the incoming messages
         if !messages.is_empty() {
-            let (_update, errors) = session_context
-                .write()
-                .update_subjects_from_messages(messages);
+            let (_update, _meta, errors) = session_context
+                .update_subjects_from_messages(messages, 0)
+                .await;
             if let Some(table) = errors {
                 let error = table.get_column_as_vec_str("content").join("; ");
                 return Err(anyhow!(error));
@@ -702,7 +759,7 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
         }
 
         // Retrieve the task subscriptions and corresponding publications
-        let subject_tasks = session_context.read().tasks_subscribe_publish()?;
+        let subject_tasks = session_context.tasks_subscribe_publish().await?;
 
         if !subject_tasks.is_empty() {
             // Iterate through each task and collect the resulting stream responses
@@ -714,9 +771,9 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
 
             // Update the session context with the incoming messages
             if !subject_batches.is_empty() {
-                let (_update, errors) = session_context
-                    .write()
-                    .update_subjects_from_messages(subject_batches);
+                let (_update, _meta, errors) = session_context
+                    .update_subjects_from_messages(subject_batches, 0)
+                    .await;
                 if let Some(table) = errors {
                     let error = table.get_column_as_vec_str("content").join("; ");
                     return Err(anyhow!(error));
@@ -733,18 +790,18 @@ mod tests {
     use super::*;
     use crate::{
         SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait,
-        test_session_context_builder,
+        TaskPlan, test_session_context_builder, test_task,
     };
     use phymes_core::{
-        AvailableSubjects, AvailableTableSubscribePolicies, ProcessorBuilder, ProcessorPlanBuilder,
-        TablePublication, TableSubscription, TaskPlan,
+        AvailableSubjects, AvailableSubscribeEvents, BuildableTrait, ObjectStorageBackend,
+        ProcessorBuilder, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvBuilderTrait,
+        Subject, SubjectPlan, SubjectPlanBuilderTrait, Subscription, make_store,
         test_processor::{ProcessorError, ProcessorMock},
-        test_task,
     };
 
     #[tokio::test]
     async fn test_session_run_superstep_no_state_update() -> Result<()> {
-        let session_context =
+        let (session_context, session_messages) =
             test_session_context_builder::make_test_session_context_builder_parallel(
                 "session_1",
                 4,
@@ -753,187 +810,120 @@ mod tests {
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let session_context_arc = Arc::new(RwLock::new(session_context));
-        let response = SessionStreamStep::run_superstep(
-            Arc::clone(&session_context_arc),
-            test_task::make_test_input_message(
-                "task_1",
-                "session_1",
-                "state_1",
-                "state_1",
-                &TablePublication::None,
-                true,
-            )?,
-        )
-        .await?;
+        let session_ctx_arc = Arc::new(session_context);
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
+
+        let messages = test_task::make_test_input_message(
+            "task_1",
+            "session_1",
+            "state_1",
+            "state_1",
+            &Publication::None,
+            true,
+        )?;
+        let response =
+            SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), messages).await?;
         assert!(response.is_none());
 
         // check the session and session_context
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            4
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_2")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_3")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            0
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            0
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionEvents.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "state_1".to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 3);
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 4);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "state_2".to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 3);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "state_3".to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 3);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionErrors.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 0);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionTasksRunLog.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionMetrics.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 0);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionEvents.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionTraces.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionSupersteps.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
 
         Ok(())
     }
 
     #[tokio::test]
     async fn test_session_run_superstep_extend_state_update_single_task() -> Result<()> {
-        let session_context =
+        let (session_context, session_messages) =
             test_session_context_builder::make_test_session_context_builder_parallel(
                 "session_1",
                 4,
@@ -942,190 +932,122 @@ mod tests {
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let session_context_arc = Arc::new(RwLock::new(session_context));
-        let response = SessionStreamStep::run_superstep(
-            Arc::clone(&session_context_arc),
-            test_task::make_test_input_message(
-                "task_1",
-                "session_1",
-                "state_1",
-                "state_1",
-                &TablePublication::Extend {
-                    table_name: "state_1".to_string(),
-                },
-                true,
-            )?,
-        )
-        .await?
-        .unwrap();
+        let session_ctx_arc = Arc::new(session_context);
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
+        let messages = test_task::make_test_input_message(
+            "task_1",
+            "session_1",
+            "state_1",
+            "state_1",
+            &Publication::Extend {
+                subject_name: "state_1".to_string(),
+            },
+            true,
+        )?;
+        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), messages)
+            .await?
+            .unwrap();
         assert!(response.is_empty());
 
         // check the session and session_context
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            12
-        ); // Originally 3
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_2")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_3")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionEvents.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            0
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            2
-        );
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "state_1".to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 12); // Originally 3
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 5);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "state_2".to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 3);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "state_3".to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 3);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionTasksRunLog.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 2); // DM, Check!(): changed from 3
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 4); // DM, Check!(): changed from 5
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionMetrics.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionEvents.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionTraces.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionErrors.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 0);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionSupersteps.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 2);
 
         Ok(())
     }
 
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_single_task() -> Result<()> {
-        let session_context =
+        let (session_context, session_messages) =
             test_session_context_builder::make_test_session_context_builder_parallel(
                 "session_1",
                 4,
@@ -1134,183 +1056,115 @@ mod tests {
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let session_context_arc = Arc::new(RwLock::new(session_context));
-        let response = SessionStreamStep::run_superstep(
-            Arc::clone(&session_context_arc),
-            test_task::make_test_input_message(
-                "task_1",
-                "session_1",
-                "state_1",
-                "state_1",
-                &TablePublication::Replace {
-                    table_name: "state_1".to_string(),
-                },
-                true,
-            )?,
-        )
-        .await?
-        .unwrap();
+        let session_ctx_arc = Arc::new(session_context);
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
+        let messages = test_task::make_test_input_message(
+            "task_1",
+            "session_1",
+            "state_1",
+            "state_1",
+            &Publication::Replace {
+                subject_name: "state_1".to_string(),
+            },
+            true,
+        )?;
+        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), messages)
+            .await?
+            .unwrap();
         assert!(response.is_empty());
 
         // check the session and session_context
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            6
-        ); // Originally 3
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_2")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_3")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionEvents.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            0
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            2
-        );
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "state_1".to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 6); // Originally 3
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 5);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "state_2".to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 3);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "state_3".to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 3);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionTasksRunLog.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 2); // DM, Check!(): changed from 3
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 4); // DM, Check!(): changed from 5
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionMetrics.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionEvents.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionTraces.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionErrors.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 0);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionSupersteps.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 2);
 
         Ok(())
     }
@@ -1318,7 +1172,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_parallel_tasks() -> Result<()> {
         // Superstep 1
-        let session_context =
+        let (session_context, session_messages) =
             test_session_context_builder::make_test_session_context_builder_parallel(
                 "session_1",
                 4,
@@ -1328,41 +1182,43 @@ mod tests {
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let mut input = test_task::make_test_input_message(
+        let session_ctx_arc = Arc::new(session_context);
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
+        let mut messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
             "state_1",
             "state_1",
-            &TablePublication::Replace {
-                table_name: "state_1".to_string(),
+            &Publication::Replace {
+                subject_name: "state_1".to_string(),
             },
             true,
         )?;
-        input.extend(test_task::make_test_input_message(
+        messages.extend(test_task::make_test_input_message(
             "task_2",
             "session_1",
             "state_2",
             "state_2",
-            &TablePublication::Replace {
-                table_name: "state_2".to_string(),
+            &Publication::Replace {
+                subject_name: "state_2".to_string(),
             },
             true,
         )?);
-        input.extend(test_task::make_test_input_message(
+        messages.extend(test_task::make_test_input_message(
             "task_3",
             "session_1",
             "state_3",
             "state_3",
-            &TablePublication::Replace {
-                table_name: "state_3".to_string(),
+            &Publication::Replace {
+                subject_name: "state_3".to_string(),
             },
             true,
         )?);
-        let session_context_arc = Arc::new(RwLock::new(session_context));
-        let mut response =
-            SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input)
-                .await?
-                .unwrap();
+        let mut response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), messages)
+            .await?
+            .unwrap();
         assert_eq!(response.len(), 3);
         assert_eq!(
             response
@@ -1390,8 +1246,8 @@ mod tests {
                 .get("from_session_1_on_state_1")
                 .unwrap()
                 .get_update(),
-            TablePublication::Extend {
-                table_name: "state_1".to_string()
+            Publication::Extend {
+                subject_name: "state_1".to_string()
             }
         );
 
@@ -1399,11 +1255,11 @@ mod tests {
             .remove("from_session_1_on_state_1")
             .unwrap()
             .get_message_own();
-        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+        let partitions = SubjectBuilder::new_from_ipc_stream(&bytes)?
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 4);
+        assert_eq!(n_rows, 5); // DM, check!(): changed from 4
 
         assert_eq!(
             response
@@ -1431,8 +1287,8 @@ mod tests {
                 .get("from_session_1_on_state_2")
                 .unwrap()
                 .get_update(),
-            TablePublication::Extend {
-                table_name: "state_2".to_string()
+            Publication::Extend {
+                subject_name: "state_2".to_string()
             }
         );
 
@@ -1440,11 +1296,11 @@ mod tests {
             .remove("from_session_1_on_state_2")
             .unwrap()
             .get_message_own();
-        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+        let partitions = SubjectBuilder::new_from_ipc_stream(&bytes)?
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 4);
+        assert_eq!(n_rows, 5); // DM, Check!(): changed from 4
 
         assert_eq!(
             response
@@ -1472,8 +1328,8 @@ mod tests {
                 .get("from_session_1_on_state_3")
                 .unwrap()
                 .get_update(),
-            TablePublication::Extend {
-                table_name: "state_3".to_string()
+            Publication::Extend {
+                subject_name: "state_3".to_string()
             }
         );
 
@@ -1481,524 +1337,113 @@ mod tests {
             .remove("from_session_1_on_state_3")
             .unwrap()
             .get_message_own();
-        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+        let partitions = SubjectBuilder::new_from_ipc_stream(&bytes)?
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 4);
+        assert_eq!(n_rows, 5); // DM, Check!(): changed from 4
 
         // check the session and session_context
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            6
-        ); // Originally 3
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_2")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            6
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_2")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_3")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            6
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_3")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionEvents.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            0
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            2
-        );
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "state_1".to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 6); // Originally 3
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 5);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "state_2".to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 6);
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 5);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "state_3".to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 6);
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 5);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionTasksRunLog.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 3);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 5);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionMetrics.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionEvents.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionTraces.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionErrors.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 0);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionSupersteps.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 2);
 
         // Superstep 2
-        let mut response = SessionStreamStep::run_superstep(
-            Arc::clone(&session_context_arc),
+        let response = SessionStreamStep::run_superstep(
+            Arc::clone(&session_ctx_arc),
             HashMap::<String, IPCMessage>::new(),
         )
-        .await?
-        .unwrap();
+        .await?;
 
-        // check the response
-        assert_eq!(response.len(), 3);
-        assert_eq!(
-            response
-                .get("from_session_1_on_state_1")
-                .unwrap()
-                .get_name(),
-            "from_session_1_on_state_1"
-        );
-        assert_eq!(
-            response
-                .get("from_session_1_on_state_1")
-                .unwrap()
-                .get_publisher(),
-            "session_1"
-        );
-        assert_eq!(
-            response
-                .get("from_session_1_on_state_1")
-                .unwrap()
-                .get_subject(),
-            "state_1"
-        );
-        assert_eq!(
-            *response
-                .get("from_session_1_on_state_1")
-                .unwrap()
-                .get_update(),
-            TablePublication::Extend {
-                table_name: "state_1".to_string()
-            }
-        );
-
-        let bytes = response
-            .remove("from_session_1_on_state_1")
-            .unwrap()
-            .get_message_own();
-        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
-            .with_name("")
-            .build()?;
-        let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 5);
-
-        assert_eq!(
-            response
-                .get("from_session_1_on_state_2")
-                .unwrap()
-                .get_name(),
-            "from_session_1_on_state_2"
-        );
-        assert_eq!(
-            response
-                .get("from_session_1_on_state_2")
-                .unwrap()
-                .get_publisher(),
-            "session_1"
-        );
-        assert_eq!(
-            response
-                .get("from_session_1_on_state_2")
-                .unwrap()
-                .get_subject(),
-            "state_2"
-        );
-        assert_eq!(
-            *response
-                .get("from_session_1_on_state_2")
-                .unwrap()
-                .get_update(),
-            TablePublication::Extend {
-                table_name: "state_2".to_string()
-            }
-        );
-
-        let bytes = response
-            .remove("from_session_1_on_state_2")
-            .unwrap()
-            .get_message_own();
-        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
-            .with_name("")
-            .build()?;
-        let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 5);
-
-        assert_eq!(
-            response
-                .get("from_session_1_on_state_3")
-                .unwrap()
-                .get_name(),
-            "from_session_1_on_state_3"
-        );
-        assert_eq!(
-            response
-                .get("from_session_1_on_state_3")
-                .unwrap()
-                .get_publisher(),
-            "session_1"
-        );
-        assert_eq!(
-            response
-                .get("from_session_1_on_state_3")
-                .unwrap()
-                .get_subject(),
-            "state_3"
-        );
-        assert_eq!(
-            *response
-                .get("from_session_1_on_state_3")
-                .unwrap()
-                .get_update(),
-            TablePublication::Extend {
-                table_name: "state_3".to_string()
-            }
-        );
-
-        let bytes = response
-            .remove("from_session_1_on_state_3")
-            .unwrap()
-            .get_message_own();
-        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
-            .with_name("")
-            .build()?;
-        let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 5);
-
-        // check the session and session_context
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            12
-        ); // The same as superstep 1
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            6
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_2")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            12
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_2")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            6
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_3")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            12
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_3")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            6
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            8
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            2
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionEvents.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            2
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            2
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            0
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
+        assert!(response.is_none());
 
         Ok(())
     }
@@ -2006,7 +1451,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_sequential_tasks() -> Result<()> {
         // Superstep 1
-        let session_context =
+        let (session_context, session_messages) =
             test_session_context_builder::make_test_session_context_builder_sequential(
                 "session_1",
                 4,
@@ -2016,21 +1461,23 @@ mod tests {
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let input = test_task::make_test_input_message(
+        let session_ctx_arc = Arc::new(session_context);
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
+        let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
             "state_1",
             "state_1",
-            &TablePublication::Replace {
-                table_name: "state_1".to_string(),
+            &Publication::Replace {
+                subject_name: "state_1".to_string(),
             },
             true,
         )?;
-        let session_context_arc = Arc::new(RwLock::new(session_context));
-        let mut response =
-            SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input)
-                .await?
-                .unwrap();
+        let mut response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), messages)
+            .await?
+            .unwrap();
 
         // Check the response
         assert_eq!(response.len(), 1);
@@ -2060,8 +1507,8 @@ mod tests {
                 .get("from_session_1_on_state_1")
                 .unwrap()
                 .get_update(),
-            TablePublication::Extend {
-                table_name: "state_1".to_string()
+            Publication::Extend {
+                subject_name: "state_1".to_string()
             }
         );
 
@@ -2069,311 +1516,102 @@ mod tests {
             .remove("from_session_1_on_state_1")
             .unwrap()
             .get_message_own();
-        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+        let partitions = SubjectBuilder::new_from_ipc_stream(&bytes)?
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 4);
+        assert_eq!(n_rows, 7); // DM, Check!(): changed from 4
 
         // check the session and session_context
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            6
-        ); // Originally 3
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            7
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionEvents.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            0
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            2
-        );
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "state_1".to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 6); // Originally 3
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 7);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionTasksRunLog.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 3);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 5);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionMetrics.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionEvents.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionTraces.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionErrors.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 0);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionSupersteps.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 2);
 
         // Supersteps 2
-        let mut response = SessionStreamStep::run_superstep(
-            Arc::clone(&session_context_arc),
+        let response = SessionStreamStep::run_superstep(
+            Arc::clone(&session_ctx_arc),
             HashMap::<String, IPCMessage>::new(),
         )
-        .await?
-        .unwrap();
+        .await?;
 
-        // check the response
-        assert_eq!(response.len(), 1);
-        assert_eq!(
-            response
-                .get("from_session_1_on_state_1")
-                .unwrap()
-                .get_name(),
-            "from_session_1_on_state_1"
-        );
-        assert_eq!(
-            response
-                .get("from_session_1_on_state_1")
-                .unwrap()
-                .get_publisher(),
-            "session_1"
-        );
-        assert_eq!(
-            response
-                .get("from_session_1_on_state_1")
-                .unwrap()
-                .get_subject(),
-            "state_1"
-        );
-        assert_eq!(
-            *response
-                .get("from_session_1_on_state_1")
-                .unwrap()
-                .get_update(),
-            TablePublication::Extend {
-                table_name: "state_1".to_string()
-            }
-        );
-
-        let bytes = response
-            .remove("from_session_1_on_state_1")
-            .unwrap()
-            .get_message_own();
-        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
-            .with_name("")
-            .build()?;
-        let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 7);
-
-        // check the session and session_context
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            12
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            10
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            8
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            2
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            0
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
+        assert!(response.is_none());
 
         Ok(())
     }
 
     #[tokio::test]
     async fn test_session_run_superstep_schema_mismatch_error() -> Result<()> {
-        let session_context =
+        let (session_context, session_messages) =
             test_session_context_builder::make_test_session_context_builder_sequential(
                 "session_1",
                 4,
@@ -2382,34 +1620,32 @@ mod tests {
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let input = test_task::make_test_input_message(
+        let session_ctx_arc = Arc::new(session_context);
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
+        let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
             "state_1",
             "state_1",
-            &TablePublication::Replace {
-                table_name: "state_1".to_string(),
+            &Publication::Replace {
+                subject_name: "state_1".to_string(),
             },
             false,
         )?;
-        let session_context_arc = Arc::new(RwLock::new(session_context));
         let response =
-            SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input).await?;
+            SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), messages).await?;
         assert!(response.is_none());
 
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionErrors.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
 
         Ok(())
     }
@@ -2420,12 +1656,10 @@ mod tests {
         let task_plans = vec![
             TaskPlan {
                 task_name: "task_1".to_string(),
-                runtime_env_name: "rt_1".to_string(),
                 processor_names: vec!["processor_1".to_string()],
             },
             TaskPlan {
                 task_name: "task_2".to_string(),
-                runtime_env_name: "rt_1".to_string(),
                 processor_names: vec!["error_1".to_string()],
             },
         ];
@@ -2437,20 +1671,18 @@ mod tests {
                         .with_type(ProcessorMock::get_static_name())
                         .build_arc::<ProcessorMock>()?,
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_1".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_1".to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: "state_1".to_string(),
+                    Subscription::OnUpdateAllRecordBatches {
+                        subject_name: "state_1".to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: "processor_1".to_string(),
+                    Subscription::AlwaysAllRecordBatches {
+                        subject_name: "processor_1".to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -2460,173 +1692,142 @@ mod tests {
                         .with_type(ProcessorError::get_static_name())
                         .build_arc::<ProcessorError>()?,
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_1".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_1".to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: "state_1".to_string(),
+                    Subscription::OnUpdateAllRecordBatches {
+                        subject_name: "state_1".to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: "error_1".to_string(),
+                    Subscription::AlwaysAllRecordBatches {
+                        subject_name: "error_1".to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
         ];
-        let mut state = test_task::make_state_tables("state_1", "processor_1")?;
-        state.push(test_task::make_config_tables("error_1")?);
-        let session_context = SessionContextBuilder::new()
+        let mut subjects = test_task::make_subject_tables("state_1", "processor_1")?;
+        subjects.push(test_task::make_config_tables("error_1")?);
+        let subjects_plan = subjects
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
+        let rt = RuntimeEnv::get_builder()
+            .with_name("rt_1")
+            .with_max_steps(1)
+            .with_object_store(make_store(&ObjectStorageBackend::InMemory, None, None)?)
+            .build_arc()?;
+        let (session_context, session_messages) = SessionContextBuilder::new()
             .with_name("session_1")
             .with_tasks(task_plans)
             .with_processors(processors)
-            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
-            .with_state(state)
-            .with_max_iter(1)
+            .with_runtime_env(rt)
+            .with_subjects(subjects_plan)
             .with_diagnostics(true)
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
 
         // Run the session context
-        let input = test_task::make_test_input_message(
+        let session_ctx_arc = Arc::new(session_context);
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
+        let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
             "state_1",
             "state_1",
-            &TablePublication::Replace {
-                table_name: "state_1".to_string(),
+            &Publication::Replace {
+                subject_name: "state_1".to_string(),
             },
             true,
         )?;
-        let session_context_arc = Arc::new(RwLock::new(session_context));
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input)
+        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), messages)
             .await?
             .unwrap();
 
         assert!(response.is_empty());
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionEvents.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        let session_reading = session_context_arc.read();
-        let table_reading = session_reading
-            .get_states()
-            .get(AvailableSubjects::SessionErrors.to_string().as_str())
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionTasksRunLog.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 2); // DM, Check!(): changed from 3
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 4); // DM, Check!(): changed from 5
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionMetrics.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionEvents.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionTraces.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionErrors.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+            .with_record_batches(subscriptions)
             .unwrap()
-            .read();
-        let errors = table_reading.get_column_as_vec_str("content");
+            .build()
+            .unwrap();
+        let errors = subject.get_column_as_vec_str("content");
         assert!(errors.first().unwrap().contains("This is an error!"));
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            2
-        );
-        let session_reading = session_context_arc.read();
-        let table_reading = session_reading
-            .get_states()
-            .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionSupersteps.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 2);
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SessionSupersteps.to_string().as_str())
+            .with_record_batches(subscriptions)
             .unwrap()
-            .read();
-        let columns = table_reading.get_column_as_vec_primitive::<u32>("superstep")?;
+            .build()
+            .unwrap();
+        let columns = subject.get_column_as_vec_primitive::<u32>("superstep")?;
         assert_eq!(columns, [1, 2]);
 
         Ok(())

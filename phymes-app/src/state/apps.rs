@@ -1,7 +1,24 @@
+#[cfg(feature = "serverless")]
+use std::sync::Arc;
+
 use dioxus::prelude::*;
 use futures::StreamExt;
+#[cfg(feature = "serverless")]
+use phymes_core::{
+    make_store, BuildableTrait, BuilderTrait, ObjectStorageBackend, RuntimeEnv,
+    RuntimeEnvBuilderTrait,
+};
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "serverless")]
+pub static RUNTIME_ENV: std::sync::LazyLock<Arc<RuntimeEnv>> = std::sync::LazyLock::new(|| {
+    RuntimeEnv::get_builder()
+        .with_name("serverless_rt")
+        .with_object_store(make_store(&ObjectStorageBackend::InMemory, None, None).unwrap())
+        .build_arc()
+        .unwrap()
+});
 
 pub static ACTIVE_SESSION_NAME: GlobalSignal<String> = Signal::global(String::new);
 

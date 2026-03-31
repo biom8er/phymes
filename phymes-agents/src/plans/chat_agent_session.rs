@@ -1,14 +1,16 @@
+use std::sync::Arc;
+
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
-    ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder,
-    TableBuilderTrait, TablePublication, TableSubscription, TaskPlan,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait,
+    BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, SubjectBuilder,
+    SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription,
 };
 use phymes_data::{AvailableCandleOperators, DataConfig};
-#[cfg(feature = "api")]
+#[cfg(all(not(feature = "candle"), feature = "api"))]
 use phymes_ml::AvailableOpenAIAssets;
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 
-use crate::{AvailableInterfaceSubjects, AvailableProcessors, CustomAgentsBuilderTrait};
+use crate::{AvailableInterfaceSubjects, AvailableProcessors, CustomAgentsBuilderTrait, TaskPlan};
 
 pub struct ChatAgentSession<'a> {
     /// Chat tasks
@@ -61,17 +63,14 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         let tasks = vec![
             TaskPlan {
                 task_name: self.message_aggregator_task_1_name.to_string(),
-                runtime_env_name: self.message_aggregator_runtime_env_name.to_string(),
                 processor_names: vec![self.message_aggregator_processor_1_name.to_string()],
             },
             TaskPlan {
                 task_name: self.message_aggregator_task_2_name.to_string(),
-                runtime_env_name: self.message_aggregator_runtime_env_name.to_string(),
                 processor_names: vec![self.message_aggregator_processor_2_name.to_string()],
             },
             TaskPlan {
                 task_name: self.chat_task_name.to_string(),
-                runtime_env_name: self.chat_runtime_env_name.to_string(),
                 processor_names: vec![self.chat_processor_name.to_string()],
             },
         ];
@@ -86,26 +85,24 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         processors.push(
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::MessageAggregatorProcessor
+                    AvailableProcessors::AggregatorProcessor
                         .build_arc(self.message_aggregator_processor_1_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self.chat_task_name.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: self.chat_task_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                    Subscription::OnUpdateAllRecordBatches {
+                        subject_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    Subscription::AlwaysAllRecordBatches {
+                        subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     },
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self.message_aggregator_processor_1_name.to_string(),
+                    Subscription::AlwaysLastRecordBatch {
+                        subject_name: self.message_aggregator_processor_1_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
         );
@@ -113,26 +110,24 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         processors.push(
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::MessageAggregatorProcessor
+                    AvailableProcessors::AggregatorProcessor
                         .build_arc(self.message_aggregator_processor_2_name),
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     },
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self.message_aggregator_processor_2_name.to_string(),
+                    Subscription::AlwaysLastRecordBatch {
+                        subject_name: self.message_aggregator_processor_2_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
         );
@@ -145,20 +140,20 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                         AvailableProcessors::OpenAIChatProcessor
                             .build_arc(self.chat_processor_name),
                     )
-                    .with_publications(&[TablePublication::ExtendChunks {
-                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    .with_publications(&[Publication::ExtendChunks {
+                        subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                         col_name: "content".to_string(),
                     }])
                     .with_subscriptions(&[
-                        TableSubscription::OnUpdateFullTable {
-                            table_name: self.chat_task_name.to_string(),
+                        Subscription::OnUpdateAllRecordBatches {
+                            subject_name: self.chat_task_name.to_string(),
                         },
-                        TableSubscription::AlwaysFullTable {
-                            table_name: self.chat_processor_name.to_string(),
+                        Subscription::AlwaysAllRecordBatches {
+                            subject_name: self.chat_processor_name.to_string(),
                         },
                     ])
                     .with_subscribe_policy(
-                        AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                        AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                     )
                     .build()
                     .unwrap(),
@@ -170,20 +165,20 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                         AvailableProcessors::CandleChatProcessor
                             .build_arc(self.chat_processor_name),
                     )
-                    .with_publications(&[TablePublication::ExtendChunks {
-                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    .with_publications(&[Publication::ExtendChunks {
+                        subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                         col_name: "content".to_string(),
                     }])
                     .with_subscriptions(&[
-                        TableSubscription::OnUpdateFullTable {
-                            table_name: self.chat_task_name.to_string(),
+                        Subscription::OnUpdateAllRecordBatches {
+                            subject_name: self.chat_task_name.to_string(),
                         },
-                        TableSubscription::AlwaysFullTable {
-                            table_name: self.chat_processor_name.to_string(),
+                        Subscription::AlwaysAllRecordBatches {
+                            subject_name: self.chat_processor_name.to_string(),
                         },
                     ])
                     .with_subscribe_policy(
-                        AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                        AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                     )
                     .build()
                     .unwrap(),
@@ -193,14 +188,16 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         Some(processors)
     }
 
-    fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
-        Some(vec![
-            RuntimeEnv::new().with_name(self.chat_runtime_env_name),
-            RuntimeEnv::new().with_name(self.message_aggregator_runtime_env_name),
-        ])
+    fn make_runtime_env(&self) -> Option<Arc<RuntimeEnv>> {
+        Some(
+            RuntimeEnv::get_builder()
+                .with_name(self.chat_runtime_env_name)
+                .build_arc()
+                .unwrap(),
+        )
     }
 
-    fn make_state_tables(&self) -> Option<Vec<Table>> {
+    fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
         // Default chat config
         #[allow(unused_mut)]
         let mut candle_chat_config = CandleChatConfig {
@@ -255,7 +252,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             candle_chat_config.api_url = self.chat_api_url.map(|s| s.to_string());
         }
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config).unwrap();
-        let config = TableBuilder::new()
+        let config = SubjectBuilder::new()
             .with_name(self.chat_processor_name)
             .with_json(&candle_chat_config_json, 1)
             .unwrap()
@@ -270,36 +267,41 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
-        let aggregator_1_state = TableBuilder::new()
+        let aggregator_1_state = SubjectBuilder::new()
             .with_name(self.message_aggregator_processor_1_name)
             .with_json(&aggregator_config_json.clone(), 1)
             .unwrap()
             .build()
             .unwrap();
-        let aggregator_2_state = TableBuilder::new()
+        let aggregator_2_state = SubjectBuilder::new()
             .with_name(self.message_aggregator_processor_2_name)
             .with_json(&aggregator_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
 
-        Some(vec![
+        let subjects = vec![
             config,
             aggregator_1_state,
             aggregator_2_state,
             AvailableSubjects::Messages
-                .to_table(Some(self.chat_task_name), None)
+                .to_subject(Some(self.chat_task_name), None)
                 .unwrap(),
             AvailableInterfaceSubjects::UserMessages
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableInterfaceSubjects::AssistantMessages
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableInterfaceSubjects::AggregatedMessages
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
-        ])
+        ];
+        let subject_plans = subjects
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
+        Some(subject_plans)
     }
 }
 
@@ -309,10 +311,9 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
         BuildableTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait,
-        MessageTrait, TableTrait,
+        MessageTrait, SubjectTrait,
     };
     use phymes_diagnostics::HashMap;
 
@@ -324,14 +325,14 @@ mod tests {
     async fn test_chat_agent_session() -> Result<()> {
         // initialize the session
         let chat_agent_session = ChatAgentSession::default();
-        let session_ctx = chat_agent_session
+        let (session_ctx, session_messages) = chat_agent_session
             .build()
             .with_name(chat_agent_session.session_context_name)
             .add_session_interface(None)?
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Skip actually running the session as it takes too long on the CPU
         if cfg!(any(
@@ -341,7 +342,7 @@ mod tests {
         )) {
             // ----- Query #1 -----
             let chat = AvailableInterfaceSubjects::UserMessages
-                .to_table_builder(None)
+                .to_subject_builder(None)
                 .append_new_user_query_str(
                     "Write a function to count prime numbers up to N.",
                     "user",
@@ -350,13 +351,16 @@ mod tests {
             let message = IPCMessage::get_builder()
                 .with_message(chat.to_ipc_stream()?)
                 .with_subject(chat.get_name())
-                .with_update(&TablePublication::Extend {
-                    table_name: chat.get_name().to_string(),
+                .with_update(&Publication::Extend {
+                    subject_name: chat.get_name().to_string(),
                 })
                 .with_publisher(chat_agent_session.session_context_name)
                 .make_name()?
                 .build()?;
             let incoming_message_map = create_message_map(vec![message]);
+            let _ = session_ctx_arc
+                .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+                .await;
             let session_stream =
                 SessionStream::new(incoming_message_map, Arc::clone(&session_ctx_arc));
             let mut response: Vec<HashMap<String, IPCMessage>> =
@@ -375,7 +379,7 @@ mod tests {
                 })
                 .flatten()
                 .collect::<Vec<_>>();
-            let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
+            let json_data = SubjectBuilder::new_from_ipc_stream(&bytes)?
                 .with_name("")
                 .build()?
                 .to_json_object()?;
@@ -403,7 +407,7 @@ mod tests {
 
             // ----- Query #2 -----
             let chat = AvailableInterfaceSubjects::UserMessages
-                .to_table_builder(None)
+                .to_subject_builder(None)
                 .append_new_user_query_str(
                     "Please provide an example using the functions.",
                     "user",
@@ -412,8 +416,8 @@ mod tests {
             let message = IPCMessage::get_builder()
                 .with_message(chat.to_ipc_stream()?)
                 .with_subject(chat.get_name())
-                .with_update(&TablePublication::Extend {
-                    table_name: chat.get_name().to_string(),
+                .with_update(&Publication::Extend {
+                    subject_name: chat.get_name().to_string(),
                 })
                 .with_publisher(chat_agent_session.session_context_name)
                 .make_name()?
@@ -437,7 +441,7 @@ mod tests {
                 })
                 .flatten()
                 .collect::<Vec<_>>();
-            let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
+            let json_data = SubjectBuilder::new_from_ipc_stream(&bytes)?
                 .with_name("")
                 .build()?
                 .to_json_object()?;

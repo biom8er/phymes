@@ -6,7 +6,7 @@ use phymes_agents::{
 };
 use phymes_core::{
     create_session_mermaid_batch, AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat,
-    MessageBuilderTrait, Table, TableBuilderTrait, TablePublication, TableTrait,
+    MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_server::create_session_name;
@@ -27,6 +27,8 @@ use reqwest::{self, header::CONTENT_TYPE};
 #[cfg(not(feature = "serverless"))]
 use super::backend::ADDR_BACKEND;
 
+#[cfg(feature = "serverless")]
+use crate::state::RUNTIME_ENV;
 #[cfg(feature = "serverless")]
 use bytes::Bytes;
 #[cfg(feature = "serverless")]
@@ -196,7 +198,7 @@ pub fn builds_dropdown_view(
 
                             // Update the mermaid state with the active diagram
                             let route = "/app/v1/put_state";
-                            let message = Table::get_builder()
+                            let message = Subject::get_builder()
                                 .with_name(AvailableSubjects::BuilderMermaid.to_string().as_str())
                                 .with_record_batches(vec![batch_deleted, batch])
                                 .unwrap()
@@ -208,7 +210,7 @@ pub fn builds_dropdown_view(
                                 .with_session_name(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
                                 .with_format(&DataFormat::Ipc)
                                 .with_publisher(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
-                                .with_update(&TablePublication::Replace { table_name: AvailableSubjects::BuilderMermaid.to_string() })
+                                .with_update(&Publication::Replace { subject_name: AvailableSubjects::BuilderMermaid.to_string() })
                                 .with_stream(false)
                                 .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
                                 .with_message(message)
@@ -240,9 +242,12 @@ pub fn builds_dropdown_view(
                                 basic_auth: None,
                                 bearer_auth: Some(JWT.read().to_string()),
                                 data: Some(data_serialized),
+                                object_store_backend: None,
+                                object_store_bucket: None,
+                                object_store_config: None,
                             };
                             #[cfg(feature = "serverless")]
-                            let mut serverless = Serverless::new(None);
+                            let mut serverless = Serverless::new(None, &RUNTIME_ENV).await.unwrap();
                             #[cfg(feature = "serverless")]
                             match serverless_app(config, &mut serverless).await {
                                 Ok(response) => {
@@ -290,7 +295,7 @@ pub fn builds_dropdown_view(
                                     return;
                                 },
                             };
-                            builder = match builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), false, true) {
+                            builder = match builder.with_subjects_from_mermaid_erdiagram(&active_er_diagram(), false, true) {
                                 Ok(builder) => builder,
                                 Err(err) => {
                                     build_errors.write().push_str(format!("{err:?}").as_str());
@@ -316,7 +321,7 @@ pub fn builds_dropdown_view(
                             // Update the server with the new session
                             let route = "/app/v1/build";
                             let batch = create_session_mermaid_batch(vec![active_session_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
-                            let message = Table::get_builder()
+                            let message = Subject::get_builder()
                                 .with_name(AvailableSubjects::BuilderMermaid.to_string().as_str())
                                 .with_record_batches(vec![batch])
                                 .unwrap()
@@ -328,7 +333,7 @@ pub fn builds_dropdown_view(
                                 .with_session_name(&create_session_name(EMAIL().as_str(), active_session_name().as_str()))
                                 .with_format(&DataFormat::Ipc)
                                 .with_publisher(&create_session_name(EMAIL().as_str(), active_session_name().as_str()))
-                                .with_update(&TablePublication::None)
+                                .with_update(&Publication::None)
                                 .with_stream(false)
                                 .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
                                 .with_message(message)
@@ -360,9 +365,12 @@ pub fn builds_dropdown_view(
                                 basic_auth: None,
                                 bearer_auth: Some(JWT.read().to_string()),
                                 data: Some(data_serialized),
+                                object_store_backend: None,
+                                object_store_bucket: None,
+                                object_store_config: None,
                             };
                             #[cfg(feature = "serverless")]
-                            let mut serverless = Serverless::new(None);
+                            let mut serverless = Serverless::new(None, &RUNTIME_ENV).await.unwrap();
                             #[cfg(feature = "serverless")]
                             match serverless_app(config, &mut serverless).await {
                                 Ok(response) => {
@@ -399,7 +407,7 @@ pub fn builds_dropdown_view(
                             // Update the mermaid state with the active diagram
                             let route = "/app/v1/put_state";
                             let batch = create_session_mermaid_batch(vec![active_session_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
-                            let message = Table::get_builder()
+                            let message = Subject::get_builder()
                                 .with_name(AvailableSubjects::BuilderMermaid.to_string().as_str())
                                 .with_record_batches(vec![batch])
                                 .unwrap()
@@ -411,7 +419,7 @@ pub fn builds_dropdown_view(
                                 .with_session_name(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
                                 .with_format(&DataFormat::Ipc)
                                 .with_publisher(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
-                                .with_update(&TablePublication::Extend { table_name: AvailableSubjects::BuilderMermaid.to_string() })
+                                .with_update(&Publication::Extend { subject_name: AvailableSubjects::BuilderMermaid.to_string() })
                                 .with_stream(false)
                                 .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
                                 .with_message(message)
@@ -443,9 +451,12 @@ pub fn builds_dropdown_view(
                                 basic_auth: None,
                                 bearer_auth: Some(JWT.read().to_string()),
                                 data: Some(data_serialized),
+                                object_store_backend: None,
+                                object_store_bucket: None,
+                                object_store_config: None,
                             };
                             #[cfg(feature = "serverless")]
-                            let mut serverless = Serverless::new(None);
+                            let mut serverless = Serverless::new(None, &RUNTIME_ENV).await.unwrap();
                             #[cfg(feature = "serverless")]
                             match serverless_app(config, &mut serverless).await {
                                 Ok(response) => {
@@ -483,7 +494,7 @@ pub fn builds_dropdown_view(
                                 Ok(builder) => {
                                     let builder = if active_er_diagram().is_empty() {
                                         builder
-                                    } else if let Ok(builder) = builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), false, true) {
+                                    } else if let Ok(builder) = builder.with_subjects_from_mermaid_erdiagram(&active_er_diagram(), false, true) {
                                         builder
                                     } else {
                                         // Revert

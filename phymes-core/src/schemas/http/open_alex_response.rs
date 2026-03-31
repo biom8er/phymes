@@ -1,6 +1,6 @@
 use crate::{
     AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, JsonSchemaTrait, MappableTrait,
-    Table, TableBuilderTrait, TableTrait, create_route_bytes_record_batch,
+    Subject, SubjectBuilderTrait, SubjectTrait, create_route_bytes_record_batch,
     open_alex::{
         AuthorAffiliationTable, AuthorConceptTable, AuthorCountsByYearTable,
         AuthorDisplayNameAlternativesTable, AuthorIdsTable, AuthorLastKnownInstitutionsTable,
@@ -154,7 +154,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             subjects.push(work_tables.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(work_tables.first().unwrap().get_name())
                     .with_schema(work_tables.first().unwrap().to_schema())
                     .with_struct::<WorkTable>(&work_tables)?
@@ -180,7 +180,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(work_authorship_tables.first().unwrap().get_name())
                     .with_schema(work_authorship_tables.first().unwrap().to_schema())
                     .with_struct::<WorkAuthorshipTable>(&work_authorship_tables)?
@@ -194,7 +194,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             subjects.push(work_award_tables.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(work_award_tables.first().unwrap().get_name())
                     .with_schema(work_award_tables.first().unwrap().to_schema())
                     .with_struct::<WorkAwardTable>(&work_award_tables)?
@@ -208,7 +208,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             subjects.push(work_funder_tables.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(work_funder_tables.first().unwrap().get_name())
                     .with_schema(work_funder_tables.first().unwrap().to_schema())
                     .with_struct::<WorkFunderTable>(&work_funder_tables)?
@@ -222,7 +222,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             subjects.push(work_apc_info_tables.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(work_apc_info_tables.first().unwrap().get_name())
                     .with_schema(work_apc_info_tables.first().unwrap().to_schema())
                     .with_struct::<WorkApcInfoTable>(&work_apc_info_tables)?
@@ -236,7 +236,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             subjects.push(work_location_tables.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(work_location_tables.first().unwrap().get_name())
                     .with_schema(work_location_tables.first().unwrap().to_schema())
                     .with_struct::<WorkLocationTable>(&work_location_tables)?
@@ -262,7 +262,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(work_open_access_tables.first().unwrap().get_name())
                     .with_schema(work_open_access_tables.first().unwrap().to_schema())
                     .with_struct::<WorkOpenAccessTable>(&work_open_access_tables)?
@@ -276,7 +276,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             subjects.push(work_biblio_tables.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(work_biblio_tables.first().unwrap().get_name())
                     .with_schema(work_biblio_tables.first().unwrap().to_schema())
                     .with_struct::<WorkBiblioTable>(&work_biblio_tables)?
@@ -302,7 +302,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(
                         work_citation_normalized_percentile_tables
                             .first()
@@ -340,7 +340,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(
                         work_cited_percentile_year_tables
                             .first()
@@ -378,7 +378,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(work_counts_by_year_tables.first().unwrap().get_name())
                     .with_schema(work_counts_by_year_tables.first().unwrap().to_schema())
                     .with_struct::<WorkCountsByYearTable>(&work_counts_by_year_tables)?
@@ -392,7 +392,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             subjects.push(work_concepts_tables.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(work_concepts_tables.first().unwrap().get_name())
                     .with_schema(work_concepts_tables.first().unwrap().to_schema())
                     .with_struct::<WorkConceptTable>(&work_concepts_tables)?
@@ -406,7 +406,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             subjects.push(work_topics_tables.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(work_topics_tables.first().unwrap().get_name())
                     .with_schema(work_topics_tables.first().unwrap().to_schema())
                     .with_struct::<WorkTopicTable>(&work_topics_tables)?
@@ -420,7 +420,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             subjects.push(work_keywords_tables.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(work_keywords_tables.first().unwrap().get_name())
                     .with_schema(work_keywords_tables.first().unwrap().to_schema())
                     .with_struct::<WorkKeywordTable>(&work_keywords_tables)?
@@ -434,7 +434,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             subjects.push(work_mesh_tag_tables.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(work_mesh_tag_tables.first().unwrap().get_name())
                     .with_schema(work_mesh_tag_tables.first().unwrap().to_schema())
                     .with_struct::<WorkMeshTagTable>(&work_mesh_tag_tables)?
@@ -448,7 +448,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             subjects.push(work_sdg_tag_tables.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(work_sdg_tag_tables.first().unwrap().get_name())
                     .with_schema(work_sdg_tag_tables.first().unwrap().to_schema())
                     .with_struct::<WorkSdgTagTable>(&work_sdg_tag_tables)?
@@ -474,7 +474,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(work_corresponding_author_tables.first().unwrap().get_name())
                     .with_schema(
                         work_corresponding_author_tables
@@ -505,7 +505,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(
                         work_corresponding_insitution_tables
                             .first()
@@ -543,7 +543,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(work_indexed_in_tables.first().unwrap().get_name())
                     .with_schema(work_indexed_in_tables.first().unwrap().to_schema())
                     .with_struct::<WorkIndexedInTable>(&work_indexed_in_tables)?
@@ -557,7 +557,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             subjects.push(work_ids_tables.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(work_ids_tables.first().unwrap().get_name())
                     .with_schema(work_ids_tables.first().unwrap().to_schema())
                     .with_struct::<WorkIdsTable>(&work_ids_tables)?
@@ -583,7 +583,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(work_referenced_works_tables.first().unwrap().get_name())
                     .with_schema(work_referenced_works_tables.first().unwrap().to_schema())
                     .with_struct::<WorkReferencedWorksTable>(&work_referenced_works_tables)?
@@ -609,7 +609,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(work_related_works_tables.first().unwrap().get_name())
                     .with_schema(work_related_works_tables.first().unwrap().to_schema())
                     .with_struct::<WorkRelatedWorksTable>(&work_related_works_tables)?
@@ -678,7 +678,7 @@ impl JsonSchemaTrait for OpenAlexResponseAuthors {
             subjects.push(author_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(author_vec.first().unwrap().get_name())
                     .with_schema(author_vec.first().unwrap().to_schema())
                     .with_struct::<AuthorTable>(&author_vec)?
@@ -704,7 +704,7 @@ impl JsonSchemaTrait for OpenAlexResponseAuthors {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(
                         author_display_name_alternatives_vec
                             .first()
@@ -742,7 +742,7 @@ impl JsonSchemaTrait for OpenAlexResponseAuthors {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(author_affiliation_vec.first().unwrap().get_name())
                     .with_schema(author_affiliation_vec.first().unwrap().to_schema())
                     .with_struct::<AuthorAffiliationTable>(&author_affiliation_vec)?
@@ -768,7 +768,7 @@ impl JsonSchemaTrait for OpenAlexResponseAuthors {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(
                         author_last_known_institutions_vec
                             .first()
@@ -794,7 +794,7 @@ impl JsonSchemaTrait for OpenAlexResponseAuthors {
             subjects.push(author_ids_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(author_ids_vec.first().unwrap().get_name())
                     .with_schema(author_ids_vec.first().unwrap().to_schema())
                     .with_struct::<AuthorIdsTable>(&author_ids_vec)?
@@ -820,7 +820,7 @@ impl JsonSchemaTrait for OpenAlexResponseAuthors {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(author_summary_stats_vec.first().unwrap().get_name())
                     .with_schema(author_summary_stats_vec.first().unwrap().to_schema())
                     .with_struct::<AuthorSummaryStatsTable>(&author_summary_stats_vec)?
@@ -846,7 +846,7 @@ impl JsonSchemaTrait for OpenAlexResponseAuthors {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(author_counts_by_year_vec.first().unwrap().get_name())
                     .with_schema(author_counts_by_year_vec.first().unwrap().to_schema())
                     .with_struct::<AuthorCountsByYearTable>(&author_counts_by_year_vec)?
@@ -860,7 +860,7 @@ impl JsonSchemaTrait for OpenAlexResponseAuthors {
             subjects.push(author_concepts_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(author_concepts_vec.first().unwrap().get_name())
                     .with_schema(author_concepts_vec.first().unwrap().to_schema())
                     .with_struct::<AuthorConceptTable>(&author_concepts_vec)?
@@ -946,7 +946,7 @@ impl JsonSchemaTrait for OpenAlexResponseInstitution {
             subjects.push(institution_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(institution_vec.first().unwrap().get_name())
                     .with_schema(institution_vec.first().unwrap().to_schema())
                     .with_struct::<InstitutionTable>(&institution_vec)?
@@ -972,7 +972,7 @@ impl JsonSchemaTrait for OpenAlexResponseInstitution {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(
                         institution_display_name_acronyms_vec
                             .first()
@@ -1010,7 +1010,7 @@ impl JsonSchemaTrait for OpenAlexResponseInstitution {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(
                         institution_display_name_alternatives_vec
                             .first()
@@ -1036,7 +1036,7 @@ impl JsonSchemaTrait for OpenAlexResponseInstitution {
             subjects.push(institution_geo_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(institution_geo_vec.first().unwrap().get_name())
                     .with_schema(institution_geo_vec.first().unwrap().to_schema())
                     .with_struct::<InstitutionGeoTable>(&institution_geo_vec)?
@@ -1050,7 +1050,7 @@ impl JsonSchemaTrait for OpenAlexResponseInstitution {
             subjects.push(institution_ids_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(institution_ids_vec.first().unwrap().get_name())
                     .with_schema(institution_ids_vec.first().unwrap().to_schema())
                     .with_struct::<InstitutionIdsTable>(&institution_ids_vec)?
@@ -1076,7 +1076,7 @@ impl JsonSchemaTrait for OpenAlexResponseInstitution {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(
                         institution_associated_institution_vec
                             .first()
@@ -1114,7 +1114,7 @@ impl JsonSchemaTrait for OpenAlexResponseInstitution {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(institution_repository_vec.first().unwrap().get_name())
                     .with_schema(institution_repository_vec.first().unwrap().to_schema())
                     .with_struct::<InstitutionRepositoryTable>(&institution_repository_vec)?
@@ -1128,7 +1128,7 @@ impl JsonSchemaTrait for OpenAlexResponseInstitution {
             subjects.push(institution_role_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(institution_role_vec.first().unwrap().get_name())
                     .with_schema(institution_role_vec.first().unwrap().to_schema())
                     .with_struct::<InstitutionRoleTable>(&institution_role_vec)?
@@ -1154,7 +1154,7 @@ impl JsonSchemaTrait for OpenAlexResponseInstitution {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(
                         institution_international_names_vec
                             .first()
@@ -1192,7 +1192,7 @@ impl JsonSchemaTrait for OpenAlexResponseInstitution {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(institution_summary_stats_vec.first().unwrap().get_name())
                     .with_schema(institution_summary_stats_vec.first().unwrap().to_schema())
                     .with_struct::<InstitutionSummaryStatsTable>(&institution_summary_stats_vec)?
@@ -1218,7 +1218,7 @@ impl JsonSchemaTrait for OpenAlexResponseInstitution {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(institution_counts_by_year_vec.first().unwrap().get_name())
                     .with_schema(institution_counts_by_year_vec.first().unwrap().to_schema())
                     .with_struct::<InstitutionCountsByYearTable>(&institution_counts_by_year_vec)?
@@ -1244,7 +1244,7 @@ impl JsonSchemaTrait for OpenAlexResponseInstitution {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(institution_concepts_vec.first().unwrap().get_name())
                     .with_schema(institution_concepts_vec.first().unwrap().to_schema())
                     .with_struct::<InstitutionConceptTable>(&institution_concepts_vec)?
@@ -1270,7 +1270,7 @@ impl JsonSchemaTrait for OpenAlexResponseInstitution {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(institution_lineage_vec.first().unwrap().get_name())
                     .with_schema(institution_lineage_vec.first().unwrap().to_schema())
                     .with_struct::<InstitutionLineageTable>(&institution_lineage_vec)?
@@ -1323,7 +1323,7 @@ impl JsonSchemaTrait for OpenAlexResponseTopic {
             subjects.push(topic_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(topic_vec.first().unwrap().get_name())
                     .with_schema(topic_vec.first().unwrap().to_schema())
                     .with_struct::<TopicTable>(&topic_vec)?
@@ -1337,7 +1337,7 @@ impl JsonSchemaTrait for OpenAlexResponseTopic {
             subjects.push(topic_domain_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(topic_domain_vec.first().unwrap().get_name())
                     .with_schema(topic_domain_vec.first().unwrap().to_schema())
                     .with_struct::<TopicDomainTable>(&topic_domain_vec)?
@@ -1351,7 +1351,7 @@ impl JsonSchemaTrait for OpenAlexResponseTopic {
             subjects.push(topic_field_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(topic_field_vec.first().unwrap().get_name())
                     .with_schema(topic_field_vec.first().unwrap().to_schema())
                     .with_struct::<TopicFieldTable>(&topic_field_vec)?
@@ -1365,7 +1365,7 @@ impl JsonSchemaTrait for OpenAlexResponseTopic {
             subjects.push(topic_subfield_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(topic_subfield_vec.first().unwrap().get_name())
                     .with_schema(topic_subfield_vec.first().unwrap().to_schema())
                     .with_struct::<TopicSubfieldTable>(&topic_subfield_vec)?
@@ -1379,7 +1379,7 @@ impl JsonSchemaTrait for OpenAlexResponseTopic {
             subjects.push(topic_ids_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(topic_ids_vec.first().unwrap().get_name())
                     .with_schema(topic_ids_vec.first().unwrap().to_schema())
                     .with_struct::<TopicIdsTable>(&topic_ids_vec)?
@@ -1393,7 +1393,7 @@ impl JsonSchemaTrait for OpenAlexResponseTopic {
             subjects.push(topic_keyword_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(topic_keyword_vec.first().unwrap().get_name())
                     .with_schema(topic_keyword_vec.first().unwrap().to_schema())
                     .with_struct::<TopicKeywordTable>(&topic_keyword_vec)?
@@ -1466,7 +1466,7 @@ impl JsonSchemaTrait for OpenAlexResponseSource {
             subjects.push(source_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(source_vec.first().unwrap().get_name())
                     .with_schema(source_vec.first().unwrap().to_schema())
                     .with_struct::<SourceTable>(&source_vec)?
@@ -1492,7 +1492,7 @@ impl JsonSchemaTrait for OpenAlexResponseSource {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(source_alternative_titles_vec.first().unwrap().get_name())
                     .with_schema(source_alternative_titles_vec.first().unwrap().to_schema())
                     .with_struct::<SourceAlternativeTitlesTable>(&source_alternative_titles_vec)?
@@ -1506,7 +1506,7 @@ impl JsonSchemaTrait for OpenAlexResponseSource {
             subjects.push(source_apc_price_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(source_apc_price_vec.first().unwrap().get_name())
                     .with_schema(source_apc_price_vec.first().unwrap().to_schema())
                     .with_struct::<SourceApcPriceTable>(&source_apc_price_vec)?
@@ -1532,7 +1532,7 @@ impl JsonSchemaTrait for OpenAlexResponseSource {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(source_counts_by_year_vec.first().unwrap().get_name())
                     .with_schema(source_counts_by_year_vec.first().unwrap().to_schema())
                     .with_struct::<SourceCountsByYearTable>(&source_counts_by_year_vec)?
@@ -1546,7 +1546,7 @@ impl JsonSchemaTrait for OpenAlexResponseSource {
             subjects.push(source_lineage_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(source_lineage_vec.first().unwrap().get_name())
                     .with_schema(source_lineage_vec.first().unwrap().to_schema())
                     .with_struct::<SourceLineageTable>(&source_lineage_vec)?
@@ -1560,7 +1560,7 @@ impl JsonSchemaTrait for OpenAlexResponseSource {
             subjects.push(source_ids_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(source_ids_vec.first().unwrap().get_name())
                     .with_schema(source_ids_vec.first().unwrap().to_schema())
                     .with_struct::<SourceIdsTable>(&source_ids_vec)?
@@ -1574,7 +1574,7 @@ impl JsonSchemaTrait for OpenAlexResponseSource {
             subjects.push(source_issn_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(source_issn_vec.first().unwrap().get_name())
                     .with_schema(source_issn_vec.first().unwrap().to_schema())
                     .with_struct::<SourceIssnTable>(&source_issn_vec)?
@@ -1588,7 +1588,7 @@ impl JsonSchemaTrait for OpenAlexResponseSource {
             subjects.push(source_society_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(source_society_vec.first().unwrap().get_name())
                     .with_schema(source_society_vec.first().unwrap().to_schema())
                     .with_struct::<SourceSocietyTable>(&source_society_vec)?
@@ -1614,7 +1614,7 @@ impl JsonSchemaTrait for OpenAlexResponseSource {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(source_summary_stats_vec.first().unwrap().get_name())
                     .with_schema(source_summary_stats_vec.first().unwrap().to_schema())
                     .with_struct::<SourceSummaryStatsTable>(&source_summary_stats_vec)?
@@ -1628,7 +1628,7 @@ impl JsonSchemaTrait for OpenAlexResponseSource {
             subjects.push(source_concept_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(source_concept_vec.first().unwrap().get_name())
                     .with_schema(source_concept_vec.first().unwrap().to_schema())
                     .with_struct::<SourceConceptTable>(&source_concept_vec)?
@@ -1695,7 +1695,7 @@ impl JsonSchemaTrait for OpenAlexResponsePublisher {
             subjects.push(publisher_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(publisher_vec.first().unwrap().get_name())
                     .with_schema(publisher_vec.first().unwrap().to_schema())
                     .with_struct::<PublisherTable>(&publisher_vec)?
@@ -1721,7 +1721,7 @@ impl JsonSchemaTrait for OpenAlexResponsePublisher {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(publisher_alternative_titles_vec.first().unwrap().get_name())
                     .with_schema(
                         publisher_alternative_titles_vec
@@ -1754,7 +1754,7 @@ impl JsonSchemaTrait for OpenAlexResponsePublisher {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(publisher_country_code_vec.first().unwrap().get_name())
                     .with_schema(publisher_country_code_vec.first().unwrap().to_schema())
                     .with_struct::<PublisherCountryCodeTable>(&publisher_country_code_vec)?
@@ -1780,7 +1780,7 @@ impl JsonSchemaTrait for OpenAlexResponsePublisher {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(publisher_lineage_vec.first().unwrap().get_name())
                     .with_schema(publisher_lineage_vec.first().unwrap().to_schema())
                     .with_struct::<PublisherLineageTable>(&publisher_lineage_vec)?
@@ -1794,7 +1794,7 @@ impl JsonSchemaTrait for OpenAlexResponsePublisher {
             subjects.push(publisher_ids_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(publisher_ids_vec.first().unwrap().get_name())
                     .with_schema(publisher_ids_vec.first().unwrap().to_schema())
                     .with_struct::<PublisherIdsTable>(&publisher_ids_vec)?
@@ -1808,7 +1808,7 @@ impl JsonSchemaTrait for OpenAlexResponsePublisher {
             subjects.push(publisher_role_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(publisher_role_vec.first().unwrap().get_name())
                     .with_schema(publisher_role_vec.first().unwrap().to_schema())
                     .with_struct::<PublisherRoleTable>(&publisher_role_vec)?
@@ -1834,7 +1834,7 @@ impl JsonSchemaTrait for OpenAlexResponsePublisher {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(publisher_counts_by_year_vec.first().unwrap().get_name())
                     .with_schema(publisher_counts_by_year_vec.first().unwrap().to_schema())
                     .with_struct::<PublisherCountsByYearTable>(&publisher_counts_by_year_vec)?
@@ -1860,7 +1860,7 @@ impl JsonSchemaTrait for OpenAlexResponsePublisher {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(publisher_summary_stats_vec.first().unwrap().get_name())
                     .with_schema(publisher_summary_stats_vec.first().unwrap().to_schema())
                     .with_struct::<PublisherSummaryStatsTable>(&publisher_summary_stats_vec)?
@@ -1911,7 +1911,7 @@ impl JsonSchemaTrait for OpenAlexResponseAward {
             subjects.push(award_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(award_vec.first().unwrap().get_name())
                     .with_schema(award_vec.first().unwrap().to_schema())
                     .with_struct::<AwardTable>(&award_vec)?
@@ -1925,7 +1925,7 @@ impl JsonSchemaTrait for OpenAlexResponseAward {
             subjects.push(award_funder_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(award_funder_vec.first().unwrap().get_name())
                     .with_schema(award_funder_vec.first().unwrap().to_schema())
                     .with_struct::<AwardFunderTable>(&award_funder_vec)?
@@ -1951,7 +1951,7 @@ impl JsonSchemaTrait for OpenAlexResponseAward {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(award_funded_outputs_vec.first().unwrap().get_name())
                     .with_schema(award_funded_outputs_vec.first().unwrap().to_schema())
                     .with_struct::<AwardFundedOutputsTable>(&award_funded_outputs_vec)?
@@ -1977,7 +1977,7 @@ impl JsonSchemaTrait for OpenAlexResponseAward {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(award_investigator_vec.first().unwrap().get_name())
                     .with_schema(award_investigator_vec.first().unwrap().to_schema())
                     .with_struct::<AwardInvestigatorTable>(&award_investigator_vec)?
@@ -2003,7 +2003,7 @@ impl JsonSchemaTrait for OpenAlexResponseAward {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(award_affiliation_vec.first().unwrap().get_name())
                     .with_schema(award_affiliation_vec.first().unwrap().to_schema())
                     .with_struct::<AwardAffiliationTable>(&award_affiliation_vec)?
@@ -2064,7 +2064,7 @@ impl JsonSchemaTrait for OpenAlexResponseFunder {
             subjects.push(funder_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(funder_vec.first().unwrap().get_name())
                     .with_schema(funder_vec.first().unwrap().to_schema())
                     .with_struct::<FunderTable>(&funder_vec)?
@@ -2090,7 +2090,7 @@ impl JsonSchemaTrait for OpenAlexResponseFunder {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(funder_alternative_titles_vec.first().unwrap().get_name())
                     .with_schema(funder_alternative_titles_vec.first().unwrap().to_schema())
                     .with_struct::<FunderAlternativeTitlesTable>(&funder_alternative_titles_vec)?
@@ -2104,7 +2104,7 @@ impl JsonSchemaTrait for OpenAlexResponseFunder {
             subjects.push(funder_ids_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(funder_ids_vec.first().unwrap().get_name())
                     .with_schema(funder_ids_vec.first().unwrap().to_schema())
                     .with_struct::<FunderIdsTable>(&funder_ids_vec)?
@@ -2118,7 +2118,7 @@ impl JsonSchemaTrait for OpenAlexResponseFunder {
             subjects.push(funder_role_vec.first().unwrap().get_name().to_string());
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(funder_role_vec.first().unwrap().get_name())
                     .with_schema(funder_role_vec.first().unwrap().to_schema())
                     .with_struct::<FunderRoleTable>(&funder_role_vec)?
@@ -2144,7 +2144,7 @@ impl JsonSchemaTrait for OpenAlexResponseFunder {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(funder_counts_by_year_vec.first().unwrap().get_name())
                     .with_schema(funder_counts_by_year_vec.first().unwrap().to_schema())
                     .with_struct::<FunderCountsByYearTable>(&funder_counts_by_year_vec)?
@@ -2170,7 +2170,7 @@ impl JsonSchemaTrait for OpenAlexResponseFunder {
             );
             formats.push(DataFormat::Ipc.to_string());
             bytes.push(
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(funder_summary_stats_vec.first().unwrap().get_name())
                     .with_schema(funder_summary_stats_vec.first().unwrap().to_schema())
                     .with_struct::<FunderSummaryStatsTable>(&funder_summary_stats_vec)?

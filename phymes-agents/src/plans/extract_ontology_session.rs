@@ -24,7 +24,7 @@ impl<'a> ExtractOntologySession<'a> {
 	%% OWL ontology extraction
 	%% ------------------------------------------------------------------------------
 	subgraph extract_owl_t
-	    UserScript-subject-.->|FullTable|extract_owl_p-subscribe
+	    UserScript-subject-.->|AllRecordBatches|extract_owl_p-subscribe
 	    extract_owl_p-subscribe-->extract_owl_p-processor
 	    extract_owl_p-processor-->extract_owl_p-publish
 	    extract_owl_p-publish-->|Extend|ParseOwl-subject
@@ -44,11 +44,11 @@ impl<'a> ExtractOntologySession<'a> {
 	    comparator_ontology_entity_p-subscribe-->comparator_ontology_entity_p-processor
 	    comparator_ontology_entity_p-processor-->comparator_ontology_entity_p-publish
 	    comparator_ontology_entity_p-publish-->|Replace|comparator_ontology_entity_s-subject
-	    comparator_ontology_entity_s-subject-->|FullTable|filter_ontology_entity_p-subscribe
+	    comparator_ontology_entity_s-subject-->|AllRecordBatches|filter_ontology_entity_p-subscribe
 	    filter_ontology_entity_p-subscribe-->filter_ontology_entity_p-processor
 	    filter_ontology_entity_p-processor-->filter_ontology_entity_p-publish
 	    filter_ontology_entity_p-publish-->|Replace|filter_ontology_entity_s-subject
-	    filter_ontology_entity_s-subject-->|FullTable|select_ontology_entity_p-subscribe
+	    filter_ontology_entity_s-subject-->|AllRecordBatches|select_ontology_entity_p-subscribe
 	    select_ontology_entity_p-subscribe-->select_ontology_entity_p-processor
 	    select_ontology_entity_p-processor-->select_ontology_entity_p-publish
 	    select_ontology_entity_p-publish-->|Extend|select_ontology_entity_s-subject
@@ -74,11 +74,11 @@ impl<'a> ExtractOntologySession<'a> {
 	    comparator_annotation_property_entity_p-subscribe-->comparator_annotation_property_entity_p-processor
 	    comparator_annotation_property_entity_p-processor-->comparator_annotation_property_entity_p-publish
 	    comparator_annotation_property_entity_p-publish-->|Replace|comparator_annotation_property_entity_s-subject
-	    comparator_annotation_property_entity_s-subject-->|FullTable|filter_annotation_property_entity_p-subscribe
+	    comparator_annotation_property_entity_s-subject-->|AllRecordBatches|filter_annotation_property_entity_p-subscribe
 	    filter_annotation_property_entity_p-subscribe-->filter_annotation_property_entity_p-processor
 	    filter_annotation_property_entity_p-processor-->filter_annotation_property_entity_p-publish
 	    filter_annotation_property_entity_p-publish-->|Replace|filter_annotation_property_entity_s-subject
-	    filter_annotation_property_entity_s-subject-->|FullTable|select_annotation_property_entity_p-subscribe
+	    filter_annotation_property_entity_s-subject-->|AllRecordBatches|select_annotation_property_entity_p-subscribe
 	    select_annotation_property_entity_p-subscribe-->select_annotation_property_entity_p-processor
 	    select_annotation_property_entity_p-processor-->select_annotation_property_entity_p-publish
 	    select_annotation_property_entity_p-publish-->|Extend|select_annotation_property_entity_s-subject
@@ -104,11 +104,11 @@ impl<'a> ExtractOntologySession<'a> {
 	    comparator_datatype_property_entity_p-subscribe-->comparator_datatype_property_entity_p-processor
 	    comparator_datatype_property_entity_p-processor-->comparator_datatype_property_entity_p-publish
 	    comparator_datatype_property_entity_p-publish-->|Replace|comparator_datatype_property_entity_s-subject
-	    comparator_datatype_property_entity_s-subject-->|FullTable|filter_datatype_property_entity_p-subscribe
+	    comparator_datatype_property_entity_s-subject-->|AllRecordBatches|filter_datatype_property_entity_p-subscribe
 	    filter_datatype_property_entity_p-subscribe-->filter_datatype_property_entity_p-processor
 	    filter_datatype_property_entity_p-processor-->filter_datatype_property_entity_p-publish
 	    filter_datatype_property_entity_p-publish-->|Replace|filter_datatype_property_entity_s-subject
-	    filter_datatype_property_entity_s-subject-->|FullTable|select_datatype_property_entity_p-subscribe
+	    filter_datatype_property_entity_s-subject-->|AllRecordBatches|select_datatype_property_entity_p-subscribe
 	    select_datatype_property_entity_p-subscribe-->select_datatype_property_entity_p-processor
 	    select_datatype_property_entity_p-processor-->select_datatype_property_entity_p-publish
 	    select_datatype_property_entity_p-publish-->|Extend|select_datatype_property_entity_s-subject
@@ -134,11 +134,11 @@ impl<'a> ExtractOntologySession<'a> {
 	    comparator_class_entity_p-subscribe-->comparator_class_entity_p-processor
 	    comparator_class_entity_p-processor-->comparator_class_entity_p-publish
 	    comparator_class_entity_p-publish-->|Replace|comparator_class_entity_s-subject
-	    comparator_class_entity_s-subject-->|FullTable|filter_class_entity_p-subscribe
+	    comparator_class_entity_s-subject-->|AllRecordBatches|filter_class_entity_p-subscribe
 	    filter_class_entity_p-subscribe-->filter_class_entity_p-processor
 	    filter_class_entity_p-processor-->filter_class_entity_p-publish
 	    filter_class_entity_p-publish-->|Replace|filter_class_entity_s-subject
-	    filter_class_entity_s-subject-->|FullTable|select_class_entity_p-subscribe
+	    filter_class_entity_s-subject-->|AllRecordBatches|select_class_entity_p-subscribe
 	    select_class_entity_p-subscribe-->select_class_entity_p-processor
 	    select_class_entity_p-processor-->select_class_entity_p-publish
 	    select_class_entity_p-publish-->|Extend|select_class_entity_s-subject
@@ -164,11 +164,11 @@ impl<'a> ExtractOntologySession<'a> {
 	    comparator_object_property_entity_p-subscribe-->comparator_object_property_entity_p-processor
 	    comparator_object_property_entity_p-processor-->comparator_object_property_entity_p-publish
 	    comparator_object_property_entity_p-publish-->|Replace|comparator_object_property_entity_s-subject
-	    comparator_object_property_entity_s-subject-->|FullTable|filter_object_property_entity_p-subscribe
+	    comparator_object_property_entity_s-subject-->|AllRecordBatches|filter_object_property_entity_p-subscribe
 	    filter_object_property_entity_p-subscribe-->filter_object_property_entity_p-processor
 	    filter_object_property_entity_p-processor-->filter_object_property_entity_p-publish
 	    filter_object_property_entity_p-publish-->|Replace|filter_object_property_entity_s-subject
-	    filter_object_property_entity_s-subject-->|FullTable|select_object_property_entity_p-subscribe
+	    filter_object_property_entity_s-subject-->|AllRecordBatches|select_object_property_entity_p-subscribe
 	    select_object_property_entity_p-subscribe-->select_object_property_entity_p-processor
 	    select_object_property_entity_p-processor-->select_object_property_entity_p-publish
 	    select_object_property_entity_p-publish-->|Extend|select_object_property_entity_s-subject
@@ -194,11 +194,11 @@ impl<'a> ExtractOntologySession<'a> {
 	    comparator_named_individual_entity_p-subscribe-->comparator_named_individual_entity_p-processor
 	    comparator_named_individual_entity_p-processor-->comparator_named_individual_entity_p-publish
 	    comparator_named_individual_entity_p-publish-->|Replace|comparator_named_individual_entity_s-subject
-	    comparator_named_individual_entity_s-subject-->|FullTable|filter_named_individual_entity_p-subscribe
+	    comparator_named_individual_entity_s-subject-->|AllRecordBatches|filter_named_individual_entity_p-subscribe
 	    filter_named_individual_entity_p-subscribe-->filter_named_individual_entity_p-processor
 	    filter_named_individual_entity_p-processor-->filter_named_individual_entity_p-publish
 	    filter_named_individual_entity_p-publish-->|Replace|filter_named_individual_entity_s-subject
-	    filter_named_individual_entity_s-subject-->|FullTable|select_named_individual_entity_p-subscribe
+	    filter_named_individual_entity_s-subject-->|AllRecordBatches|select_named_individual_entity_p-subscribe
 	    select_named_individual_entity_p-subscribe-->select_named_individual_entity_p-processor
 	    select_named_individual_entity_p-processor-->select_named_individual_entity_p-publish
 	    select_named_individual_entity_p-publish-->|Extend|select_named_individual_entity_s-subject
@@ -224,11 +224,11 @@ impl<'a> ExtractOntologySession<'a> {
 	    comparator_axiom_entity_p-subscribe-->comparator_axiom_entity_p-processor
 	    comparator_axiom_entity_p-processor-->comparator_axiom_entity_p-publish
 	    comparator_axiom_entity_p-publish-->|Replace|comparator_axiom_entity_s-subject
-	    comparator_axiom_entity_s-subject-->|FullTable|filter_axiom_entity_p-subscribe
+	    comparator_axiom_entity_s-subject-->|AllRecordBatches|filter_axiom_entity_p-subscribe
 	    filter_axiom_entity_p-subscribe-->filter_axiom_entity_p-processor
 	    filter_axiom_entity_p-processor-->filter_axiom_entity_p-publish
 	    filter_axiom_entity_p-publish-->|Replace|filter_axiom_entity_s-subject
-	    filter_axiom_entity_s-subject-->|FullTable|select_axiom_entity_p-subscribe
+	    filter_axiom_entity_s-subject-->|AllRecordBatches|select_axiom_entity_p-subscribe
 	    select_axiom_entity_p-subscribe-->select_axiom_entity_p-processor
 	    select_axiom_entity_p-processor-->select_axiom_entity_p-publish
 	    select_axiom_entity_p-publish-->|Extend|select_axiom_entity_s-subject
@@ -254,19 +254,19 @@ impl<'a> ExtractOntologySession<'a> {
 	    coalesce_annotation_property_entity_p-subscribe-->coalesce_annotation_property_entity_p-processor
 	    coalesce_annotation_property_entity_p-processor-->coalesce_annotation_property_entity_p-publish
 	    coalesce_annotation_property_entity_p-publish-->|Replace|coalesce_annotation_property_entity_s-subject
-	    coalesce_annotation_property_entity_s-subject-->|FullTable|comparator_predicate_annotation_property_entity_p-subscribe
+	    coalesce_annotation_property_entity_s-subject-->|AllRecordBatches|comparator_predicate_annotation_property_entity_p-subscribe
 	    comparator_predicate_annotation_property_entity_p-subscribe-->comparator_predicate_annotation_property_entity_p-processor
 	    comparator_predicate_annotation_property_entity_p-processor-->comparator_predicate_annotation_property_entity_p-publish
 	    comparator_predicate_annotation_property_entity_p-publish-->|Replace|comparator_predicate_annotation_property_entity_s-subject
-	    comparator_predicate_annotation_property_entity_s-subject-->|FullTable|filter_predicate_annotation_property_entity_p-subscribe
+	    comparator_predicate_annotation_property_entity_s-subject-->|AllRecordBatches|filter_predicate_annotation_property_entity_p-subscribe
 	    filter_predicate_annotation_property_entity_p-subscribe-->filter_predicate_annotation_property_entity_p-processor
 	    filter_predicate_annotation_property_entity_p-processor-->filter_predicate_annotation_property_entity_p-publish
 	    filter_predicate_annotation_property_entity_p-publish-->|Replace|filter_predicate_annotation_property_entity_s-subject
-	    filter_predicate_annotation_property_entity_s-subject-->|FullTable|select_predicate_annotation_property_entity_p-subscribe
+	    filter_predicate_annotation_property_entity_s-subject-->|AllRecordBatches|select_predicate_annotation_property_entity_p-subscribe
 	    select_predicate_annotation_property_entity_p-subscribe-->select_predicate_annotation_property_entity_p-processor
 	    select_predicate_annotation_property_entity_p-processor-->select_predicate_annotation_property_entity_p-publish
 	    select_predicate_annotation_property_entity_p-publish-->|Replace|select_predicate_annotation_property_entity_s-subject
-	    select_predicate_annotation_property_entity_s-subject-->|FullTable|pivot_annotation_property_entity_p-subscribe
+	    select_predicate_annotation_property_entity_s-subject-->|AllRecordBatches|pivot_annotation_property_entity_p-subscribe
 	    pivot_annotation_property_entity_p-subscribe-->pivot_annotation_property_entity_p-processor
 	    pivot_annotation_property_entity_p-processor-->pivot_annotation_property_entity_p-publish
 	    pivot_annotation_property_entity_p-publish-->|Replace|pivot_annotation_property_entity_s-subject
@@ -296,15 +296,15 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Owl:AnnotationProperty post-pivot cleanup
 	%% ------------------------------------------------------------------------------
 	subgraph post_pivot_annotation_property_t
-	    pivot_annotation_property_entity_s-subject-.->|FullTable|coalesce_annotation_property_pivot_p-subscribe
+	    pivot_annotation_property_entity_s-subject-.->|AllRecordBatches|coalesce_annotation_property_pivot_p-subscribe
 	    coalesce_annotation_property_pivot_p-subscribe-->coalesce_annotation_property_pivot_p-processor
 	    coalesce_annotation_property_pivot_p-processor-->coalesce_annotation_property_pivot_p-publish
 	    coalesce_annotation_property_pivot_p-publish-->|Replace|coalesce_annotation_property_pivot_s-subject
-	    coalesce_annotation_property_pivot_s-subject-->|FullTable|group_by_annotation_property_pivot_p-subscribe
+	    coalesce_annotation_property_pivot_s-subject-->|AllRecordBatches|group_by_annotation_property_pivot_p-subscribe
 	    group_by_annotation_property_pivot_p-subscribe-->group_by_annotation_property_pivot_p-processor
 	    group_by_annotation_property_pivot_p-processor-->group_by_annotation_property_pivot_p-publish
 	    group_by_annotation_property_pivot_p-publish-->|Replace|group_by_annotation_property_pivot_s-subject
-	    group_by_annotation_property_pivot_s-subject-->|FullTable|select_annotation_property_pivot_p-subscribe
+	    group_by_annotation_property_pivot_s-subject-->|AllRecordBatches|select_annotation_property_pivot_p-subscribe
 	    select_annotation_property_pivot_p-subscribe-->select_annotation_property_pivot_p-processor
 	    select_annotation_property_pivot_p-processor-->select_annotation_property_pivot_p-publish
 	    select_annotation_property_pivot_p-publish-->|Replace|select_annotation_property_pivot_s-subject
@@ -330,19 +330,19 @@ impl<'a> ExtractOntologySession<'a> {
 	    coalesce_class_entity_p-subscribe-->coalesce_class_entity_p-processor
 	    coalesce_class_entity_p-processor-->coalesce_class_entity_p-publish
 	    coalesce_class_entity_p-publish-->|Replace|coalesce_class_entity_s-subject
-	    coalesce_class_entity_s-subject-->|FullTable|comparator_predicate_class_entity_p-subscribe
+	    coalesce_class_entity_s-subject-->|AllRecordBatches|comparator_predicate_class_entity_p-subscribe
 	    comparator_predicate_class_entity_p-subscribe-->comparator_predicate_class_entity_p-processor
 	    comparator_predicate_class_entity_p-processor-->comparator_predicate_class_entity_p-publish
 	    comparator_predicate_class_entity_p-publish-->|Replace|comparator_predicate_class_entity_s-subject
-	    comparator_predicate_class_entity_s-subject-->|FullTable|filter_predicate_class_entity_p-subscribe
+	    comparator_predicate_class_entity_s-subject-->|AllRecordBatches|filter_predicate_class_entity_p-subscribe
 	    filter_predicate_class_entity_p-subscribe-->filter_predicate_class_entity_p-processor
 	    filter_predicate_class_entity_p-processor-->filter_predicate_class_entity_p-publish
 	    filter_predicate_class_entity_p-publish-->|Replace|filter_predicate_class_entity_s-subject
-	    filter_predicate_class_entity_s-subject-->|FullTable|select_predicate_class_entity_p-subscribe
+	    filter_predicate_class_entity_s-subject-->|AllRecordBatches|select_predicate_class_entity_p-subscribe
 	    select_predicate_class_entity_p-subscribe-->select_predicate_class_entity_p-processor
 	    select_predicate_class_entity_p-processor-->select_predicate_class_entity_p-publish
 	    select_predicate_class_entity_p-publish-->|Replace|select_predicate_class_entity_s-subject
-	    select_predicate_class_entity_s-subject-->|FullTable|pivot_class_entity_p-subscribe
+	    select_predicate_class_entity_s-subject-->|AllRecordBatches|pivot_class_entity_p-subscribe
 	    pivot_class_entity_p-subscribe-->pivot_class_entity_p-processor
 	    pivot_class_entity_p-processor-->pivot_class_entity_p-publish
 	    pivot_class_entity_p-publish-->|Replace|pivot_class_entity_s-subject
@@ -372,15 +372,15 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Owl:Class post-pivot cleanup
 	%% ------------------------------------------------------------------------------
 	subgraph post_pivot_class_entity_t
-	    pivot_class_entity_s-subject-.->|FullTable|coalesce_class_pivot_p-subscribe
+	    pivot_class_entity_s-subject-.->|AllRecordBatches|coalesce_class_pivot_p-subscribe
 	    coalesce_class_pivot_p-subscribe-->coalesce_class_pivot_p-processor
 	    coalesce_class_pivot_p-processor-->coalesce_class_pivot_p-publish
 	    coalesce_class_pivot_p-publish-->|Replace|coalesce_class_pivot_s-subject
-	    coalesce_class_pivot_s-subject-->|FullTable|group_by_class_pivot_p-subscribe
+	    coalesce_class_pivot_s-subject-->|AllRecordBatches|group_by_class_pivot_p-subscribe
 	    group_by_class_pivot_p-subscribe-->group_by_class_pivot_p-processor
 	    group_by_class_pivot_p-processor-->group_by_class_pivot_p-publish
 	    group_by_class_pivot_p-publish-->|Replace|group_by_class_pivot_s-subject
-	    group_by_class_pivot_s-subject-->|FullTable|select_class_pivot_p-subscribe
+	    group_by_class_pivot_s-subject-->|AllRecordBatches|select_class_pivot_p-subscribe
 	    select_class_pivot_p-subscribe-->select_class_pivot_p-processor
 	    select_class_pivot_p-processor-->select_class_pivot_p-publish
 	    select_class_pivot_p-publish-->|Extend|merge_object_property_class_named_individual_pivot_s-subject
@@ -406,19 +406,19 @@ impl<'a> ExtractOntologySession<'a> {
 	    coalesce_object_property_entity_p-subscribe-->coalesce_object_property_entity_p-processor
 	    coalesce_object_property_entity_p-processor-->coalesce_object_property_entity_p-publish
 	    coalesce_object_property_entity_p-publish-->|Replace|coalesce_object_property_entity_s-subject
-	    coalesce_object_property_entity_s-subject-->|FullTable|comparator_predicate_object_property_entity_p-subscribe
+	    coalesce_object_property_entity_s-subject-->|AllRecordBatches|comparator_predicate_object_property_entity_p-subscribe
 	    comparator_predicate_object_property_entity_p-subscribe-->comparator_predicate_object_property_entity_p-processor
 	    comparator_predicate_object_property_entity_p-processor-->comparator_predicate_object_property_entity_p-publish
 	    comparator_predicate_object_property_entity_p-publish-->|Replace|comparator_predicate_object_property_entity_s-subject
-	    comparator_predicate_object_property_entity_s-subject-->|FullTable|filter_predicate_object_property_entity_p-subscribe
+	    comparator_predicate_object_property_entity_s-subject-->|AllRecordBatches|filter_predicate_object_property_entity_p-subscribe
 	    filter_predicate_object_property_entity_p-subscribe-->filter_predicate_object_property_entity_p-processor
 	    filter_predicate_object_property_entity_p-processor-->filter_predicate_object_property_entity_p-publish
 	    filter_predicate_object_property_entity_p-publish-->|Replace|filter_predicate_object_property_entity_s-subject
-	    filter_predicate_object_property_entity_s-subject-->|FullTable|select_predicate_object_property_entity_p-subscribe
+	    filter_predicate_object_property_entity_s-subject-->|AllRecordBatches|select_predicate_object_property_entity_p-subscribe
 	    select_predicate_object_property_entity_p-subscribe-->select_predicate_object_property_entity_p-processor
 	    select_predicate_object_property_entity_p-processor-->select_predicate_object_property_entity_p-publish
 	    select_predicate_object_property_entity_p-publish-->|Replace|select_predicate_object_property_entity_s-subject
-	    select_predicate_object_property_entity_s-subject-->|FullTable|pivot_object_property_entity_p-subscribe
+	    select_predicate_object_property_entity_s-subject-->|AllRecordBatches|pivot_object_property_entity_p-subscribe
 	    pivot_object_property_entity_p-subscribe-->pivot_object_property_entity_p-processor
 	    pivot_object_property_entity_p-processor-->pivot_object_property_entity_p-publish
 	    pivot_object_property_entity_p-publish-->|Replace|pivot_object_property_entity_s-subject
@@ -448,15 +448,15 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Owl:ObjectProperty post-pivot cleanup
 	%% ------------------------------------------------------------------------------
 	subgraph post_pivot_object_property_t
-	    pivot_object_property_entity_s-subject-.->|FullTable|coalesce_object_property_pivot_p-subscribe
+	    pivot_object_property_entity_s-subject-.->|AllRecordBatches|coalesce_object_property_pivot_p-subscribe
 	    coalesce_object_property_pivot_p-subscribe-->coalesce_object_property_pivot_p-processor
 	    coalesce_object_property_pivot_p-processor-->coalesce_object_property_pivot_p-publish
 	    coalesce_object_property_pivot_p-publish-->|Replace|coalesce_object_property_pivot_s-subject
-	    coalesce_object_property_pivot_s-subject-->|FullTable|group_by_object_property_pivot_p-subscribe
+	    coalesce_object_property_pivot_s-subject-->|AllRecordBatches|group_by_object_property_pivot_p-subscribe
 	    group_by_object_property_pivot_p-subscribe-->group_by_object_property_pivot_p-processor
 	    group_by_object_property_pivot_p-processor-->group_by_object_property_pivot_p-publish
 	    group_by_object_property_pivot_p-publish-->|Replace|group_by_object_property_pivot_s-subject
-	    group_by_object_property_pivot_s-subject-->|FullTable|select_object_property_pivot_p-subscribe
+	    group_by_object_property_pivot_s-subject-->|AllRecordBatches|select_object_property_pivot_p-subscribe
 	    select_object_property_pivot_p-subscribe-->select_object_property_pivot_p-processor
 	    select_object_property_pivot_p-processor-->select_object_property_pivot_p-publish
 	    select_object_property_pivot_p-publish-->|Extend|merge_object_property_class_named_individual_pivot_s-subject
@@ -481,19 +481,19 @@ impl<'a> ExtractOntologySession<'a> {
 	    coalesce_named_individual_entity_p-subscribe-->coalesce_named_individual_entity_p-processor
 	    coalesce_named_individual_entity_p-processor-->coalesce_named_individual_entity_p-publish
 	    coalesce_named_individual_entity_p-publish-->|Replace|coalesce_named_individual_entity_s-subject
-	    coalesce_named_individual_entity_s-subject-->|FullTable|comparator_predicate_named_individual_entity_p-subscribe
+	    coalesce_named_individual_entity_s-subject-->|AllRecordBatches|comparator_predicate_named_individual_entity_p-subscribe
 	    comparator_predicate_named_individual_entity_p-subscribe-->comparator_predicate_named_individual_entity_p-processor
 	    comparator_predicate_named_individual_entity_p-processor-->comparator_predicate_named_individual_entity_p-publish
 	    comparator_predicate_named_individual_entity_p-publish-->|Replace|comparator_predicate_named_individual_entity_s-subject
-	    comparator_predicate_named_individual_entity_s-subject-->|FullTable|filter_predicate_named_individual_entity_p-subscribe
+	    comparator_predicate_named_individual_entity_s-subject-->|AllRecordBatches|filter_predicate_named_individual_entity_p-subscribe
 	    filter_predicate_named_individual_entity_p-subscribe-->filter_predicate_named_individual_entity_p-processor
 	    filter_predicate_named_individual_entity_p-processor-->filter_predicate_named_individual_entity_p-publish
 	    filter_predicate_named_individual_entity_p-publish-->|Replace|filter_predicate_named_individual_entity_s-subject
-	    filter_predicate_named_individual_entity_s-subject-->|FullTable|select_predicate_named_individual_entity_p-subscribe
+	    filter_predicate_named_individual_entity_s-subject-->|AllRecordBatches|select_predicate_named_individual_entity_p-subscribe
 	    select_predicate_named_individual_entity_p-subscribe-->select_predicate_named_individual_entity_p-processor
 	    select_predicate_named_individual_entity_p-processor-->select_predicate_named_individual_entity_p-publish
 	    select_predicate_named_individual_entity_p-publish-->|Replace|select_predicate_named_individual_entity_s-subject
-	    select_predicate_named_individual_entity_s-subject-->|FullTable|pivot_named_individual_entity_p-subscribe
+	    select_predicate_named_individual_entity_s-subject-->|AllRecordBatches|pivot_named_individual_entity_p-subscribe
 	    pivot_named_individual_entity_p-subscribe-->pivot_named_individual_entity_p-processor
 	    pivot_named_individual_entity_p-processor-->pivot_named_individual_entity_p-publish
 	    pivot_named_individual_entity_p-publish-->|Replace|pivot_named_individual_entity_s-subject
@@ -523,15 +523,15 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Owl:NamedIndividual post-pivot cleanup
 	%% ------------------------------------------------------------------------------
 	subgraph post_pivot_named_individual_t
-	    pivot_named_individual_entity_s-subject-.->|FullTable|coalesce_named_individual_pivot_p-subscribe
+	    pivot_named_individual_entity_s-subject-.->|AllRecordBatches|coalesce_named_individual_pivot_p-subscribe
 	    coalesce_named_individual_pivot_p-subscribe-->coalesce_named_individual_pivot_p-processor
 	    coalesce_named_individual_pivot_p-processor-->coalesce_named_individual_pivot_p-publish
 	    coalesce_named_individual_pivot_p-publish-->|Replace|coalesce_named_individual_pivot_s-subject
-	    coalesce_named_individual_pivot_s-subject-->|FullTable|group_by_named_individual_pivot_p-subscribe
+	    coalesce_named_individual_pivot_s-subject-->|AllRecordBatches|group_by_named_individual_pivot_p-subscribe
 	    group_by_named_individual_pivot_p-subscribe-->group_by_named_individual_pivot_p-processor
 	    group_by_named_individual_pivot_p-processor-->group_by_named_individual_pivot_p-publish
 	    group_by_named_individual_pivot_p-publish-->|Replace|group_by_named_individual_pivot_s-subject
-	    group_by_named_individual_pivot_s-subject-->|FullTable|select_named_individual_pivot_p-subscribe
+	    group_by_named_individual_pivot_s-subject-->|AllRecordBatches|select_named_individual_pivot_p-subscribe
 	    select_named_individual_pivot_p-subscribe-->select_named_individual_pivot_p-processor
 	    select_named_individual_pivot_p-processor-->select_named_individual_pivot_p-publish
 	    select_named_individual_pivot_p-publish-->|Extend|merge_object_property_class_named_individual_pivot_s-subject
@@ -552,12 +552,12 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Join Owl:AnnotationProperty with Owl:Class on predicates
 	%% ------------------------------------------------------------------------------
 	subgraph join_class_on_predicates_t
-	    select_class_entity_s-subject-.->|FullTable|join_predicates_class_entity_p-subscribe
-	    select_annotation_property_pivot_s-subject-.->|FullTable|join_predicates_class_entity_p-subscribe
+	    select_class_entity_s-subject-.->|AllRecordBatches|join_predicates_class_entity_p-subscribe
+	    select_annotation_property_pivot_s-subject-.->|AllRecordBatches|join_predicates_class_entity_p-subscribe
 	    join_predicates_class_entity_p-subscribe-->join_predicates_class_entity_p-processor
 	    join_predicates_class_entity_p-processor-->join_predicates_class_entity_p-publish
 	    join_predicates_class_entity_p-publish-->|Replace|join_predicates_class_entity_s-subject
-	    join_predicates_class_entity_s-subject-->|FullTable|select_predicates_class_entity_p-subscribe
+	    join_predicates_class_entity_s-subject-->|AllRecordBatches|select_predicates_class_entity_p-subscribe
 	    select_predicates_class_entity_p-subscribe-->select_predicates_class_entity_p-processor
 	    select_predicates_class_entity_p-processor-->select_predicates_class_entity_p-publish
 	    select_predicates_class_entity_p-publish-->|Replace|select_predicates_class_entity_s-subject
@@ -575,15 +575,15 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Filter Owl:Class for rdf:resource objects
 	%% ------------------------------------------------------------------------------
 	subgraph filter_resources_class_entity_t
-	    select_predicates_class_entity_s-subject-.->|FullTable|comparator_resource_class_entity_p-subscribe
+	    select_predicates_class_entity_s-subject-.->|AllRecordBatches|comparator_resource_class_entity_p-subscribe
 	    comparator_resource_class_entity_p-subscribe-->comparator_resource_class_entity_p-processor
 	    comparator_resource_class_entity_p-processor-->comparator_resource_class_entity_p-publish
 	    comparator_resource_class_entity_p-publish-->|Replace|comparator_resource_class_entity_s-subject
-	    comparator_resource_class_entity_s-subject-->|FullTable|filter_resource_class_entity_p-subscribe
+	    comparator_resource_class_entity_s-subject-->|AllRecordBatches|filter_resource_class_entity_p-subscribe
 	    filter_resource_class_entity_p-subscribe-->filter_resource_class_entity_p-processor
 	    filter_resource_class_entity_p-processor-->filter_resource_class_entity_p-publish
 	    filter_resource_class_entity_p-publish-->|Replace|filter_resource_class_entity_s-subject
-	    filter_resource_class_entity_s-subject-->|FullTable|select_resource_class_entity_p-subscribe
+	    filter_resource_class_entity_s-subject-->|AllRecordBatches|select_resource_class_entity_p-subscribe
 	    select_resource_class_entity_p-subscribe-->select_resource_class_entity_p-processor
 	    select_resource_class_entity_p-processor-->select_resource_class_entity_p-publish
 	    select_resource_class_entity_p-publish-->|Replace|select_resource_class_entity_s-subject
@@ -605,12 +605,12 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Join Owl:Class with Owl:Class on objects
 	%% ------------------------------------------------------------------------------
 	subgraph join_class_on_objects_t
-	    select_resource_class_entity_s-subject-.->|FullTable|join_objects_class_entity_p-subscribe
-	    merge_object_property_class_named_individual_pivot_s-subject-.->|FullTable|join_objects_class_entity_p-subscribe
+	    select_resource_class_entity_s-subject-.->|AllRecordBatches|join_objects_class_entity_p-subscribe
+	    merge_object_property_class_named_individual_pivot_s-subject-.->|AllRecordBatches|join_objects_class_entity_p-subscribe
 	    join_objects_class_entity_p-subscribe-->join_objects_class_entity_p-processor
 	    join_objects_class_entity_p-processor-->join_objects_class_entity_p-publish
 	    join_objects_class_entity_p-publish-->|Replace|join_objects_class_entity_s-subject
-	    join_objects_class_entity_s-subject-->|FullTable|select_objects_class_entity_p-subscribe
+	    join_objects_class_entity_s-subject-->|AllRecordBatches|select_objects_class_entity_p-subscribe
 	    select_objects_class_entity_p-subscribe-->select_objects_class_entity_p-processor
 	    select_objects_class_entity_p-processor-->select_objects_class_entity_p-publish
 	    select_objects_class_entity_p-publish-->|Extend|select_objects_class_entity_s-subject
@@ -633,15 +633,15 @@ impl<'a> ExtractOntologySession<'a> {
 	    pause_filter_literals_class_entity_p-subscribe-->pause_filter_literals_class_entity_p-processor
 	    pause_filter_literals_class_entity_p-processor-->pause_filter_literals_class_entity_p-publish
 	    pause_filter_literals_class_entity_p-publish-->|None|pause_filter_literals_class_entity_s-subject
-	    select_predicates_class_entity_s-subject-.->|FullTable|comparator_literal_class_entity_p-subscribe
+	    select_predicates_class_entity_s-subject-.->|AllRecordBatches|comparator_literal_class_entity_p-subscribe
 	    comparator_literal_class_entity_p-subscribe-->comparator_literal_class_entity_p-processor
 	    comparator_literal_class_entity_p-processor-->comparator_literal_class_entity_p-publish
 	    comparator_literal_class_entity_p-publish-->|Replace|comparator_literal_class_entity_s-subject
-	    comparator_literal_class_entity_s-subject-->|FullTable|filter_literal_class_entity_p-subscribe
+	    comparator_literal_class_entity_s-subject-->|AllRecordBatches|filter_literal_class_entity_p-subscribe
 	    filter_literal_class_entity_p-subscribe-->filter_literal_class_entity_p-processor
 	    filter_literal_class_entity_p-processor-->filter_literal_class_entity_p-publish
 	    filter_literal_class_entity_p-publish-->|Replace|filter_literal_class_entity_s-subject
-	    filter_literal_class_entity_s-subject-->|FullTable|select_literal_class_entity_p-subscribe
+	    filter_literal_class_entity_s-subject-->|AllRecordBatches|select_literal_class_entity_p-subscribe
 	    select_literal_class_entity_p-subscribe-->select_literal_class_entity_p-processor
 	    select_literal_class_entity_p-processor-->select_literal_class_entity_p-publish
 	    select_literal_class_entity_p-publish-->|Extend|select_objects_class_entity_s-subject
@@ -666,12 +666,12 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Join Owl:AnnotationProperty with Owl:ObjectProperty on predicates
 	%% ------------------------------------------------------------------------------
 	subgraph join_object_property_on_predicates_t
-	    select_object_property_entity_s-subject-.->|FullTable|join_predicates_object_property_entity_p-subscribe
-	    select_annotation_property_pivot_s-subject-.->|FullTable|join_predicates_object_property_entity_p-subscribe
+	    select_object_property_entity_s-subject-.->|AllRecordBatches|join_predicates_object_property_entity_p-subscribe
+	    select_annotation_property_pivot_s-subject-.->|AllRecordBatches|join_predicates_object_property_entity_p-subscribe
 	    join_predicates_object_property_entity_p-subscribe-->join_predicates_object_property_entity_p-processor
 	    join_predicates_object_property_entity_p-processor-->join_predicates_object_property_entity_p-publish
 	    join_predicates_object_property_entity_p-publish-->|Replace|join_predicates_object_property_entity_s-subject
-	    join_predicates_object_property_entity_s-subject-->|FullTable|select_predicates_object_property_entity_p-subscribe
+	    join_predicates_object_property_entity_s-subject-->|AllRecordBatches|select_predicates_object_property_entity_p-subscribe
 	    select_predicates_object_property_entity_p-subscribe-->select_predicates_object_property_entity_p-processor
 	    select_predicates_object_property_entity_p-processor-->select_predicates_object_property_entity_p-publish
 	    select_predicates_object_property_entity_p-publish-->|Replace|select_predicates_object_property_entity_s-subject
@@ -689,15 +689,15 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Filter Owl:ObjectProperty for rdf:resource objects
 	%% ------------------------------------------------------------------------------
 	subgraph filter_resources_object_property_entity_t
-	    select_predicates_object_property_entity_s-subject-.->|FullTable|comparator_resource_object_property_entity_p-subscribe
+	    select_predicates_object_property_entity_s-subject-.->|AllRecordBatches|comparator_resource_object_property_entity_p-subscribe
 	    comparator_resource_object_property_entity_p-subscribe-->comparator_resource_object_property_entity_p-processor
 	    comparator_resource_object_property_entity_p-processor-->comparator_resource_object_property_entity_p-publish
 	    comparator_resource_object_property_entity_p-publish-->|Replace|comparator_resource_object_property_entity_s-subject
-	    comparator_resource_object_property_entity_s-subject-->|FullTable|filter_resource_object_property_entity_p-subscribe
+	    comparator_resource_object_property_entity_s-subject-->|AllRecordBatches|filter_resource_object_property_entity_p-subscribe
 	    filter_resource_object_property_entity_p-subscribe-->filter_resource_object_property_entity_p-processor
 	    filter_resource_object_property_entity_p-processor-->filter_resource_object_property_entity_p-publish
 	    filter_resource_object_property_entity_p-publish-->|Replace|filter_resource_object_property_entity_s-subject
-	    filter_resource_object_property_entity_s-subject-->|FullTable|select_resource_object_property_entity_p-subscribe
+	    filter_resource_object_property_entity_s-subject-->|AllRecordBatches|select_resource_object_property_entity_p-subscribe
 	    select_resource_object_property_entity_p-subscribe-->select_resource_object_property_entity_p-processor
 	    select_resource_object_property_entity_p-processor-->select_resource_object_property_entity_p-publish
 	    select_resource_object_property_entity_p-publish-->|Replace|select_resource_object_property_entity_s-subject
@@ -719,12 +719,12 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Join Owl:Class with Owl:ObjectProperty on objects
 	%% ------------------------------------------------------------------------------
 	subgraph join_object_property_on_objects_t
-	    select_resource_object_property_entity_s-subject-.->|FullTable|join_objects_object_property_entity_p-subscribe
-	    merge_object_property_class_named_individual_pivot_s-subject-.->|FullTable|join_objects_object_property_entity_p-subscribe
+	    select_resource_object_property_entity_s-subject-.->|AllRecordBatches|join_objects_object_property_entity_p-subscribe
+	    merge_object_property_class_named_individual_pivot_s-subject-.->|AllRecordBatches|join_objects_object_property_entity_p-subscribe
 	    join_objects_object_property_entity_p-subscribe-->join_objects_object_property_entity_p-processor
 	    join_objects_object_property_entity_p-processor-->join_objects_object_property_entity_p-publish
 	    join_objects_object_property_entity_p-publish-->|Replace|join_objects_object_property_entity_s-subject
-	    join_objects_object_property_entity_s-subject-->|FullTable|select_objects_object_property_entity_p-subscribe
+	    join_objects_object_property_entity_s-subject-->|AllRecordBatches|select_objects_object_property_entity_p-subscribe
 	    select_objects_object_property_entity_p-subscribe-->select_objects_object_property_entity_p-processor
 	    select_objects_object_property_entity_p-processor-->select_objects_object_property_entity_p-publish
 	    select_objects_object_property_entity_p-publish-->|Extend|select_objects_object_property_entity_s-subject
@@ -747,15 +747,15 @@ impl<'a> ExtractOntologySession<'a> {
 	    pause_filter_literals_object_property_entity_p-subscribe-->pause_filter_literals_object_property_entity_p-processor
 	    pause_filter_literals_object_property_entity_p-processor-->pause_filter_literals_object_property_entity_p-publish
 	    pause_filter_literals_object_property_entity_p-publish-->|None|pause_filter_literals_object_property_entity_s-subject
-	    select_predicates_object_property_entity_s-subject-.->|FullTable|comparator_literal_object_property_entity_p-subscribe
+	    select_predicates_object_property_entity_s-subject-.->|AllRecordBatches|comparator_literal_object_property_entity_p-subscribe
 	    comparator_literal_object_property_entity_p-subscribe-->comparator_literal_object_property_entity_p-processor
 	    comparator_literal_object_property_entity_p-processor-->comparator_literal_object_property_entity_p-publish
 	    comparator_literal_object_property_entity_p-publish-->|Replace|comparator_literal_object_property_entity_s-subject
-	    comparator_literal_object_property_entity_s-subject-->|FullTable|filter_literal_object_property_entity_p-subscribe
+	    comparator_literal_object_property_entity_s-subject-->|AllRecordBatches|filter_literal_object_property_entity_p-subscribe
 	    filter_literal_object_property_entity_p-subscribe-->filter_literal_object_property_entity_p-processor
 	    filter_literal_object_property_entity_p-processor-->filter_literal_object_property_entity_p-publish
 	    filter_literal_object_property_entity_p-publish-->|Replace|filter_literal_object_property_entity_s-subject
-	    filter_literal_object_property_entity_s-subject-->|FullTable|select_literal_object_property_entity_p-subscribe
+	    filter_literal_object_property_entity_s-subject-->|AllRecordBatches|select_literal_object_property_entity_p-subscribe
 	    select_literal_object_property_entity_p-subscribe-->select_literal_object_property_entity_p-processor
 	    select_literal_object_property_entity_p-processor-->select_literal_object_property_entity_p-publish
 	    select_literal_object_property_entity_p-publish-->|Extend|select_objects_object_property_entity_s-subject
@@ -780,23 +780,23 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Apply embedding template to Owl:Class
 	%% ------------------------------------------------------------------------------
 	subgraph apply_embedding_template_class_t
-	    select_objects_class_entity_s-subject-.->|FullTable|concat_cols_class_entity_p-subscribe
+	    select_objects_class_entity_s-subject-.->|AllRecordBatches|concat_cols_class_entity_p-subscribe
 	    concat_cols_class_entity_p-subscribe-->concat_cols_class_entity_p-processor
 	    concat_cols_class_entity_p-processor-->concat_cols_class_entity_p-publish
 	    concat_cols_class_entity_p-publish-->|Replace|concat_cols_class_entity_s-subject
-	    concat_cols_class_entity_s-subject-->|FullTable|select_cols_class_entity_p-subscribe
+	    concat_cols_class_entity_s-subject-->|AllRecordBatches|select_cols_class_entity_p-subscribe
 	    select_cols_class_entity_p-subscribe-->select_cols_class_entity_p-processor
 	    select_cols_class_entity_p-processor-->select_cols_class_entity_p-publish
 	    select_cols_class_entity_p-publish-->|Replace|select_cols_class_entity_s-subject
-	    select_cols_class_entity_s-subject-->|FullTable|list_rows_class_entity_p-subscribe
+	    select_cols_class_entity_s-subject-->|AllRecordBatches|list_rows_class_entity_p-subscribe
 	    list_rows_class_entity_p-subscribe-->list_rows_class_entity_p-processor
 	    list_rows_class_entity_p-processor-->list_rows_class_entity_p-publish
 	    list_rows_class_entity_p-publish-->|Replace|list_rows_class_entity_s-subject
-	    list_rows_class_entity_s-subject-->|FullTable|select_rows_class_entity_p-subscribe
+	    list_rows_class_entity_s-subject-->|AllRecordBatches|select_rows_class_entity_p-subscribe
 	    select_rows_class_entity_p-subscribe-->select_rows_class_entity_p-processor
 	    select_rows_class_entity_p-processor-->select_rows_class_entity_p-publish
 	    select_rows_class_entity_p-publish-->|Replace|select_rows_class_entity_s-subject
-	    select_rows_class_entity_s-subject-->|FullTable|apply_template_class_entity_p-subscribe
+	    select_rows_class_entity_s-subject-->|AllRecordBatches|apply_template_class_entity_p-subscribe
 	    apply_template_class_entity_p-subscribe-->apply_template_class_entity_p-processor
 	    apply_template_class_entity_p-processor-->apply_template_class_entity_p-publish
 	    apply_template_class_entity_p-publish-->|Extend|Documents-subject
@@ -826,23 +826,23 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Apply embedding template to Owl:ObjectProperty 
 	%% ------------------------------------------------------------------------------
 	subgraph apply_embedding_template_object_property_t
-	    select_objects_object_property_entity_s-subject-.->|FullTable|concat_cols_object_property_entity_p-subscribe
+	    select_objects_object_property_entity_s-subject-.->|AllRecordBatches|concat_cols_object_property_entity_p-subscribe
 	    concat_cols_object_property_entity_p-subscribe-->concat_cols_object_property_entity_p-processor
 	    concat_cols_object_property_entity_p-processor-->concat_cols_object_property_entity_p-publish
 	    concat_cols_object_property_entity_p-publish-->|Replace|concat_cols_object_property_entity_s-subject
-	    concat_cols_object_property_entity_s-subject-->|FullTable|select_cols_object_property_entity_p-subscribe
+	    concat_cols_object_property_entity_s-subject-->|AllRecordBatches|select_cols_object_property_entity_p-subscribe
 	    select_cols_object_property_entity_p-subscribe-->select_cols_object_property_entity_p-processor
 	    select_cols_object_property_entity_p-processor-->select_cols_object_property_entity_p-publish
 	    select_cols_object_property_entity_p-publish-->|Replace|select_cols_object_property_entity_s-subject
-	    select_cols_object_property_entity_s-subject-->|FullTable|list_rows_object_property_entity_p-subscribe
+	    select_cols_object_property_entity_s-subject-->|AllRecordBatches|list_rows_object_property_entity_p-subscribe
 	    list_rows_object_property_entity_p-subscribe-->list_rows_object_property_entity_p-processor
 	    list_rows_object_property_entity_p-processor-->list_rows_object_property_entity_p-publish
 	    list_rows_object_property_entity_p-publish-->|Replace|list_rows_object_property_entity_s-subject
-	    list_rows_object_property_entity_s-subject-->|FullTable|select_rows_object_property_entity_p-subscribe
+	    list_rows_object_property_entity_s-subject-->|AllRecordBatches|select_rows_object_property_entity_p-subscribe
 	    select_rows_object_property_entity_p-subscribe-->select_rows_object_property_entity_p-processor
 	    select_rows_object_property_entity_p-processor-->select_rows_object_property_entity_p-publish
 	    select_rows_object_property_entity_p-publish-->|Replace|select_rows_object_property_entity_s-subject
-	    select_rows_object_property_entity_s-subject-->|FullTable|apply_template_object_property_entity_p-subscribe
+	    select_rows_object_property_entity_s-subject-->|AllRecordBatches|apply_template_object_property_entity_p-subscribe
 	    apply_template_object_property_entity_p-subscribe-->apply_template_object_property_entity_p-processor
 	    apply_template_object_property_entity_p-processor-->apply_template_object_property_entity_p-publish
 	    apply_template_object_property_entity_p-publish-->|Extend|Documents-subject
@@ -1857,17 +1857,18 @@ mod tests {
     use std::sync::Arc;
 
     use anyhow::Result;
-    use parking_lot::RwLock;
+    use futures::TryStreamExt;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Table,
-        TableBuilderTrait, TablePublication, TableTrait, create_attachments_batch,
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait,
+        MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription,
+        create_attachments_batch,
     };
     use phymes_diagnostics::{HashMap, create_timestamp_micros};
 
     use crate::{
         AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
         SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep,
-        SessionStreamStepTrait, create_message_map,
+        SessionStreamStepTrait, SubscriptionTrait, create_message_map,
     };
 
     use super::*;
@@ -1876,11 +1877,11 @@ mod tests {
     async fn test_extract_ontology_session() -> Result<()> {
         // Initialize the session
         let extract_onto_session = ExtractOntologySession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             extract_onto_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             extract_onto_session.as_mermaid_erdiagram(),
             false,
             true,
@@ -1891,7 +1892,7 @@ mod tests {
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Test owl file
         let owl = r#"<?xml version="1.0"?>
@@ -1982,49 +1983,46 @@ mod tests {
             vec!["".to_string()],
             vec![create_timestamp_micros()],
         )?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(AvailableInterfaceSubjects::UserScript.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
         let owl_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
             .with_subject(AvailableInterfaceSubjects::UserScript.to_string().as_str())
-            .with_update(&TablePublication::Replace {
-                table_name: AvailableInterfaceSubjects::UserScript.to_string(),
+            .with_update(&Publication::Replace {
+                subject_name: AvailableInterfaceSubjects::UserScript.to_string(),
             })
             .with_publisher(extract_onto_session.session_context_name)
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![owl_message]);
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Run the first superstep
         let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map)
             .await?
             .unwrap();
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
-
         assert_eq!(response.len(), 0);
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get(AvailableSubjects::ParseOwl.to_string().as_str())
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 30);
-            let column = table_reading.get_column_as_vec_str("entity");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableSubjects::ParseOwl.to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::ParseOwl.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 30);
+            let column = subject.get_column_as_vec_str("entity");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://www.w3.org/2002/07/owl#AnnotationProperty"
@@ -2033,7 +2031,7 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2002/07/owl#Ontology"
             );
-            let column = table_reading.get_column_as_vec_str("subject");
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115"
@@ -2042,19 +2040,19 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/ro.owl"
             );
-            let column = table_reading.get_column_as_vec_str("predicate");
+            let column = subject.get_column_as_vec_str("predicate");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115"
             );
             assert_eq!(column.last().unwrap(), &"http://purl.org/dc/terms/title");
-            let column = table_reading.get_column_as_vec_str("object");
+            let column = subject.get_column_as_vec_str("object");
             assert_eq!(
                 column.first().unwrap(),
                 &"The official definition, explaining the meaning of a class or property. Shall be Aristotelian, formalized and normalized. Can be augmented with colloquial definitions."
             );
             assert_eq!(column.last().unwrap(), &"OBO Relations Ontology");
-            let column = table_reading.get_column_as_vec_str("graph");
+            let column = subject.get_column_as_vec_str("graph");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115-http://purl.obolibrary.org/obo/IAO_0000115-The official definition, explaining the meaning of a class or property. Shall be Aristotelian, formalized and normalized. Can be augmented with colloquial definitions."
@@ -2063,7 +2061,7 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/ro.owl-http://purl.org/dc/terms/title-OBO Relations Ontology"
             );
-            let column = table_reading.get_column_as_vec_str("dataset");
+            let column = subject.get_column_as_vec_str("dataset");
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
         }
@@ -2076,30 +2074,23 @@ mod tests {
         .await?
         .unwrap();
 
-        // {
-        //     // Debug any errors
-        //     let subjects_reading = session_ctx_arc.read();
-        //     let table_reading = subjects_reading
-        //         .get_states()
-        //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
-        //         .unwrap()
-        //         .read();
-        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        // }
-
         assert_eq!(response.len(), 0);
-        println!("Starting second superstep...");
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get("select_ontology_entity_s")
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 2);
-            let column = table_reading.get_column_as_vec_str("entity");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "select_ontology_entity_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_ontology_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 2);
+            let column = subject.get_column_as_vec_str("entity");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://www.w3.org/2002/07/owl#Ontology"
@@ -2108,7 +2099,7 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2002/07/owl#Ontology"
             );
-            let column = table_reading.get_column_as_vec_str("subject");
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/ro.owl"
@@ -2117,19 +2108,19 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/ro.owl"
             );
-            let column = table_reading.get_column_as_vec_str("predicate");
+            let column = subject.get_column_as_vec_str("predicate");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.org/dc/terms/description"
             );
             assert_eq!(column.last().unwrap(), &"http://purl.org/dc/terms/title");
-            let column = table_reading.get_column_as_vec_str("object");
+            let column = subject.get_column_as_vec_str("object");
             assert_eq!(
                 column.first().unwrap(),
                 &"The OBO Relations Ontology (RO) is a collection of OWL relations (ObjectProperties) intended for use across a wide variety of biological ontologies."
             );
             assert_eq!(column.last().unwrap(), &"OBO Relations Ontology");
-            let column = table_reading.get_column_as_vec_str("graph");
+            let column = subject.get_column_as_vec_str("graph");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/ro.owl-http://purl.org/dc/terms/description-The OBO Relations Ontology (RO) is a collection of OWL relations (ObjectProperties) intended for use across a wide variety of biological ontologies."
@@ -2138,16 +2129,22 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/ro.owl-http://purl.org/dc/terms/title-OBO Relations Ontology"
             );
-            let column = table_reading.get_column_as_vec_str("dataset");
+            let column = subject.get_column_as_vec_str("dataset");
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
-            let table_reading = session_reading
-                .get_states()
-                .get("select_annotation_property_entity_s")
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 17);
-            let column = table_reading.get_column_as_vec_str("entity");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "select_annotation_property_entity_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_annotation_property_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 17);
+            let column = subject.get_column_as_vec_str("entity");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://www.w3.org/2002/07/owl#AnnotationProperty"
@@ -2156,7 +2153,7 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2002/07/owl#AnnotationProperty"
             );
-            let column = table_reading.get_column_as_vec_str("subject");
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115"
@@ -2165,7 +2162,7 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2000/01/rdf-schema#subPropertyOf"
             );
-            let column = table_reading.get_column_as_vec_str("predicate");
+            let column = subject.get_column_as_vec_str("predicate");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115"
@@ -2174,13 +2171,13 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2000/01/rdf-schema#label"
             );
-            let column = table_reading.get_column_as_vec_str("object");
+            let column = subject.get_column_as_vec_str("object");
             assert_eq!(
                 column.first().unwrap(),
                 &"The official definition, explaining the meaning of a class or property. Shall be Aristotelian, formalized and normalized. Can be augmented with colloquial definitions."
             );
             assert_eq!(column.last().unwrap(), &"subPropertyOf");
-            let column = table_reading.get_column_as_vec_str("graph");
+            let column = subject.get_column_as_vec_str("graph");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115-http://purl.obolibrary.org/obo/IAO_0000115-The official definition, explaining the meaning of a class or property. Shall be Aristotelian, formalized and normalized. Can be augmented with colloquial definitions."
@@ -2189,22 +2186,30 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2000/01/rdf-schema#subPropertyOf-http://www.w3.org/2000/01/rdf-schema#label-subPropertyOf"
             );
-            let column = table_reading.get_column_as_vec_str("dataset");
+            let column = subject.get_column_as_vec_str("dataset");
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
-            let table_reading = session_reading
-                .get_states()
-                .get("select_datatype_property_entity_s")
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 0);
-            let table_reading = session_reading
-                .get_states()
-                .get("select_class_entity_s")
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 5);
-            let column = table_reading.get_column_as_vec_str("entity");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "select_datatype_property_entity_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            assert_eq!(batches.len(), 0);
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "select_class_entity_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_class_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 5);
+            let column = subject.get_column_as_vec_str("entity");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://www.w3.org/2002/07/owl#Class"
@@ -2213,7 +2218,7 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2002/07/owl#Class"
             );
-            let column = table_reading.get_column_as_vec_str("subject");
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/BFO_0000003"
@@ -2222,7 +2227,7 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/BFO_0000003"
             );
-            let column = table_reading.get_column_as_vec_str("predicate");
+            let column = subject.get_column_as_vec_str("predicate");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115"
@@ -2231,13 +2236,13 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2000/01/rdf-schema#label"
             );
-            let column = table_reading.get_column_as_vec_str("object");
+            let column = subject.get_column_as_vec_str("object");
             assert_eq!(
                 column.first().unwrap(),
                 &"An entity that has temporal parts and that happens, unfolds or develops through time."
             );
             assert_eq!(column.last().unwrap(), &"occurrent");
-            let column = table_reading.get_column_as_vec_str("graph");
+            let column = subject.get_column_as_vec_str("graph");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/BFO_0000003-http://purl.obolibrary.org/obo/IAO_0000115-An entity that has temporal parts and that happens, unfolds or develops through time."
@@ -2246,16 +2251,22 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/BFO_0000003-http://www.w3.org/2000/01/rdf-schema#label-occurrent"
             );
-            let column = table_reading.get_column_as_vec_str("dataset");
+            let column = subject.get_column_as_vec_str("dataset");
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
-            let table_reading = session_reading
-                .get_states()
-                .get("select_object_property_entity_s")
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 5);
-            let column = table_reading.get_column_as_vec_str("entity");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "select_object_property_entity_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_object_property_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 5);
+            let column = subject.get_column_as_vec_str("entity");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://www.w3.org/2002/07/owl#ObjectProperty"
@@ -2264,7 +2275,7 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2002/07/owl#ObjectProperty"
             );
-            let column = table_reading.get_column_as_vec_str("subject");
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/BFO_0000050"
@@ -2273,7 +2284,7 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/RO_0002131"
             );
-            let column = table_reading.get_column_as_vec_str("predicate");
+            let column = subject.get_column_as_vec_str("predicate");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115"
@@ -2282,13 +2293,13 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2000/01/rdf-schema#label"
             );
-            let column = table_reading.get_column_as_vec_str("object");
+            let column = subject.get_column_as_vec_str("object");
             assert_eq!(
                 column.first().unwrap(),
                 &"a core relation that holds between a part and its whole"
             );
             assert_eq!(column.last().unwrap(), &"overlaps");
-            let column = table_reading.get_column_as_vec_str("graph");
+            let column = subject.get_column_as_vec_str("graph");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/BFO_0000050-http://purl.obolibrary.org/obo/IAO_0000115-a core relation that holds between a part and its whole"
@@ -2297,48 +2308,56 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/RO_0002131-http://www.w3.org/2000/01/rdf-schema#label-overlaps"
             );
-            let column = table_reading.get_column_as_vec_str("dataset");
+            let column = subject.get_column_as_vec_str("dataset");
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
-            let table_reading = session_reading
-                .get_states()
-                .get("select_named_individual_entity_s")
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 1);
-            let column = table_reading.get_column_as_vec_str("entity");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "select_named_individual_entity_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_named_individual_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 1);
+            let column = subject.get_column_as_vec_str("entity");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://www.w3.org/2002/07/owl#NamedIndividual"
             );
-            let column = table_reading.get_column_as_vec_str("subject");
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/ENVO_01001569"
             );
-            let column = table_reading.get_column_as_vec_str("predicate");
+            let column = subject.get_column_as_vec_str("predicate");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://www.w3.org/2000/01/rdf-schema#label"
             );
-            let column = table_reading.get_column_as_vec_str("object");
+            let column = subject.get_column_as_vec_str("object");
             assert_eq!(
                 column.first().unwrap(),
                 &"Western Australian Mulga Shrublands Ecoregion"
             );
-            let column = table_reading.get_column_as_vec_str("graph");
+            let column = subject.get_column_as_vec_str("graph");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/ENVO_01001569-http://www.w3.org/2000/01/rdf-schema#label-Western Australian Mulga Shrublands Ecoregion"
             );
-            let column = table_reading.get_column_as_vec_str("dataset");
+            let column = subject.get_column_as_vec_str("dataset");
             assert_eq!(column.first().unwrap(), &"UserScript");
-            let table_reading = session_reading
-                .get_states()
-                .get("select_axiom_entity_s")
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 0);
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "select_axiom_entity_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            assert_eq!(batches.len(), 0);
         }
 
         // Run the third superstep
@@ -2349,29 +2368,23 @@ mod tests {
         .await?
         .unwrap();
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
-
         assert_eq!(response.len(), 0);
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get("pivot_annotation_property_entity_s")
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 7);
-            let column = table_reading.get_column_as_vec_str("subject");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "pivot_annotation_property_entity_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("pivot_annotation_property_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 7);
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115"
@@ -2380,44 +2393,56 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2000/01/rdf-schema#subPropertyOf"
             );
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
             assert_eq!(column.first().unwrap(), &"definition");
             assert_eq!(column.last().unwrap(), &"subPropertyOf");
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_str("http://purl.obolibrary.org/obo/IAO_0000115-object-First");
             assert_eq!(
                 column.first().unwrap(),
                 &"The official definition, explaining the meaning of a class or property. Shall be Aristotelian, formalized and normalized. Can be augmented with colloquial definitions."
             );
             assert_eq!(column.last().unwrap(), &"");
-            let table_reading = session_reading
-                .get_states()
-                .get("pivot_class_entity_s")
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 1);
-            let column = table_reading.get_column_as_vec_str("subject");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "pivot_class_entity_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("pivot_class_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 1);
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/BFO_0000003"
             );
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
             assert_eq!(column.first().unwrap(), &"occurrent");
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_str("http://purl.obolibrary.org/obo/IAO_0000115-object-First");
             assert_eq!(
                 column.first().unwrap(),
                 &"An entity that has temporal parts and that happens, unfolds or develops through time."
             );
-            let table_reading = session_reading
-                .get_states()
-                .get("pivot_object_property_entity_s")
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 2);
-            let column = table_reading.get_column_as_vec_str("subject");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "pivot_object_property_entity_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("pivot_object_property_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 2);
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/BFO_0000050"
@@ -2426,11 +2451,11 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/RO_0002131"
             );
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
             assert_eq!(column.first().unwrap(), &"part of");
             assert_eq!(column.last().unwrap(), &"overlaps");
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_str("http://purl.obolibrary.org/obo/IAO_0000115-object-First");
             assert_eq!(
                 column.first().unwrap(),
@@ -2440,19 +2465,24 @@ mod tests {
                 column.last().unwrap(),
                 &"x overlaps y if and only if there exists some z such that x has part z and z part of y"
             );
-            let table_reading = session_reading
-                .get_states()
-                .get("pivot_named_individual_entity_s")
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            assert_eq!(table_reading.count_rows(), 1);
-            let column = table_reading.get_column_as_vec_str("subject");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "pivot_named_individual_entity_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("pivot_named_individual_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 1);
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/ENVO_01001569"
             );
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
             assert_eq!(
                 column.first().unwrap(),
@@ -2468,29 +2498,23 @@ mod tests {
         .await?
         .unwrap();
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
-
         assert_eq!(response.len(), 0);
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get("select_annotation_property_pivot_s")
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 7);
-            let column = table_reading.get_column_as_vec_str("uri");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "select_annotation_property_pivot_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_annotation_property_pivot_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 7);
+            let column = subject.get_column_as_vec_str("uri");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115"
@@ -2499,29 +2523,35 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2000/01/rdf-schema#subPropertyOf"
             );
-            let column = table_reading.get_column_as_vec_str("rdfs_label");
+            let column = subject.get_column_as_vec_str("rdfs_label");
             assert_eq!(column.first().unwrap(), &"definition");
             assert_eq!(column.last().unwrap(), &"subPropertyOf");
-            let column = table_reading.get_column_as_vec_str("obo_IAO_0000115");
+            let column = subject.get_column_as_vec_str("obo_IAO_0000115");
             assert_eq!(
                 column.first().unwrap(),
                 &"The official definition, explaining the meaning of a class or property. Shall be Aristotelian, formalized and normalized. Can be augmented with colloquial definitions."
             );
             assert_eq!(column.last().unwrap(), &"");
-            let table_reading = session_reading
-                .get_states()
-                .get("merge_object_property_class_named_individual_pivot_s")
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 4);
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "merge_object_property_class_named_individual_pivot_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("merge_object_property_class_named_individual_pivot_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 4);
             // DM: the ordering of results is variable
-            // let column = table_reading.get_column_as_vec_str("uri");
+            // let column = subject.get_column_as_vec_str("uri");
             // assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/BFO_0000003");
             // assert_eq!(column.last().unwrap(), &"http://purl.obolibrary.org/obo/ENVO_01001569");
-            // let column = table_reading.get_column_as_vec_str("rdfs_label");
+            // let column = subject.get_column_as_vec_str("rdfs_label");
             // assert_eq!(column.first().unwrap(), &"part of");
             // assert_eq!(column.last().unwrap(), &"Western Australian Mulga Shrublands Ecoregion");
-            // let column = table_reading.get_column_as_vec_str("obo_IAO_0000115");
+            // let column = subject.get_column_as_vec_str("obo_IAO_0000115");
             // assert_eq!(column.first().unwrap(), &"a core relation that holds between a part and its whole");
             // assert_eq!(column.last().unwrap(), &"");
         }
@@ -2534,80 +2564,80 @@ mod tests {
         .await?
         .unwrap();
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
-
         assert_eq!(response.len(), 0);
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get("select_predicates_object_property_entity_s")
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 5);
-            // let column = table_reading.get_column_as_vec_str("entity");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "select_predicates_object_property_entity_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_predicates_object_property_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 5);
+            // let column = subject.get_column_as_vec_str("entity");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("subject");
+            // let column = subject.get_column_as_vec_str("subject");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate");
+            // let column = subject.get_column_as_vec_str("predicate");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("object");
+            // let column = subject.get_column_as_vec_str("object");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("graph");
+            // let column = subject.get_column_as_vec_str("graph");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("dataset");
+            // let column = subject.get_column_as_vec_str("dataset");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_rdfs_label");
+            // let column = subject.get_column_as_vec_str("predicate_rdfs_label");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_obo_IAO_0000115");
+            // let column = subject.get_column_as_vec_str("predicate_obo_IAO_0000115");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            let table_reading = session_reading
-                .get_states()
-                .get("select_predicates_class_entity_s")
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 5);
-            // let column = table_reading.get_column_as_vec_str("entity");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "select_predicates_class_entity_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_predicates_class_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 5);
+            // let column = subject.get_column_as_vec_str("entity");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("subject");
+            // let column = subject.get_column_as_vec_str("subject");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate");
+            // let column = subject.get_column_as_vec_str("predicate");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("object");
+            // let column = subject.get_column_as_vec_str("object");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("graph");
+            // let column = subject.get_column_as_vec_str("graph");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("dataset");
+            // let column = subject.get_column_as_vec_str("dataset");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_rdfs_label");
+            // let column = subject.get_column_as_vec_str("predicate_rdfs_label");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_obo_IAO_0000115");
+            // let column = subject.get_column_as_vec_str("predicate_obo_IAO_0000115");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
         }
@@ -2620,56 +2650,52 @@ mod tests {
         .await?
         .unwrap();
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
-
         assert_eq!(response.len(), 0);
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get("select_resource_class_entity_s")
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 0);
-            let table_reading = session_reading
-                .get_states()
-                .get("select_resource_object_property_entity_s")
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 1);
-            // let column = table_reading.get_column_as_vec_str("entity");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "select_resource_class_entity_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            assert_eq!(batches.len(), 0);
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "select_resource_object_property_entity_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_resource_object_property_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 1);
+            // let column = subject.get_column_as_vec_str("entity");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("subject");
+            // let column = subject.get_column_as_vec_str("subject");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate");
+            // let column = subject.get_column_as_vec_str("predicate");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("object");
+            // let column = subject.get_column_as_vec_str("object");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("graph");
+            // let column = subject.get_column_as_vec_str("graph");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("dataset");
+            // let column = subject.get_column_as_vec_str("dataset");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_rdfs_label");
+            // let column = subject.get_column_as_vec_str("predicate_rdfs_label");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_obo_IAO_0000115");
+            // let column = subject.get_column_as_vec_str("predicate_obo_IAO_0000115");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
         }
@@ -2682,80 +2708,80 @@ mod tests {
         .await?
         .unwrap();
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
-
         assert_eq!(response.len(), 0);
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get("select_objects_class_entity_s")
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 5);
-            // let column = table_reading.get_column_as_vec_str("entity");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "select_objects_class_entity_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_objects_class_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 5);
+            // let column = subject.get_column_as_vec_str("entity");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("subject");
+            // let column = subject.get_column_as_vec_str("subject");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("graph");
+            // let column = subject.get_column_as_vec_str("graph");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("dataset");
+            // let column = subject.get_column_as_vec_str("dataset");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_rdfs_label");
+            // let column = subject.get_column_as_vec_str("predicate_rdfs_label");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_obo_IAO_0000115");
+            // let column = subject.get_column_as_vec_str("predicate_obo_IAO_0000115");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("object_rdfs_label");
+            // let column = subject.get_column_as_vec_str("object_rdfs_label");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("object_obo_IAO_0000115");
+            // let column = subject.get_column_as_vec_str("object_obo_IAO_0000115");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            let table_reading = session_reading
-                .get_states()
-                .get("select_objects_object_property_entity_s")
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 5);
-            // let column = table_reading.get_column_as_vec_str("entity");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "select_objects_object_property_entity_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_objects_object_property_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 5);
+            // let column = subject.get_column_as_vec_str("entity");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("subject");
+            // let column = subject.get_column_as_vec_str("subject");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("graph");
+            // let column = subject.get_column_as_vec_str("graph");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("dataset");
+            // let column = subject.get_column_as_vec_str("dataset");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_rdfs_label");
+            // let column = subject.get_column_as_vec_str("predicate_rdfs_label");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_obo_IAO_0000115");
+            // let column = subject.get_column_as_vec_str("predicate_obo_IAO_0000115");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("object_rdfs_label");
+            // let column = subject.get_column_as_vec_str("object_rdfs_label");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("object_obo_IAO_0000115");
+            // let column = subject.get_column_as_vec_str("object_obo_IAO_0000115");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
         }
@@ -2768,29 +2794,23 @@ mod tests {
         .await?
         .unwrap();
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
-
         assert_eq!(response.len(), 0);
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get(AvailableSubjects::Documents.to_string().as_str())
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 3);
-            let mut column = table_reading.get_column_as_vec_str("chunk_id");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableSubjects::Documents.to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::Documents.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 3);
+            let mut column = subject.get_column_as_vec_str("chunk_id");
             column.sort();
             assert_eq!(
                 column.first().unwrap(),
@@ -2800,11 +2820,11 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/RO_0002131"
             );
-            let mut column = table_reading.get_column_as_vec_str("document_id");
+            let mut column = subject.get_column_as_vec_str("document_id");
             column.sort();
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
-            let mut column = table_reading.get_column_as_vec_str("text");
+            let mut column = subject.get_column_as_vec_str("text");
             column.sort();
             assert_eq!(
                 column.first().unwrap(),

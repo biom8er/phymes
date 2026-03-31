@@ -6,7 +6,6 @@
 
 use anyhow::Result;
 use futures::TryStreamExt;
-use parking_lot::RwLock;
 use phymes_diagnostics::HashMap;
 use std::sync::Arc;
 
@@ -16,24 +15,24 @@ use phymes_agents::{
 };
 use phymes_core::{
     AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage,
-    MappableTrait, MessageBuilderTrait, MessageTrait, Table, TableBuilder, TableBuilderTrait,
-    TablePublication, TableTrait, create_user_inbox_batch,
+    MappableTrait, MessageBuilderTrait, MessageTrait, Publication, Subject, SubjectBuilder,
+    SubjectBuilderTrait, SubjectTrait, create_user_inbox_batch,
 };
 
 pub async fn run_main() -> Result<()> {
     // initialize the session
     let user_agent_session = UserSession::default();
-    let session_ctx = user_agent_session
+    let (session_ctx, session_messages) = user_agent_session
         .build()
         .with_name(user_agent_session.session_context_name)
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-    let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+    let session_ctx_arc = Arc::new(session_ctx);
 
     // Make the tabular data
     let batch = create_user_inbox_batch(vec!["contact@biom8er.com".to_string()])?;
-    let bytes = Table::get_builder()
+    let bytes = Subject::get_builder()
         .with_record_batches(vec![batch])?
         .with_name(AvailableInterfaceSubjects::UserJson.to_string().as_str())
         .build()?
@@ -41,19 +40,22 @@ pub async fn run_main() -> Result<()> {
 
     // Wrap into the message
     let blob = AvailableInterfaceSubjects::UserJson
-        .to_table_builder(None)
+        .to_subject_builder(None)
         .with_attachment(None, Some("json"), &bytes, None)?
         .build()?;
     let blob_message = IPCMessage::get_builder()
         .with_message(blob.to_ipc_stream()?)
         .with_subject(blob.get_name())
-        .with_update(&TablePublication::Replace {
-            table_name: blob.get_name().to_string(),
+        .with_update(&Publication::Replace {
+            subject_name: blob.get_name().to_string(),
         })
         .with_publisher(user_agent_session.session_context_name)
         .make_name()?
         .build()?;
     let message_map = create_message_map(vec![blob_message]);
+    let _ = session_ctx_arc
+        .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+        .await;
 
     let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
     let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
@@ -69,7 +71,7 @@ pub async fn run_main() -> Result<()> {
         })
         .filter_map(|m| {
             m.map(|message| {
-                TableBuilder::new_from_ipc_stream(&message.get_message_own())
+                SubjectBuilder::new_from_ipc_stream(&message.get_message_own())
                     .unwrap()
                     .with_name("")
                     .build()

@@ -1,35 +1,33 @@
 mod candle_data;
 mod candle_operators;
-#[cfg(feature = "api")]
 mod external_operators;
-mod patch;
 mod template;
 
 pub use candle_data::{
-    AggregatorStream, AttachmentAggregatorProcessor, CandleDataProcessor, CandleTensorService,
-    CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator,
-    DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait,
-    DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig, LimitProcessor,
-    TensorProcessorTrait, collect_messages_by_schema, device,
+    AggregatorProcessor, AggregatorStream, CandleDataProcessor, CandleDataStream,
+    CandleTensorService, CoalesceProcessor, DataAggregatorOperator, DataCastOperator,
+    DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig,
+    DataConfigTrait, DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig,
+    LimitProcessor, LimitStream, TensorProcessorTrait, collect_messages_by_schema, device,
 };
 pub use candle_operators::{
-    ApplyPatch, ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait,
-    ExtractPDF, ExtractTabular, ExtractXML, Filter, FromTasksToParticipants, FromTracesToMessages,
-    GroupBy, HumanInTheLoop, Join, NormalizeTime, PackTabular, Pivot, Select, Sort, ToolTrait,
+    ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait, Diff, ExtractPDF,
+    ExtractTabular, ExtractXML, Filter, FromTasksToParticipants, FromTracesToMessages, GroupBy,
+    HumanInTheLoop, Join, NormalizeTime, PackTabular, Patch, Pivot, Select, Sort, ToolTrait,
     VectorDistance, convert_destinations_to_tools, extract_pdf, extract_xml, filter, filter_pdf,
     group_by, load_pdf_document, make_pdf_document, pack_tabular, sort,
     table_and_data_format_to_record_batch, test_extract_tabular_data,
 };
-#[cfg(feature = "api")]
 pub use external_operators::{
-    CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxProcessor,
-    CommandSandboxRunners, DataIOMethod, HTTPClientConfig, HTTPClientRequestProcessor,
-    HTTPClientRequestSchemas, HTTPClientRequestState, HTTPClientRequestType,
-    test_command_sandbox_processor,
+    CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod,
+    HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType, ObjectStoreConfig,
+    ObjectStoreOptsType, ObjectStoreProcessor, ObjectStoreStream,
 };
 #[cfg(feature = "api")]
-pub use patch::WorkspaceEditor;
-pub use patch::{ApplyDiffMode, PatchOperation, PatchOperator, apply_patch_auto, apply_v4a_diff};
+pub use external_operators::{
+    CommandSandboxProcessor, HTTPClientRequestProcessor, HTTPClientRequestState,
+    test_command_sandbox_processor,
+};
 pub use template::{
     AvailableJinja2Templates, MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_INPUT,
     MERMAID_ER_DIAGRAM_RELATIONS_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE, MERMAID_FLOWCHART_INPUT,

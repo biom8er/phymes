@@ -3,8 +3,8 @@ use phymes_agents::{
     SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
 };
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, TableBuilder,
-    TableBuilderTrait, TablePublication, TableTrait,
+    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, Publication,
+    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_server::create_session_name;
 
@@ -17,6 +17,8 @@ use super::backend::ADDR_BACKEND;
 #[cfg(not(feature = "serverless"))]
 use futures::StreamExt;
 
+#[cfg(feature = "serverless")]
+use crate::state::RUNTIME_ENV;
 #[cfg(feature = "serverless")]
 use bytes::Bytes;
 #[cfg(feature = "serverless")]
@@ -63,7 +65,7 @@ pub fn subjects_interface_view() -> Element {
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_stream(false)
     });
 
@@ -78,7 +80,11 @@ pub fn subjects_interface_view() -> Element {
         let route = "/app/v1/get_state";
         let data_serialized = serde_json::to_string(
             &get_session_state()
-                .with_subject(AvailableSubjects::SessionSubjects.to_string().as_str())
+                .with_subject(
+                    AvailableSubjects::SessionSubjectSchemas
+                        .to_string()
+                        .as_str(),
+                )
                 .make_name()
                 .unwrap()
                 .build()
@@ -103,7 +109,7 @@ pub fn subjects_interface_view() -> Element {
                 while let Some(Ok(b)) = stream.next().await {
                     bytes.extend(b);
                 }
-                match TableBuilder::new_from_ipc_stream(&bytes) {
+                match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
                         subject_schema_names.set(
@@ -136,9 +142,12 @@ pub fn subjects_interface_view() -> Element {
             basic_auth: None,
             bearer_auth: Some(JWT().to_string()),
             data: Some(data_serialized),
+            object_store_backend: None,
+            object_store_bucket: None,
+            object_store_config: None,
         };
         #[cfg(feature = "serverless")]
-        let mut serverless = Serverless::new(None);
+        let mut serverless = Serverless::new(None, &RUNTIME_ENV).await.unwrap();
         #[cfg(feature = "serverless")]
         match serverless_app(config, &mut serverless).await {
             Ok(response) => {
@@ -148,7 +157,8 @@ pub fn subjects_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
-                match TableBuilder::new_from_ipc_stream(&bytes) {
+                let bytes = bytes.into_iter().flatten().collect::<Vec<_>>();
+                match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
                         subject_schema_names.set(
@@ -206,7 +216,7 @@ pub fn subjects_interface_view() -> Element {
                 while let Some(Ok(b)) = stream.next().await {
                     bytes.extend(b);
                 }
-                match TableBuilder::new_from_ipc_stream(&bytes) {
+                match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
                         subject_names.set(
@@ -237,9 +247,12 @@ pub fn subjects_interface_view() -> Element {
             basic_auth: None,
             bearer_auth: Some(JWT().to_string()),
             data: Some(data_serialized),
+            object_store_backend: None,
+            object_store_bucket: None,
+            object_store_config: None,
         };
         #[cfg(feature = "serverless")]
-        let mut serverless = Serverless::new(None);
+        let mut serverless = Serverless::new(None, &RUNTIME_ENV).await.unwrap();
         #[cfg(feature = "serverless")]
         match serverless_app(config, &mut serverless).await {
             Ok(response) => {
@@ -249,7 +262,8 @@ pub fn subjects_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
-                match TableBuilder::new_from_ipc_stream(&bytes) {
+                let bytes = bytes.into_iter().flatten().collect::<Vec<_>>();
+                match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
                         subject_names.set(

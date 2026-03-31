@@ -34,8 +34,8 @@ mod tests {
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use phymes_core::{
-        BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableScript,
-        TableTrait,
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectScript,
+        SubjectTrait,
     };
     use serde_json::Map;
 
@@ -65,7 +65,7 @@ mod tests {
             ("participant_name", participant_arr),
             ("participant_type", participant_type_arr),
         ])?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -76,7 +76,7 @@ mod tests {
         let sequence_diagram_template_inputs = serde_json::to_value(input_object)?;
 
         // Create and render the template with the inputs
-        let participants_string = TableScript::new_from_template(
+        let participants_string = SubjectScript::new_from_template(
             MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE.to_string(),
         )
         .apply_template(&sequence_diagram_template_inputs)?;
@@ -148,7 +148,7 @@ mod tests {
             ("note_content", note_arr),
             ("note_location", note_location_arr),
         ])?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -159,9 +159,10 @@ mod tests {
         let sequence_diagram_template_inputs = serde_json::to_value(input_object)?;
 
         // Create and render the template with the inputs
-        let messages_string =
-            TableScript::new_from_template(MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE.to_string())
-                .apply_template(&sequence_diagram_template_inputs)?;
+        let messages_string = SubjectScript::new_from_template(
+            MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE.to_string(),
+        )
+        .apply_template(&sequence_diagram_template_inputs)?;
 
         assert_eq!(
             messages_string,
@@ -173,7 +174,7 @@ mod tests {
 
         let content_arr: ArrayRef = Arc::new(StringArray::from(content_vec));
         let batch = RecordBatch::try_from_iter(vec![("content", content_arr)])?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -190,7 +191,7 @@ mod tests {
             MERMAID_HTML_POST,
         ]
         .join("");
-        let script_string = TableScript::new_from_template(template)
+        let script_string = SubjectScript::new_from_template(template)
             .apply_template(&sequence_diagram_template_inputs)?;
 
         assert_eq!(

@@ -25,7 +25,7 @@ impl<'a> DownloadContentSession<'a> {
     %% - The `tool_call_session` is used to trigger the download when only the config is updated
 	%% ------------------------------------------------------------------------------
 	subgraph download_pdf_t
-		http_client_request_pdf_s-subject-.->|FullTable|download_pdf_p-subscribe
+		http_client_request_pdf_s-subject-.->|AllRecordBatches|download_pdf_p-subscribe
 		download_pdf_p-subject-.->|LastRecordBatch|download_pdf_p-subscribe
 		download_pdf_p-subscribe-->download_pdf_p-processor
 		download_pdf_p-processor-->download_pdf_p-publish
@@ -46,7 +46,7 @@ impl<'a> DownloadContentSession<'a> {
     %% - The `tool_call_session` is used to trigger the download when only the config is updated
 	%% ------------------------------------------------------------------------------
 	subgraph download_json_t
-		http_client_request_json_s-subject-.->|FullTable|download_json_p-subscribe
+		http_client_request_json_s-subject-.->|AllRecordBatches|download_json_p-subscribe
 		download_json_p-subject-.->|LastRecordBatch|download_json_p-subscribe
 		download_json_p-subscribe-->download_json_p-processor
 		download_json_p-processor-->download_json_p-publish
@@ -108,11 +108,10 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
         BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait,
-        MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
-        create_bytes_record_batch,
+        MessageBuilderTrait, Publication, Subject, SubjectBuilder, SubjectBuilderTrait,
+        SubjectTrait, Subscription, create_bytes_record_batch,
     };
     use phymes_data::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
     use phymes_diagnostics::HashMap;
@@ -120,7 +119,7 @@ mod tests {
     use crate::{
         AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
         SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
-        ToolCallSession,
+        SubscriptionTrait, ToolCallSession,
     };
 
     use super::*;
@@ -129,11 +128,11 @@ mod tests {
     async fn test_download_content_session_w_subjects() -> Result<()> {
         // Initialize the session
         let download_content_session = DownloadContentSession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             download_content_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             download_content_session.as_mermaid_erdiagram(),
             false,
             true,
@@ -144,7 +143,7 @@ mod tests {
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
@@ -167,7 +166,7 @@ mod tests {
             let http_client_config_json = serde_json::to_vec(&http_client_config)?;
             let http_client_config_batch =
                 create_bytes_record_batch(vec![http_client_config_json])?;
-            let http_client_config_table = TableBuilder::new()
+            let http_client_config_table = SubjectBuilder::new()
                 .with_name(name)
                 .with_record_batches(vec![http_client_config_batch])?
                 .build()?;
@@ -177,13 +176,13 @@ mod tests {
                     .with_name(http_client_config_table.get_name())
                     .with_publisher(download_content_session.session_context_name)
                     .with_subject(http_client_config_table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: http_client_config_table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: http_client_config_table.get_name().to_string(),
                     })
                     .with_message(http_client_config_table.to_ipc_stream()?)
                     .build()?,
             );
-            let message_builder = TableBuilder::new()
+            let message_builder = SubjectBuilder::new()
                 .with_name(messages)
                 .append_new_user_query_str(&download_url, "user")?;
             let _ = message_map.insert(
@@ -192,8 +191,8 @@ mod tests {
                     .with_name(messages)
                     .with_publisher(download_content_session.session_context_name)
                     .with_subject(messages)
-                    .with_update(&TablePublication::Replace {
-                        table_name: messages.to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: messages.to_string(),
                     })
                     .with_message(message_builder.clone().build()?.to_ipc_stream()?)
                     .build()?,
@@ -231,7 +230,7 @@ mod tests {
             let http_client_config_json = serde_json::to_vec(&http_client_config)?;
             let http_client_config_batch =
                 create_bytes_record_batch(vec![http_client_config_json])?;
-            let http_client_config_table = TableBuilder::new()
+            let http_client_config_table = SubjectBuilder::new()
                 .with_name(name)
                 .with_record_batches(vec![http_client_config_batch])?
                 .build()?;
@@ -241,13 +240,13 @@ mod tests {
                     .with_name(http_client_config_table.get_name())
                     .with_publisher(download_content_session.session_context_name)
                     .with_subject(http_client_config_table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: http_client_config_table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: http_client_config_table.get_name().to_string(),
                     })
                     .with_message(http_client_config_table.to_ipc_stream()?)
                     .build()?,
             );
-            let message_builder = TableBuilder::new()
+            let message_builder = SubjectBuilder::new()
                 .with_name(messages)
                 .append_new_user_query_str(&esearch_url, "user")?;
             let _ = message_map.insert(
@@ -256,8 +255,8 @@ mod tests {
                     .with_name(messages)
                     .with_publisher(download_content_session.session_context_name)
                     .with_subject(messages)
-                    .with_update(&TablePublication::Replace {
-                        table_name: messages.to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: messages.to_string(),
                     })
                     .with_message(message_builder.clone().build()?.to_ipc_stream()?)
                     .build()?,
@@ -265,73 +264,70 @@ mod tests {
         }
 
         // Run the session
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
-
-        // {
-        //     // Debug any errors
-        //     let subjects_reading = session_ctx_arc.read();
-        //     let table_reading = subjects_reading
-        //         .get_states()
-        //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
-        //         .unwrap()
-        //         .read();
-        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        //     let table_reading = subjects_reading
-        //         .get_states()
-        //         .get(AvailableSubjects::SessionTraces.to_string().as_str())
-        //         .unwrap()
-        //         .read();
-        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        // }
 
         assert_eq!(response.len(), 0);
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get(AvailableInterfaceSubjects::UserPdf.to_string().as_str())
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("filename");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableInterfaceSubjects::UserPdf.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("filename");
             assert_eq!(column, ["2508.18700"]);
-            let column = table_reading.get_column_as_vec_str("extension");
+            let column = subject.get_column_as_vec_str("extension");
             assert_eq!(column, ["application/pdf"]);
-            let column = table_reading.get_column_as_vec_str("metadata");
+            let column = subject.get_column_as_vec_str("metadata");
             assert_eq!(column, ["tool"]);
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
             for c in column {
                 assert!(c > 0);
             }
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_nested_primitive::<u8>("bytes")?
                 .into_iter()
                 .flatten()
                 .collect::<Vec<_>>();
             assert_eq!(column.len(), 505519);
-            let table_reading = session_reading
-                .get_states()
-                .get(AvailableInterfaceSubjects::UserJson.to_string().as_str())
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("filename");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::UserJson.to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableInterfaceSubjects::UserJson.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("filename");
             assert_eq!(
                 column,
                 [
                     "esearch.fcgi?db=pubmed&term=Diabetes%20Mellitus%5BMeSH%20Terms%5D%20AND%20%22Lancet%22%5BJournal%5D&retmode=json&retmax=5&mindate=2020&maxdate=2023"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("extension");
+            let column = subject.get_column_as_vec_str("extension");
             assert_eq!(column, ["application/json; charset=UTF-8"]);
-            let column = table_reading.get_column_as_vec_str("metadata");
+            let column = subject.get_column_as_vec_str("metadata");
             assert_eq!(column, ["tool"]);
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
             for c in column {
                 assert!(c > 0);
             }
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_nested_primitive::<u8>("bytes")?
                 .into_iter()
                 .flatten()
@@ -350,16 +346,20 @@ mod tests {
             &tool_call_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(&tool_call_session.as_mermaid_erdiagram()?, false, true)?
+        .with_subjects_from_mermaid_erdiagram(
+            &tool_call_session.as_mermaid_erdiagram()?,
+            false,
+            true,
+        )?
         .with_name(tool_call_session.session_context_name);
 
         // Initialize the session
         let download_content_session = DownloadContentSession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             download_content_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             download_content_session.as_mermaid_erdiagram(),
             false,
             true,
@@ -371,7 +371,7 @@ mod tests {
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
@@ -393,7 +393,7 @@ mod tests {
             let http_client_config_json = serde_json::to_vec(&http_client_config)?;
             let http_client_config_batch =
                 create_bytes_record_batch(vec![http_client_config_json])?;
-            let http_client_config_table = TableBuilder::new()
+            let http_client_config_table = SubjectBuilder::new()
                 .with_name(name)
                 .with_record_batches(vec![http_client_config_batch])?
                 .build()?;
@@ -403,8 +403,8 @@ mod tests {
                     .with_name(http_client_config_table.get_name())
                     .with_publisher(download_content_session.session_context_name)
                     .with_subject(http_client_config_table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: http_client_config_table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: http_client_config_table.get_name().to_string(),
                     })
                     .with_message(http_client_config_table.to_ipc_stream()?)
                     .build()?,
@@ -441,7 +441,7 @@ mod tests {
             let http_client_config_json = serde_json::to_vec(&http_client_config)?;
             let http_client_config_batch =
                 create_bytes_record_batch(vec![http_client_config_json])?;
-            let http_client_config_table = TableBuilder::new()
+            let http_client_config_table = SubjectBuilder::new()
                 .with_name(name)
                 .with_record_batches(vec![http_client_config_batch])?
                 .build()?;
@@ -451,8 +451,8 @@ mod tests {
                     .with_name(http_client_config_table.get_name())
                     .with_publisher(download_content_session.session_context_name)
                     .with_subject(http_client_config_table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: http_client_config_table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: http_client_config_table.get_name().to_string(),
                     })
                     .with_message(http_client_config_table.to_ipc_stream()?)
                     .build()?,
@@ -460,6 +460,9 @@ mod tests {
         }
 
         // Run the session
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
@@ -467,49 +470,60 @@ mod tests {
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get(AvailableInterfaceSubjects::UserPdf.to_string().as_str())
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("filename");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableInterfaceSubjects::UserPdf.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("filename");
             assert_eq!(column, ["2508.18700"]);
-            let column = table_reading.get_column_as_vec_str("extension");
+            let column = subject.get_column_as_vec_str("extension");
             assert_eq!(column, ["application/pdf"]);
-            let column = table_reading.get_column_as_vec_str("metadata");
+            let column = subject.get_column_as_vec_str("metadata");
             assert_eq!(column, ["tool"]);
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
             for c in column {
                 assert!(c > 0);
             }
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_nested_primitive::<u8>("bytes")?
                 .into_iter()
                 .flatten()
                 .collect::<Vec<_>>();
             assert_eq!(column.len(), 505519);
-            let table_reading = session_reading
-                .get_states()
-                .get(AvailableInterfaceSubjects::UserJson.to_string().as_str())
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("filename");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::UserJson.to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableInterfaceSubjects::UserJson.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("filename");
             assert_eq!(
                 column,
                 [
                     "esearch.fcgi?db=pubmed&term=Diabetes%20Mellitus%5BMeSH%20Terms%5D%20AND%20%22Lancet%22%5BJournal%5D&retmode=json&retmax=5&mindate=2020&maxdate=2023"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("extension");
+            let column = subject.get_column_as_vec_str("extension");
             assert_eq!(column, ["application/json; charset=UTF-8"]);
-            let column = table_reading.get_column_as_vec_str("metadata");
+            let column = subject.get_column_as_vec_str("metadata");
             assert_eq!(column, ["tool"]);
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
             for c in column {
                 assert!(c > 0);
             }
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_nested_primitive::<u8>("bytes")?
                 .into_iter()
                 .flatten()

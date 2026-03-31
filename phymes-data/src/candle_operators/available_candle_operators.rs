@@ -3,11 +3,11 @@ use std::{fmt::Display, sync::Arc};
 use anyhow::Result;
 use arrow::array::{ArrayRef, RecordBatch, StringArray};
 use clap::ValueEnum;
-use phymes_core::{BuilderTrait, MappableTrait, Table, TableBuilder, TableBuilderTrait};
+use phymes_core::{BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ApplyPatch, ExtractXML, PackTabular, ToolTrait,
+    Diff, ExtractXML, PackTabular, Patch, ToolTrait,
     candle_data::DataConfig,
     candle_operators::{
         ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDF, ExtractTabular, Filter,
@@ -64,9 +64,12 @@ pub enum AvailableCandleOperators {
     #[value(name = "Melt")]
     #[serde(alias = "melt")]
     Melt,
-    #[value(name = "ApplyPatch")]
-    #[serde(alias = "apply-patch")]
-    ApplyPatch,
+    #[value(name = "Patch")]
+    #[serde(alias = "patch")]
+    Patch,
+    #[value(name = "Diff")]
+    #[serde(alias = "diff")]
+    Diff,
     #[value(name = "NormalizeTime")]
     #[serde(alias = "NormalizeTime")]
     NormalizeTime,
@@ -98,7 +101,8 @@ impl Display for AvailableCandleOperators {
             Self::Pivot => write!(f, "{}", Pivot::get_static_name()),
             Self::ExtractXML => write!(f, "{}", ExtractXML::get_static_name()),
             Self::Melt => write!(f, "{}", Melt::get_static_name()),
-            Self::ApplyPatch => write!(f, "{}", ApplyPatch::get_static_name()),
+            Self::Patch => write!(f, "{}", Patch::get_static_name()),
+            Self::Diff => write!(f, "{}", Diff::get_static_name()),
             Self::NormalizeTime => write!(f, "{}", NormalizeTime::get_static_name()),
             Self::FromTasksToParticipants => {
                 write!(f, "{}", FromTasksToParticipants::get_static_name())
@@ -126,7 +130,8 @@ impl ToolTrait for AvailableCandleOperators {
             Self::Pivot => Pivot::default().to_json_tool_schema(),
             Self::ExtractXML => ExtractXML::default().to_json_tool_schema(),
             Self::Melt => Melt::default().to_json_tool_schema(),
-            Self::ApplyPatch => ApplyPatch::default().to_json_tool_schema(),
+            Self::Patch => Patch::default().to_json_tool_schema(),
+            Self::Diff => Diff::default().to_json_tool_schema(),
             Self::NormalizeTime => NormalizeTime::default().to_json_tool_schema(),
             Self::FromTasksToParticipants => String::new(),
             Self::FromTracesToMessages => String::new(),
@@ -149,7 +154,8 @@ impl ToolTrait for AvailableCandleOperators {
             Self::Pivot => Pivot::default().get_description(),
             Self::ExtractXML => ExtractXML::default().get_description(),
             Self::Melt => Melt::default().get_description(),
-            Self::ApplyPatch => ApplyPatch::default().get_description(),
+            Self::Patch => Patch::default().get_description(),
+            Self::Diff => Diff::default().get_description(),
             Self::NormalizeTime => NormalizeTime::default().get_description(),
             Self::FromTasksToParticipants => String::new(),
             Self::FromTracesToMessages => String::new(),
@@ -174,7 +180,8 @@ impl AvailableCandleOperators {
             Self::Pivot.to_string(),
             Self::ExtractXML.to_string(),
             Self::Melt.to_string(),
-            Self::ApplyPatch.to_string(),
+            Self::Patch.to_string(),
+            Self::Diff.to_string(),
             Self::NormalizeTime.to_string(),
         ];
         processor_names
@@ -200,7 +207,8 @@ impl AvailableCandleOperators {
             Self::Pivot => Ok(Box::new(Pivot::new(config)?)),
             Self::ExtractXML => Ok(Box::new(ExtractXML::new(config)?)),
             Self::Melt => Ok(Box::new(Melt::new(config)?)),
-            Self::ApplyPatch => Ok(Box::new(ApplyPatch::new(config)?)),
+            Self::Patch => Ok(Box::new(Patch::new(config)?)),
+            Self::Diff => Ok(Box::new(Diff::new(config)?)),
             Self::NormalizeTime => Ok(Box::new(NormalizeTime::new(config)?)),
             Self::FromTasksToParticipants => Ok(Box::new(FromTasksToParticipants::new(config)?)),
             Self::FromTracesToMessages => Ok(Box::new(FromTracesToMessages::new(config)?)),
@@ -208,7 +216,7 @@ impl AvailableCandleOperators {
     }
 }
 
-pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Option<Table> {
+pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Option<Subject> {
     let mut tool_id_vec = Vec::new();
     let mut tool_vec = Vec::new();
     for destination in destinations.iter() {
@@ -223,7 +231,7 @@ pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Opt
         let tool_id: ArrayRef = Arc::new(StringArray::from(tool_id_vec));
         let tool: ArrayRef = Arc::new(StringArray::from(tool_vec));
         let batch = RecordBatch::try_from_iter(vec![("tool_id", tool_id), ("tool", tool)]).unwrap();
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name(name)
             .with_record_batches(vec![batch])
             .unwrap()
@@ -235,7 +243,7 @@ pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Opt
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::TableTrait;
+    use phymes_core::SubjectTrait;
 
     use super::*;
 
@@ -258,7 +266,8 @@ mod tests {
                 "Pivot".to_string(),
                 "ExtractXML".to_string(),
                 "Melt".to_string(),
-                "ApplyPatch".to_string(),
+                "Patch".to_string(),
+                "Diff".to_string(),
                 "NormalizeTime".to_string(),
                 "FromTasksToParticipants".to_string(),
                 "FromTracesToMessages".to_string(),
@@ -282,7 +291,8 @@ mod tests {
                 "Pivot",
                 "ExtractXML",
                 "Melt",
-                "ApplyPatch",
+                "Patch",
+                "Diff",
                 "NormalizeTime",
                 "FromTasksToParticipants",
                 "FromTracesToMessages",

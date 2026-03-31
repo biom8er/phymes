@@ -6,7 +6,7 @@ use phymes_core::{
     BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
     RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait,
+    SendableRecordBatchStreamMessageMap, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
     create_bytes_fields, create_values_fields, remove_message_by_subject,
 };
 
@@ -194,24 +194,24 @@ impl Stream for CandleDataStream {
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
-            let config_table = TableBuilder::new()
-                .with_name("config")
+            let config_subject = SubjectBuilder::new()
+                .with_name("CandleDataStream Config")
                 .with_record_batches(batches)?
                 .build()?;
-            if config_table
+            if config_subject
                 .get_schema()
                 .fields()
                 .contains(&create_values_fields())
             {
-                let config_json = config_table.get_column_as_vec_str("values").join("");
+                let config_json = config_subject.get_column_as_vec_str("values").join("");
                 let config = serde_json::from_str::<DataConfig>(&config_json)?;
                 self.config.replace(config);
-            } else if config_table
+            } else if config_subject
                 .get_schema()
                 .fields()
                 .contains(&create_bytes_fields())
             {
-                let config_json = config_table
+                let config_json = config_subject
                     .get_column_as_vec_nested_primitive::<u8>("bytes")?
                     .into_iter()
                     .map(|b| String::from_utf8(b).unwrap())
@@ -220,7 +220,7 @@ impl Stream for CandleDataStream {
                 let config = serde_json::from_str::<DataConfig>(&config_json)?;
                 self.config.replace(config);
             } else {
-                let config = DataConfig::from_table(&config_table)?;
+                let config = DataConfig::from_table(&config_subject)?;
                 self.config.replace(config);
             }
         }
@@ -295,7 +295,7 @@ impl Stream for CandleDataStream {
                         // Extract the input from the config
                         match self.config.as_ref().unwrap().lhs_args.as_ref() {
                             Some(qs) => {
-                                let table = TableBuilder::new()
+                                let table = SubjectBuilder::new()
                                     .with_json(qs.as_bytes(), 512)?
                                     .with_name("")
                                     .build()?;
@@ -394,7 +394,7 @@ impl Stream for CandleDataStream {
                         // Extract the input from the config
                         match self.config.as_ref().unwrap().rhs_args.as_ref() {
                             Some(qs) => {
-                                let table = TableBuilder::new()
+                                let table = SubjectBuilder::new()
                                     .with_json(qs.as_bytes(), 512)?
                                     .with_name("")
                                     .build()?;
@@ -606,7 +606,7 @@ mod tests {
     use crate::{DataDistanceOperator, candle_operators::AvailableCandleOperators};
     use arrow::array::{Float32Array, StringArray};
     use futures::TryStreamExt;
-    use phymes_core::{Table, TablePublication};
+    use phymes_core::{Publication, Subject};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;
@@ -625,7 +625,7 @@ mod tests {
             lhs_ids_vec,
             lhs_embeddings_vec,
         )?;
-        let lhs_table = Table::get_builder()
+        let lhs_table = Subject::get_builder()
             .with_name("lhs_name")
             .with_record_batches(vec![lhs_batch])?
             .build()?;
@@ -641,7 +641,7 @@ mod tests {
             rhs_ids_vec,
             rhs_embeddings_vec,
         )?;
-        let rhs_table = Table::get_builder()
+        let rhs_table = Subject::get_builder()
             .with_name("rhs_name")
             .with_record_batches(vec![rhs_batch])?
             .build()?;
@@ -654,7 +654,7 @@ mod tests {
                 .with_name(lhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject(lhs_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(lhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -664,7 +664,7 @@ mod tests {
                 .with_name(rhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject(rhs_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(rhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -683,7 +683,7 @@ mod tests {
             operator: AvailableCandleOperators::VectorDistance,
             ..Default::default()
         };
-        let config_table = Table::get_builder()
+        let config_subject = Subject::get_builder()
             .with_name("candle_embed_processor")
             .with_json(&serde_json::to_vec(&config)?, 1)?
             .build()?;
@@ -694,17 +694,13 @@ mod tests {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make the runtime environment
-        let runtime_env = RuntimeEnv {
-            name: "service".to_string(),
-            memory_limit: None,
-            time_limit: None,
-        };
+        let runtime_env = RuntimeEnv::get_builder().with_name("rt").build()?;
         let runtime_env = Arc::new(runtime_env);
 
         // Make the stream and run
         let ops_stream = CandleDataStream::new(
             messages,
-            config_table.clone().to_record_batch_stream(),
+            config_subject.clone().to_record_batch_stream(),
             Arc::clone(&runtime_env),
             Some(diagnostic_builder.clone()),
         )?;
@@ -773,7 +769,7 @@ mod tests {
             rhs_args: None,
             ..Default::default()
         };
-        let config_args_table = Table::get_builder()
+        let config_args_table = Subject::get_builder()
             .with_name("candle_embed_processor")
             .with_json(&serde_json::to_vec(&config_args)?, 1)?
             .build()?;
@@ -833,7 +829,7 @@ mod tests {
             lhs_ids_vec_2,
             lhs_embeddings_vec_2,
         )?;
-        let lhs_table = Table::get_builder()
+        let lhs_table = Subject::get_builder()
             .with_name("lhs_name")
             .with_record_batches(vec![lhs_batch_1, lhs_batch_2])?
             .build()?;
@@ -851,7 +847,7 @@ mod tests {
             rhs_ids_vec_2,
             rhs_embeddings_vec_2,
         )?;
-        let rhs_table = Table::get_builder()
+        let rhs_table = Subject::get_builder()
             .with_name("rhs_name")
             .with_record_batches(vec![rhs_batch_1, rhs_batch_2])?
             .build()?;
@@ -864,7 +860,7 @@ mod tests {
                 .with_name(lhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject(lhs_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(lhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -874,7 +870,7 @@ mod tests {
                 .with_name(rhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject(rhs_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(rhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -882,7 +878,7 @@ mod tests {
         // Make the stream and run
         let ops_stream = CandleDataStream::new(
             messages,
-            config_table.clone().to_record_batch_stream(),
+            config_subject.clone().to_record_batch_stream(),
             Arc::clone(&runtime_env),
             Some(diagnostic_builder.clone()),
         )?;
@@ -958,7 +954,7 @@ mod tests {
             rhs_stream: Some(DataStreamManager::Stream),
             ..Default::default()
         };
-        let config_table = Table::get_builder()
+        let config_subject = Subject::get_builder()
             .with_name("candle_embed_processor")
             .with_json(&serde_json::to_vec(&config)?, 1)?
             .build()?;
@@ -971,7 +967,7 @@ mod tests {
                 .with_name(lhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject(lhs_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(lhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -981,7 +977,7 @@ mod tests {
                 .with_name(rhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject(rhs_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(rhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -989,7 +985,7 @@ mod tests {
         // Make the stream and run
         let ops_stream = CandleDataStream::new(
             messages,
-            config_table.clone().to_record_batch_stream(),
+            config_subject.clone().to_record_batch_stream(),
             Arc::clone(&runtime_env),
             Some(diagnostic_builder.clone()),
         )?;
@@ -1065,7 +1061,7 @@ mod tests {
             rhs_stream: Some(DataStreamManager::Stream),
             ..Default::default()
         };
-        let config_table = Table::get_builder()
+        let config_subject = Subject::get_builder()
             .with_name("candle_embed_processor")
             .with_json(&serde_json::to_vec(&config)?, 1)?
             .build()?;
@@ -1078,7 +1074,7 @@ mod tests {
                 .with_name(lhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject(lhs_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(lhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -1088,7 +1084,7 @@ mod tests {
                 .with_name(rhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject(rhs_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(rhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -1096,7 +1092,7 @@ mod tests {
         // Make the stream and run
         let ops_stream = CandleDataStream::new(
             messages,
-            config_table.clone().to_record_batch_stream(),
+            config_subject.clone().to_record_batch_stream(),
             Arc::clone(&runtime_env),
             Some(diagnostic_builder.clone()),
         )?;
@@ -1170,7 +1166,7 @@ mod tests {
             rhs_stream: Some(DataStreamManager::Accumulate),
             ..Default::default()
         };
-        let config_table = Table::get_builder()
+        let config_subject = Subject::get_builder()
             .with_name("candle_embed_processor")
             .with_json(&serde_json::to_vec(&config)?, 1)?
             .build()?;
@@ -1183,7 +1179,7 @@ mod tests {
                 .with_name(lhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject(lhs_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(lhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -1193,7 +1189,7 @@ mod tests {
                 .with_name(rhs_table.get_name())
                 .with_publisher("s1")
                 .with_subject(rhs_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(rhs_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -1201,7 +1197,7 @@ mod tests {
         // Make the stream and run
         let ops_stream = CandleDataStream::new(
             messages,
-            config_table.clone().to_record_batch_stream(),
+            config_subject.clone().to_record_batch_stream(),
             Arc::clone(&runtime_env),
             Some(diagnostic_builder.clone()),
         )?;
@@ -1278,7 +1274,7 @@ mod tests {
             lhs_ids_vec,
             lhs_embeddings_vec,
         )?;
-        let lhs_table = Table::get_builder()
+        let lhs_table = Subject::get_builder()
             .with_name("lhs_name")
             .with_record_batches(vec![lhs_batch])?
             .build()?;
@@ -1286,7 +1282,7 @@ mod tests {
             .with_name("lhs_name")
             .with_publisher("")
             .with_subject("lhs_name")
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_message(lhs_table.to_record_batch_stream())
             .build()?;
         let _ = messages.insert(message.get_name().to_string(), message);
@@ -1302,7 +1298,7 @@ mod tests {
             rhs_ids_vec,
             rhs_embeddings_vec,
         )?;
-        let rhs_table = Table::get_builder()
+        let rhs_table = Subject::get_builder()
             .with_name("rhs_name")
             .with_record_batches(vec![rhs_batch])?
             .build()?;
@@ -1310,7 +1306,7 @@ mod tests {
             .with_name("rhs_name")
             .with_publisher("")
             .with_subject("rhs_name")
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_message(rhs_table.to_record_batch_stream())
             .build()?;
         let _ = messages.insert(message.get_name().to_string(), message);
@@ -1330,15 +1326,15 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = TableBuilder::new()
+        let config_subject = SubjectBuilder::new()
             .with_name("candle_ops_processor")
             .with_json(&config_json, 1)?
             .build()?;
         let message = SendableRecordBatchStreamMessage::get_builder()
             .with_publisher("")
             .with_subject("candle_ops_processor")
-            .with_update(&TablePublication::None)
-            .with_message(config_table.to_record_batch_stream())
+            .with_update(&Publication::None)
+            .with_message(config_subject.to_record_batch_stream())
             .make_random_name()?
             .build()?;
         let _ = messages.insert(message.get_name().to_string(), message);
@@ -1348,11 +1344,7 @@ mod tests {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make the runtime environment
-        let runtime_env = RuntimeEnv {
-            name: "service".to_string(),
-            memory_limit: None,
-            time_limit: None,
-        };
+        let runtime_env = RuntimeEnv::get_builder().with_name("rt").build()?;
         let runtime_env = Arc::new(runtime_env);
 
         // Make the stream and run

@@ -26,7 +26,7 @@ pub static MERMAID_GANTT_TEMPLATE: &str = r#"
 /// # Example
 ///
 /// ```rust
-/// use phymes_core::TableScript;
+/// use phymes_core::SubjectScript;
 /// use phymes_data::MERMAID_GANTT_INPUT;
 /// let inputs = serde_json::json!({
 ///     "title": "chart title",
@@ -34,7 +34,7 @@ pub static MERMAID_GANTT_TEMPLATE: &str = r#"
 ///     "axisFormat": "%s",
 /// });
 ///
-/// let input_string = TableScript::new_from_template(MERMAID_GANTT_INPUT.to_string()).apply_template(&inputs).unwrap()
+/// let input_string = SubjectScript::new_from_template(MERMAID_GANTT_INPUT.to_string()).apply_template(&inputs).unwrap()
 ///     .lines()
 ///     .map(|line| line.trim())
 ///     .collect::<Vec<&str>>()
@@ -57,8 +57,8 @@ mod tests {
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
     use phymes_core::{
-        BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableScript,
-        TableTrait,
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectScript,
+        SubjectTrait,
     };
     use serde_json::{Map, Value};
 
@@ -95,7 +95,7 @@ mod tests {
             ("start", start_arr),
             ("end", end_arr),
         ])?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -106,7 +106,7 @@ mod tests {
             "dateFormat": "X",
             "axisFormat": "%s"
         });
-        let input_string = TableScript::new_from_template(MERMAID_GANTT_INPUT.to_string())
+        let input_string = SubjectScript::new_from_template(MERMAID_GANTT_INPUT.to_string())
             .apply_template(&inputs)?
             .lines()
             .map(|line| line.trim())
@@ -121,7 +121,7 @@ mod tests {
         // Create and render the template with the inputs
         let template = [MERMAID_HTML_PRE, MERMAID_GANTT_TEMPLATE, MERMAID_HTML_POST].join("");
         let script_string =
-            TableScript::new_from_template(template).apply_template(&gantt_template_inputs)?;
+            SubjectScript::new_from_template(template).apply_template(&gantt_template_inputs)?;
 
         assert_eq!(
             script_string,

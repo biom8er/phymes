@@ -94,11 +94,11 @@ impl<'a> ToolCallSession<'a> {
     
 	subgraph group_by_processors_subscriptions_t
         {}
-		select_processors_subscriptions_s-subject-->|FullTable|group_by_processors_subscriptions_p-subscribe
+		select_processors_subscriptions_s-subject-->|AllRecordBatches|group_by_processors_subscriptions_p-subscribe
 		group_by_processors_subscriptions_p-subscribe-->group_by_processors_subscriptions_p-processor
 		group_by_processors_subscriptions_p-processor-->group_by_processors_subscriptions_p-publish
 		group_by_processors_subscriptions_p-publish-->|Replace|group_by_processors_subscriptions_s-subject
-		group_by_processors_subscriptions_s-subject-->|FullTable|select_processors_subscriptions_aggregated_p-subscribe
+		group_by_processors_subscriptions_s-subject-->|AllRecordBatches|select_processors_subscriptions_aggregated_p-subscribe
 		select_processors_subscriptions_aggregated_p-subscribe-->select_processors_subscriptions_aggregated_p-processor
 		select_processors_subscriptions_aggregated_p-processor-->select_processors_subscriptions_aggregated_p-publish
 		select_processors_subscriptions_aggregated_p-publish-->|Replace|select_processors_subscriptions_aggregated_s-subject
@@ -117,11 +117,11 @@ impl<'a> ToolCallSession<'a> {
     
 	subgraph group_by_processors_publications_t
         {}
-		select_processors_publications_s-subject-->|FullTable|group_by_processors_publications_p-subscribe
+		select_processors_publications_s-subject-->|AllRecordBatches|group_by_processors_publications_p-subscribe
 		group_by_processors_publications_p-subscribe-->group_by_processors_publications_p-processor
 		group_by_processors_publications_p-processor-->group_by_processors_publications_p-publish
 		group_by_processors_publications_p-publish-->|Replace|group_by_processors_publications_s-subject
-		group_by_processors_publications_s-subject-->|FullTable|select_processors_publications_aggregated_p-subscribe
+		group_by_processors_publications_s-subject-->|AllRecordBatches|select_processors_publications_aggregated_p-subscribe
 		select_processors_publications_aggregated_p-subscribe-->select_processors_publications_aggregated_p-processor
 		select_processors_publications_aggregated_p-processor-->select_processors_publications_aggregated_p-publish
 		select_processors_publications_aggregated_p-publish-->|Replace|select_processors_publications_aggregated_s-subject
@@ -138,17 +138,17 @@ impl<'a> ToolCallSession<'a> {
 	select_processors_publications_aggregated_s-subject@{{shape: doc, label: select_processors_publications_aggregated_s}}
 
 	subgraph join_tasks_processors_subscriptions_publications_aggregated_t
-		select_processors_subscriptions_aggregated_s-subject-.->|FullTable|join_processors_subscriptions_publications_aggregated_p-subscribe
-		select_processors_publications_aggregated_s-subject-.->|FullTable|join_processors_subscriptions_publications_aggregated_p-subscribe
+		select_processors_subscriptions_aggregated_s-subject-.->|AllRecordBatches|join_processors_subscriptions_publications_aggregated_p-subscribe
+		select_processors_publications_aggregated_s-subject-.->|AllRecordBatches|join_processors_subscriptions_publications_aggregated_p-subscribe
 		join_processors_subscriptions_publications_aggregated_p-subscribe-->join_processors_subscriptions_publications_aggregated_p-processor
 		join_processors_subscriptions_publications_aggregated_p-processor-->join_processors_subscriptions_publications_aggregated_p-publish
 		join_processors_subscriptions_publications_aggregated_p-publish-->|Replace|join_processors_subscriptions_publications_aggregated_s-subject
-		join_processors_subscriptions_publications_aggregated_s-subject-->|FullTable|join_tasks_processors_subscriptions_publications_aggregated_p-subscribe
-		SessionTasks-subject-->|FullTable|join_tasks_processors_subscriptions_publications_aggregated_p-subscribe
+		join_processors_subscriptions_publications_aggregated_s-subject-->|AllRecordBatches|join_tasks_processors_subscriptions_publications_aggregated_p-subscribe
+		SessionTasks-subject-->|AllRecordBatches|join_tasks_processors_subscriptions_publications_aggregated_p-subscribe
 		join_tasks_processors_subscriptions_publications_aggregated_p-subscribe-->join_tasks_processors_subscriptions_publications_aggregated_p-processor
 		join_tasks_processors_subscriptions_publications_aggregated_p-processor-->join_tasks_processors_subscriptions_publications_aggregated_p-publish
 		join_tasks_processors_subscriptions_publications_aggregated_p-publish-->|Replace|join_tasks_processors_subscriptions_publications_aggregated_s-subject
-		join_tasks_processors_subscriptions_publications_aggregated_s-subject-->|FullTable|select_tasks_processors_subscriptions_publications_aggregated_p-subscribe
+		join_tasks_processors_subscriptions_publications_aggregated_s-subject-->|AllRecordBatches|select_tasks_processors_subscriptions_publications_aggregated_p-subscribe
 		select_tasks_processors_subscriptions_publications_aggregated_p-subscribe-->select_tasks_processors_subscriptions_publications_aggregated_p-processor
 		select_tasks_processors_subscriptions_publications_aggregated_p-processor-->select_tasks_processors_subscriptions_publications_aggregated_p-publish
 		select_tasks_processors_subscriptions_publications_aggregated_p-publish-->|Replace|select_tasks_processors_subscriptions_publications_aggregated_s-subject
@@ -172,11 +172,11 @@ impl<'a> ToolCallSession<'a> {
 	%% Tool call processor that enables calling processors from their config
 	%% ------------------------------------------------------------------------------
 	subgraph call_processor_t
-        select_tasks_processors_subscriptions_publications_aggregated_s-subject-.->|FullTable|echo_processor_p-subscribe
+        select_tasks_processors_subscriptions_publications_aggregated_s-subject-.->|AllRecordBatches|echo_processor_p-subscribe
 		echo_processor_p-subscribe-->echo_processor_p-processor
 		echo_processor_p-processor-->echo_processor_p-publish
 		echo_processor_p-publish-->|Extend|select_tasks_processors_subscriptions_publications_aggregated_s-subject
-        select_tasks_processors_subscriptions_publications_aggregated_s-subject-->|FullTable|call_processor_p-subscribe
+        select_tasks_processors_subscriptions_publications_aggregated_s-subject-->|AllRecordBatches|call_processor_p-subscribe
 		{}
 		call_processor_p-subscribe-->call_processor_p-processor
 		call_processor_p-processor-->call_processor_p-publish
@@ -383,17 +383,16 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage,
-        MappableTrait, MessageBuilderTrait, TablePublication, TableTrait,
-        create_bytes_record_batch,
+        MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait,
+        SubjectTrait, Subscription, create_bytes_record_batch,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
         SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream, create_message_map,
+        SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map,
     };
 
     use super::*;
@@ -402,27 +401,31 @@ mod tests {
     async fn test_tool_call_session() -> Result<()> {
         // Initialize the session
         let tool_call_session = ToolCallSession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             &tool_call_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(&tool_call_session.as_mermaid_erdiagram()?, false, true)?
+        .with_subjects_from_mermaid_erdiagram(
+            &tool_call_session.as_mermaid_erdiagram()?,
+            false,
+            true,
+        )?
         .with_name(tool_call_session.session_context_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_supersteps()?
         .add_next_tasks()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Replace the Bytes to trigger the session
         let message_map = {
             let batch = create_bytes_record_batch(vec!["{}".into()])?;
-            let table = AvailableSubjects::Bytes.to_table(None, Some(vec![batch]))?;
+            let table = AvailableSubjects::Bytes.to_subject(None, Some(vec![batch]))?;
             let session_tasks_message = IPCMessage::get_builder()
                 .with_subject(table.get_name())
-                .with_update(&TablePublication::Replace {
-                    table_name: table.get_name().to_string(),
+                .with_update(&Publication::Replace {
+                    subject_name: table.get_name().to_string(),
                 })
                 .with_publisher(tool_call_session.session_context_name)
                 .with_message(table.to_ipc_stream()?)
@@ -430,6 +433,9 @@ mod tests {
                 .build()?;
             create_message_map(vec![session_tasks_message])
         };
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
@@ -439,14 +445,18 @@ mod tests {
 
         {
             // Test supserstep 1
-            let session_reading = session_ctx_arc.read();
-
-            let table_reading = session_reading
-                .get_states()
-                .get("select_processors_subscriptions_s")
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("session_name");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "select_processors_subscriptions_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_processors_subscriptions_s")
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("session_name");
             assert_eq!(
                 column,
                 [
@@ -475,7 +485,7 @@ mod tests {
                     "tool_call_session"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("processor_name");
+            let column = subject.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
                 [
@@ -504,7 +514,7 @@ mod tests {
                     "call_processor_p"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("processor_type");
+            let column = subject.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
                 [
@@ -533,36 +543,36 @@ mod tests {
                     "ToolCallProcessor"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("publication_subscription_name");
+            let column = subject.get_column_as_vec_str("publication_subscription_name");
             assert_eq!(
                 column,
                 [
                     "OnUpdateEmpty",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
                     "OnUpdateEmpty",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
                     "OnUpdateLastRecordBatch",
-                    "AlwaysFullTable"
+                    "AlwaysAllRecordBatches"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("publication_subscription_table_name");
+            let column = subject.get_column_as_vec_str("publication_subscription_table_name");
             assert_eq!(
                 column,
                 [
@@ -591,7 +601,7 @@ mod tests {
                     "call_processor_p"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("subscribe_type");
+            let column = subject.get_column_as_vec_str("subscribe_type");
             assert_eq!(
                 column,
                 [
@@ -600,36 +610,36 @@ mod tests {
                     "Any"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("update_type");
+            let column = subject.get_column_as_vec_str("update_type");
             assert_eq!(
                 column,
                 [
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate"
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate"
                 ]
             );
-            let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
+            let column = subject.get_column_as_vec_primitive::<u8>("is_subscription")?;
             assert_eq!(
                 column,
                 [
@@ -637,12 +647,18 @@ mod tests {
                 ]
             );
 
-            let table_reading = session_reading
-                .get_states()
-                .get("select_processors_publications_s")
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("session_name");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "select_processors_publications_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_processors_publications_s")
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("session_name");
             assert_eq!(
                 column,
                 [
@@ -657,7 +673,7 @@ mod tests {
                     "tool_call_session"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("processor_name");
+            let column = subject.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
                 [
@@ -672,7 +688,7 @@ mod tests {
                     "call_processor_p"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("processor_type");
+            let column = subject.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
                 [
@@ -687,7 +703,7 @@ mod tests {
                     "ToolCallProcessor"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("publication_subscription_name");
+            let column = subject.get_column_as_vec_str("publication_subscription_name");
             assert_eq!(
                 column,
                 [
@@ -695,7 +711,7 @@ mod tests {
                     "Extend", "Extend"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("publication_subscription_table_name");
+            let column = subject.get_column_as_vec_str("publication_subscription_table_name");
             assert_eq!(
                 column,
                 [
@@ -710,36 +726,43 @@ mod tests {
                     "SessionTasksSubscribePublish"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("subscribe_type");
+            let column = subject.get_column_as_vec_str("subscribe_type");
             assert_eq!(
                 column,
                 [
                     "Any", "All", "Any", "All", "All", "All", "All", "All", "Any"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("update_type");
+            let column = subject.get_column_as_vec_str("update_type");
             assert_eq!(
                 column,
                 [
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate"
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate"
                 ]
             );
-            let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
+            let column = subject.get_column_as_vec_primitive::<u8>("is_subscription")?;
             assert_eq!(column, [0, 0, 0, 0, 0, 0, 0, 0, 0]);
-            let table_reading = session_reading
-                .get_states()
-                .get("select_processors_subscriptions_aggregated_s")
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("session_name");
+
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "select_processors_subscriptions_aggregated_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_processors_subscriptions_aggregated_s")
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("session_name");
             assert_eq!(
                 column,
                 [
@@ -754,7 +777,7 @@ mod tests {
                     "tool_call_session"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("processor_name");
+            let column = subject.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
                 [
@@ -769,7 +792,7 @@ mod tests {
                     "select_tasks_processors_subscriptions_publications_aggregated_p"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("processor_type");
+            let column = subject.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
                 [
@@ -784,38 +807,38 @@ mod tests {
                     "Select"
                 ]
             );
-            let column = table_reading
-                .get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
+            let column =
+                subject.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
                 flattened,
                 [
-                    "AlwaysFullTable",
+                    "AlwaysAllRecordBatches",
                     "OnUpdateLastRecordBatch",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
                     "OnUpdateEmpty",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
                     "OnUpdateEmpty",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable"
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches"
                 ]
             );
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
@@ -847,12 +870,18 @@ mod tests {
                 ]
             );
 
-            let table_reading = session_reading
-                .get_states()
-                .get("select_processors_publications_aggregated_s")
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("session_name");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "select_processors_publications_aggregated_s".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_processors_publications_aggregated_s")
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("session_name");
             assert_eq!(
                 column,
                 [
@@ -867,7 +896,7 @@ mod tests {
                     "tool_call_session"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("processor_name");
+            let column = subject.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
                 [
@@ -882,7 +911,7 @@ mod tests {
                     "select_tasks_processors_subscriptions_publications_aggregated_p"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("processor_type");
+            let column = subject.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
                 [
@@ -897,8 +926,8 @@ mod tests {
                     "Select"
                 ]
             );
-            let column = table_reading
-                .get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
+            let column =
+                subject.get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
                 flattened,
@@ -907,7 +936,7 @@ mod tests {
                     "Replace", "Replace"
                 ]
             );
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
@@ -925,12 +954,19 @@ mod tests {
                 ]
             );
 
-            let table_reading = session_reading
-                .get_states()
-                .get("select_tasks_processors_subscriptions_publications_aggregated_s")
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("session_name");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "select_tasks_processors_subscriptions_publications_aggregated_s"
+                    .to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_tasks_processors_subscriptions_publications_aggregated_s")
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("session_name");
             assert_eq!(
                 column,
                 [
@@ -945,7 +981,7 @@ mod tests {
                     "tool_call_session"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("task_name");
+            let column = subject.get_column_as_vec_str("task_name");
             assert_eq!(
                 column,
                 [
@@ -960,7 +996,7 @@ mod tests {
                     "join_tasks_processors_subscriptions_publications_aggregated_t"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("processor_name");
+            let column = subject.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
                 [
@@ -975,7 +1011,7 @@ mod tests {
                     "select_tasks_processors_subscriptions_publications_aggregated_p"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("processor_type");
+            let column = subject.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
                 [
@@ -990,38 +1026,38 @@ mod tests {
                     "Select"
                 ]
             );
-            let column = table_reading
-                .get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
+            let column =
+                subject.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
                 flattened,
                 [
-                    "AlwaysFullTable",
+                    "AlwaysAllRecordBatches",
                     "OnUpdateLastRecordBatch",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
                     "OnUpdateEmpty",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
                     "OnUpdateEmpty",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable"
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches"
                 ]
             );
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
@@ -1052,8 +1088,8 @@ mod tests {
                     "select_tasks_processors_subscriptions_publications_aggregated_p"
                 ]
             );
-            let column = table_reading
-                .get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
+            let column =
+                subject.get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
                 flattened,
@@ -1062,7 +1098,7 @@ mod tests {
                     "Replace", "Replace"
                 ]
             );
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
@@ -1080,23 +1116,27 @@ mod tests {
                 ]
             );
 
-            let table_reading = session_reading
-                .get_states()
-                .get(
-                    AvailableSubjects::SessionTasksSubscribePublish
-                        .to_string()
-                        .as_str(),
-                )
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 0);
-            let table_reading = session_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 1);
-            let column = table_reading.get_column_as_vec_str("content");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            assert_eq!(batches.len(), 0);
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableSubjects::SessionErrors.to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 1);
+            let column = subject.get_column_as_vec_str("content");
             assert!(column.first().unwrap().contains("Tool call subscription subject `Bytes` was not found in the All task/publisher subscriptions and publications."));
         }
 

@@ -82,7 +82,7 @@ impl<'a> ExecuteWorkspaceSession<'a> {
         if cfg!(feature = "api") {
             #[cfg(feature = "api")]
             if let Some(workspace_dir) = workspace_dir {
-                let _ = std::fs::remove_dir_all(&workspace_dir); // Doesn't matter if it is an error
+                let _ = std::fs::remove_dir_all(workspace_dir); // Doesn't matter if it is an error
                 let _ = std::fs::create_dir(workspace_dir);
                 Some(workspace_dir.to_string())
             } else {
@@ -114,32 +114,29 @@ impl<'a> ExecuteWorkspaceSession<'a> {
                 );
                 lines.push(line);
             } else {
-                let line = format!(
-                    r#"
+                let line = r#"
         Utf8 data_i "None""#
-                );
+                    .to_string();
                 lines.push(line);
             }
             match self.command_sandbox_environment {
                 CommandSandboxEnvironments::Python => {
-                    let line = format!(
-                        r#"
+                    let line = r#"
         Utf8 environment "Python"
         Utf8 run_file "main.py"
         Utf8 runner "DockerUnsafe"
         Utf8 container_image "python:3.12-slim-trixie""#
-                    );
+                        .to_string();
                     lines.push(line);
                 }
                 CommandSandboxEnvironments::Rust => {
-                    let line = format!(
-                        r#"
+                    let line = r#"
         Utf8 environment "Rust"
         Utf8 run_file "main.rs"
         Utf8 runner "DockerUnsafe"
         Utf8 container_image "amd64/rust"
         List-Utf8 cli_args "['--release', '--']""#
-                    );
+                        .to_string();
                     lines.push(line);
                 }
                 _ => {
@@ -152,12 +149,11 @@ impl<'a> ExecuteWorkspaceSession<'a> {
         }
 
         // Same for every configuration
-        let line = format!(
-            r#"
+        let line = r#"
         Utf8 container_project_dir "/home/sandbox"
         UInt32 timeout "5"
         Utf8 workspace_name "apply_patch_s""#
-        );
+            .to_string();
         lines.push(line);
         Ok(lines.join(""))
     }
@@ -178,8 +174,8 @@ impl<'a> ExecuteWorkspaceSession<'a> {
     %%   Or updates to the dataset we want to execute the workspace code on
 	%% ------------------------------------------------------------------------------
 	subgraph command_sandbox_t
-		apply_patch_s-subject-.->|FullTable|command_sandbox_p-subscribe
-        {}-subject-.->|FullTable|command_sandbox_p-subscribe
+		apply_patch_s-subject-.->|AllRecordBatches|command_sandbox_p-subscribe
+        {}-subject-.->|AllRecordBatches|command_sandbox_p-subscribe
 		command_sandbox_p-subscribe-->command_sandbox_p-processor
 		command_sandbox_p-processor-->command_sandbox_p-publish
 		command_sandbox_p-publish-->|Extend|{}-subject
@@ -208,7 +204,7 @@ impl<'a> ExecuteWorkspaceSession<'a> {
     %% - Listen for any changes to the updated workspace `apply_patch_s` subject
 	%% ------------------------------------------------------------------------------
 	subgraph command_sandbox_t
-		apply_patch_s-subject-.->|FullTable|command_sandbox_p-subscribe
+		apply_patch_s-subject-.->|AllRecordBatches|command_sandbox_p-subscribe
 		command_sandbox_p-subscribe-->command_sandbox_p-processor
 		command_sandbox_p-processor-->command_sandbox_p-publish
 		command_sandbox_p-publish-->|Extend|{}-subject
@@ -258,17 +254,17 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait,
-        MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
+        BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, Publication,
+        Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait,
+        SubjectTrait, Subscription,
     };
     use phymes_data::test_command_sandbox_processor;
     use phymes_diagnostics::HashMap;
 
     use crate::{
         SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream,
+        SessionContextBuilderTrait, SessionStream, SubscriptionTrait,
     };
 
     use super::*;
@@ -288,11 +284,11 @@ mod tests {
             subject_name_o,
             &CommandSandboxEnvironments::Rust,
         );
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let mut session_ctx_builder = SessionContextBuilder::from_mermaid_flowchart(
             &execute_workspace_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             &execute_workspace_session.as_mermaid_erdiagram()?,
             false,
             true,
@@ -301,112 +297,95 @@ mod tests {
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
-        .add_next_supersteps()?
-        .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        .add_next_supersteps()?;
 
-        // Make the test data
+        // Make the workspace data
         let mut message_map = HashMap::<String, IPCMessage>::new();
+        let workspace_table = CommandSandboxEnvironments::Rust.to_default_workspace(None)?;
+        let _ = message_map.insert(
+            workspace_name.to_string(),
+            IPCMessage::get_builder()
+                .with_name(workspace_name)
+                .with_publisher(execute_workspace_session.session_context_name)
+                .with_subject(workspace_name)
+                .with_update(&Publication::Replace {
+                    subject_name: workspace_name.to_string(),
+                })
+                .with_message(workspace_table.to_ipc_stream()?)
+                .build()?,
+        );
 
-        {
-            // Make the workspace data
-            let workspace_table = CommandSandboxEnvironments::Rust.to_default_workspace(None)?;
-            let _ = message_map.insert(
-                workspace_name.to_string(),
-                IPCMessage::get_builder()
-                    .with_name(workspace_name)
-                    .with_publisher(execute_workspace_session.session_context_name)
-                    .with_subject(workspace_name)
-                    .with_update(&TablePublication::Replace {
-                        table_name: workspace_name.to_string(),
-                    })
-                    .with_message(workspace_table.to_ipc_stream()?)
-                    .build()?,
-            );
+        // Make the input data for the script
+        let batch = test_command_sandbox_processor::create_messages()?;
+        let message_table = SubjectBuilder::new()
+            .with_record_batches(vec![batch])?
+            .with_name(subject_name_i)
+            .build()?;
+        let _ = message_map.insert(
+            message_table.get_name().to_string(),
+            IPCMessage::get_builder()
+                .with_name(message_table.get_name())
+                .with_publisher(execute_workspace_session.session_context_name)
+                .with_subject(message_table.get_name())
+                .with_update(&Publication::Replace {
+                    subject_name: message_table.get_name().to_string(),
+                })
+                .with_message(message_table.to_ipc_stream()?)
+                .build()?,
+        );
 
-            // Make the input data for the script
-            let batch = test_command_sandbox_processor::create_messages()?;
-            let message_table = TableBuilder::new()
-                .with_record_batches(vec![batch])?
-                .with_name(subject_name_i)
-                .build()?;
-            let _ = message_map.insert(
-                message_table.get_name().to_string(),
-                IPCMessage::get_builder()
-                    .with_name(message_table.get_name())
-                    .with_publisher(execute_workspace_session.session_context_name)
-                    .with_subject(message_table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: message_table.get_name().to_string(),
-                    })
-                    .with_message(message_table.to_ipc_stream()?)
-                    .build()?,
-            );
+        // Update place holder subjects
+        let mut subjects = session_ctx_builder
+            .subjects
+            .take()
+            .unwrap()
+            .into_iter()
+            .filter(|s| s.get_name() != subject_name_i && s.get_name() != subject_name_o)
+            .collect::<Vec<_>>();
+        let subject = SubjectBuilder::default()
+            .with_name(message_table.get_name())
+            .with_schema(message_table.get_schema())
+            .with_record_batches(Vec::new())?
+            .build()?;
+        subjects.push(SubjectPlan::get_builder().with_subject(subject).build()?);
+        let subject = SubjectBuilder::default()
+            .with_name(subject_name_o)
+            .with_schema(message_table.get_schema())
+            .with_record_batches(Vec::new())?
+            .build()?;
+        subjects.push(SubjectPlan::get_builder().with_subject(subject).build()?);
 
-            // Update the subject schemas dynamically
-            let mut session_writing = session_ctx_arc.write();
-            if let Some(_subject) = session_writing.state.remove(subject_name_i) {
-                let _ = session_writing.state.insert(
-                    message_table.get_name().to_string(),
-                    Arc::new(RwLock::new(
-                        TableBuilder::default()
-                            .with_name(message_table.get_name())
-                            .with_schema(message_table.get_schema())
-                            .with_record_batches(Vec::new())?
-                            .build()?,
-                    )),
-                );
-            }
-            if let Some(_subject) = session_writing.state.remove(subject_name_o) {
-                let _ = session_writing.state.insert(
-                    subject_name_o.to_string(),
-                    Arc::new(RwLock::new(
-                        TableBuilder::default()
-                            .with_name(subject_name_o)
-                            .with_schema(message_table.get_schema())
-                            .with_record_batches(Vec::new())?
-                            .build()?,
-                    )),
-                );
-            }
-        }
+        let (session_ctx, session_messages) = session_ctx_builder
+            .with_subjects(subjects)
+            .build_with_tables()?;
+        let session_ctx_arc = Arc::new(session_ctx);
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
-
         assert_eq!(response.len(), 0);
 
-        {
-            // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get(subject_name_o)
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("name");
-            assert_eq!(column, ["Alice", "Bob"]);
-            let column = table_reading.get_column_as_vec_primitive::<u32>("age")?;
-            assert_eq!(column, [40, 35]);
+        // Test supsersteps
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: subject_name_o.to_string(),
         }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(subject_name_o)
+            .with_record_batches(batches)?
+            .build()?;
+        let column = subject.get_column_as_vec_str("name");
+        assert_eq!(column, ["Alice", "Bob"]);
+        let column = subject.get_column_as_vec_primitive::<u32>("age")?;
+        assert_eq!(column, [40, 35]);
+
         Ok(())
     }
 
@@ -425,11 +404,11 @@ mod tests {
             subject_name_o,
             &CommandSandboxEnvironments::Python,
         );
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let mut session_ctx_builder = SessionContextBuilder::from_mermaid_flowchart(
             &execute_workspace_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             &execute_workspace_session.as_mermaid_erdiagram()?,
             false,
             true,
@@ -438,112 +417,95 @@ mod tests {
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
-        .add_next_supersteps()?
-        .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        .add_next_supersteps()?;
 
-        // Make the test data
+        // Make the workspace data
         let mut message_map = HashMap::<String, IPCMessage>::new();
+        let workspace_table = CommandSandboxEnvironments::Python.to_default_workspace(None)?;
+        let _ = message_map.insert(
+            workspace_name.to_string(),
+            IPCMessage::get_builder()
+                .with_name(workspace_name)
+                .with_publisher(execute_workspace_session.session_context_name)
+                .with_subject(workspace_name)
+                .with_update(&Publication::Replace {
+                    subject_name: workspace_name.to_string(),
+                })
+                .with_message(workspace_table.to_ipc_stream()?)
+                .build()?,
+        );
 
-        {
-            // Make the workspace data
-            let workspace_table = CommandSandboxEnvironments::Python.to_default_workspace(None)?;
-            let _ = message_map.insert(
-                workspace_name.to_string(),
-                IPCMessage::get_builder()
-                    .with_name(workspace_name)
-                    .with_publisher(execute_workspace_session.session_context_name)
-                    .with_subject(workspace_name)
-                    .with_update(&TablePublication::Replace {
-                        table_name: workspace_name.to_string(),
-                    })
-                    .with_message(workspace_table.to_ipc_stream()?)
-                    .build()?,
-            );
+        // Make the input data for the script
+        let batch = test_command_sandbox_processor::create_messages()?;
+        let message_table = SubjectBuilder::new()
+            .with_record_batches(vec![batch])?
+            .with_name(subject_name_i)
+            .build()?;
+        let _ = message_map.insert(
+            message_table.get_name().to_string(),
+            IPCMessage::get_builder()
+                .with_name(message_table.get_name())
+                .with_publisher(execute_workspace_session.session_context_name)
+                .with_subject(message_table.get_name())
+                .with_update(&Publication::Replace {
+                    subject_name: message_table.get_name().to_string(),
+                })
+                .with_message(message_table.to_ipc_stream()?)
+                .build()?,
+        );
 
-            // Make the input data for the script
-            let batch = test_command_sandbox_processor::create_messages()?;
-            let message_table = TableBuilder::new()
-                .with_record_batches(vec![batch])?
-                .with_name(subject_name_i)
-                .build()?;
-            let _ = message_map.insert(
-                message_table.get_name().to_string(),
-                IPCMessage::get_builder()
-                    .with_name(message_table.get_name())
-                    .with_publisher(execute_workspace_session.session_context_name)
-                    .with_subject(message_table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: message_table.get_name().to_string(),
-                    })
-                    .with_message(message_table.to_ipc_stream()?)
-                    .build()?,
-            );
+        // Update place holder subjects
+        let mut subjects = session_ctx_builder
+            .subjects
+            .take()
+            .unwrap()
+            .into_iter()
+            .filter(|s| s.get_name() != subject_name_i && s.get_name() != subject_name_o)
+            .collect::<Vec<_>>();
+        let subject = SubjectBuilder::default()
+            .with_name(message_table.get_name())
+            .with_schema(message_table.get_schema())
+            .with_record_batches(Vec::new())?
+            .build()?;
+        subjects.push(SubjectPlan::get_builder().with_subject(subject).build()?);
+        let subject = SubjectBuilder::default()
+            .with_name(subject_name_o)
+            .with_schema(message_table.get_schema())
+            .with_record_batches(Vec::new())?
+            .build()?;
+        subjects.push(SubjectPlan::get_builder().with_subject(subject).build()?);
 
-            // Update the subject schemas dynamically
-            let mut session_writing = session_ctx_arc.write();
-            if let Some(_subject) = session_writing.state.remove(subject_name_i) {
-                let _ = session_writing.state.insert(
-                    message_table.get_name().to_string(),
-                    Arc::new(RwLock::new(
-                        TableBuilder::default()
-                            .with_name(message_table.get_name())
-                            .with_schema(message_table.get_schema())
-                            .with_record_batches(Vec::new())?
-                            .build()?,
-                    )),
-                );
-            }
-            if let Some(_subject) = session_writing.state.remove(subject_name_o) {
-                let _ = session_writing.state.insert(
-                    subject_name_o.to_string(),
-                    Arc::new(RwLock::new(
-                        TableBuilder::default()
-                            .with_name(subject_name_o)
-                            .with_schema(message_table.get_schema())
-                            .with_record_batches(Vec::new())?
-                            .build()?,
-                    )),
-                );
-            }
-        }
+        let (session_ctx, session_messages) = session_ctx_builder
+            .with_subjects(subjects)
+            .build_with_tables()?;
+        let session_ctx_arc = Arc::new(session_ctx);
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
-
         assert_eq!(response.len(), 0);
 
-        {
-            // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get(subject_name_o)
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("name");
-            assert_eq!(column, ["Alice", "Bob"]);
-            let column = table_reading.get_column_as_vec_primitive::<u32>("age")?;
-            assert_eq!(column, [40, 35]);
+        // Test supsersteps
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: subject_name_o.to_string(),
         }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(subject_name_o)
+            .with_record_batches(batches)?
+            .build()?;
+        let column = subject.get_column_as_vec_str("name");
+        assert_eq!(column, ["Alice", "Bob"]);
+        let column = subject.get_column_as_vec_primitive::<u32>("age")?;
+        assert_eq!(column, [40, 35]);
+
         Ok(())
     }
 }

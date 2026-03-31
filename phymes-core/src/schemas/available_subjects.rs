@@ -1,13 +1,15 @@
 use crate::{
-    create_bytes_fields, create_chat_fields, create_repository_fields,
-    create_repository_patch_fields, create_workspace_fields, create_workspace_patch_fields,
+    AvailableSchemaTrait, AvailableSubjectsTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
+    SubjectPlan, SubjectPlanBuilderTrait, create_bytes_fields, create_chat_fields,
+    create_repository_fields, create_repository_patch_fields, create_workspace_fields,
+    create_workspace_patch_fields,
     runtime_env::{BuildableTrait, BuilderTrait},
     schemas::{
         chat::create_values_fields,
-        create_attachments_fields, create_blob_fields, create_document_embeddings_fields,
-        create_documents_fields, create_embeddings_scores_fields, create_join_chunks_scores_fields,
-        create_queries_fields, create_query_embeddings_fields, create_route_bytes_fields,
-        create_tools_fields,
+        create_attachments_fields, create_document_embeddings_fields, create_documents_fields,
+        create_embeddings_scores_fields, create_join_chunks_scores_fields,
+        create_object_store_fields, create_queries_fields, create_query_embeddings_fields,
+        create_route_bytes_fields, create_tools_fields,
         diagnostics::{
             create_events_fields, create_metrics_fields, create_metrics_mermaid_gantt_fields,
             create_metrics_pivot_fields, create_metrics_pivot_norm_time_fields,
@@ -31,21 +33,24 @@ use crate::{
         },
         session::{
             create_session_processors_fields, create_session_runtime_envs_fields,
-            create_session_subjects_fields, create_session_superstep_max_fields,
+            create_session_subject_schemas_fields, create_session_superstep_max_fields,
             create_session_supersteps_fields, create_session_tasks_check_fields,
             create_session_tasks_fields, create_session_tasks_publish_aggregate_fields,
             create_session_tasks_publish_fields, create_session_tasks_run_log_fields,
             create_session_tasks_subscribe_aggregate_fields, create_session_tasks_subscribe_fields,
             create_session_tasks_subscribe_publish_fields,
         },
-        subjects::{create_subjects_change_log_fields, create_subjects_num_rows_fields},
+        storage::create_object_store_meta_fields,
+        subjects::{
+            create_subjects_change_log_fields, create_subjects_num_rows_fields,
+            create_subjects_object_store_meta_fields,
+        },
         user::{
             create_join_user_inbox_session_contexts_fields,
             create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields,
             create_user_inbox_fields, create_user_session_contexts_fields,
         },
     },
-    table::{Table, TableBuilder, TableBuilderTrait},
 };
 
 use anyhow::Result;
@@ -59,22 +64,6 @@ use std::{fmt::Display, sync::Arc};
 
 pub fn create_schema_from_fields(f: &dyn Fn() -> Fields) -> SchemaRef {
     Arc::new(Schema::new(f()))
-}
-
-/// Convert a possible nested Json-like structure into a single [RecordBatch]
-pub trait JsonSchemaTrait {
-    fn to_record_batch(self, publisher: &str) -> Result<RecordBatch>;
-}
-
-/// Materialize the [Schema] for the object
-pub trait AvailableSchemaTrait {
-    fn to_schema(&self) -> SchemaRef;
-}
-
-/// Materialize the [Table] or [TableBuilder] for building the table for the object
-pub trait AvailableSubjectsTrait: AvailableSchemaTrait {
-    fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Table>;
-    fn to_table_builder(&self, name: Option<&str>) -> TableBuilder;
 }
 
 /// The available subject schmeas
@@ -107,8 +96,10 @@ pub enum AvailableSubjects {
     JoinChunksScores,
     #[value(name = "Attachments")]
     Attachments,
-    #[value(name = "Blob")]
-    Blob,
+    #[value(name = "ObjectStore")]
+    ObjectStore,
+    #[value(name = "ObjectStoreMeta")]
+    ObjectStoreMeta,
     #[value(name = "Workspace")]
     Workspace,
     #[value(name = "Repository")]
@@ -145,8 +136,8 @@ pub enum AvailableSubjects {
     MetricPivot,
     #[value(name = "MetricPivotNormTime")]
     MetricPivotNormTime,
-    #[value(name = "SessionSubjects")]
-    SessionSubjects,
+    #[value(name = "SessionSubjectSchemas")]
+    SessionSubjectSchemas,
     #[value(name = "SessionTasks")]
     SessionTasks,
     #[value(name = "SessionProcessors")]
@@ -159,6 +150,8 @@ pub enum AvailableSubjects {
     SubjectsNumRows,
     #[value(name = "SubjectsChangeLog")]
     SubjectsChangeLog,
+    #[value(name = "SubjectsObjectStoreMeta")]
+    SubjectsObjectStoreMeta,
     #[value(name = "MermaidContentTemplate")]
     MermaidContentTemplate,
     #[value(name = "MermaidXYChart")]
@@ -249,7 +242,8 @@ impl Display for AvailableSubjects {
             AvailableSubjects::EmbeddingScores => write!(f, "EmbeddingScores"),
             AvailableSubjects::JoinChunksScores => write!(f, "JoinChunksScores"),
             AvailableSubjects::Attachments => write!(f, "Attachments"),
-            AvailableSubjects::Blob => write!(f, "Blob"),
+            AvailableSubjects::ObjectStore => write!(f, "ObjectStore"),
+            AvailableSubjects::ObjectStoreMeta => write!(f, "ObjectStoreMeta"),
             AvailableSubjects::Workspace => write!(f, "Workspace"),
             AvailableSubjects::Repository => write!(f, "Repository"),
             AvailableSubjects::WorkspacePatch => write!(f, "WorkspacePatch"),
@@ -272,13 +266,14 @@ impl Display for AvailableSubjects {
             AvailableSubjects::SessionEvents => write!(f, "SessionEvents"),
             AvailableSubjects::MetricPivot => write!(f, "MetricPivot"),
             AvailableSubjects::MetricPivotNormTime => write!(f, "MetricPivotNormTime"),
-            AvailableSubjects::SessionSubjects => write!(f, "SessionSubjects"),
+            AvailableSubjects::SessionSubjectSchemas => write!(f, "SessionSubjectSchemas"),
             AvailableSubjects::SessionTasks => write!(f, "SessionTasks"),
             AvailableSubjects::SessionProcessors => write!(f, "SessionProcessors"),
             AvailableSubjects::SessionRuntimeEnvs => write!(f, "SessionRuntimeEnvs"),
             AvailableSubjects::SessionTasksRunLog => write!(f, "SessionTasksRunLog"),
             AvailableSubjects::SubjectsNumRows => write!(f, "SubjectsNumRows"),
             AvailableSubjects::SubjectsChangeLog => write!(f, "SubjectsChangeLog"),
+            AvailableSubjects::SubjectsObjectStoreMeta => write!(f, "SubjectsObjectStoreMeta"),
             AvailableSubjects::MermaidContentTemplate => write!(f, "MermaidContentTemplate"),
             AvailableSubjects::MermaidGanttTemplate => write!(f, "MermaidGanttTemplate"),
             AvailableSubjects::MermaidFlowchartNodesTemplate => {
@@ -342,19 +337,29 @@ impl Display for AvailableSubjects {
 }
 
 impl AvailableSubjectsTrait for AvailableSubjects {
-    fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Table> {
-        let builder = self.to_table_builder(name);
+    fn to_subject(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Subject> {
+        let builder = self.to_subject_builder(name);
         let batches = batches.unwrap_or_default();
         builder.with_record_batches(batches)?.build()
     }
-    fn to_table_builder(&self, name: Option<&str>) -> TableBuilder {
+
+    fn to_subject_builder(&self, name: Option<&str>) -> SubjectBuilder {
         let name = match name {
             Some(name) => name.to_string(),
             None => self.to_string(),
         };
-        Table::get_builder()
+        Subject::get_builder()
             .with_name(&name)
             .with_schema(self.to_schema())
+    }
+
+    fn to_subject_plan(
+        &self,
+        name: Option<&str>,
+        batches: Option<Vec<RecordBatch>>,
+    ) -> Result<SubjectPlan> {
+        let subject = self.to_subject(name, batches)?;
+        SubjectPlan::get_builder().with_subject(subject).build()
     }
 }
 
@@ -382,7 +387,12 @@ impl AvailableSchemaTrait for AvailableSubjects {
                 create_schema_from_fields(&create_join_chunks_scores_fields)
             }
             AvailableSubjects::Attachments => create_schema_from_fields(&create_attachments_fields),
-            AvailableSubjects::Blob => create_schema_from_fields(&create_blob_fields),
+            AvailableSubjects::ObjectStore => {
+                create_schema_from_fields(&create_object_store_fields)
+            }
+            AvailableSubjects::ObjectStoreMeta => {
+                create_schema_from_fields(&create_object_store_meta_fields)
+            }
             AvailableSubjects::Workspace => create_schema_from_fields(&create_workspace_fields),
             AvailableSubjects::Repository => create_schema_from_fields(&create_repository_fields),
             AvailableSubjects::WorkspacePatch => {
@@ -421,8 +431,8 @@ impl AvailableSchemaTrait for AvailableSubjects {
             AvailableSubjects::MetricPivotNormTime => {
                 create_schema_from_fields(&create_metrics_pivot_norm_time_fields)
             }
-            AvailableSubjects::SessionSubjects => {
-                create_schema_from_fields(&create_session_subjects_fields)
+            AvailableSubjects::SessionSubjectSchemas => {
+                create_schema_from_fields(&create_session_subject_schemas_fields)
             }
             AvailableSubjects::SessionTasks => {
                 create_schema_from_fields(&create_session_tasks_fields)
@@ -441,6 +451,9 @@ impl AvailableSchemaTrait for AvailableSubjects {
             }
             AvailableSubjects::SubjectsChangeLog => {
                 create_schema_from_fields(&create_subjects_change_log_fields)
+            }
+            AvailableSubjects::SubjectsObjectStoreMeta => {
+                create_schema_from_fields(&create_subjects_object_store_meta_fields)
             }
             AvailableSubjects::MermaidContentTemplate => {
                 create_schema_from_fields(&create_mermaid_content_template_fields)

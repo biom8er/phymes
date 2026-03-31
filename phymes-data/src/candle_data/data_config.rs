@@ -2,7 +2,9 @@ use std::fmt::Display;
 
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
-use phymes_core::{AvailableSubjects, DataFormat, MappableTrait, Table, TableTrait};
+use phymes_core::{
+    AvailableSubjects, DataEncoding, DataFormat, DiffType, MappableTrait, Subject, SubjectTrait,
+};
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
@@ -529,8 +531,8 @@ pub trait DataConfigTrait {
     where
         Self: Serialize;
 
-    /// Build the config from a [Table]
-    fn from_table(table: &Table) -> Result<Self>
+    /// Build the config from a [Subject]
+    fn from_table(table: &Subject) -> Result<Self>
     where
         Self: Sized;
 }
@@ -624,7 +626,12 @@ pub struct DataConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub doc_template: Option<AvailableJinja2Templates>,
 
-    /// Universal Diff or V4a Diff in a serialized JSON [Value] representing
+    /// [DiffType] specifying the Diff format to use
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub diff: Option<DiffType>,
+
+    /// Universal Diff or V4a Diff in a serialized JSON `Value` representing
     ///   a `Vec<WorkspacePatchSubject>>`
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -657,6 +664,11 @@ pub struct DataConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<DataFormat>,
+
+    /// The data encoding to extract
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub encoding: Option<DataEncoding>,
 
     /// The data schema to extract with
     #[arg(long)]
@@ -746,7 +758,7 @@ impl DataConfigTrait for DataConfig {
     fn to_example_json(&self) -> Result<Vec<u8>, serde_json::Error> {
         serde_json::to_vec(&Self::default())
     }
-    fn from_table(table: &Table) -> Result<Self>
+    fn from_table(table: &Subject) -> Result<Self>
     where
         Self: Sized,
     {

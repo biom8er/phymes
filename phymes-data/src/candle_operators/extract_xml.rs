@@ -6,7 +6,7 @@ use candle_core::Device;
 use clap::ValueEnum;
 use phymes_core::{
     BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine,
-    JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+    JSONSchemaType, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType,
     create_parse_owl_batch, create_parse_xml_batch,
 };
 use quick_xml::{
@@ -643,7 +643,7 @@ pub fn extract_xml(
     device: &Device,
 ) -> Result<RecordBatch> {
     // Extract out the bytes
-    let args_table = Table::get_builder()
+    let args_table = Subject::get_builder()
         .with_name("extract_xml")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
@@ -670,7 +670,7 @@ pub fn extract_xml(
 mod tests {
     use crate::device;
     use phymes_core::{
-        BuildableTrait, BuilderTrait, DataFormat, Table, TableBuilderTrait, TableTrait,
+        BuildableTrait, BuilderTrait, DataFormat, Subject, SubjectBuilderTrait, SubjectTrait,
         create_attachments_batch,
     };
     use phymes_diagnostics::{HashSet, create_timestamp_micros};
@@ -767,7 +767,7 @@ mod tests {
         let extracted = extract_xml("test", "bytes", &[batch], &DataFormat::Xml, &device).unwrap();
 
         // Check the contents of the extracted data
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name("extracted")
             .with_record_batches(vec![extracted])
             .unwrap()
@@ -1052,7 +1052,7 @@ WHERE {
         let extracted = extract_xml("test", "bytes", &[batch], &DataFormat::Owl, &device).unwrap();
 
         // Check the contents of the extracted data
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name("extracted")
             .with_record_batches(vec![extracted])
             .unwrap()

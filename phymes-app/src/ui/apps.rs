@@ -4,8 +4,8 @@ use phymes_agents::{
     SessionInterfaceMessageBuilderTrait,
 };
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, TableBuilder,
-    TableBuilderTrait, TablePublication, TableTrait,
+    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, Publication,
+    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_server::create_session_name;
 
@@ -37,6 +37,8 @@ use reqwest::{self, header::CONTENT_TYPE};
 #[cfg(not(feature = "serverless"))]
 use super::backend::ADDR_BACKEND;
 
+#[cfg(feature = "serverless")]
+use crate::state::RUNTIME_ENV;
 #[cfg(feature = "serverless")]
 use bytes::Bytes;
 #[cfg(feature = "serverless")]
@@ -73,7 +75,7 @@ pub fn apps_interface_view() -> Element {
             .with_session_name(&session_name)
             .with_format(&DataFormat::Ipc)
             .with_publisher(&session_name)
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_stream(false)
     });
 
@@ -119,7 +121,7 @@ pub fn apps_interface_view() -> Element {
                 while let Some(Ok(b)) = stream.next().await {
                     bytes.extend(b);
                 }
-                match TableBuilder::new_from_ipc_stream(&bytes) {
+                match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
                         let combined = table
@@ -171,9 +173,12 @@ pub fn apps_interface_view() -> Element {
             basic_auth: None,
             bearer_auth: Some(JWT().to_string()),
             data: Some(data_serialized),
+            object_store_backend: None,
+            object_store_bucket: None,
+            object_store_config: None,
         };
         #[cfg(feature = "serverless")]
-        let mut serverless = Serverless::new(None);
+        let mut serverless = Serverless::new(None, &RUNTIME_ENV).await.unwrap();
         #[cfg(feature = "serverless")]
         match serverless_app(config, &mut serverless).await {
             Ok(response) => {
@@ -183,7 +188,8 @@ pub fn apps_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
-                match TableBuilder::new_from_ipc_stream(&bytes) {
+                let bytes = bytes.into_iter().flatten().collect::<Vec<_>>();
+                match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
                         let combined = table
@@ -302,7 +308,7 @@ pub fn apps_interface_view() -> Element {
                 Err(err) => Some(err.to_string()),
             }
         } else {
-            match SessionContextBuilder::default().with_state_from_mermaid_erdiagram(
+            match SessionContextBuilder::default().with_subjects_from_mermaid_erdiagram(
                 &diagram_code,
                 false,
                 true,

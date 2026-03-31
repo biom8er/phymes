@@ -1,8 +1,8 @@
 use dioxus::{html::FileData, prelude::*};
 use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait};
 use phymes_core::{
-    create_attachments_batch, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, Table,
-    TableBuilderTrait, TablePublication, TableTrait,
+    create_attachments_batch, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait,
+    Publication, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_server::create_session_name;
@@ -16,6 +16,8 @@ use super::backend::ADDR_BACKEND;
 #[cfg(not(feature = "serverless"))]
 use futures::StreamExt;
 
+#[cfg(feature = "serverless")]
+use crate::state::RUNTIME_ENV;
 #[cfg(feature = "serverless")]
 use bytes::Bytes;
 #[cfg(feature = "serverless")]
@@ -55,14 +57,14 @@ pub fn attach_files_input(
 ) -> Element {
     let enable_directory_upload = use_signal(|| false);
 
-    let read_files = move |files: Vec<FileData>, publish: TablePublication| async move {
+    let read_files = move |files: Vec<FileData>, publish: Publication| async move {
         for file in files {
             let filename = file.name();
             // Determine the file type
             let file_path = std::path::Path::new(&filename);
             match file_path.extension() {
                 None => tracing::error!("File {filename} has no extension."),
-                Some(ext) => match DataFormat::from_extension(ext.to_str().unwrap()) {
+                Some(ext) => match DataFormat::from_prefix(ext.to_str().unwrap()) {
                     Ok(data_format) => {
                         if let Ok(contents) = file.read_bytes().await {
                             let extension = ext.to_str().unwrap();
@@ -121,7 +123,7 @@ pub fn attach_files_input(
                                     vec![create_timestamp_micros()],
                                 )
                                 .unwrap();
-                                let message = Table::get_builder()
+                                let message = Subject::get_builder()
                                     .with_name(subject_name.as_str())
                                     .with_record_batches(vec![batch])
                                     .unwrap()
@@ -136,13 +138,13 @@ pub fn attach_files_input(
 
                             // Update the publish method
                             let publish = match publish {
-                                TablePublication::Extend { .. } => TablePublication::Extend {
-                                    table_name: subject_name.clone(),
+                                Publication::Extend { .. } => Publication::Extend {
+                                    subject_name: subject_name.clone(),
                                 },
-                                TablePublication::Replace { .. } => TablePublication::Replace {
-                                    table_name: subject_name.clone(),
+                                Publication::Replace { .. } => Publication::Replace {
+                                    subject_name: subject_name.clone(),
                                 },
-                                _ => TablePublication::None,
+                                _ => Publication::None,
                             };
 
                             // Create the message to upload
@@ -178,8 +180,8 @@ pub fn attach_files_input(
     let upload_files_extend = move |evt: FormEvent| async move {
         read_files(
             evt.files(),
-            TablePublication::Extend {
-                table_name: "".to_string(),
+            Publication::Extend {
+                subject_name: "".to_string(),
             },
         )
         .await;
@@ -188,8 +190,8 @@ pub fn attach_files_input(
     let upload_files_replace = move |evt: FormEvent| async move {
         read_files(
             evt.files(),
-            TablePublication::Replace {
-                table_name: "".to_string(),
+            Publication::Replace {
+                subject_name: "".to_string(),
             },
         )
         .await;
@@ -344,9 +346,12 @@ pub fn upload_files_button(
                         basic_auth: None,
                         bearer_auth: Some(JWT.read().to_string()),
                         data: Some(data_serialized),
+                        object_store_backend: None,
+                        object_store_bucket: None,
+                        object_store_config: None,
                     };
                     #[cfg(feature = "serverless")]
-                    let mut serverless = Serverless::new(None);
+                    let mut serverless = Serverless::new(None, &RUNTIME_ENV).await.unwrap();
                     #[cfg(feature = "serverless")]
                     match serverless_app(config, &mut serverless).await {
                         Ok(response) => {
@@ -417,7 +422,7 @@ pub fn download_files_button(
                     .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                     .with_format(&data_format())
                     .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-                    .with_update(&TablePublication::None)
+                    .with_update(&Publication::None)
                     .with_stream(false)
                     .with_subject(&active_subject_name.read())
                     .make_name()
@@ -445,7 +450,7 @@ pub fn download_files_button(
                         }
                         files_downloaded.push(bytes_vec);
                         filenames_downloaded.push(active_subject_name.read().as_str().to_string());
-                        extensions_downloaded.push(data_format().to_extension().to_string());
+                        extensions_downloaded.push(data_format().to_prefix().to_string());
                     },
                     Err(err) => tracing::error!("There was a error downloading subject {err}."),
                 }
@@ -456,9 +461,12 @@ pub fn download_files_button(
                     basic_auth: None,
                     bearer_auth: Some(JWT.read().to_string()),
                     data: Some(data_serialized),
+                    object_store_backend: None,
+                    object_store_bucket: None,
+                    object_store_config: None,
                 };
                 #[cfg(feature = "serverless")]
-                let mut serverless = Serverless::new(None);
+                let mut serverless = Serverless::new(None, &RUNTIME_ENV).await.unwrap();
                 #[cfg(feature = "serverless")]
                 match serverless_app(config, &mut serverless).await {
                     Ok(response) => {
@@ -471,7 +479,7 @@ pub fn download_files_button(
                         let bytes_vec: Vec<u8> = bytes.into_iter().flat_map(|b| b.to_vec()).collect();
                         files_downloaded.push(bytes_vec);
                         filenames_downloaded.push(active_subject_name.read().as_str().to_string());
-                        extensions_downloaded.push(data_format().to_extension().to_string());
+                        extensions_downloaded.push(data_format().to_prefix().to_string());
                     }
                     Err(err) => tracing::error!("There was a error downloading subject {err}."),
                 }

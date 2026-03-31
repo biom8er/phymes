@@ -6,7 +6,7 @@ mod serverless_app;
 mod serverless_config;
 
 pub use server_app::AppBuilder;
-#[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+#[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
 pub use server_app::Server;
 pub use server_config::ServerConfig;
 #[cfg(feature = "wasip2")]

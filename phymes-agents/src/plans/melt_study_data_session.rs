@@ -140,11 +140,11 @@ impl<'a> MeltStudyDataSession<'a> {
 	    user_csv-subscribe-->user_csv-processor
 	    user_csv-processor-->user_csv-publish
 	    user_csv-publish-->|Replace|StudyData-subject
-	    StudyData-subject-->|FullTable|study_data_cast-subscribe
+	    StudyData-subject-->|AllRecordBatches|study_data_cast-subscribe
 	    study_data_cast-subscribe-->study_data_cast-processor
 	    study_data_cast-processor-->study_data_cast-publish
 	    study_data_cast-publish-->|Replace|StudyDataCast-subject
-	    StudyDataCast-subject-->|FullTable|study_data_melt-subscribe
+	    StudyDataCast-subject-->|AllRecordBatches|study_data_melt-subscribe
 	    study_data_melt-subscribe-->study_data_melt-processor
 	    study_data_melt-processor-->study_data_melt-publish
 	    study_data_melt-publish-->|Replace|StudyDataMelt-subject
@@ -172,13 +172,12 @@ impl<'a> MeltStudyDataSession<'a> {
 	    user_csv-subscribe-->user_csv-processor
 	    user_csv-processor-->user_csv-publish
 	    user_csv-publish-->|Replace|StudyData-subject
-	    StudyData-subject-->|FullTable|study_samples_select-subscribe
+	    StudyData-subject-->|AllRecordBatches|study_samples_select-subscribe
 	    study_samples_select-subscribe-->study_samples_select-processor
 	    study_samples_select-processor-->study_samples_select-publish
 	    study_samples_select-publish-->|Extend|StudySamplesMelt-subject
 	end
-	study_samples_extraction-rt@{shape: subproc, label: study_samples_extraction}
-	study_samples_extraction-rt-->study_samples_extraction
+	study_data_extraction-rt-->study_samples_extraction
 	study_samples_select-processor@{shape: rect, label: Select}
 	study_samples_select-publish@{shape: fork}
 	study_samples_select-subscribe@{shape: diamond, label: All}
@@ -187,13 +186,12 @@ impl<'a> MeltStudyDataSession<'a> {
 	%% Samples Variables extraction
 	%% ---------------------------------
 	subgraph samples_variables_extraction
-	    StudyDataMelt-subject-.->|FullTable|samples_variables_select-subscribe
+	    StudyDataMelt-subject-.->|AllRecordBatches|samples_variables_select-subscribe
 	    samples_variables_select-subscribe-->samples_variables_select-processor
 	    samples_variables_select-processor-->samples_variables_select-publish
 	    samples_variables_select-publish-->|Replace|SamplesVariablesMelt-subject
 	end
-	samples_variables_extraction-rt@{shape: subproc, label: samples_variables_extraction}
-	samples_variables_extraction-rt-->samples_variables_extraction
+	study_data_extraction-rt-->samples_variables_extraction
 	samples_variables_select-processor@{shape: rect, label: Select}
 	samples_variables_select-publish@{shape: fork}
 	samples_variables_select-subscribe@{shape: diamond, label: All}
@@ -203,17 +201,16 @@ impl<'a> MeltStudyDataSession<'a> {
 	%% TODO: need to add coalesce step because group by runs out of GPU memory
 	%% ---------------------------------
 	subgraph study_variables_extraction
-	    StudyDataMelt-subject-.->|FullTable|study_variables_group_by-subscribe
+	    StudyDataMelt-subject-.->|AllRecordBatches|study_variables_group_by-subscribe
 	    study_variables_group_by-subscribe-->study_variables_group_by-processor
 	    study_variables_group_by-processor-->study_variables_group_by-publish
 	    study_variables_group_by-publish-->|Replace|StudyVariablesMeltGroupBy-subject
-	    StudyVariablesMeltGroupBy-subject-->|FullTable|study_variables_select-subscribe
+	    StudyVariablesMeltGroupBy-subject-->|AllRecordBatches|study_variables_select-subscribe
 	    study_variables_select-subscribe-->study_variables_select-processor
 	    study_variables_select-processor-->study_variables_select-publish
 	    study_variables_select-publish-->|Replace|StudyVariablesMelt-subject
 	end
-	study_variables_extraction-rt@{shape: subproc, label: study_variables_extraction}
-	study_variables_extraction-rt-->study_variables_extraction
+	study_data_extraction-rt-->study_variables_extraction
 	study_variables_group_by-processor@{shape: rect, label: GroupBy}
 	study_variables_group_by-publish@{shape: fork}
 	study_variables_group_by-subscribe@{shape: diamond, label: All}
@@ -323,6 +320,7 @@ impl<'a> MeltStudyDataSession<'a> {
 	    Utf8 lhs_name "UserCsv"
 	    List-Utf8 lhs_values "['bytes']"
 	    Utf8 operator "ExtractTabular"
+        Utf8 encoding "None"
 	    Utf8 lhs_stream "Accumulate"
 	}}"#,
             self.cast_templates_columns()?,
@@ -348,18 +346,17 @@ mod tests {
     use anyhow::Result;
     use arrow::array::{ArrayRef, Float64Array, Int64Array, RecordBatch, StringArray};
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
         AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, CsvFormat,
-        IPCMessage, MappableTrait, MessageBuilderTrait, Table, TableBuilderTrait, TablePublication,
-        TableTrait,
+        IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait,
+        SubjectTrait, Subscription,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
         AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
         SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
-        create_message_map,
+        SubscriptionTrait, create_message_map,
     };
 
     use super::*;
@@ -382,11 +379,11 @@ mod tests {
         let melt_study_data_session =
             MeltStudyDataSession::new(None, "Casenr", None, variable_names, data_types)?;
         // dbg!(&melt_study_data_session.as_mermaid_erdiagram()?);
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             melt_study_data_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             melt_study_data_session.as_mermaid_erdiagram()?.as_str(),
             false,
             true,
@@ -397,7 +394,7 @@ mod tests {
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Make the tabular data
         let csv_format = CsvFormat::default();
@@ -441,25 +438,28 @@ mod tests {
             ("BMI", bmis),
             ("Statin", statins),
         ])?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name("PivotTable")
             .with_record_batches(vec![batch])?
             .build()?;
         let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
         let blob = AvailableInterfaceSubjects::UserCsv
-            .to_table_builder(None)
+            .to_subject_builder(None)
             .with_attachment(None, Some("csv"), &bytes, None)?
             .build()?;
         let blob_message = IPCMessage::get_builder()
             .with_message(blob.to_ipc_stream()?)
             .with_subject(blob.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: blob.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: blob.get_name().to_string(),
             })
             .with_publisher(melt_study_data_session.session_context_name)
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![blob_message]);
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
@@ -469,28 +469,39 @@ mod tests {
 
         {
             // Test session context
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get("StudySamplesMelt")
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("sample_name");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "StudySamplesMelt".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("StudySamplesMelt")
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("sample_name");
             assert_eq!(
                 column,
                 [
                     "4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095"
                 ]
             );
-            let column = table_reading.get_column_as_vec_primitive::<u32>("study_id")?;
+            let column = subject.get_column_as_vec_primitive::<u32>("study_id")?;
             assert!(!column.is_empty());
 
-            let table_reading = session_reading
-                .get_states()
-                .get("SamplesVariablesMelt")
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("sample_name");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "SamplesVariablesMelt".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("SamplesVariablesMelt")
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("sample_name");
             assert_eq!(
                 column,
                 [
@@ -502,7 +513,7 @@ mod tests {
                     "4090", "4091", "4092", "4093", "4094", "4095"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("variable_name");
+            let column = subject.get_column_as_vec_str("variable_name");
             assert_eq!(
                 column,
                 [
@@ -564,7 +575,7 @@ mod tests {
                     "Statin"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("value");
+            let column = subject.get_column_as_vec_str("value");
             assert_eq!(
                 column,
                 [
@@ -626,27 +637,33 @@ mod tests {
                     "0"
                 ]
             );
-            let column = table_reading.get_column_as_vec_primitive::<u32>("study_id")?;
+            let column = subject.get_column_as_vec_primitive::<u32>("study_id")?;
             assert!(!column.is_empty());
 
-            let table_reading = session_reading
-                .get_states()
-                .get("StudyVariablesMelt")
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("variable_name");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "StudyVariablesMelt".to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("StudyVariablesMelt")
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("variable_name");
             assert_eq!(
                 column,
                 ["Age", "BMI", "Ethnicity", "Gender", "RFFT", "Statin", "VAT"]
             );
-            let column = table_reading.get_column_as_vec_str("data_type");
+            let column = subject.get_column_as_vec_str("data_type");
             assert_eq!(
                 column,
                 [
                     "Int64", "Float64", "Int64", "Int64", "Int64", "Int64", "Int64"
                 ]
             );
-            let column = table_reading.get_column_as_vec_primitive::<u32>("study_id")?;
+            let column = subject.get_column_as_vec_primitive::<u32>("study_id")?;
             assert!(!column.is_empty());
         }
 

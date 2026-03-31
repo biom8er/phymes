@@ -15,11 +15,11 @@ use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_core::{
     AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, ChatTraitExt,
-    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream,
-    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, Publication,
+    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TablePublication,
-    TableTrait, Tool, create_chat_record_batch, remove_message_by_subject,
+    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilder, SubjectBuilderTrait,
+    SubjectTrait, Tool, create_chat_record_batch, remove_message_by_subject,
 };
 use phymes_data::{DataConfigTrait, device};
 use phymes_diagnostics::{
@@ -79,12 +79,6 @@ impl ProcessorTrait for CandleChatProcessor {
                 ));
             }
         };
-
-        // Re-index the messages by the subject name which needs to be unique at this stage
-        let message = message
-            .into_iter()
-            .map(|(_k, v)| (v.get_subject().to_string(), v))
-            .collect::<HashMap<_, _>>();
 
         // Run the chat stream
         let out = Box::pin(CandleChatStream::new(
@@ -171,7 +165,7 @@ impl CandleChatStream {
 
     /// Initialize the config for text generation inference
     #[instrument(skip(self))]
-    fn init_config(&mut self, config_table: Table) -> Result<()> {
+    fn init_config(&mut self, config_table: Subject) -> Result<()> {
         if self.config.is_none() {
             let config = CandleChatConfig::from_table(&config_table)?;
             self.config.replace(config);
@@ -322,7 +316,7 @@ impl Stream for CandleChatStream {
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
-            let config_table = TableBuilder::new()
+            let config_table = SubjectBuilder::new()
                 .with_name("config")
                 .with_record_batches(batches)?
                 .build()?;
@@ -342,10 +336,12 @@ impl Stream for CandleChatStream {
             };
             let mut batches = Vec::new();
             while let Some(Ok(batch)) = ready!(message_stream.poll_next_unpin(cx)) {
-                batches.push(batch);
+                if batch.num_rows() > 0 {
+                    batches.push(batch);
+                }
             }
-            let messages = TableBuilder::new()
-                .with_name("messages")
+            let messages = SubjectBuilder::new()
+                .with_name("Message History for CandleChatStream")
                 .with_record_batches(batches)?
                 .build()?;
 
@@ -362,21 +358,27 @@ impl Stream for CandleChatStream {
                     let mut tools_stream = s.get_message_own();
                     let mut batches = Vec::new();
                     while let Some(Ok(batch)) = ready!(tools_stream.poll_next_unpin(cx)) {
-                        batches.push(batch);
+                        if batch.num_rows() > 0 {
+                            batches.push(batch);
+                        }
                     }
-                    let tool_table = TableBuilder::new()
-                        .with_name("messages")
-                        .with_record_batches(batches)?
-                        .build()?;
-                    let tool_vec: Vec<Tool> = tool_table
-                        .get_column_as_vec_str("tool")
-                        .iter()
-                        .map(|s| {
-                            let tool: Tool = serde_json::from_str(s).unwrap();
-                            tool
-                        })
-                        .collect::<Vec<_>>();
-                    Some(tool_vec)
+                    if let Ok(subject_builder) = SubjectBuilder::new()
+                        .with_name("Tools for CandleChatStream")
+                        .with_record_batches(batches)
+                    {
+                        let tool_table = subject_builder.build()?;
+                        let tool_vec: Vec<Tool> = tool_table
+                            .get_column_as_vec_str("tool")
+                            .iter()
+                            .map(|s| {
+                                let tool: Tool = serde_json::from_str(s).unwrap();
+                                tool
+                            })
+                            .collect::<Vec<_>>();
+                        Some(tool_vec)
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
@@ -641,9 +643,9 @@ pub fn process_prompt_chat(
 }
 
 pub mod bench_chat_processor {
-    #[cfg(feature = "api")]
+    #[cfg(all(not(feature = "candle"), feature = "api"))]
     use crate::openai_chat::OpenAIChatProcessor;
-    use phymes_core::{ChatBuilderTraitExt, RuntimeEnvTrait};
+    use phymes_core::ChatBuilderTraitExt;
 
     use super::*;
 
@@ -653,16 +655,16 @@ pub mod bench_chat_processor {
         config: &CandleChatConfig,
         user_content: &str,
         name: &str,
-    ) -> Result<Table> {
+    ) -> Result<Subject> {
         // State for the chat processor config
         let candle_chat_config_json = serde_json::to_vec(config)?;
-        let candle_chat_config_table = TableBuilder::new()
+        let candle_chat_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&candle_chat_config_json, 1)?
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
+        let message_builder = SubjectBuilder::new()
             .with_name(&config.messages)
             .insert_system_template_str("You are a helpful assistant.")?
             .append_new_user_query_str(user_content, "user")?;
@@ -675,7 +677,7 @@ pub mod bench_chat_processor {
                 .with_name(&config.messages)
                 .with_publisher("")
                 .with_subject(&config.messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
@@ -685,7 +687,7 @@ pub mod bench_chat_processor {
                 .with_name(candle_chat_config_table.get_name())
                 .with_publisher("")
                 .with_subject(candle_chat_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(candle_chat_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -698,7 +700,7 @@ pub mod bench_chat_processor {
         let mut stream = chat_processor.process(
             message,
             diagnostic_builder,
-            Arc::new(RuntimeEnv::new().with_name("rt")),
+            Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?),
         )?;
 
         // Update the chat history with the response
@@ -714,7 +716,7 @@ pub mod bench_chat_processor {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{ChatBuilderTraitExt, RuntimeEnvTrait};
+    use phymes_core::ChatBuilderTraitExt;
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use crate::{
@@ -865,13 +867,13 @@ mod tests {
         };
 
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config)?;
-        let candle_chat_config_table = TableBuilder::new()
+        let candle_chat_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&candle_chat_config_json, 1)?
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
+        let message_builder = SubjectBuilder::new()
             .with_name(messages)
             .insert_system_template_str("You are a helpful assistant.")?
             .append_new_user_query_str(
@@ -887,7 +889,7 @@ mod tests {
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
@@ -897,7 +899,7 @@ mod tests {
                 .with_name(candle_chat_config_table.get_name())
                 .with_publisher("")
                 .with_subject(candle_chat_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(candle_chat_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -907,7 +909,7 @@ mod tests {
         let mut stream = chat_processor.process(
             message,
             Some(&diagnostic_builder),
-            Arc::new(RuntimeEnv::new().with_name("rt")),
+            Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?),
         )?;
 
         // DM: Skip actually running the tests as they take too long on the CPU

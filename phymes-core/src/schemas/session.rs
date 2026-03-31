@@ -9,7 +9,7 @@ use arrow::{
     datatypes::{DataType, Field, Fields},
 };
 
-pub(crate) fn create_session_subjects_fields() -> Fields {
+pub(crate) fn create_session_subject_schemas_fields() -> Fields {
     let field_names = ["session_name", "subject_name", "column_name", "type_name"];
     let fields_vec = field_names
         .iter()
@@ -18,7 +18,7 @@ pub(crate) fn create_session_subjects_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_session_subjects_batch(
+pub fn create_session_subject_schemas_batch(
     session_names: Vec<String>,
     subject_names: Vec<String>,
     cols_names: Vec<String>,
@@ -38,12 +38,7 @@ pub fn create_session_subjects_batch(
 }
 
 pub(crate) fn create_session_tasks_fields() -> Fields {
-    let field_names = [
-        "session_name",
-        "task_name",
-        "processor_name",
-        "runtime_env_name",
-    ];
+    let field_names = ["session_name", "task_name", "processor_name"];
     let fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -55,17 +50,14 @@ pub fn create_session_tasks_batch(
     session_names: Vec<String>,
     task_names: Vec<String>,
     processor_names: Vec<String>,
-    runtime_env_names: Vec<String>,
 ) -> Result<RecordBatch> {
     let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
     let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
-    let runtime_env_names: ArrayRef = Arc::new(StringArray::from(runtime_env_names));
     let batch = RecordBatch::try_from_iter(vec![
         ("session_name", session_names),
         ("task_name", task_names),
         ("processor_name", processor_names),
-        ("runtime_env_name", runtime_env_names),
     ])?;
     Ok(batch)
 }
@@ -127,12 +119,20 @@ pub fn create_session_processors_batch(
 }
 
 pub(crate) fn create_session_runtime_envs_fields() -> Fields {
-    let field_names = ["session_name", "runtime_env_name"];
+    let field_names = [
+        "session_name",
+        "runtime_env_name",
+        "object_store_backend",
+        "object_store_bucket",
+        "object_store_config",
+        "subject_folder_partitioning",
+        "subject_file_partitioning",
+    ];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let field_names = ["memory_limit", "time_limit"];
+    let field_names = ["max_memory", "max_time", "max_steps", "max_tasks"];
     fields_vec.extend(
         field_names
             .iter()
@@ -142,21 +142,45 @@ pub(crate) fn create_session_runtime_envs_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_session_runtime_envs_batch(
     session_names: Vec<String>,
     runtime_env_names: Vec<String>,
-    memory_limits: Vec<u32>,
-    time_limits: Vec<u32>,
+    object_store_backend: Vec<String>,
+    object_store_bucket: Vec<String>,
+    object_store_config: Vec<String>,
+    subject_folder_partitioning: Vec<String>,
+    subject_file_partitioning: Vec<String>,
+    max_memory: Vec<u32>,
+    max_time: Vec<u32>,
+    max_steps: Vec<u32>,
+    max_tasks: Vec<u32>,
 ) -> Result<RecordBatch> {
     let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
     let runtime_env_names: ArrayRef = Arc::new(StringArray::from(runtime_env_names));
-    let memory_limits: ArrayRef = Arc::new(UInt32Array::from(memory_limits));
-    let time_limits: ArrayRef = Arc::new(UInt32Array::from(time_limits));
+    let object_store_backend: ArrayRef = Arc::new(StringArray::from(object_store_backend));
+    let object_store_bucket: ArrayRef = Arc::new(StringArray::from(object_store_bucket));
+    let object_store_config: ArrayRef = Arc::new(StringArray::from(object_store_config));
+    let subject_folder_partitioning: ArrayRef =
+        Arc::new(StringArray::from(subject_folder_partitioning));
+    let subject_file_partitioning: ArrayRef =
+        Arc::new(StringArray::from(subject_file_partitioning));
+    let max_memory: ArrayRef = Arc::new(UInt32Array::from(max_memory));
+    let max_time: ArrayRef = Arc::new(UInt32Array::from(max_time));
+    let max_steps: ArrayRef = Arc::new(UInt32Array::from(max_steps));
+    let max_tasks: ArrayRef = Arc::new(UInt32Array::from(max_tasks));
     let batch = RecordBatch::try_from_iter(vec![
         ("session_name", session_names),
         ("runtime_env_name", runtime_env_names),
-        ("memory_limit", memory_limits),
-        ("time_limit", time_limits),
+        ("object_store_backend", object_store_backend),
+        ("object_store_bucket", object_store_bucket),
+        ("object_store_config", object_store_config),
+        ("subject_folder_partitioning", subject_folder_partitioning),
+        ("subject_file_partitioning", subject_file_partitioning),
+        ("max_memory", max_memory),
+        ("max_time", max_time),
+        ("max_steps", max_steps),
+        ("max_tasks", max_tasks),
     ])?;
     Ok(batch)
 }
@@ -167,7 +191,7 @@ pub(crate) fn create_session_tasks_run_log_fields() -> Fields {
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let field_names = ["timestamp"];
+    let field_names = ["superstep", "timestamp"];
     fields_vec.extend(
         field_names
             .iter()
@@ -180,14 +204,17 @@ pub(crate) fn create_session_tasks_run_log_fields() -> Fields {
 pub fn create_session_tasks_run_log_batch(
     session_names: Vec<String>,
     task_names: Vec<String>,
+    supersteps: Vec<i64>,
     timestamps: Vec<i64>,
 ) -> Result<RecordBatch> {
     let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
+    let supersteps: ArrayRef = Arc::new(Int64Array::from(supersteps));
     let timestamps: ArrayRef = Arc::new(Int64Array::from(timestamps));
     let batch = RecordBatch::try_from_iter(vec![
         ("session_name", session_names),
         ("task_name", task_names),
+        ("superstep", supersteps),
         ("timestamp", timestamps),
     ])?;
     Ok(batch)
@@ -287,7 +314,7 @@ pub(crate) fn create_session_tasks_subscribe_aggregate_fields() -> Fields {
             .collect::<Vec<_>>(),
     );
     let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Int64, false)));
-    let field_names = ["timestamp-List", "timestamp-Max-List"];
+    let field_names = ["superstep-List", "superstep-Max-List"];
     fields_vec.extend(
         field_names
             .iter()
@@ -307,8 +334,8 @@ pub fn create_session_tasks_subscribe_aggregate_batch(
     update_types: Vec<String>,
     subscription_names: Vec<Vec<String>>,
     subscription_table_names: Vec<Vec<String>>,
-    timestamps: Vec<Vec<i64>>,
-    timestamp_lasts: Vec<Vec<i64>>,
+    supersteps: Vec<Vec<i64>>,
+    superstep_lasts: Vec<Vec<i64>>,
 ) -> Result<RecordBatch> {
     let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
@@ -340,19 +367,19 @@ pub fn create_session_tasks_subscribe_aggregate_batch(
     let value_builder = Int64Builder::new();
     let mut list_builder =
         ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Int64, false));
-    for values in timestamps.into_iter() {
+    for values in supersteps.into_iter() {
         list_builder.values().append_slice(values.as_slice());
         list_builder.append(true);
     }
-    let timestamps: ArrayRef = Arc::new(list_builder.finish());
+    let supersteps: ArrayRef = Arc::new(list_builder.finish());
     let value_builder = Int64Builder::new();
     let mut list_builder =
         ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Int64, false));
-    for values in timestamp_lasts.into_iter() {
+    for values in superstep_lasts.into_iter() {
         list_builder.values().append_slice(values.as_slice());
         list_builder.append(true);
     }
-    let timestamp_lasts: ArrayRef = Arc::new(list_builder.finish());
+    let superstep_lasts: ArrayRef = Arc::new(list_builder.finish());
     let batch = RecordBatch::try_from_iter(vec![
         ("session_name", session_names),
         ("task_name", task_names),
@@ -362,8 +389,8 @@ pub fn create_session_tasks_subscribe_aggregate_batch(
         ("update_type-Last", update_types),
         ("subscription_name-List", subscription_names),
         ("subscription_table_name-List", subscription_table_names),
-        ("timestamp-List", timestamps),
-        ("timestamp-Max-List", timestamp_lasts),
+        ("superstep-List", supersteps),
+        ("superstep-Max-List", superstep_lasts),
     ])?;
     Ok(batch)
 }

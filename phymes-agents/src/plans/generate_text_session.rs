@@ -170,10 +170,10 @@ impl<'a> GenerateTextSession<'a> {
 	%% Message aggregation for text generation
 	%% ------------------------------------------------------------------------------
 	subgraph aggregate_messages_generate_text_t
-		UserMessages-subject-->|FullTable|aggregate_messages_generate_text_p-subscribe
+		UserMessages-subject-->|AllRecordBatches|aggregate_messages_generate_text_p-subscribe
 		ToolMessages-subject-.->|LastRecordBatch|aggregate_messages_generate_text_p-subscribe
 		SessionErrors-subject-.->|LastRecordBatch|aggregate_messages_generate_text_p-subscribe
-		AssistantMessages-subject-->|FullTable|aggregate_messages_generate_text_p-subscribe
+		AssistantMessages-subject-->|AllRecordBatches|aggregate_messages_generate_text_p-subscribe
 		aggregate_messages_generate_text_p-subscribe-->aggregate_messages_generate_text_p-processor
 		aggregate_messages_generate_text_p-processor-->aggregate_messages_generate_text_p-publish
 		aggregate_messages_generate_text_p-publish-->|Replace|aggregate_messages_generate_text_s-subject
@@ -184,7 +184,7 @@ impl<'a> GenerateTextSession<'a> {
 	ToolMessages-subject@{{shape: doc, label: ToolMessages}}
 	SessionErrors-subject@{{shape: doc, label: SessionErrors}}
 	AssistantMessages-subject@{{shape: doc, label: AssistantMessages}}
-	aggregate_messages_generate_text_p-processor@{{shape: rect, label: MessageAggregatorProcessor}}
+	aggregate_messages_generate_text_p-processor@{{shape: rect, label: AggregatorProcessor}}
 	aggregate_messages_generate_text_p-publish@{{shape: fork}}
 	aggregate_messages_generate_text_p-subscribe@{{shape: diamond, label: ChatContentSubscribe}}
 	aggregate_messages_generate_text_s-subject@{{shape: doc, label: aggregate_messages_generate_text_s}}
@@ -199,7 +199,7 @@ impl<'a> GenerateTextSession<'a> {
 		aggregate_messages_user_interface_p-publish-->|Extend|AggregatedMessages-subject
 	end
 	generate_text_r-rt-->aggregate_messages_user_interface_t
-	aggregate_messages_user_interface_p-processor@{{shape: rect, label: MessageAggregatorProcessor}}
+	aggregate_messages_user_interface_p-processor@{{shape: rect, label: AggregatorProcessor}}
 	aggregate_messages_user_interface_p-publish@{{shape: fork}}
 	aggregate_messages_user_interface_p-subscribe@{{shape: diamond, label: Any}}
 	AggregatedMessages-subject@{{shape: doc, label: AggregatedMessages}}
@@ -207,14 +207,13 @@ impl<'a> GenerateTextSession<'a> {
 	%% Text generation
 	%% ------------------------------------------------------------------------------
 	subgraph generate_text_inference_t
-		aggregate_messages_generate_text_s-subject-.->|FullTable|generate_text_inference_p-subscribe
-		Tools-subject-->|FullTable|generate_text_inference_p-subscribe
+		aggregate_messages_generate_text_s-subject-.->|AllRecordBatches|generate_text_inference_p-subscribe
+		Tools-subject-->|AllRecordBatches|generate_text_inference_p-subscribe
 		generate_text_inference_p-subscribe-->generate_text_inference_p-processor
 		generate_text_inference_p-processor-->generate_text_inference_p-publish
 		generate_text_inference_p-publish-->|Replace|generate_text_inference_s-subject
 	end
-	generate_text_inference_r-rt@{{shape: subproc, label: generate_text_inference_r}}
-	generate_text_inference_r-rt-->generate_text_inference_t
+	generate_text_r-rt-->generate_text_inference_t
 	Tools-subject@{{shape: doc, label: Tools}}
 	generate_text_inference_p-processor@{{shape: rect, label: {}}}
 	generate_text_inference_p-publish@{{shape: fork}}
@@ -224,7 +223,7 @@ impl<'a> GenerateTextSession<'a> {
 	%% Parse generated text
 	%% ------------------------------------------------------------------------------
 	subgraph parse_generated_text_t
-		generate_text_inference_s-subject-.->|FullTable|parse_generated_text_p-subscribe
+		generate_text_inference_s-subject-.->|AllRecordBatches|parse_generated_text_p-subscribe
 		parse_generated_text_p-subscribe-->parse_generated_text_p-processor
 		parse_generated_text_p-processor-->parse_generated_text_p-publish
 		parse_generated_text_p-publish-->|Extend|AssistantMessages-subject
@@ -332,11 +331,11 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
-        ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, TableBuilder,
-        TableBuilderTrait, TablePublication, TableTrait, create_tools_record_batch,
+        ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject,
+        SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait,
+        Subscription, create_tools_record_batch,
     };
     use phymes_data::{AvailableCandleOperators, ToolTrait};
     use phymes_diagnostics::HashMap;
@@ -344,7 +343,7 @@ mod tests {
     use crate::{
         AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
         SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
-        create_message_map,
+        SubscriptionTrait, create_message_map,
     };
 
     use super::*;
@@ -353,11 +352,11 @@ mod tests {
     async fn test_generate_text_session_no_tools() -> Result<()> {
         // Initialize the session
         let generate_text_session = GenerateTextSession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             &generate_text_session.as_mermaid_erdiagram(),
             false,
             true,
@@ -368,23 +367,26 @@ mod tests {
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // User message
-        let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+        let chat = AvailableInterfaceSubjects::UserMessages.to_subject_builder(None)
             .append_new_user_query_str("Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.", "user")?
             .build()?;
         let chat_message = IPCMessage::get_builder()
             .with_message(chat.to_ipc_stream()?)
             .with_subject(chat.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: chat.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: chat.get_name().to_string(),
             })
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
             .build()?;
 
         let message_map = create_message_map(vec![chat_message]);
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -400,85 +402,106 @@ mod tests {
 
             {
                 // Test supsersteps
-                let session_reading = session_ctx_arc.read();
-                let table_reading = session_reading
-                    .get_states()
-                    .get(
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                let subject = Subject::get_builder()
+                    .with_name(
                         AvailableInterfaceSubjects::AssistantMessages
                             .to_string()
                             .as_str(),
                     )
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 let assistant_content = column.first().unwrap();
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
-                    .get_states()
-                    .get(
-                        AvailableInterfaceSubjects::ToolMessages
-                            .to_string()
-                            .as_str(),
-                    )
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 0);
-                let table_reading = session_reading
-                    .get_states()
-                    .get(
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                assert_eq!(batches.len(), 0);
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                let subject = Subject::get_builder()
+                    .with_name(
                         AvailableInterfaceSubjects::AggregatedMessages
                             .to_string()
                             .as_str(),
                     )
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 2);
-                let column = table_reading.get_column_as_vec_str("role");
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 2);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
                 assert_eq!(column.last().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 assert_eq!(
                     column.first().unwrap(),
                     &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
                 );
                 assert_eq!(column.last().unwrap(), assistant_content);
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
-                    .get_states()
-                    .get("aggregate_messages_generate_text_s")
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: "aggregate_messages_generate_text_s".to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                let subject = Subject::get_builder()
+                    .with_name("aggregate_messages_generate_text_s")
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 assert_eq!(
                     column.first().unwrap(),
                     &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
                 );
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
-                    .get_states()
-                    .get("generate_text_inference_s")
-                    .unwrap()
-                    .read();
-                assert!(table_reading.count_rows() > 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: "generate_text_inference_s".to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                let subject = Subject::get_builder()
+                    .with_name("generate_text_inference_s")
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert!(subject.count_rows() > 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"assistant");
                 assert_eq!(column.last().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
@@ -512,11 +535,11 @@ mod tests {
             )),
             None,
         );
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let mut session_ctx_builder = SessionContextBuilder::from_mermaid_flowchart(
             &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             &generate_text_session.as_mermaid_erdiagram(),
             false,
             true,
@@ -525,31 +548,36 @@ mod tests {
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
-        .add_next_supersteps()?
-        .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        .add_next_supersteps()?;
 
         // Add the target tool subjects to the session for testing
-        let _ = session_ctx_arc.write().state.insert(
-            AvailableCandleOperators::Sort.to_string(),
-            Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(
-                Some(AvailableCandleOperators::Sort.to_string().as_str()),
-                None,
-            )?)),
-        );
-        let _ = session_ctx_arc.write().state.insert(
-            AvailableCandleOperators::HumanInTheLoop.to_string(),
-            Arc::new(RwLock::new(
-                AvailableSubjects::Bytes.to_table(
-                    Some(
-                        AvailableCandleOperators::HumanInTheLoop
-                            .to_string()
-                            .as_str(),
-                    ),
-                    None,
-                )?,
-            )),
-        );
+        let mut subjects = session_ctx_builder.subjects.take().unwrap();
+        let tool = AvailableSubjects::Bytes.to_subject(
+            Some(AvailableCandleOperators::Sort.to_string().as_str()),
+            None,
+        )?;
+        subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
+        let tool = AvailableSubjects::Bytes.to_subject(
+            Some(
+                AvailableCandleOperators::HumanInTheLoop
+                    .to_string()
+                    .as_str(),
+            ),
+            None,
+        )?;
+        subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
+
+        let (session_ctx, session_messages) = session_ctx_builder
+            .with_subjects(subjects)
+            // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
+            .add_session_interface(Some(&[
+                AvailableCandleOperators::Sort.to_string().as_str(),
+                AvailableCandleOperators::HumanInTheLoop
+                    .to_string()
+                    .as_str(),
+            ]))?
+            .build_with_tables()?;
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Tools data
         let tool_ids = vec![
@@ -561,35 +589,38 @@ mod tests {
             AvailableCandleOperators::HumanInTheLoop.to_json_tool_schema(),
         ];
         let batch = create_tools_record_batch(tool_ids, tools)?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name(AvailableSubjects::Tools.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
         let tool_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
             .with_subject(table.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: table.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: table.get_name().to_string(),
             })
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
             .build()?;
 
         // User message
-        let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+        let chat = AvailableInterfaceSubjects::UserMessages.to_subject_builder(None)
             .append_new_user_query_str("Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.", "user")?
             .build()?;
         let chat_message = IPCMessage::get_builder()
             .with_message(chat.to_ipc_stream()?)
             .with_subject(chat.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: chat.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: chat.get_name().to_string(),
             })
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
             .build()?;
 
         let message_map = create_message_map(vec![tool_message, chat_message]);
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -601,125 +632,116 @@ mod tests {
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-            {
-                // Debug any errors
-                let subjects_reading = session_ctx_arc.read();
-                let table_reading = subjects_reading
-                    .get_states()
-                    .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                    .unwrap()
-                    .read();
-                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-                let subjects_reading = session_ctx_arc.read();
-                let table_reading = subjects_reading
-                    .get_states()
-                    .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                    .unwrap()
-                    .read();
-                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-                let subjects_reading = session_ctx_arc.read();
-                let table_reading = subjects_reading
-                    .get_states()
-                    .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                    .unwrap()
-                    .read();
-                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            }
-
-            assert_eq!(response.len(), 0);
+            assert_eq!(response.len(), 1); // Due to session interface
 
             {
                 // Test supsersteps
-                let session_reading = session_ctx_arc.read();
-                let table_reading = session_reading
-                    .get_states()
-                    .get(
-                        AvailableInterfaceSubjects::AssistantMessages
-                            .to_string()
-                            .as_str(),
-                    )
-                    .unwrap()
-                    .read();
-                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-                assert_eq!(table_reading.count_rows(), 0);
-                let table_reading = session_reading
-                    .get_states()
-                    .get(
-                        AvailableInterfaceSubjects::ToolMessages
-                            .to_string()
-                            .as_str(),
-                    )
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 0);
-                let table_reading = session_reading
-                    .get_states()
-                    .get(
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                assert_eq!(batches.len(), 0);
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                assert_eq!(batches.len(), 0);
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                let subject = Subject::get_builder()
+                    .with_name(
                         AvailableInterfaceSubjects::AggregatedMessages
                             .to_string()
                             .as_str(),
                     )
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 assert_eq!(
                     column.first().unwrap(),
                     &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
                 );
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
-                    .get_states()
-                    .get("aggregate_messages_generate_text_s")
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: "aggregate_messages_generate_text_s".to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                let subject = Subject::get_builder()
+                    .with_name("aggregate_messages_generate_text_s")
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 assert_eq!(
                     column.first().unwrap(),
                     &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
                 );
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
-                    .get_states()
-                    .get("generate_text_inference_s")
-                    .unwrap()
-                    .read();
-                assert!(table_reading.count_rows() > 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: "generate_text_inference_s".to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                let subject = Subject::get_builder()
+                    .with_name("generate_text_inference_s")
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert!(subject.count_rows() > 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"assistant");
                 assert_eq!(column.last().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
-                    .get_states()
-                    .get(
-                        AvailableCandleOperators::HumanInTheLoop
-                            .to_string()
-                            .as_str(),
-                    )
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 0);
-                let table_reading = session_reading
-                    .get_states()
-                    .get(AvailableCandleOperators::Sort.to_string().as_str())
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 1);
-                let column = table_reading
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableCandleOperators::HumanInTheLoop.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                assert_eq!(batches.len(), 0);
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableCandleOperators::Sort.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableCandleOperators::Sort.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 1);
+                let column = subject
                     .get_column_as_vec_nested_primitive::<u8>("bytes")?
                     .into_iter()
                     .map(|b| String::from_utf8(b).unwrap())
@@ -737,11 +759,11 @@ mod tests {
     async fn test_generate_text_session_tool_response() -> Result<()> {
         // Initialize the session
         let generate_text_session = GenerateTextSession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let mut session_ctx_builder = SessionContextBuilder::from_mermaid_flowchart(
             &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             &generate_text_session.as_mermaid_erdiagram(),
             false,
             true,
@@ -750,31 +772,35 @@ mod tests {
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
-        .add_next_supersteps()?
-        .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        .add_next_supersteps()?;
 
         // Add the target tool subjects to the session for testing
-        let _ = session_ctx_arc.write().state.insert(
-            AvailableCandleOperators::Sort.to_string(),
-            Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(
-                Some(AvailableCandleOperators::Sort.to_string().as_str()),
-                None,
-            )?)),
-        );
-        let _ = session_ctx_arc.write().state.insert(
-            AvailableCandleOperators::HumanInTheLoop.to_string(),
-            Arc::new(RwLock::new(
-                AvailableSubjects::Bytes.to_table(
-                    Some(
-                        AvailableCandleOperators::HumanInTheLoop
-                            .to_string()
-                            .as_str(),
-                    ),
-                    None,
-                )?,
-            )),
-        );
+        let mut subjects = session_ctx_builder.subjects.take().unwrap();
+        let tool = AvailableSubjects::Bytes.to_subject(
+            Some(AvailableCandleOperators::Sort.to_string().as_str()),
+            None,
+        )?;
+        subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
+        let tool = AvailableSubjects::Bytes.to_subject(
+            Some(
+                AvailableCandleOperators::HumanInTheLoop
+                    .to_string()
+                    .as_str(),
+            ),
+            None,
+        )?;
+        subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
+        let (session_ctx, session_messages) = session_ctx_builder
+            .with_subjects(subjects)
+            // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
+            .add_session_interface(Some(&[
+                AvailableCandleOperators::Sort.to_string().as_str(),
+                AvailableCandleOperators::HumanInTheLoop
+                    .to_string()
+                    .as_str(),
+            ]))?
+            .build_with_tables()?;
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Tools data
         let tool_ids = vec![
@@ -786,49 +812,52 @@ mod tests {
             AvailableCandleOperators::HumanInTheLoop.to_json_tool_schema(),
         ];
         let batch = create_tools_record_batch(tool_ids, tools)?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name(AvailableSubjects::Tools.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
         let tool_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
             .with_subject(table.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: table.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: table.get_name().to_string(),
             })
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
             .build()?;
 
         // User message
-        let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+        let chat = AvailableInterfaceSubjects::UserMessages.to_subject_builder(None)
             .append_new_user_query_str("Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.", "user")?
             .build()?;
         let chat_message = IPCMessage::get_builder()
             .with_message(chat.to_ipc_stream()?)
             .with_subject(chat.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: chat.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: chat.get_name().to_string(),
             })
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
             .build()?;
 
         // Tool response
-        let tool = AvailableInterfaceSubjects::ToolMessages.to_table_builder(None)
+        let tool = AvailableInterfaceSubjects::ToolMessages.to_subject_builder(None)
             .append_new_user_query_str("[{\"lhs_pk\":\"c\",\"score\":1.0}, {\"lhs_pk\":\"b\",\"score\":2.0}, {\"lhs_pk\":\"a\",\"score\":3.0}]", "tool")?
             .build()?;
         let tool_response = IPCMessage::get_builder()
             .with_message(tool.to_ipc_stream()?)
             .with_subject(tool.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: tool.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: tool.get_name().to_string(),
             })
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
             .build()?;
 
         let message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -840,73 +869,79 @@ mod tests {
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-            // {
-            //     // Debug any errors
-            //     let subjects_reading = session_ctx_arc.read();
-            //     let table_reading = subjects_reading
-            //         .get_states()
-            //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
-            //         .unwrap()
-            //         .read();
-            //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            // }
-
-            assert_eq!(response.len(), 0);
+            assert_eq!(response.len(), 2);
 
             {
                 // Test supsersteps
-                let session_reading = session_ctx_arc.read();
-                let table_reading = session_reading
-                    .get_states()
-                    .get(
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                let subject = Subject::get_builder()
+                    .with_name(
                         AvailableInterfaceSubjects::AssistantMessages
                             .to_string()
                             .as_str(),
                     )
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 let assistant_content = column.first().unwrap();
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
-                    .get_states()
-                    .get(
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                let subject = Subject::get_builder()
+                    .with_name(
                         AvailableInterfaceSubjects::AggregatedMessages
                             .to_string()
                             .as_str(),
                     )
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 2);
-                let column = table_reading.get_column_as_vec_str("role");
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 2);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
                 assert_eq!(column.last().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 assert_eq!(
                     column.first().unwrap(),
                     &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
                 );
                 assert_eq!(column.last().unwrap(), assistant_content);
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
-                    .get_states()
-                    .get("aggregate_messages_generate_text_s")
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 2);
-                let column = table_reading.get_column_as_vec_str("role");
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: "aggregate_messages_generate_text_s".to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                let subject = Subject::get_builder()
+                    .with_name("aggregate_messages_generate_text_s")
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 2);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
                 assert_eq!(column.last().unwrap(), &"tool");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 assert_eq!(
                     column.first().unwrap(),
                     &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
@@ -915,39 +950,45 @@ mod tests {
                     column.last().unwrap(),
                     &"[{\"lhs_pk\":\"c\",\"score\":1.0}, {\"lhs_pk\":\"b\",\"score\":2.0}, {\"lhs_pk\":\"a\",\"score\":3.0}]"
                 );
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
-                    .get_states()
-                    .get("generate_text_inference_s")
-                    .unwrap()
-                    .read();
-                assert!(table_reading.count_rows() > 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: "generate_text_inference_s".to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                let subject = Subject::get_builder()
+                    .with_name("generate_text_inference_s")
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert!(subject.count_rows() > 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"assistant");
                 assert_eq!(column.last().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
-                    .get_states()
-                    .get(AvailableCandleOperators::Sort.to_string().as_str())
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 0);
-                let table_reading = session_reading
-                    .get_states()
-                    .get(
-                        AvailableCandleOperators::HumanInTheLoop
-                            .to_string()
-                            .as_str(),
-                    )
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 0);
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableCandleOperators::Sort.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                assert_eq!(batches.len(), 0);
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableCandleOperators::HumanInTheLoop.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                assert_eq!(batches.len(), 0);
             }
         }
         Ok(())
@@ -978,11 +1019,11 @@ mod tests {
             )),
             None,
         );
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let mut session_ctx_builder = SessionContextBuilder::from_mermaid_flowchart(
             &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             &generate_text_session.as_mermaid_erdiagram(),
             false,
             true,
@@ -991,31 +1032,35 @@ mod tests {
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
-        .add_next_supersteps()?
-        .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        .add_next_supersteps()?;
 
         // Add the target tool subjects to the session for testing
-        let _ = session_ctx_arc.write().state.insert(
-            AvailableCandleOperators::Sort.to_string(),
-            Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(
-                Some(AvailableCandleOperators::Sort.to_string().as_str()),
-                None,
-            )?)),
-        );
-        let _ = session_ctx_arc.write().state.insert(
-            AvailableCandleOperators::HumanInTheLoop.to_string(),
-            Arc::new(RwLock::new(
-                AvailableSubjects::Bytes.to_table(
-                    Some(
-                        AvailableCandleOperators::HumanInTheLoop
-                            .to_string()
-                            .as_str(),
-                    ),
-                    None,
-                )?,
-            )),
-        );
+        let mut subjects = session_ctx_builder.subjects.take().unwrap();
+        let tool = AvailableSubjects::Bytes.to_subject(
+            Some(AvailableCandleOperators::Sort.to_string().as_str()),
+            None,
+        )?;
+        subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
+        let tool = AvailableSubjects::Bytes.to_subject(
+            Some(
+                AvailableCandleOperators::HumanInTheLoop
+                    .to_string()
+                    .as_str(),
+            ),
+            None,
+        )?;
+        subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
+        let (session_ctx, session_messages) = session_ctx_builder
+            .with_subjects(subjects)
+            // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
+            .add_session_interface(Some(&[
+                AvailableCandleOperators::Sort.to_string().as_str(),
+                AvailableCandleOperators::HumanInTheLoop
+                    .to_string()
+                    .as_str(),
+            ]))?
+            .build_with_tables()?;
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Tools data
         let tool_ids = vec![
@@ -1027,49 +1072,52 @@ mod tests {
             AvailableCandleOperators::HumanInTheLoop.to_json_tool_schema(),
         ];
         let batch = create_tools_record_batch(tool_ids, tools)?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name(AvailableSubjects::Tools.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
         let tool_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
             .with_subject(table.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: table.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: table.get_name().to_string(),
             })
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
             .build()?;
 
         // User message
-        let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+        let chat = AvailableInterfaceSubjects::UserMessages.to_subject_builder(None)
             .append_new_user_query_str("Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.", "user")?
             .build()?;
         let chat_message = IPCMessage::get_builder()
             .with_message(chat.to_ipc_stream()?)
             .with_subject(chat.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: chat.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: chat.get_name().to_string(),
             })
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
             .build()?;
 
         // Error response
-        let tool = AvailableSubjects::SessionErrors.to_table_builder(None)
+        let tool = AvailableSubjects::SessionErrors.to_subject_builder(None)
             .append_new_user_query_str("lhs_name `available_data_1` was not found. Available options are [`available_data_0`, `available_data_2`, `available_data_3`].", "tool")?
             .build()?;
         let tool_response = IPCMessage::get_builder()
             .with_message(tool.to_ipc_stream()?)
             .with_subject(tool.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: tool.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: tool.get_name().to_string(),
             })
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
             .build()?;
 
         let message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -1081,78 +1129,84 @@ mod tests {
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-            {
-                // Debug any errors
-                let subjects_reading = session_ctx_arc.read();
-                let table_reading = subjects_reading
-                    .get_states()
-                    .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                    .unwrap()
-                    .read();
-                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            }
-
-            assert_eq!(response.len(), 0);
+            assert_eq!(response.len(), 1);
 
             {
                 // Test supsersteps
-                let session_reading = session_ctx_arc.read();
-                let table_reading = session_reading
-                    .get_states()
-                    .get(
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                let subject = Subject::get_builder()
+                    .with_name(
                         AvailableInterfaceSubjects::AssistantMessages
                             .to_string()
                             .as_str(),
                     )
-                    .unwrap()
-                    .read();
-                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-                assert_eq!(table_reading.count_rows(), 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                    .with_record_batches(batches)?
+                    .build()?;
+                println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
+                assert_eq!(subject.count_rows(), 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 let assistant_content = column.first().unwrap();
                 // assert!(assistant_content.contains("available_data_0")); //DM : response does not always contain the available subjects
                 assert!(assistant_content.contains("available_data_1"));
                 // assert!(assistant_content.contains("available_data_2"));
                 // assert!(assistant_content.contains("available_data_3"));
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
-                    .get_states()
-                    .get(
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                let subject = Subject::get_builder()
+                    .with_name(
                         AvailableInterfaceSubjects::AggregatedMessages
                             .to_string()
                             .as_str(),
                     )
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 2);
-                let column = table_reading.get_column_as_vec_str("role");
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 2);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
                 assert_eq!(column.last().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 assert_eq!(
                     column.first().unwrap(),
                     &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
                 );
                 assert_eq!(column.last().unwrap(), assistant_content);
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
-                    .get_states()
-                    .get("aggregate_messages_generate_text_s")
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 2);
-                let column = table_reading.get_column_as_vec_str("role");
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: "aggregate_messages_generate_text_s".to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                let subject = Subject::get_builder()
+                    .with_name("aggregate_messages_generate_text_s")
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 2);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
                 assert_eq!(column.last().unwrap(), &"tool");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 assert_eq!(
                     column.first().unwrap(),
                     &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
@@ -1161,42 +1215,45 @@ mod tests {
                     column.last().unwrap(),
                     &"lhs_name `available_data_1` was not found. Available options are [`available_data_0`, `available_data_2`, `available_data_3`]."
                 );
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
-                    .get_states()
-                    .get("generate_text_inference_s")
-                    .unwrap()
-                    .read();
-                assert!(table_reading.count_rows() > 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: "generate_text_inference_s".to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                let subject = Subject::get_builder()
+                    .with_name("generate_text_inference_s")
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert!(subject.count_rows() > 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"assistant");
                 assert_eq!(column.last().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
-                    .get_states()
-                    .get(AvailableCandleOperators::Sort.to_string().as_str())
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 0);
-                let table_reading = session_reading
-                    .get_states()
-                    .get(
-                        AvailableCandleOperators::HumanInTheLoop
-                            .to_string()
-                            .as_str(),
-                    )
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 0);
-                // assert_eq!(table_reading.count_rows(), 1);
-                // let column = table_reading.get_column_as_vec_str("values");
-                // assert_eq!(column.first().unwrap(), &"");
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableCandleOperators::Sort.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                assert_eq!(batches.len(), 0);
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableCandleOperators::HumanInTheLoop.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                assert_eq!(batches.len(), 0);
             }
         }
         Ok(())

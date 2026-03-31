@@ -8,7 +8,8 @@ use anyhow::Result;
 use candle_core::Device;
 use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
-    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType, create_chat_record_batch,
+    MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType,
+    create_chat_record_batch,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -69,7 +70,7 @@ impl DataOperatorTrait for HumanInTheLoop {
 }
 
 fn create_hitl_record_batch(lhs_args: &[RecordBatch]) -> Result<RecordBatch> {
-    let content = Table::get_builder()
+    let content = Subject::get_builder()
         .with_name("create_hitl_record_batch")
         .with_record_batches(lhs_args.to_vec())?
         .build()?

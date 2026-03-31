@@ -28,8 +28,8 @@ impl<'a> PatchWorkspaceSession<'a> {
     %% - The `tool_call_session` is used to trigger the operator when only the config is updated
 	%% ------------------------------------------------------------------------------
 	subgraph apply_patch_t
-		WorkspacePatch-subject-.->|FullTable|apply_patch_p-subscribe
-		Workspace-subject-.->|FullTable|apply_patch_p-subscribe
+		WorkspacePatch-subject-.->|AllRecordBatches|apply_patch_p-subscribe
+		Workspace-subject-.->|AllRecordBatches|apply_patch_p-subscribe
 		apply_patch_p-subject-.->|LastRecordBatch|apply_patch_p-subscribe
 		apply_patch_p-subscribe-->apply_patch_p-processor
 		apply_patch_p-processor-->apply_patch_p-publish
@@ -39,7 +39,7 @@ impl<'a> PatchWorkspaceSession<'a> {
 	WorkspacePatch-subject@{shape: doc, label: WorkspacePatch}
 	Workspace-subject@{shape: doc, label: Workspace}
 	apply_patch_p-subject@{shape: doc, label: apply_patch_p}
-	apply_patch_p-processor@{shape: rect, label: ApplyPatch}
+	apply_patch_p-processor@{shape: rect, label: Patch}
 	apply_patch_p-publish@{shape: fork}
 	apply_patch_p-subscribe@{shape: diamond, label: All}
 	apply_patch_s-subject@{shape: doc, label: apply_patch_s}
@@ -73,19 +73,18 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage,
-        MappableTrait, MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication,
-        TableTrait, WorkspacePatchSubject, create_bytes_record_batch, create_workspace_batch,
-        create_workspace_patch_batch,
+        MappableTrait, MessageBuilderTrait, PatchOperator, Publication, Subject, SubjectBuilder,
+        SubjectBuilderTrait, SubjectTrait, Subscription, WorkspacePatchSubject,
+        create_bytes_record_batch, create_workspace_batch, create_workspace_patch_batch,
     };
-    use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager, PatchOperator};
+    use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager};
     use phymes_diagnostics::HashMap;
 
     use crate::{
         SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream, ToolCallSession,
+        SessionContextBuilderTrait, SessionStream, SubscriptionTrait, ToolCallSession,
     };
 
     use super::*;
@@ -94,11 +93,11 @@ mod tests {
     async fn test_patch_workspace_session_w_subjects() -> Result<()> {
         // Initialize the session
         let patch_workspace_session = PatchWorkspaceSession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             patch_workspace_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             patch_workspace_session.as_mermaid_erdiagram(),
             false,
             true,
@@ -109,7 +108,7 @@ mod tests {
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
@@ -147,15 +146,15 @@ pub use todo::Todo"#,
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
             let batch = create_workspace_batch(path, content)?;
-            let table = AvailableSubjects::Workspace.to_table(None, Some(vec![batch]))?;
+            let table = AvailableSubjects::Workspace.to_subject(None, Some(vec![batch]))?;
             let _ = message_map.insert(
                 table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(table.get_name())
                     .with_publisher(patch_workspace_session.session_context_name)
                     .with_subject(table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: table.get_name().to_string(),
                     })
                     .with_message(table.to_ipc_stream()?)
                     .build()?,
@@ -184,15 +183,15 @@ pub use todo::Todo"#,
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
             let batch = create_workspace_patch_batch(filename, content, operator)?;
-            let table = AvailableSubjects::WorkspacePatch.to_table(None, Some(vec![batch]))?;
+            let table = AvailableSubjects::WorkspacePatch.to_subject(None, Some(vec![batch]))?;
             let _ = message_map.insert(
                 table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(table.get_name())
                     .with_publisher(patch_workspace_session.session_context_name)
                     .with_subject(table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: table.get_name().to_string(),
                     })
                     .with_message(table.to_ipc_stream()?)
                     .build()?,
@@ -207,7 +206,7 @@ pub use todo::Todo"#,
                 rhs_pk: Some("filename".to_string()),
                 doc_patch: Some("[\"\"]".to_string()), // DM: equivalent of serde_json::to_string(&[serde_json::to_value("")?])?;
                 cpu: false,
-                operator: AvailableCandleOperators::ApplyPatch,
+                operator: AvailableCandleOperators::Patch,
                 lhs_stream: DataStreamManager::Accumulate,
                 rhs_stream: Some(DataStreamManager::Accumulate),
                 ..Default::default()
@@ -215,7 +214,7 @@ pub use todo::Todo"#,
             let apply_patch_config_json = serde_json::to_vec(&apply_patch_config)?;
             let apply_patch_config_batch =
                 create_bytes_record_batch(vec![apply_patch_config_json])?;
-            let apply_patch_config_table = TableBuilder::new()
+            let apply_patch_config_table = SubjectBuilder::new()
                 .with_name("apply_patch_p")
                 .with_record_batches(vec![apply_patch_config_batch])?
                 .build()?;
@@ -225,8 +224,8 @@ pub use todo::Todo"#,
                     .with_name(apply_patch_config_table.get_name())
                     .with_publisher(patch_workspace_session.session_context_name)
                     .with_subject(apply_patch_config_table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: apply_patch_config_table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: apply_patch_config_table.get_name().to_string(),
                     })
                     .with_message(apply_patch_config_table.to_ipc_stream()?)
                     .build()?,
@@ -234,59 +233,48 @@ pub use todo::Todo"#,
         }
 
         // Run the session
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
-
         assert_eq!(response.len(), 0);
 
-        {
-            // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get("apply_patch_s")
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("path");
-            assert_eq!(
-                column,
-                [
-                    "/home/sandbox/Cargo.toml",
-                    "/home/sandbox/src/extras/mod.rs",
-                    "/home/sandbox/src/extras/todo.rs",
-                    "/home/sandbox/src/lib.rs",
-                    "/home/sandbox/src/extras/other.rs"
-                ]
-            );
-            let column = table_reading.get_column_as_vec_str("content");
-            assert_eq!(
-                column,
-                [
-                    "[package]\nname = \"phymes_rs\"\nversion = \"0.1.0\"\nedition = \"2024\"\n[dependencies]\nanyhow = { version = \"1\", default-features = false }",
-                    "pub mod other;\nmod todo;\npub use todo::Todo",
-                    "pub struct Todo {}",
-                    "pub mod extra;",
-                    "pub struct Other {}"
-                ]
-            );
+        // Test supsersteps
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "apply_patch_s".to_string(),
         }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name("apply_patch_s")
+            .with_record_batches(batches)?
+            .build()?;
+        let column = subject.get_column_as_vec_str("path");
+        assert_eq!(
+            column,
+            [
+                "/home/sandbox/Cargo.toml",
+                "/home/sandbox/src/extras/mod.rs",
+                "/home/sandbox/src/extras/todo.rs",
+                "/home/sandbox/src/lib.rs",
+                "/home/sandbox/src/extras/other.rs"
+            ]
+        );
+        let column = subject.get_column_as_vec_str("content");
+        assert_eq!(
+            column,
+            [
+                "[package]\nname = \"phymes_rs\"\nversion = \"0.1.0\"\nedition = \"2024\"\n[dependencies]\nanyhow = { version = \"1\", default-features = false }",
+                "pub mod other;\nmod todo;\npub use todo::Todo",
+                "pub struct Todo {}",
+                "pub mod extra;",
+                "pub struct Other {}"
+            ]
+        );
         Ok(())
     }
 
@@ -298,16 +286,20 @@ pub use todo::Todo"#,
             &tool_call_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(&tool_call_session.as_mermaid_erdiagram()?, false, true)?
+        .with_subjects_from_mermaid_erdiagram(
+            &tool_call_session.as_mermaid_erdiagram()?,
+            false,
+            true,
+        )?
         .with_name(tool_call_session.session_context_name);
 
         // Initialize the session
         let patch_workspace_session = PatchWorkspaceSession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             patch_workspace_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             patch_workspace_session.as_mermaid_erdiagram(),
             false,
             true,
@@ -319,7 +311,7 @@ pub use todo::Todo"#,
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
@@ -357,15 +349,15 @@ pub use todo::Todo"#,
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
             let batch = create_workspace_batch(path, content)?;
-            let table = AvailableSubjects::Workspace.to_table(None, Some(vec![batch]))?;
+            let table = AvailableSubjects::Workspace.to_subject(None, Some(vec![batch]))?;
             let _ = message_map.insert(
                 table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(table.get_name())
                     .with_publisher(patch_workspace_session.session_context_name)
                     .with_subject(table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: table.get_name().to_string(),
                     })
                     .with_message(table.to_ipc_stream()?)
                     .build()?,
@@ -417,7 +409,7 @@ pub use todo::Todo"#,
                 rhs_pk: Some("filename".to_string()),
                 doc_patch: Some(doc_patch),
                 cpu: false,
-                operator: AvailableCandleOperators::ApplyPatch,
+                operator: AvailableCandleOperators::Patch,
                 lhs_stream: DataStreamManager::Accumulate,
                 rhs_stream: Some(DataStreamManager::Accumulate),
                 ..Default::default()
@@ -425,7 +417,7 @@ pub use todo::Todo"#,
             let apply_patch_config_json = serde_json::to_vec(&apply_patch_config)?;
             let apply_patch_config_batch =
                 create_bytes_record_batch(vec![apply_patch_config_json])?;
-            let apply_patch_config_table = TableBuilder::new()
+            let apply_patch_config_table = SubjectBuilder::new()
                 .with_name("apply_patch_p")
                 .with_record_batches(vec![apply_patch_config_batch])?
                 .build()?;
@@ -435,8 +427,8 @@ pub use todo::Todo"#,
                     .with_name(apply_patch_config_table.get_name())
                     .with_publisher(patch_workspace_session.session_context_name)
                     .with_subject(apply_patch_config_table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: apply_patch_config_table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: apply_patch_config_table.get_name().to_string(),
                     })
                     .with_message(apply_patch_config_table.to_ipc_stream()?)
                     .build()?,
@@ -444,42 +436,48 @@ pub use todo::Todo"#,
         }
 
         // Run the session
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
 
-        {
-            // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get("apply_patch_s")
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("path");
-            assert_eq!(
-                column,
-                [
-                    "/home/sandbox/Cargo.toml",
-                    "/home/sandbox/src/extras/mod.rs",
-                    "/home/sandbox/src/extras/todo.rs",
-                    "/home/sandbox/src/lib.rs",
-                    "/home/sandbox/src/extras/other.rs"
-                ]
-            );
-            let column = table_reading.get_column_as_vec_str("content");
-            assert_eq!(
-                column,
-                [
-                    "[package]\nname = \"phymes_rs\"\nversion = \"0.1.0\"\nedition = \"2024\"\n[dependencies]\nanyhow = { version = \"1\", default-features = false }",
-                    "pub mod other;\nmod todo;\npub use todo::Todo",
-                    "pub struct Todo {}",
-                    "pub mod extra;",
-                    "pub struct Other {}"
-                ]
-            );
+        // Test supsersteps
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "apply_patch_s".to_string(),
         }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name("apply_patch_s")
+            .with_record_batches(batches)?
+            .build()?;
+        let column = subject.get_column_as_vec_str("path");
+        assert_eq!(
+            column,
+            [
+                "/home/sandbox/Cargo.toml",
+                "/home/sandbox/src/extras/mod.rs",
+                "/home/sandbox/src/extras/todo.rs",
+                "/home/sandbox/src/lib.rs",
+                "/home/sandbox/src/extras/other.rs"
+            ]
+        );
+        let column = subject.get_column_as_vec_str("content");
+        assert_eq!(
+            column,
+            [
+                "[package]\nname = \"phymes_rs\"\nversion = \"0.1.0\"\nedition = \"2024\"\n[dependencies]\nanyhow = { version = \"1\", default-features = false }",
+                "pub mod other;\nmod todo;\npub use todo::Todo",
+                "pub struct Todo {}",
+                "pub mod extra;",
+                "pub struct Other {}"
+            ]
+        );
         Ok(())
     }
 }

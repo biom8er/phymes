@@ -22,28 +22,28 @@ impl<'a> RetrieveTextSession<'a> {
 	%% Vector search
 	%% ------------------------------------------------------------------------------
 	subgraph vector_search_t
-	    DocumentEmbeddings-subject-->|FullTable|vector_distance_p-subscribe
-	    QueryEmbeddings-subject-.->|FullTable|vector_distance_p-subscribe
+	    DocumentEmbeddings-subject-->|AllRecordBatches|vector_distance_p-subscribe
+	    QueryEmbeddings-subject-.->|AllRecordBatches|vector_distance_p-subscribe
 	    vector_distance_p-subscribe-->vector_distance_p-processor
 	    vector_distance_p-processor-->vector_distance_p-publish
 	    vector_distance_p-publish-->|Replace|vector_distance_s-subject
-	    vector_distance_s-subject-->|FullTable|threshold_scores_p-subscribe
+	    vector_distance_s-subject-->|AllRecordBatches|threshold_scores_p-subscribe
 	    threshold_scores_p-subscribe-->threshold_scores_p-processor
 	    threshold_scores_p-processor-->threshold_scores_p-publish
 	    threshold_scores_p-publish-->|Replace|threshold_scores_s-subject
-	    threshold_scores_s-subject-->|FullTable|filter_scores_p-subscribe
+	    threshold_scores_s-subject-->|AllRecordBatches|filter_scores_p-subscribe
 	    filter_scores_p-subscribe-->filter_scores_p-processor
 	    filter_scores_p-processor-->filter_scores_p-publish
 	    filter_scores_p-publish-->|Replace|filter_scores_s-subject
-	    filter_scores_s-subject-->|FullTable|select_scores_p-subscribe
+	    filter_scores_s-subject-->|AllRecordBatches|select_scores_p-subscribe
 	    select_scores_p-subscribe-->select_scores_p-processor
 	    select_scores_p-processor-->select_scores_p-publish
 	    select_scores_p-publish-->|Replace|select_scores_s-subject
-	    select_scores_s-subject-->|FullTable|sort_scores_p-subscribe
+	    select_scores_s-subject-->|AllRecordBatches|sort_scores_p-subscribe
 	    sort_scores_p-subscribe-->sort_scores_p-processor
 	    sort_scores_p-processor-->sort_scores_p-publish
 	    sort_scores_p-publish-->|Replace|sort_scores_s-subject
-	    sort_scores_s-subject-->|FullTable|limit_scores_p-subscribe
+	    sort_scores_s-subject-->|AllRecordBatches|limit_scores_p-subscribe
 	    limit_scores_p-subscribe-->limit_scores_p-processor
 	    limit_scores_p-processor-->limit_scores_p-publish
 	    limit_scores_p-publish-->|Replace|EmbeddingScores-subject
@@ -80,16 +80,16 @@ impl<'a> RetrieveTextSession<'a> {
 	%% Documents retrieval
 	%% ------------------------------------------------------------------------------
 	subgraph retrieve_documents_t
-	    Documents-subject-->|FullTable|join_documents_scores_p-subscribe
-	    EmbeddingScores-subject-.->|FullTable|join_documents_scores_p-subscribe
+	    Documents-subject-->|AllRecordBatches|join_documents_scores_p-subscribe
+	    EmbeddingScores-subject-.->|AllRecordBatches|join_documents_scores_p-subscribe
 	    join_documents_scores_p-subscribe-->join_documents_scores_p-processor
 	    join_documents_scores_p-processor-->join_documents_scores_p-publish
 	    join_documents_scores_p-publish-->|Replace|join_documents_scores_s-subject
-	    join_documents_scores_s-subject-->|FullTable|select_documents_scores_p-subscribe
+	    join_documents_scores_s-subject-->|AllRecordBatches|select_documents_scores_p-subscribe
 	    select_documents_scores_p-subscribe-->select_documents_scores_p-processor
 	    select_documents_scores_p-processor-->select_documents_scores_p-publish
 	    select_documents_scores_p-publish-->|Extend|select_documents_scores_s-subject		
-	    select_documents_scores_s-subject-->|FullTable|summarize_documents_scores_p-subscribe
+	    select_documents_scores_s-subject-->|AllRecordBatches|summarize_documents_scores_p-subscribe
 	    summarize_documents_scores_p-subscribe-->summarize_documents_scores_p-processor
 	    summarize_documents_scores_p-processor-->summarize_documents_scores_p-publish
 	    summarize_documents_scores_p-publish-->|Extend|ToolMessages-subject
@@ -214,7 +214,9 @@ impl<'a> RetrieveTextSession<'a> {
 	    Boolean cpu "false"
 	    Utf8 operator "PackTabular"
 	    Utf8 lhs_stream "Accumulate"
+	    Utf8 encoding "None"
 	    Utf8 format "None"
+	    Utf8 schema "Messages"
 	}
 	ToolMessages["ToolMessages"] {
 	    Utf8 role
@@ -230,18 +232,18 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage,
-        MappableTrait, MessageBuilderTrait, TablePublication, TableTrait, create_documents_batch,
-        create_documents_embeddings_batch, create_query_embeddings_batch,
+        MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait,
+        SubjectTrait, Subscription, create_documents_batch, create_documents_embeddings_batch,
+        create_query_embeddings_batch,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
         AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
         SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
-        create_message_map,
+        SubscriptionTrait, create_message_map,
     };
 
     use super::*;
@@ -254,7 +256,7 @@ mod tests {
             retrieve_text_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             retrieve_text_session.as_mermaid_erdiagram(),
             false,
             true,
@@ -264,8 +266,8 @@ mod tests {
         .with_diagnostics(true)
         .add_next_tasks()?
         .add_next_supersteps()?;
-        let session_ctx = retrieve_text_builder.build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let (session_ctx, session_messages) = retrieve_text_builder.build_with_tables()?;
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Document text
         let chunk_id = [
@@ -307,12 +309,12 @@ mod tests {
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
         let batch = create_documents_batch(chunk_id, document_id, text)?;
-        let document = AvailableSubjects::Documents.to_table(None, Some(vec![batch]))?;
+        let document = AvailableSubjects::Documents.to_subject(None, Some(vec![batch]))?;
         let document_message = IPCMessage::get_builder()
             .with_message(document.to_ipc_stream()?)
             .with_subject(document.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: document.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: document.get_name().to_string(),
             })
             .with_publisher(retrieve_text_session.session_context_name)
             .make_name()?
@@ -3436,12 +3438,12 @@ mod tests {
             ],
         ];
         let batch = create_documents_embeddings_batch(chunk_id, document_id, embeddings)?;
-        let document = AvailableSubjects::DocumentEmbeddings.to_table(None, Some(vec![batch]))?;
+        let document = AvailableSubjects::DocumentEmbeddings.to_subject(None, Some(vec![batch]))?;
         let document_embeddings_message = IPCMessage::get_builder()
             .with_message(document.to_ipc_stream()?)
             .with_subject(document.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: document.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: document.get_name().to_string(),
             })
             .with_publisher(retrieve_text_session.session_context_name)
             .make_name()?
@@ -3839,12 +3841,12 @@ mod tests {
             -0.18943891,
         ]];
         let batch = create_query_embeddings_batch(query_id, embeddings)?;
-        let query = AvailableSubjects::QueryEmbeddings.to_table(None, Some(vec![batch]))?;
+        let query = AvailableSubjects::QueryEmbeddings.to_subject(None, Some(vec![batch]))?;
         let query_embeddings_message = IPCMessage::get_builder()
             .with_message(query.to_ipc_stream()?)
             .with_subject(query.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: query.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: query.get_name().to_string(),
             })
             .with_publisher(retrieve_text_session.session_context_name)
             .make_name()?
@@ -3855,6 +3857,9 @@ mod tests {
             query_embeddings_message,
             document_message,
         ]);
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
@@ -3862,44 +3867,53 @@ mod tests {
 
         assert_eq!(response.len(), 0);
 
-        {
-            // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get(
-                    AvailableInterfaceSubjects::ToolMessages
-                        .to_string()
-                        .as_str(),
-                )
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 1);
-            let column = table_reading.get_column_as_vec_str("role");
-            assert_eq!(column.first().unwrap(), &"tool");
-            let column = table_reading.get_column_as_vec_str("content");
-            assert_eq!(
-                column.first().unwrap(),
-                &"[{\"text\":\"Deoxyribonucleic acid (DNA) is a polymer composed of two polynucleotide chains that coil around each other to form a double helix. The polymer carries genetic instructions for the development, functioning, growth and reproduction of all known organisms and many viruses. DNA and ribonucleic acid (RNA) are nucleic acids. Alongside proteins, lipids and complex carbohydrates (polysaccharides), nucleic acids are one of the four major types of macromolecules that are essential for all known forms of life.The two \"}]"
-            );
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-            for t in column {
-                assert!(t > 0);
-            }
-            let table_reading = session_reading
-                .get_states()
-                .get(AvailableSubjects::EmbeddingScores.to_string().as_str())
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 1);
-            let column = table_reading.get_column_as_vec_str("chunk_id");
-            assert_eq!(column.first().unwrap(), &"WikiBioComponents_2_0");
-            let column = table_reading.get_column_as_vec_str("query_id");
-            assert_eq!(column.first().unwrap(), &"1770146381963577");
-            let column = table_reading.get_column_as_vec_primitive::<f32>("score")?;
-            for t in column {
-                assert!(t > 0.15); // Threshold used for filtering
-            }
+        // Test supsersteps
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(
+                AvailableInterfaceSubjects::ToolMessages
+                    .to_string()
+                    .as_str(),
+            )
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 1);
+        let column = subject.get_column_as_vec_str("role");
+        assert_eq!(column.first().unwrap(), &"tool");
+        let column = subject.get_column_as_vec_str("content");
+        assert_eq!(
+            column.first().unwrap(),
+            &"[{\"text\":\"Deoxyribonucleic acid (DNA) is a polymer composed of two polynucleotide chains that coil around each other to form a double helix. The polymer carries genetic instructions for the development, functioning, growth and reproduction of all known organisms and many viruses. DNA and ribonucleic acid (RNA) are nucleic acids. Alongside proteins, lipids and complex carbohydrates (polysaccharides), nucleic acids are one of the four major types of macromolecules that are essential for all known forms of life.The two \"}]"
+        );
+        let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+        for t in column {
+            assert!(t > 0);
+        }
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::EmbeddingScores.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::EmbeddingScores.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 1);
+        let column = subject.get_column_as_vec_str("chunk_id");
+        assert_eq!(column.first().unwrap(), &"WikiBioComponents_2_0");
+        let column = subject.get_column_as_vec_str("query_id");
+        assert_eq!(column.first().unwrap(), &"1770146381963577");
+        let column = subject.get_column_as_vec_primitive::<f32>("score")?;
+        for t in column {
+            assert!(t > 0.15); // Threshold used for filtering
         }
         Ok(())
     }

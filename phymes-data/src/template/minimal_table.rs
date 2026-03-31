@@ -59,8 +59,8 @@ mod tests {
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
     use phymes_core::{
-        BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableScript,
-        TableTrait,
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectScript,
+        SubjectTrait,
     };
     use serde_json::{Map, Value};
 
@@ -97,7 +97,7 @@ mod tests {
             ("start", start_arr),
             ("end", end_arr),
         ])?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -112,8 +112,9 @@ mod tests {
         let mut input_object = Map::new();
         let _ = input_object.insert(TEMPLATE_HEADER_EXPRESSION.to_string(), headers.into());
         let template_inputs = serde_json::to_value(input_object)?;
-        let rendered_template = TableScript::new_from_template(MINIMAL_TABLE_TEMPLATE.to_string())
-            .apply_template(&template_inputs)?;
+        let rendered_template =
+            SubjectScript::new_from_template(MINIMAL_TABLE_TEMPLATE.to_string())
+                .apply_template(&template_inputs)?;
 
         assert_eq!(
             rendered_template,
@@ -152,7 +153,7 @@ mod tests {
         ]
         .join("");
         let script_string =
-            TableScript::new_from_template(template).apply_template(&template_inputs)?;
+            SubjectScript::new_from_template(template).apply_template(&template_inputs)?;
 
         assert_eq!(
             script_string,
@@ -191,7 +192,7 @@ mod tests {
         ]
         .join("");
         let script_string =
-            TableScript::new_from_template(template).apply_template(&template_inputs)?;
+            SubjectScript::new_from_template(template).apply_template(&template_inputs)?;
 
         assert_eq!(
             script_string,

@@ -2,15 +2,14 @@ use std::sync::Arc;
 
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
-use parking_lot::RwLock;
 use phymes_agents::{
     AvailableInterfaceSubjects, ChatAgentSession, CustomAgentsBuilderTrait,
-    SessionContextBuilderAgentsTrait, SessionStream, create_message_map,
+    SessionContextBuilderAgentsTrait, SessionStream, SubscriptionTrait, create_message_map,
 };
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt,
-    IPCMessage, MappableTrait, MessageBuilderTrait, Table, TableBuilderTrait, TablePublication,
-    TableTrait,
+    IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait,
+    SubjectTrait, Subscription,
 };
 use phymes_diagnostics::HashMap;
 
@@ -80,7 +79,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 };
 
                 // Create the session stream state
-                let session_ctx = config
+                let (session_ctx, session_messages) = config
                     .build()
                     .with_name(session_context_name.as_str())
                     .add_session_interface(None)
@@ -91,7 +90,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     .unwrap()
                     .build_with_tables()
                     .unwrap();
-                let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+                let session_ctx_arc = Arc::new(session_ctx);
                 let sample_id = format!("{id}_{iter}");
 
                 // Run the benchmark for the chat agent session with metrics
@@ -101,19 +100,22 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     .unwrap();
                 let _messages = rt.block_on(async {
                     let chat = AvailableInterfaceSubjects::UserMessages
-                        .to_table_builder(None)
+                        .to_subject_builder(None)
                         .append_new_user_query_str(user_content.0, "user")?
                         .build()?;
                     let message = IPCMessage::get_builder()
                         .with_message(chat.to_ipc_stream()?)
                         .with_subject(chat.get_name())
-                        .with_update(&TablePublication::Extend {
-                            table_name: chat.get_name().to_string(),
+                        .with_update(&Publication::Extend {
+                            subject_name: chat.get_name().to_string(),
                         })
                         .with_publisher(&session_context_name)
                         .make_name()?
                         .build()?;
                     let incoming_message_map = create_message_map(vec![message]);
+                    let _ = session_ctx_arc
+                        .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+                        .await;
                     let session_stream =
                         SessionStream::new(incoming_message_map, Arc::clone(&session_ctx_arc));
                     session_stream
@@ -122,14 +124,14 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 });
                 let _messages = rt.block_on(async {
                     let chat = AvailableInterfaceSubjects::UserMessages
-                        .to_table_builder(None)
+                        .to_subject_builder(None)
                         .append_new_user_query_str(user_content.1, "user")?
                         .build()?;
                     let message = IPCMessage::get_builder()
                         .with_message(chat.to_ipc_stream()?)
                         .with_subject(chat.get_name())
-                        .with_update(&TablePublication::Extend {
-                            table_name: chat.get_name().to_string(),
+                        .with_update(&Publication::Extend {
+                            subject_name: chat.get_name().to_string(),
                         })
                         .with_publisher(&session_context_name)
                         .make_name()?
@@ -143,23 +145,24 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 });
 
                 // Extract out the metrics from the session
-                let metrics = Arc::try_unwrap(session_ctx_arc)
+                let batches: Vec<_> = rt.block_on(async {
+                    Subscription::AlwaysAllRecordBatches {
+                        subject_name: AvailableSubjects::MetricPivot.to_string(),
+                    }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
                     .unwrap()
-                    .into_inner()
-                    .get_states_own()
-                    .remove(AvailableSubjects::MetricPivot.to_string().as_str())
-                    .unwrap();
-                let batches = Arc::try_unwrap(metrics)
                     .unwrap()
-                    .into_inner()
-                    .get_record_batches_own();
-                let table = Table::get_builder()
+                    .try_collect()
+                    .await
+                    .unwrap()
+                });
+                let subject = Subject::get_builder()
+                    .with_name(sample_id.as_str())
                     .with_record_batches(batches)
                     .unwrap()
-                    .with_name(sample_id.as_str())
                     .build()
                     .unwrap();
-                metrics_vec.push(table);
+                metrics_vec.push(subject);
 
                 // Increment the iteration counter
                 iter += 1;

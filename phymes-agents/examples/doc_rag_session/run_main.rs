@@ -6,7 +6,6 @@
 
 use anyhow::Result;
 use futures::TryStreamExt;
-use parking_lot::RwLock;
 use phymes_data::make_pdf_document;
 use phymes_diagnostics::HashMap;
 use std::sync::Arc;
@@ -17,8 +16,8 @@ use phymes_agents::{
 };
 use phymes_core::{
     AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
-    ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait,
-    TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
+    ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait, Publication,
+    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 
 pub async fn run_main() -> Result<()> {
@@ -28,14 +27,14 @@ pub async fn run_main() -> Result<()> {
         doc_rag_session.chat_api_url = Some("http://0.0.0.0:8000/v1");
         doc_rag_session.embed_api_url = Some("http://0.0.0.0:8001/v1");
     }
-    let session_ctx = doc_rag_session
+    let (session_ctx, session_messages) = doc_rag_session
         .build()
         .with_name(doc_rag_session.session_context_name)
         .add_session_interface(None)?
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-    let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+    let session_ctx_arc = Arc::new(session_ctx);
 
     // Create the document message
     let document_texts = &[
@@ -50,27 +49,27 @@ pub async fn run_main() -> Result<()> {
 
     // Wrap into the message
     let chat = AvailableInterfaceSubjects::UserMessages
-        .to_table_builder(None)
+        .to_subject_builder(None)
         .append_new_user_query_str("What are the four molecules that compose DNA?", "user")?
         .build()?;
     let chat_message = IPCMessage::get_builder()
         .with_message(chat.to_ipc_stream()?)
         .with_subject(chat.get_name())
-        .with_update(&TablePublication::Extend {
-            table_name: chat.get_name().to_string(),
+        .with_update(&Publication::Extend {
+            subject_name: chat.get_name().to_string(),
         })
         .with_publisher(doc_rag_session.session_context_name)
         .make_name()?
         .build()?;
     let blob = AvailableInterfaceSubjects::UserPdf
-        .to_table_builder(None)
+        .to_subject_builder(None)
         .with_attachment(None, Some("pdf"), &bytes, None)?
         .build()?;
     let blob_message = IPCMessage::get_builder()
         .with_message(blob.to_ipc_stream()?)
         .with_subject(blob.get_name())
-        .with_update(&TablePublication::Extend {
-            table_name: blob.get_name().to_string(),
+        .with_update(&Publication::Extend {
+            subject_name: blob.get_name().to_string(),
         })
         .with_publisher(doc_rag_session.session_context_name)
         .make_name()?
@@ -79,6 +78,9 @@ pub async fn run_main() -> Result<()> {
     // ----- Query #1 -----
     // Embed the documents
     let message_map = create_message_map(vec![blob_message]);
+    let _ = session_ctx_arc
+        .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+        .await;
     let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
     let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
@@ -100,7 +102,7 @@ pub async fn run_main() -> Result<()> {
         })
         .flatten()
         .collect::<Vec<_>>();
-    let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
+    let json_data = SubjectBuilder::new_from_ipc_stream(&bytes)?
         .with_name("")
         .build()?
         .to_json_object()?;

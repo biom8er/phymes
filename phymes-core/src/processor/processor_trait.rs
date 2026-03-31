@@ -45,7 +45,7 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     /// [`Stream`]: futures::stream::Stream
     /// [`StreamExt`]: futures::stream::StreamExt
     /// [`TryStreamExt`]: futures::stream::TryStreamExt
-    /// [`RecordBatchStreamAdapter`]: crate::table::RecordBatchStreamAdapter
+    /// [`RecordBatchStreamAdapter`]: crate::RecordBatchStreamAdapter
     ///
     /// # Error handling
     ///
@@ -63,15 +63,14 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     /// "abort" such tasks, they may continue to consume resources even after
     /// the plan is dropped, generating intermediate results that are never
     /// used.
-    /// See `join_message_streams` in [`SessionStreamStep`] for a safe usage of [`spawn`]
+    /// See `join_message_streams` in `SessionStreamStep` for a safe usage of [`spawn`]
     ///
     /// For more details see [`JoinSet`] and [`RecordBatchReceiverStreamBuilder`]
     /// for structures to help ensure all background tasks are cancelled.
     ///
     /// [`spawn`]: tokio::task::spawn
     /// [`JoinSet`]: tokio::task::JoinSet
-    /// [`SessionStreamStep`]: phymes_agents::SessionStreamStep
-    /// [`RecordBatchReceiverStreamBuilder`]: crate::table::RecordBatchReceiverStreamBuilder
+    /// [`RecordBatchReceiverStreamBuilder`]: crate::RecordBatchReceiverStreamBuilder
     ///
     /// # Messages handling
     ///
@@ -100,7 +99,6 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     /// # use anyhow::Result;
     /// # use phymes_core::SendableRecordBatchStream;
     /// # use phymes_core::RecordBatchStreamAdapter;
-    /// # use phymes_core::StateMap;
     ///
     /// struct MyProcessor {
     ///     batch: RecordBatch,
@@ -128,7 +126,6 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     /// # use anyhow::Result;
     /// # use phymes_core::SendableRecordBatchStream;
     /// # use phymes_core::RecordBatchStreamAdapter;
-    /// # use phymes_core::StateMap;
     ///
     /// struct MyProcessor {
     ///     schema: SchemaRef,
@@ -162,7 +159,6 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     /// # use anyhow::Result;
     /// # use phymes_core::SendableRecordBatchStream;
     /// # use phymes_core::RecordBatchStreamAdapter;
-    /// # use phymes_core::StateMap;
     ///
     /// struct MyProcessor {
     ///     schema: SchemaRef,
@@ -199,7 +195,7 @@ pub mod test_processor {
     use crate::{
         BuildableTrait, BuilderTrait, MessageBuilderTrait, MessageTrait,
         SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
-        test_table::make_test_record_batch,
+        test_subject::make_test_record_batch,
     };
 
     use arrow::{array::RecordBatch, compute::concat_batches, datatypes::SchemaRef};
@@ -392,9 +388,9 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{
-        BuildableTrait, BuilderTrait, MessageBuilderTrait, RuntimeEnv,
-        SendableRecordBatchStreamMessage, TableBuilder, TableBuilderTrait, TablePublication,
-        TableTrait, test_table::make_test_table,
+        BuildableTrait, BuilderTrait, MessageBuilderTrait, Publication, RuntimeEnv,
+        SendableRecordBatchStreamMessage, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+        test_subject::make_test_subject,
     };
     use anyhow::Result;
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder};
@@ -413,10 +409,10 @@ mod tests {
                 .with_name(name.clone().as_str())
                 .with_publisher("s1")
                 .with_subject("test_table")
-                .with_update(&TablePublication::Extend {
-                    table_name: "test_table".to_string(),
+                .with_update(&Publication::Extend {
+                    subject_name: "test_table".to_string(),
                 })
-                .with_message(make_test_table("test_table", 4, 8, 3)?.to_record_batch_stream())
+                .with_message(make_test_subject("test_table", 4, 8, 3)?.to_record_batch_stream())
                 .build()?,
         );
         let processor_1 = test_processor::ProcessorMock::new(
@@ -425,7 +421,7 @@ mod tests {
         );
         let mut stream =
             processor_1.process(message, Some(&diagnostic_builder), Arc::new(runtime_env))?;
-        let partitions = TableBuilder::new_from_sendable_record_batch_stream(
+        let partitions = SubjectBuilder::new_from_sendable_record_batch_stream(
             stream.remove(&name).unwrap().message.take().unwrap(),
         )
         .await?

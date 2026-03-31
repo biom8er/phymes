@@ -150,8 +150,7 @@ impl<'a> EmbedTextSession<'a> {
 	    embed_query_p-processor-->embed_query_p-publish
 	    embed_query_p-publish-->|Replace|QueryEmbeddings-subject
 	end
-	embed_query_r-rt@{{shape: subproc, label: embed_query_r}}
-	embed_query_r-rt-->embed_query_t
+	embed_text_r-rt-->embed_query_t
 	embed_query_p-processor@{{shape: rect, label: {}}}
 	embed_query_p-publish@{{shape: fork}}
 	embed_query_p-subscribe@{{shape: diamond, label: All}}
@@ -160,17 +159,16 @@ impl<'a> EmbedTextSession<'a> {
 	%% Embed Documents
 	%% ------------------------------------------------------------------------------
 	subgraph embed_documents_t
-	    Documents-subject-.->|FullTable|coalesce_documents_p-subscribe
+	    Documents-subject-.->|AllRecordBatches|coalesce_documents_p-subscribe
 	    coalesce_documents_p-subscribe-->coalesce_documents_p-processor
 	    coalesce_documents_p-processor-->coalesce_documents_p-publish
 	    coalesce_documents_p-publish-->|Extend|coalesce_documents_s-subject
-	    coalesce_documents_s-subject-->|FullTable|embed_documents_p-subscribe
+	    coalesce_documents_s-subject-->|AllRecordBatches|embed_documents_p-subscribe
 	    embed_documents_p-subscribe-->embed_documents_p-processor
 	    embed_documents_p-processor-->embed_documents_p-publish
 	    embed_documents_p-publish-->|Extend|DocumentEmbeddings-subject
 	end
-	embed_documents_r-rt@{{shape: subproc, label: embed_documents_r}}
-	embed_documents_r-rt-->embed_documents_t
+	embed_text_r-rt-->embed_documents_t
 	Documents-subject@{{shape: doc, label: Documents}}
 	coalesce_documents_p-processor@{{shape: rect, label: CoalesceProcessor}}
 	coalesce_documents_p-publish@{{shape: fork}}
@@ -259,18 +257,18 @@ mod tests {
     use std::sync::Arc;
 
     use anyhow::Result;
-    use parking_lot::RwLock;
+    use futures::TryStreamExt;
     use phymes_core::{
         AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
-        ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, TablePublication,
-        TableTrait, create_documents_batch,
+        ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject,
+        SubjectBuilderTrait, SubjectTrait, Subscription, create_documents_batch,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
         AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
         SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep,
-        SessionStreamStepTrait, create_message_map,
+        SessionStreamStepTrait, SubscriptionTrait, create_message_map,
     };
 
     use super::*;
@@ -279,18 +277,22 @@ mod tests {
     async fn test_embed_text_session() -> Result<()> {
         // Initialize the session
         let embed_text_session = EmbedTextSession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             &embed_text_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(&embed_text_session.as_mermaid_erdiagram(), false, true)?
+        .with_subjects_from_mermaid_erdiagram(
+            &embed_text_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
         .with_name(embed_text_session.session_context_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Documents data
         let chunk_id = [
@@ -332,12 +334,12 @@ mod tests {
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
         let batch = create_documents_batch(chunk_id, document_id, text)?;
-        let document = AvailableSubjects::Documents.to_table(None, Some(vec![batch]))?;
+        let document = AvailableSubjects::Documents.to_subject(None, Some(vec![batch]))?;
         let document_message = IPCMessage::get_builder()
             .with_message(document.to_ipc_stream()?)
             .with_subject(document.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: document.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: document.get_name().to_string(),
             })
             .with_publisher(embed_text_session.session_context_name)
             .make_name()?
@@ -345,19 +347,22 @@ mod tests {
 
         // Chat message
         let chat = AvailableInterfaceSubjects::UserMessages
-            .to_table_builder(None)
+            .to_subject_builder(None)
             .append_new_user_query_str("What are the four molecules that compose DNA?", "user")?
             .build()?;
         let chat_message = IPCMessage::get_builder()
             .with_message(chat.to_ipc_stream()?)
             .with_subject(chat.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: chat.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: chat.get_name().to_string(),
             })
             .with_publisher(embed_text_session.session_context_name)
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![chat_message, document_message]);
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -375,16 +380,21 @@ mod tests {
 
             {
                 // Test supsersteps
-                let session_reading = session_ctx_arc.read();
-                let table_reading = session_reading
-                    .get_states()
-                    .get(AvailableInterfaceSubjects::UserQueries.to_string().as_str())
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 1);
-                let column = table_reading.get_column_as_vec_str("query_id");
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableInterfaceSubjects::UserQueries.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableInterfaceSubjects::UserQueries.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 1);
+                let column = subject.get_column_as_vec_str("query_id");
                 assert!(!column.is_empty());
-                let column = table_reading.get_column_as_vec_str("text");
+                let column = subject.get_column_as_vec_str("text");
                 assert_eq!(
                     column.first().unwrap(),
                     &"What are the four molecules that compose DNA?"
@@ -403,36 +413,45 @@ mod tests {
 
             {
                 // Test supsersteps
-                let session_reading = session_ctx_arc.read();
-                let table_reading = session_reading
-                    .get_states()
-                    .get(AvailableSubjects::QueryEmbeddings.to_string().as_str())
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 1);
-                let column = table_reading.get_column_as_vec_str("query_id");
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableSubjects::QueryEmbeddings.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableSubjects::QueryEmbeddings.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 1);
+                let column = subject.get_column_as_vec_str("query_id");
                 assert!(!column.is_empty());
-                let column =
-                    table_reading.get_column_as_vec_nested_primitive::<f32>("embedding")?;
+                let column = subject.get_column_as_vec_nested_primitive::<f32>("embedding")?;
                 assert_eq!(column.len(), 1);
                 #[cfg(feature = "hf_hub")]
                 assert_eq!(column.first().unwrap().len(), 1536);
                 #[cfg(not(feature = "hf_hub"))]
                 assert_eq!(column.first().unwrap().len(), 384);
-                let table_reading = session_reading
-                    .get_states()
-                    .get(AvailableSubjects::DocumentEmbeddings.to_string().as_str())
-                    .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 8);
-                let column = table_reading.get_column_as_vec_str("chunk_id");
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableSubjects::DocumentEmbeddings.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableSubjects::DocumentEmbeddings.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 8);
+                let column = subject.get_column_as_vec_str("chunk_id");
                 assert_eq!(column.first().unwrap(), &"WikiBioComponents_2_0");
                 assert_eq!(column.last().unwrap(), &"WikiBioComponents_3_0");
-                let column = table_reading.get_column_as_vec_str("document_id");
+                let column = subject.get_column_as_vec_str("document_id");
                 assert_eq!(column.first().unwrap(), &"WikiBioComponents");
                 assert_eq!(column.last().unwrap(), &"WikiBioComponents");
-                let column =
-                    table_reading.get_column_as_vec_nested_primitive::<f32>("embedding")?;
+                let column = subject.get_column_as_vec_nested_primitive::<f32>("embedding")?;
                 assert_eq!(column.len(), 8);
                 #[cfg(feature = "hf_hub")]
                 assert_eq!(column.first().unwrap().len(), 1536);

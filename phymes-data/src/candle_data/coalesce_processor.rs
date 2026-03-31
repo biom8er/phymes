@@ -13,7 +13,7 @@ use phymes_core::{
     BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
     RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, remove_message_by_subject,
+    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilderTrait, remove_message_by_subject,
 };
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
 
@@ -186,7 +186,7 @@ impl CoalesceStream {
     }
 
     /// Initialize the config and update the values for skip and fetch
-    fn init_config(&mut self, config_table: Table) -> Result<()> {
+    fn init_config(&mut self, config_table: Subject) -> Result<()> {
         if self.config.is_none() {
             let config = LimitConfig::from_table(&config_table)?;
             self.config.replace(config);
@@ -282,7 +282,7 @@ impl Stream for CoalesceStream {
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
-            let config_table = Table::get_builder()
+            let config_table = Subject::get_builder()
                 .with_name("config")
                 .with_record_batches(batches)?
                 .build()?;
@@ -446,7 +446,7 @@ mod tests {
     use arrow::datatypes::{DataType, Field, Schema};
     use futures::TryStreamExt;
     use phymes_core::{
-        RecordBatchStreamAdapter, TableBuilder, TablePublication, TableTrait, test_table,
+        Publication, RecordBatchStreamAdapter, SubjectBuilder, SubjectTrait, test_subject,
     };
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
@@ -454,13 +454,13 @@ mod tests {
     async fn test_coalesce_processor() -> Result<()> {
         // Make the test batches
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let test_table = test_table::make_test_table("input", 4, 8, 4)?;
+        let test_table = test_subject::make_test_subject("input", 4, 8, 4)?;
         let test_message = SendableRecordBatchStreamMessage::get_builder()
             .with_name("input")
             .with_subject("input")
             .with_publisher("")
             .with_message(test_table.to_record_batch_stream())
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .build()?;
         let _ = message.insert(test_message.get_name().to_string(), test_message);
 
@@ -470,7 +470,7 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = TableBuilder::new()
+        let config_table = SubjectBuilder::new()
             .with_name("CoalesceProcessor")
             .with_json(&config_json, 1)?
             .build()?;
@@ -478,7 +478,7 @@ mod tests {
             .with_name(config_table.get_name())
             .with_publisher("")
             .with_subject(config_table.get_name())
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_message(config_table.to_record_batch_stream())
             .build()?;
         let _ = message.insert(config_message.get_name().to_string(), config_message);
@@ -500,7 +500,7 @@ mod tests {
             processor.process(message, Some(&diagnostic_builder), runtime_env.clone())?;
 
         // Wrap the results in a table
-        let partitions = TableBuilder::new_from_sendable_record_batch_stream(
+        let partitions = SubjectBuilder::new_from_sendable_record_batch_stream(
             stream
                 .remove("CoalesceProcessor")
                 .unwrap()
@@ -543,7 +543,7 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = TableBuilder::new()
+        let config_table = SubjectBuilder::new()
             .with_name("CoalesceStream")
             .with_json(&config_json, 1)?
             .build()?;
@@ -575,7 +575,7 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = TableBuilder::new()
+        let config_table = SubjectBuilder::new()
             .with_name("CoalesceStream")
             .with_json(&config_json, 1)?
             .build()?;
@@ -607,7 +607,7 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = TableBuilder::new()
+        let config_table = SubjectBuilder::new()
             .with_name("CoalesceStream")
             .with_json(&config_json, 1)?
             .build()?;
@@ -641,7 +641,7 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = TableBuilder::new()
+        let config_table = SubjectBuilder::new()
             .with_name("CoalesceStream")
             .with_json(&config_json, 1)?
             .build()?;

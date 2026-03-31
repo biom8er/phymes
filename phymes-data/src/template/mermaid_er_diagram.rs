@@ -41,8 +41,8 @@ mod tests {
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use phymes_core::{
-        BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableScript,
-        TableTrait,
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectScript,
+        SubjectTrait,
     };
     use serde_json::{Map, Value};
 
@@ -90,7 +90,7 @@ mod tests {
             ("attribute_key", attribute_key_arr),
             ("attribute_comment", attribute_comment_arr),
         ])?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -102,7 +102,7 @@ mod tests {
 
         // Create and render the template with the inputs
         let entities_string =
-            TableScript::new_from_template(MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE.to_string())
+            SubjectScript::new_from_template(MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE.to_string())
                 .apply_template(&sequence_diagram_template_inputs)?;
 
         assert_eq!(
@@ -132,7 +132,7 @@ mod tests {
             ("relation_type", relation_type_arr),
             ("relation_content", relation_arr),
         ])?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -144,7 +144,7 @@ mod tests {
 
         // Create and render the template with the inputs
         let relations_string =
-            TableScript::new_from_template(MERMAID_ER_DIAGRAM_RELATIONS_TEMPLATE.to_string())
+            SubjectScript::new_from_template(MERMAID_ER_DIAGRAM_RELATIONS_TEMPLATE.to_string())
                 .apply_template(&sequence_diagram_template_inputs)?;
 
         assert_eq!(relations_string, "\n    c ||--o{ e: \"needed for\"");
@@ -154,7 +154,7 @@ mod tests {
 
         let content_arr: ArrayRef = Arc::new(StringArray::from(content_vec));
         let batch = RecordBatch::try_from_iter(vec![("content", content_arr)])?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -163,7 +163,7 @@ mod tests {
         let inputs = serde_json::json!({
             "direction": "TB",
         });
-        let input_string = TableScript::new_from_template(MERMAID_ER_DIAGRAM_INPUT.to_string())
+        let input_string = SubjectScript::new_from_template(MERMAID_ER_DIAGRAM_INPUT.to_string())
             .apply_template(&inputs)?
             .lines()
             .map(|line| line.trim())
@@ -182,7 +182,7 @@ mod tests {
             MERMAID_HTML_POST,
         ]
         .join("");
-        let script_string = TableScript::new_from_template(template)
+        let script_string = SubjectScript::new_from_template(template)
             .apply_template(&sequence_diagram_template_inputs)?;
 
         assert_eq!(

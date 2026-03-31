@@ -3,9 +3,9 @@ use std::sync::Arc;
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MessageBuilderTrait, ProcessorTrait, RuntimeEnv,
-    SendableRecordBatchStreamMessage, Table, TableBuilderTrait, TablePublication, TableTrait,
-    from_diagnostics_to_tables, test_table::TestTableSizes,
+    BuildableTrait, BuilderTrait, MessageBuilderTrait, ProcessorTrait, Publication, RuntimeEnv,
+    SendableRecordBatchStreamMessage, Subject, SubjectBuilderTrait, SubjectTrait,
+    from_diagnostics_to_tables, test_subject::TestSubjectSizes,
 };
 use phymes_data::{
     AvailableCandleOperators, CandleDataProcessor, DataAggregatorOperator, DataComparatorOperator,
@@ -130,11 +130,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
         for stream in stream_vec.iter() {
             for config in ops_configs_vec.iter() {
                 // Build the runtime environment
-                let runtime_env = RuntimeEnv {
-                    name: "service".to_string(),
-                    memory_limit: None,
-                    time_limit: None,
-                };
+                let runtime_env = RuntimeEnv::get_builder().with_name("rt").build().unwrap();
                 let runtime_env = Arc::new(runtime_env);
 
                 // Update the config
@@ -177,11 +173,11 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                                 .with_name(lhs_name.as_str())
                                 .with_publisher("s1")
                                 .with_subject("d1")
-                                .with_update(&TablePublication::None)
+                                .with_update(&Publication::None)
                                 .with_message(
-                                    TestTableSizes::new_from_name(lhs_size)
+                                    TestSubjectSizes::new_from_name(lhs_size)
                                         .unwrap()
-                                        .get_test_table(lhs_name.as_str())
+                                        .get_test_subject(lhs_name.as_str())
                                         .unwrap()
                                         .to_record_batch_stream(),
                                 )
@@ -194,11 +190,11 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                                 .with_name(rhs_name.as_str())
                                 .with_publisher("s1")
                                 .with_subject("d1")
-                                .with_update(&TablePublication::None)
+                                .with_update(&Publication::None)
                                 .with_message(
-                                    TestTableSizes::new_from_name(rhs_size)
+                                    TestSubjectSizes::new_from_name(rhs_size)
                                         .unwrap()
-                                        .get_test_table(rhs_name.as_str())
+                                        .get_test_subject(rhs_name.as_str())
                                         .unwrap()
                                         .to_record_batch_stream(),
                                 )
@@ -207,7 +203,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                         );
 
                         // Build the ops config
-                        let config_table = Table::get_builder()
+                        let config_table = Subject::get_builder()
                             .with_name(name.as_str())
                             .with_json(&serde_json::to_vec(&config).unwrap(), 1)
                             .unwrap()
@@ -219,7 +215,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                                 .with_name(name.as_str())
                                 .with_publisher("")
                                 .with_subject("")
-                                .with_update(&TablePublication::None)
+                                .with_update(&Publication::None)
                                 .with_message(config_table.to_record_batch_stream())
                                 .build()
                                 .unwrap(),

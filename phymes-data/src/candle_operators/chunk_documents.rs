@@ -8,7 +8,7 @@ use anyhow::{Result, anyhow};
 use candle_core::Device;
 use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
-    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+    MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
@@ -162,7 +162,7 @@ fn chunk_documents(
     _device: &Device,
 ) -> Result<RecordBatch> {
     // Wrap the lhs into an ArrowTable
-    let lhs_table = Table::get_builder()
+    let lhs_table = Subject::get_builder()
         .with_name("chunk_documents")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;

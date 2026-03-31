@@ -9,9 +9,8 @@ use phymes_diagnostics::{Diagnostics, DiagnosticsType, JSONObjectTrait};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    runtime_env::{BuildableTrait, BuilderTrait},
-    schemas::available_subjects::{AvailableSchemaTrait, AvailableSubjects},
-    table::{Table, TableBuilderTrait},
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, Subject,
+    SubjectBuilderTrait,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
@@ -217,7 +216,7 @@ pub(crate) fn create_events_fields() -> Fields {
 /// Get the metrics for a single session as a table
 pub fn from_diagnostics_to_tables(
     diagnostics_vec: &[Diagnostics],
-) -> Result<(Option<Table>, Option<Table>, Option<Table>)> {
+) -> Result<(Option<Subject>, Option<Subject>, Option<Subject>)> {
     // Extract out the diagnostics and partition into metrics, traces, and events
     let mut metrics_vec = Vec::new();
     let mut traces_vec = Vec::new();
@@ -251,7 +250,7 @@ pub fn from_diagnostics_to_tables(
             .into_iter()
             .map(serde_json::Value::from)
             .collect::<Vec<_>>();
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(AvailableSubjects::SessionMetrics.to_string().as_str())
             .with_schema(AvailableSubjects::SessionMetrics.to_schema())
             .with_json_values(&values)?
@@ -265,7 +264,7 @@ pub fn from_diagnostics_to_tables(
             .into_iter()
             .map(serde_json::Value::from)
             .collect::<Vec<_>>();
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
             .with_schema(AvailableSubjects::SessionTraces.to_schema())
             .with_json_values(&values)?
@@ -279,7 +278,7 @@ pub fn from_diagnostics_to_tables(
             .into_iter()
             .map(serde_json::Value::from)
             .collect::<Vec<_>>();
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(AvailableSubjects::SessionEvents.to_string().as_str())
             .with_schema(AvailableSubjects::SessionEvents.to_schema())
             .with_json_values(&values)?

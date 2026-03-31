@@ -1,16 +1,21 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use arrow::{array::RecordBatch, datatypes::Schema};
-use clap::ValueEnum;
-use parking_lot::RwLock;
-use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait,
-    BuilderTrait, MappableTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait,
-    StateMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap,
-    TaskPlan, create_bytes_fields, create_values_fields,
+use arrow::{
+    array::RecordBatch,
+    datatypes::{Schema, SchemaRef},
 };
-use phymes_data::{AvailableCandleOperators, DataConfig, DataConfigTrait, LimitConfig, device};
+use clap::ValueEnum;
+use phymes_core::{
+    AvailableSchemaTrait, AvailableSubjects, AvailableSubscribeEvents, BuildableTrait,
+    BuilderTrait, IPCMessage, IPCMessageMap, MappableTrait, MessageBuilderTrait, ProcessorPlan,
+    ProcessorPlanBuilder, Publication, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectPlan,
+    SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait, Subscription, create_bytes_fields,
+    create_values_fields,
+};
+use phymes_data::{
+    AvailableCandleOperators, DataConfig, DataConfigTrait, LimitConfig, ObjectStoreConfig, device,
+};
 #[cfg(feature = "api")]
 use phymes_data::{CommandSandboxConfig, HTTPClientConfig};
 use phymes_diagnostics::{HashMap, HashSet};
@@ -19,18 +24,17 @@ use phymes_ml::{CandleChatConfig, CandleEmbedConfig, ToolCallConfig};
 use crate::{
     AvailableInterfaceSubjects, AvailableProcessors, SessionContext, SessionContextBuilder,
     SessionContextBuilderMermaidTrait, SessionContextBuilderTabularTrait,
-    SessionContextBuilderTrait,
+    SessionContextBuilderTrait, TaskMap, TaskPlan,
     plans::{CountSubjectRowsSession, NextSuperstepSession, NextTaskSession},
 };
 
 type SessionContextInput = (
     String,
     TaskMap,
-    StateMap,
-    HashMap<String, Arc<RuntimeEnv>>,
-    usize,
+    HashMap<String, SchemaRef>,
+    Vec<Subject>,
+    Arc<RuntimeEnv>,
     bool,
-    Vec<Table>,
 );
 
 /// Trait extension for [SessionContextBuilderTrait] to facilitate building agentic workflows
@@ -38,7 +42,7 @@ pub trait SessionContextBuilderAgentsTrait {
     fn build_inner_with_tables(self) -> Result<SessionContextInput>;
 
     /// Build the [SessionContext] objects along with the [SessionContext] schema tables
-    fn build_with_tables(self) -> Result<SessionContext>
+    fn build_with_tables(self) -> Result<(SessionContext, Option<IPCMessageMap>)>
     where
         Self: Sized;
 
@@ -112,51 +116,63 @@ pub trait SessionContextBuilderAgentsTrait {
 }
 
 impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
-    fn build_with_tables(self) -> Result<SessionContext> {
+    fn build_with_tables(self) -> Result<(SessionContext, Option<IPCMessageMap>)> {
         // Check that we can build
         self.check_tasks()?;
         self.check_processors()?;
-        self.check_runtime_envs()?;
-        self.check_state()?;
+        self.check_runtime_env()?;
+        self.check_subjects()?;
         self.check_processor_config_subjects()?;
         self.check_data_config_subjects()?;
         self.check_processor_config_builds()?;
 
         // build the tasks, state, and runtime objects
-        let (name, tasks, mut state, runtime_envs, max_iter, diagnostics, tables) =
+        let (name, tasks, schemas, subjects, runtime_env, diagnostics) =
             self.build_inner_with_tables()?;
-
-        // update the state with the schema tables
-        for table in tables.into_iter() {
-            state.insert(table.get_name().to_string(), Arc::new(RwLock::new(table)));
-        }
+        let messages: Result<IPCMessageMap> = subjects
+            .into_iter()
+            .map(|s| {
+                let subject_name = s.get_name().to_string();
+                let message = IPCMessage::get_builder()
+                    .with_publisher(&name)
+                    .with_subject(s.get_name())
+                    .with_update(&Publication::Extend {
+                        subject_name: s.get_name().to_string(),
+                    })
+                    .with_message(s.to_ipc_stream()?)
+                    .make_name()?
+                    .build()?;
+                Ok((subject_name, message))
+            })
+            .collect();
 
         // ready to build the session
-        Ok(SessionContext::new(
-            name,
-            tasks,
-            state,
-            runtime_envs,
-            max_iter,
-            diagnostics,
-        ))
+        let session_context = SessionContext::new(name, tasks, schemas, runtime_env, diagnostics);
+        Ok((session_context, Some(messages?)))
     }
+
     fn build_inner_with_tables(self) -> Result<SessionContextInput> {
-        let tables = self.to_arrow_tables(true, true, true, true, true)?;
-        let (name, tasks, state, runtime_envs, max_iter, diagnostics) = self.build_inner()?;
-        Ok((
-            name,
-            tasks,
-            state,
-            runtime_envs,
-            max_iter,
-            diagnostics,
-            tables,
-        ))
+        let tables = self.to_subject_plans(true, true, true, true, true)?;
+        let (name, tasks, mut schemas, mut subjects, runtime_envs, diagnostics) =
+            self.build_inner()?;
+
+        // Update the schemas and subjects
+        for subject in tables {
+            let _ = schemas.insert(
+                subject.subject().get_name().to_string(),
+                subject.subject().get_schema().clone(),
+            );
+            if subject.subject().count_rows() > 0 {
+                subjects.push(subject.subject_own());
+            }
+        }
+
+        Ok((name, tasks, schemas, subjects, runtime_envs, diagnostics))
     }
+
     fn check_data_config_subjects(&self) -> Result<()> {
         let state_map = self
-            .state
+            .subjects
             .as_ref()
             .unwrap()
             .iter()
@@ -172,7 +188,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .filter(|p| {
                 p.get_subscriptions()
                     .iter()
-                    .map(|s| s.get_table_name())
+                    .map(|s| s.subject_name())
                     .collect::<Vec<_>>()
                     .contains(&p.get_name())
             })
@@ -180,8 +196,9 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
         // Iterate through the LHS and RHS entries
         for processor in processors {
-            let table = state_map.get(processor.get_name()).unwrap();
-            let column_names = table
+            let subject = state_map.get(processor.get_name()).unwrap();
+            let column_names = subject
+                .subject()
                 .get_schema()
                 .fields()
                 .iter()
@@ -190,14 +207,14 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
             // Check the messages entries
             if column_names.contains("messages") {
-                let vec_str = table.get_column_as_vec_str("messages");
+                let vec_str = subject.subject().get_column_as_vec_str("messages");
                 let name = vec_str.last().unwrap();
 
                 let subscriptions = processor
                     .get_subscriptions()
                     .iter()
                     .filter_map(|s| {
-                        if &s.get_table_name() == name {
+                        if &s.subject_name() == name {
                             Some(name.to_string())
                         } else {
                             None
@@ -214,14 +231,14 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
             // Check the tools entries
             if column_names.contains("tools") {
-                let vec_str = table.get_column_as_vec_str("tools");
+                let vec_str = subject.subject().get_column_as_vec_str("tools");
                 let name = vec_str.last().unwrap();
 
                 let subscriptions = processor
                     .get_subscriptions()
                     .iter()
                     .filter_map(|s| {
-                        if &s.get_table_name() == name {
+                        if &s.subject_name() == name {
                             Some(name.to_string())
                         } else {
                             None
@@ -238,14 +255,14 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
             // Check the documents entries
             if column_names.contains("documents") {
-                let vec_str = table.get_column_as_vec_str("documents");
+                let vec_str = subject.subject().get_column_as_vec_str("documents");
                 let name = vec_str.last().unwrap();
 
                 let subscriptions = processor
                     .get_subscriptions()
                     .iter()
                     .filter_map(|s| {
-                        if &s.get_table_name() == name {
+                        if &s.subject_name() == name {
                             Some(name.to_string())
                         } else {
                             None
@@ -262,14 +279,14 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
             // Check the subject_name entries
             if column_names.contains("subject_name") {
-                let vec_str = table.get_column_as_vec_str("subject_name");
+                let vec_str = subject.subject().get_column_as_vec_str("subject_name");
                 let name = vec_str.last().unwrap();
 
                 let subscriptions = processor
                     .get_subscriptions()
                     .iter()
                     .filter_map(|s| {
-                        if &s.get_table_name() == name {
+                        if &s.subject_name() == name {
                             Some(name.to_string())
                         } else {
                             None
@@ -286,15 +303,16 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
             // Check the subject_names entries
             if column_names.contains("subject_names") {
-                let mut vec_str =
-                    table.get_column_as_vec_nested_nonprimitive::<String>("subject_names")?;
+                let mut vec_str = subject
+                    .subject()
+                    .get_column_as_vec_nested_nonprimitive::<String>("subject_names")?;
                 if let Some(names) = vec_str.pop() {
                     let subscriptions = processor
                         .get_subscriptions()
                         .iter()
                         .filter_map(|s| {
-                            if names.contains(&s.get_table_name().to_string()) {
-                                Some(s.get_table_name().to_string())
+                            if names.contains(&s.subject_name().to_string()) {
+                                Some(s.subject_name().to_string())
                             } else {
                                 None
                             }
@@ -311,14 +329,14 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
             // Check the LHS entries
             if column_names.contains("lhs_name") {
-                let vec_str = table.get_column_as_vec_str("lhs_name");
+                let vec_str = subject.subject().get_column_as_vec_str("lhs_name");
                 let name = vec_str.last().unwrap();
 
                 let subscriptions = processor
                     .get_subscriptions()
                     .iter()
                     .filter_map(|s| {
-                        if &s.get_table_name() == name {
+                        if &s.subject_name() == name {
                             Some(name.to_string())
                         } else {
                             None
@@ -333,6 +351,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 }
                 let subscription_table = state_map.get(subscriptions.first().unwrap()).unwrap();
                 let subscription_col_names = subscription_table
+                    .subject()
                     .get_schema()
                     .fields()
                     .iter()
@@ -341,7 +360,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
                 if !subscription_col_names.is_empty() {
                     if column_names.contains("lhs_pk") {
-                        let vec_str = table.get_column_as_vec_str("lhs_pk");
+                        let vec_str = subject.subject().get_column_as_vec_str("lhs_pk");
                         let pk = vec_str.last().unwrap();
                         if !subscription_col_names.contains(*pk) {
                             return Err(anyhow!(
@@ -352,7 +371,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         }
                     }
                     if column_names.contains("lhs_fk") {
-                        let vec_str = table.get_column_as_vec_str("lhs_fk");
+                        let vec_str = subject.subject().get_column_as_vec_str("lhs_fk");
                         let fk = vec_str.last().unwrap();
                         if !subscription_col_names.contains(*fk) {
                             return Err(anyhow!(
@@ -363,13 +382,15 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         }
                     }
                     if column_names.contains("lhs_values") {
-                        let vec_str =
-                            table.get_column_as_vec_nested_nonprimitive::<String>("lhs_values")?;
+                        let vec_str = subject
+                            .subject()
+                            .get_column_as_vec_nested_nonprimitive::<String>("lhs_values")?;
                         let values = vec_str.last().unwrap();
 
                         // Check for any renamed or initiated columns
-                        let init_col_names = if let Ok(as_columns) =
-                            table.get_column_as_vec_nested_nonprimitive::<String>("as_columns")
+                        let init_col_names = if let Ok(as_columns) = subject
+                            .subject()
+                            .get_column_as_vec_nested_nonprimitive::<String>("as_columns")
                         {
                             if let Some(as_columns) = as_columns.last() {
                                 as_columns
@@ -410,14 +431,14 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
             // Check the RHS entries
             if column_names.contains("rhs_name") {
-                let vec_str = table.get_column_as_vec_str("rhs_name");
+                let vec_str = subject.subject().get_column_as_vec_str("rhs_name");
                 let name = vec_str.last().unwrap();
 
                 let subscriptions = processor
                     .get_subscriptions()
                     .iter()
                     .filter_map(|s| {
-                        if &s.get_table_name() == name {
+                        if &s.subject_name() == name {
                             Some(name.to_string())
                         } else {
                             None
@@ -432,6 +453,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 }
                 let subscription_table = state_map.get(subscriptions.first().unwrap()).unwrap();
                 let subscription_col_names = subscription_table
+                    .subject()
                     .get_schema()
                     .fields()
                     .iter()
@@ -440,7 +462,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
                 if !subscription_col_names.is_empty() {
                     if column_names.contains("rhs_pk") {
-                        let vec_str = table.get_column_as_vec_str("rhs_pk");
+                        let vec_str = subject.subject().get_column_as_vec_str("rhs_pk");
                         let pk = vec_str.last().unwrap();
                         if !subscription_col_names.contains(*pk) {
                             return Err(anyhow!(
@@ -451,7 +473,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         }
                     }
                     if column_names.contains("rhs_fk") {
-                        let vec_str = table.get_column_as_vec_str("rhs_fk");
+                        let vec_str = subject.subject().get_column_as_vec_str("rhs_fk");
                         let fk = vec_str.last().unwrap();
                         if !subscription_col_names.contains(*fk) {
                             return Err(anyhow!(
@@ -462,13 +484,15 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         }
                     }
                     if column_names.contains("rhs_values") {
-                        let vec_str =
-                            table.get_column_as_vec_nested_nonprimitive::<String>("rhs_values")?;
+                        let vec_str = subject
+                            .subject()
+                            .get_column_as_vec_nested_nonprimitive::<String>("rhs_values")?;
                         let values = vec_str.last().unwrap();
 
                         // Check for any renamed or initiated columns
-                        let init_col_names = if let Ok(as_columns) =
-                            table.get_column_as_vec_nested_nonprimitive::<String>("as_columns")
+                        let init_col_names = if let Ok(as_columns) = subject
+                            .subject()
+                            .get_column_as_vec_nested_nonprimitive::<String>("as_columns")
                         {
                             if let Some(as_columns) = as_columns.last() {
                                 as_columns
@@ -512,7 +536,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
     }
     fn check_processor_config_builds(&self) -> Result<()> {
         let state_map = self
-            .state
+            .subjects
             .as_ref()
             .unwrap()
             .iter()
@@ -537,7 +561,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .filter_map(|p| {
                 if p.get_subscriptions()
                     .iter()
-                    .map(|s| s.get_table_name())
+                    .map(|s| s.subject_name())
                     .collect::<Vec<_>>()
                     .contains(&p.get_name())
                 {
@@ -554,15 +578,15 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
         // Try to build each config
         let mut data_config_vec = Vec::new();
-        for (table, r#type, name) in config_tables {
+        for (subject_plan, r#type, name) in config_tables {
             // Check for processors names that are tasks names with empty rows
-            if tasks.contains(name) && table.count_rows() == 0 {
+            if tasks.contains(name) && subject_plan.subject().count_rows() == 0 {
                 continue;
             // Check for `values` schema
-            } else if table.get_schema().fields() == &create_values_fields() {
+            } else if subject_plan.subject().get_schema().fields() == &create_values_fields() {
                 continue;
             // Check for `bytes` schema
-            } else if table.get_schema().fields() == &create_bytes_fields() {
+            } else if subject_plan.subject().get_schema().fields() == &create_bytes_fields() {
                 continue;
             // Ignore Echo processors
             } else if let Ok(processor) = AvailableProcessors::from_str(r#type, false)
@@ -574,12 +598,12 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             // Check guarded configs
             let mut passed_config_checks = false;
             #[cfg(feature = "api")]
-            if let Ok(_config) = HTTPClientConfig::from_table(table) {
+            if let Ok(_config) = HTTPClientConfig::from_table(subject_plan.subject()) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() != "HTTPClientConfig" {
                         return Err(anyhow!(
                             "Schema for `HTTPClientConfig` from subject `{}` for processor type `{}` does not match the expected processor type HTTPClientRequestProcessor.",
-                            table.get_name(),
+                            subject_plan.get_name(),
                             r#type
                         ));
                     } else {
@@ -589,16 +613,16 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     return Err(anyhow!(
                         "Processor type `{}` for `HTTPClientConfig` from subject `{}` does not match any of the supported processor types {:?}.",
                         r#type,
-                        table.get_name(),
+                        subject_plan.get_name(),
                         AvailableProcessors::all_varient_names()
                     ));
                 }
-            } else if let Ok(_config) = CommandSandboxConfig::from_table(table) {
+            } else if let Ok(_config) = CommandSandboxConfig::from_table(subject_plan.subject()) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() != "CommandSandboxConfig" {
                         return Err(anyhow!(
                             "Schema for `CommandSandboxConfig` from subject `{}` for processor type `{}` does not match the expected processor type CommandSandboxProcessor.",
-                            table.get_name(),
+                            subject_plan.get_name(),
                             r#type
                         ));
                     } else {
@@ -608,19 +632,19 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     return Err(anyhow!(
                         "Processor type `{}` for `CommandSandboxConfig` from subject `{}` does not match any of the supported processor types {:?}.",
                         r#type,
-                        table.get_name(),
+                        subject_plan.get_name(),
                         AvailableProcessors::all_varient_names()
                     ));
                 }
             }
 
             // Check everything else
-            if let Ok(_config) = CandleChatConfig::from_table(table) {
+            if let Ok(_config) = CandleChatConfig::from_table(subject_plan.subject()) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() != "CandleChatConfig" {
                         return Err(anyhow!(
                             "Schema for `CandleChatConfig` from subject `{}` for processor type `{}` does not match the expected processor types CandleChatProcessor, MessageParserProcessor, or OpenAIChatProcessor.",
-                            table.get_name(),
+                            subject_plan.get_name(),
                             r#type
                         ));
                     } else {
@@ -630,16 +654,16 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     return Err(anyhow!(
                         "Processor type `{}` for `CandleChatConfig` from subject `{}` does not match any of the supported processor types {:?}.",
                         r#type,
-                        table.get_name(),
+                        subject_plan.get_name(),
                         AvailableProcessors::all_varient_names()
                     ));
                 }
-            } else if let Ok(_config) = CandleEmbedConfig::from_table(table) {
+            } else if let Ok(_config) = CandleEmbedConfig::from_table(subject_plan.subject()) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() != "CandleEmbedConfig" {
                         return Err(anyhow!(
                             "Schema for `CandleEmbedConfig` from subject `{}` for processor type `{}` does not match the expected processor types CandleEmbedProcessor or OpenAIEmbedProcessor.",
-                            table.get_name(),
+                            subject_plan.get_name(),
                             r#type
                         ));
                     } else {
@@ -649,16 +673,16 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     return Err(anyhow!(
                         "Processor type `{}` for `CandleEmbedConfig` from subject `{}` does not match any of the supported processor types {:?}.",
                         r#type,
-                        table.get_name(),
+                        subject_plan.get_name(),
                         AvailableProcessors::all_varient_names()
                     ));
                 }
-            } else if let Ok(_config) = ToolCallConfig::from_table(table) {
+            } else if let Ok(_config) = ToolCallConfig::from_table(subject_plan.subject()) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() != "ToolCallConfig" {
                         return Err(anyhow!(
                             "Schema for `ToolCallConfig` from subject `{}` for processor type `{}` does not match the expected processor types ToolCallProcessor.",
-                            table.get_name(),
+                            subject_plan.get_name(),
                             r#type
                         ));
                     } else {
@@ -668,16 +692,16 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     return Err(anyhow!(
                         "Processor type `{}` for `ToolCallConfig` from subject `{}` does not match any of the supported processor types {:?}.",
                         r#type,
-                        table.get_name(),
+                        subject_plan.get_name(),
                         AvailableProcessors::all_varient_names()
                     ));
                 }
-            } else if let Ok(_config) = LimitConfig::from_table(table) {
+            } else if let Ok(_config) = LimitConfig::from_table(subject_plan.subject()) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() != "LimitConfig" {
                         return Err(anyhow!(
                             "Schema for `LimitConfig` from subject `{}` for processor type `{}` does not match the expected processor type BatchCoalesceProcessor and LimitProcessor.",
-                            table.get_name(),
+                            subject_plan.get_name(),
                             r#type
                         ));
                     } else {
@@ -687,22 +711,41 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     return Err(anyhow!(
                         "Processor type `{}` for `LimitConfig` from subject `{}` does not match any of the supported processor types {:?}.",
                         r#type,
-                        table.get_name(),
+                        subject_plan.get_name(),
                         AvailableProcessors::all_varient_names()
                     ));
                 }
-            } else if let Ok(config) = DataConfig::from_table(table) {
+            } else if let Ok(_config) = ObjectStoreConfig::from_table(subject_plan.subject()) {
+                if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
+                    if processor.config_type() != "ObjectStoreConfig" {
+                        return Err(anyhow!(
+                            "Schema for `ObjectStoreConfig` from subject `{}` for processor type `{}` does not match the expected processor type ObjectStoreProcessor.",
+                            subject_plan.get_name(),
+                            r#type
+                        ));
+                    } else {
+                        passed_config_checks = true;
+                    }
+                } else {
+                    return Err(anyhow!(
+                        "Processor type `{}` for `ObjectStoreConfig` from subject `{}` does not match any of the supported processor types {:?}.",
+                        r#type,
+                        subject_plan.get_name(),
+                        AvailableProcessors::all_varient_names()
+                    ));
+                }
+            } else if let Ok(config) = DataConfig::from_table(subject_plan.subject()) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() == "DataConfig" {
                         if config.operator.to_string().as_str() != r#type
                             && r#type != AvailableProcessors::ProcessorMock.to_string().as_str()
                             && r#type != AvailableProcessors::ProcessorError.to_string().as_str()
                             && r#type
-                                != AvailableProcessors::AttachmentAggregatorProcessor
+                                != AvailableProcessors::AggregatorProcessor
                                     .to_string()
                                     .as_str()
                             && r#type
-                                != AvailableProcessors::MessageAggregatorProcessor
+                                != AvailableProcessors::AggregatorProcessor
                                     .to_string()
                                     .as_str()
                             && r#type
@@ -713,28 +756,28 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                             return Err(anyhow!(
                                 "Operator `{}` for `DataConfig` from subject `{}` does not match the expected for processor type `{}`.",
                                 config.operator,
-                                table.get_name(),
+                                subject_plan.get_name(),
                                 r#type
                             ));
                         } else if config.operator.to_string().as_str()
                             != AvailableProcessors::Sort.to_string().as_str()
                             && (r#type
-                                == AvailableProcessors::AttachmentAggregatorProcessor
+                                == AvailableProcessors::AggregatorProcessor
                                     .to_string()
                                     .as_str()
                                 || r#type
-                                    == AvailableProcessors::MessageAggregatorProcessor
+                                    == AvailableProcessors::AggregatorProcessor
                                         .to_string()
                                         .as_str())
                         {
                             return Err(anyhow!(
                                 "Operator `{}` for `DataConfig` from subject `{}` for processor type `{}` with does not match the expected for processor type of `{}` required by {} and {}.",
                                 config.operator,
-                                table.get_name(),
+                                subject_plan.get_name(),
                                 r#type,
                                 AvailableProcessors::Sort,
-                                AvailableProcessors::AttachmentAggregatorProcessor,
-                                AvailableProcessors::MessageAggregatorProcessor
+                                AvailableProcessors::AggregatorProcessor,
+                                AvailableProcessors::AggregatorProcessor
                             ));
                         } else {
                             passed_config_checks = true;
@@ -742,7 +785,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     } else {
                         return Err(anyhow!(
                             "Schema for `DataConfig` from subject `{}` for processor type `{}` does not match the expected processor type DataProcessor nor any of the `CandleOperator`s {:?}.",
-                            table.get_name(),
+                            subject_plan.get_name(),
                             r#type,
                             AvailableCandleOperators::all_varient_names()
                         ));
@@ -751,24 +794,24 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     return Err(anyhow!(
                         "Processor type `{}` for `DataConfig` from subject `{}` does not match any of the supported processor types {:?}.",
                         r#type,
-                        table.get_name(),
+                        subject_plan.get_name(),
                         AvailableProcessors::all_varient_names()
                     ));
                 }
-                data_config_vec.push((config, table.get_name().to_string()));
+                data_config_vec.push((config, subject_plan.get_name().to_string()));
             }
 
             // Return an error if the config didn't pass one of the checks
             if !passed_config_checks {
-                if let Err(err) = DataConfig::from_table(table) {
+                if let Err(err) = DataConfig::from_table(subject_plan.subject()) {
                     return Err(anyhow!(
-                        "Config could not be built for subject `{}` and Error `{err}` when trying to build for DataConfig with table `{table:?}`.",
-                        table.get_name()
+                        "Config could not be built for subject `{}` and Error `{err}` when trying to build for DataConfig with table `{subject_plan:?}`.",
+                        subject_plan.get_name()
                     ));
                 } else {
                     return Err(anyhow!(
-                        "Config could not be built for subject `{}` and table `{table:?}`.",
-                        table.get_name()
+                        "Config could not be built for subject `{}` and table `{subject_plan:?}`.",
+                        subject_plan.get_name()
                     ));
                 }
             }
@@ -789,32 +832,32 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             // Try to run each operator
             if let Some(lhs_name) = config.lhs_name
                 && let Some(lhs_table) = state_map.get(&lhs_name)
-                && lhs_table.count_rows() > 0
+                && lhs_table.subject().count_rows() > 0
                 && let Some(rhs_name) = config.rhs_name
             {
                 let device = device(false)?;
                 if let Some(rhs_table) = state_map.get(&rhs_name) {
-                    if rhs_table.count_rows() > 0
+                    if rhs_table.subject().count_rows() > 0
                         && let Err(err) = data_operator.forward(
-                            lhs_table.get_record_batches(),
-                            Some(rhs_table.get_record_batches()),
+                            lhs_table.subject().get_record_batches(),
+                            Some(rhs_table.subject().get_record_batches()),
                             &device,
                         )
                     {
                         return Err(anyhow!(
                             "Failed to run `{}` with DataConfig from subject `{name}` and lhs_args {:?} and rhs_args {:?}. {err}",
                             config.operator,
-                            lhs_table.get_record_batches(),
-                            rhs_table.get_record_batches()
+                            lhs_table.subject().get_record_batches(),
+                            rhs_table.subject().get_record_batches()
                         ));
                     }
                 } else if let Err(err) =
-                    data_operator.forward(lhs_table.get_record_batches(), None, &device)
+                    data_operator.forward(lhs_table.subject().get_record_batches(), None, &device)
                 {
                     return Err(anyhow!(
                         "Failed to run `{}` with DataConfig from subject `{name}` and lhs_args {:?}. {err}",
                         config.operator,
-                        lhs_table.get_record_batches()
+                        lhs_table.subject().get_record_batches()
                     ));
                 }
             }
@@ -832,7 +875,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 if self.name.as_ref().unwrap() == p.get_name()
                     || p.get_subscriptions()
                         .iter()
-                        .map(|s| s.get_table_name())
+                        .map(|s| s.subject_name())
                         .collect::<Vec<_>>()
                         .contains(&p.get_name())
                 {
@@ -873,7 +916,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     && !p
                         .get_subscriptions()
                         .iter()
-                        .map(|s| s.get_table_name())
+                        .map(|s| s.subject_name())
                         .collect::<Vec<_>>()
                         .contains(&p.get_name())
                 {
@@ -888,9 +931,9 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         let subjects = processors_to_update
             .iter()
             .filter_map(|p| {
-                if self.state.is_some()
+                if self.subjects.is_some()
                     && self
-                        .state
+                        .subjects
                         .as_ref()
                         .unwrap()
                         .iter()
@@ -904,24 +947,28 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
                     // Make the default config
                     let config = new_processor.to_example_json().unwrap();
-                    let table = Table::get_builder()
+                    let subject = Subject::get_builder()
                         .with_name(p.get_name())
                         .with_json(&config, 1)
                         .unwrap()
                         .build()
                         .unwrap();
+                    let plan = SubjectPlan::get_builder()
+                        .with_subject(subject)
+                        .build()
+                        .unwrap();
 
                     // DM: potentially where we could override the defaults to update with the known lhs_name and rhs_name
-                    Some(table)
+                    Some(plan)
                 }
             })
             .collect::<Vec<_>>();
 
         // Remake the state
         if !subjects.is_empty() {
-            let mut state = self.state.take().unwrap_or_default();
+            let mut state = self.subjects.take().unwrap_or_default();
             state.extend(subjects);
-            self.state.replace(state);
+            self.subjects.replace(state);
         }
 
         // Add empty tables for all subjects missing in the state with a schema if found
@@ -929,9 +976,9 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .get_subject_names_from_processors()
             .iter()
             .filter_map(|s| {
-                if self.state.is_some()
+                if self.subjects.is_some()
                     && self
-                        .state
+                        .subjects
                         .as_ref()
                         .unwrap()
                         .iter()
@@ -951,23 +998,27 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         };
 
                     // Make the default config
-                    let table = Table::get_builder()
+                    let subject = Subject::get_builder()
                         .with_schema(schema.clone())
                         .with_record_batches(vec![RecordBatch::new_empty(schema)])
                         .unwrap()
                         .with_name(s)
                         .build()
                         .unwrap();
-                    Some(table)
+                    let plan = SubjectPlan::get_builder()
+                        .with_subject(subject)
+                        .build()
+                        .unwrap();
+                    Some(plan)
                 }
             })
             .collect::<Vec<_>>();
 
         // Remake the state
         if !subjects.is_empty() {
-            let mut state = self.state.take().unwrap_or_default();
+            let mut state = self.subjects.take().unwrap_or_default();
             state.extend(subjects);
-            self.state.replace(state);
+            self.subjects.replace(state);
         }
 
         // Remake the processors (consuming the update)
@@ -981,8 +1032,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 let subscriptions = processor
                     .get_subscriptions()
                     .iter()
-                    .chain([&TableSubscription::AlwaysFullTable {
-                        table_name: to_update.get_name().to_string(),
+                    .chain([&Subscription::AlwaysAllRecordBatches {
+                        subject_name: to_update.get_name().to_string(),
                     }])
                     .cloned()
                     .collect::<Vec<_>>();
@@ -1002,6 +1053,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         // Remake the processors
         Ok(self.with_processors(processors))
     }
+
     fn add_session_interface(mut self, subscriptions: Option<&[&str]>) -> Result<Self>
     where
         Self: Sized,
@@ -1011,7 +1063,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 "Add a name for the session before making the session interface."
             ));
         }
-        if self.state.is_none() {
+        if self.subjects.is_none() {
             return Err(anyhow!(
                 "Add state for the session before making the session interface."
             ));
@@ -1019,11 +1071,9 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
         // Add the session task
         let session_name = self.name.as_ref().unwrap().to_string();
-        let runtime_env_name = format!("{session_name}-runtime_env");
         let mut tasks = self.tasks.take().unwrap_or_default();
         tasks.push(TaskPlan {
             task_name: session_name.to_string(),
-            runtime_env_name: runtime_env_name.to_owned(),
             processor_names: vec![session_name.to_string()],
         });
         self.tasks.replace(tasks);
@@ -1033,8 +1083,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         let mut publications = subscriptions
             .map(|s| {
                 s.iter()
-                    .map(|s| TablePublication::Extend {
-                        table_name: s.to_string(),
+                    .map(|s| Publication::Extend {
+                        subject_name: s.to_string(),
                     })
                     .collect::<Vec<_>>()
             })
@@ -1042,29 +1092,31 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         let mut subscriptions = subscriptions
             .map(|s| {
                 s.iter()
-                    .map(|s| TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: s.to_string(),
+                    .map(|s| Subscription::OnUpdateLastRecordBatch {
+                        subject_name: s.to_string(),
                     })
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
-        if let Some(state) = self.state.as_ref() {
-            for table in state.iter() {
-                if let Ok(subject) = AvailableInterfaceSubjects::from_str(table.get_name(), false) {
+        if let Some(subjects) = self.subjects.as_ref() {
+            for subject_plan in subjects.iter() {
+                if let Ok(subject) =
+                    AvailableInterfaceSubjects::from_str(subject_plan.get_name(), false)
+                {
                     // DM: Leave the option for AvailableInterfaceSubjects to be both subscriptions and publications
                     // DM: Use publications/subscription policies that retain the information across sessions
                     if subject.is_session_publication() {
-                        publications.push(TablePublication::Extend {
-                            table_name: subject.to_string(),
+                        publications.push(Publication::Extend {
+                            subject_name: subject.to_string(),
                         });
                     }
                     if subject.is_session_subscription() {
-                        subscriptions.push(TableSubscription::OnUpdateLastRecordBatch {
-                            table_name: subject.to_string(),
+                        subscriptions.push(Subscription::OnUpdateLastRecordBatch {
+                            subject_name: subject.to_string(),
                         });
                         // DM: Since we use [ProcessorEcho], we also need to include the subscription in the publications so that it is "echoed" to the session!
-                        publications.push(TablePublication::Extend {
-                            table_name: subject.to_string(),
+                        publications.push(Publication::Extend {
+                            subject_name: subject.to_string(),
                         });
                     }
                 }
@@ -1076,15 +1128,10 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .with_processor(processor)
             .with_subscriptions(&subscriptions)
             .with_publications(&publications)
-            .with_subscribe_policy(AvailableTableSubscribePolicies::AnyTableNameSubscribe.build())
+            .with_subscribe_policy(AvailableSubscribeEvents::AnySubjectNameSubscribe.build())
             .build()?;
         processors.push(processor_plan);
         self.processors.replace(processors);
-
-        // Add the runtime environment
-        let mut runtime_envs = self.runtime_envs.take().unwrap_or_default();
-        runtime_envs.push(RuntimeEnv::new().with_name(runtime_env_name.as_str()));
-        self.runtime_envs.replace(runtime_envs);
 
         Ok(self)
     }
@@ -1099,7 +1146,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             subjects_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(subjects_session.as_mermaid_erdiagram(), false, true)?
+        .with_subjects_from_mermaid_erdiagram(subjects_session.as_mermaid_erdiagram(), false, true)?
         .with_name(subjects_session.session_context_name)
         .add_processor_subjects()?;
 
@@ -1117,7 +1164,11 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             next_task_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(next_task_session.as_mermaid_erdiagram(), false, true)?
+        .with_subjects_from_mermaid_erdiagram(
+            next_task_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
         .with_name(next_task_session.session_context_name)
         .add_processor_subjects()?;
 
@@ -1135,7 +1186,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             next_superstep_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             next_superstep_session.as_mermaid_erdiagram(),
             false,
             true,
@@ -1164,10 +1215,10 @@ pub trait CustomAgentsBuilderTrait {
     fn make_processors(&self) -> Option<Vec<ProcessorPlan>> {
         None
     }
-    fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
+    fn make_runtime_env(&self) -> Option<Arc<RuntimeEnv>> {
         None
     }
-    fn make_state_tables(&self) -> Option<Vec<Table>> {
+    fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
         None
     }
     fn build(&self) -> SessionContextBuilder {
@@ -1178,11 +1229,11 @@ pub trait CustomAgentsBuilderTrait {
         if let Some(processors) = self.make_processors() {
             builder = builder.with_processors(processors);
         }
-        if let Some(runtime_envs) = self.make_runtime_envs() {
-            builder = builder.with_runtime_envs(runtime_envs);
+        if let Some(runtime_env) = self.make_runtime_env() {
+            builder = builder.with_runtime_env(runtime_env);
         }
-        if let Some(state_tables) = self.make_state_tables() {
-            builder = builder.with_state(state_tables);
+        if let Some(subjects) = self.make_subjects() {
+            builder = builder.with_subjects(subjects);
         }
         builder
     }
@@ -1192,28 +1243,27 @@ pub mod test_session_context_builder_agents {
 
     use std::vec;
 
-    use crate::test_session_context_builder::make_test_session_context_builder_parallel_tasks;
+    use crate::{test_session_context_builder, test_task};
     use phymes_core::{
-        AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, TableBuilderTrait,
-        TablePublication, TableSubscription, test_table::make_test_table,
-        test_task::make_runtime_env,
+        AvailableSubscribeEvents, BuildableTrait, BuilderTrait, Publication, SubjectBuilderTrait,
+        Subscription, test_subject,
     };
     use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator};
 
     use super::*;
 
-    pub fn make_test_state_agents() -> Result<Vec<Table>> {
+    pub fn make_test_state_agents() -> Result<Vec<Subject>> {
         let mut state = vec![
-            make_test_table("state_1", 4, 8, 3)?,
-            make_test_table("state_2", 4, 8, 3)?,
-            make_test_table("state_3", 4, 8, 3)?,
+            test_subject::make_test_subject("state_1", 4, 8, 3)?,
+            test_subject::make_test_subject("state_2", 4, 8, 3)?,
+            test_subject::make_test_subject("state_3", 4, 8, 3)?,
         ];
         let processor_1 = DataConfig {
             lhs_name: Some("state_1".to_string()),
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&processor_1).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_1")
             .with_json(&join_config_json, 1)
             .unwrap()
@@ -1225,7 +1275,7 @@ pub mod test_session_context_builder_agents {
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&processor_2).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_2")
             .with_json(&join_config_json, 1)
             .unwrap()
@@ -1239,57 +1289,51 @@ pub mod test_session_context_builder_agents {
         let processor_plans = vec![
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_1"))
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_1".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_1".to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: "state_1".to_string(),
+                    Subscription::OnUpdateAllRecordBatches {
+                        subject_name: "state_1".to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: "processor_1".to_string(),
+                    Subscription::AlwaysAllRecordBatches {
+                        subject_name: "processor_1".to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()?,
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_2"))
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_2".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_2".to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: "state_2".to_string(),
+                    Subscription::OnUpdateAllRecordBatches {
+                        subject_name: "state_2".to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: "processor_2".to_string(),
+                    Subscription::AlwaysAllRecordBatches {
+                        subject_name: "processor_2".to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()?,
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::Join.build_arc("processor_3"))
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_3".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_3".to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: "state_1".to_string(),
+                    Subscription::OnUpdateAllRecordBatches {
+                        subject_name: "state_1".to_string(),
                     },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: "state_2".to_string(),
+                    Subscription::OnUpdateAllRecordBatches {
+                        subject_name: "state_2".to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: "processor_3".to_string(),
+                    Subscription::AlwaysAllRecordBatches {
+                        subject_name: "processor_3".to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()?,
         ];
         Ok(processor_plans)
@@ -1298,7 +1342,7 @@ pub mod test_session_context_builder_agents {
     #[allow(dead_code)]
     pub fn make_test_session_builder_agents(name: &str) -> Result<SessionContextBuilder> {
         let processor_plans = make_test_processors_agents()?;
-        let mut state = make_test_state_agents()?;
+        let mut subjects = make_test_state_agents()?;
 
         let join_config = DataConfig {
             lhs_name: Some("state_1".to_string()),
@@ -1312,20 +1356,26 @@ pub mod test_session_context_builder_agents {
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
-        state.push(join_config_state);
+        subjects.push(join_config_state);
+        let subjects_plan = subjects
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
 
         let builder = SessionContextBuilder::new()
             .with_name(name)
-            .with_tasks(make_test_session_context_builder_parallel_tasks())
+            .with_tasks(
+                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+            )
             .with_processors(processor_plans)
-            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
-            .with_state(state)
+            .with_runtime_env(test_task::make_runtime_env("rt_1")?)
+            .with_subjects(subjects_plan)
             .with_diagnostics(true);
         Ok(builder)
     }
@@ -1333,39 +1383,65 @@ pub mod test_session_context_builder_agents {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_session_context_builder;
-    use phymes_core::{BuildableTrait, BuilderTrait, TableBuilderTrait, TaskTrait, test_task};
+    use crate::{TaskTrait, test_session_context_builder, test_task};
+    use phymes_core::{BuildableTrait, BuilderTrait, SubjectBuilderTrait};
     use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator, DataStreamManager};
 
     use super::*;
 
     #[test]
     fn test_session_context_builder_agents_build_with_tables_success() -> Result<()> {
-        let session =
+        let (session, messages) =
             test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
                 .build_with_tables()?;
-        assert_eq!(session.get_states().len(), 18);
-        assert_eq!(session.get_tasks().len(), 3);
+        assert_eq!(session.subjects().len(), 19);
+        assert_eq!(session.tasks().len(), 3);
         assert_eq!(session.get_name(), "session_1");
-        assert_eq!(session.get_max_iter(), 25);
+        assert_eq!(session.get_max_steps(), 25);
         assert!(session.get_diagnostics());
+        let mut keys = messages
+            .unwrap()
+            .keys()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        keys.sort();
+        assert_eq!(
+            keys,
+            [
+                "SessionMermaid",
+                "SessionProcessors",
+                "SessionRuntimeEnvs",
+                "SessionSubjectSchemas",
+                "SessionTasks",
+                "SessionTasksRunLog",
+                "SubjectsChangeLog",
+                "SubjectsNumRows",
+                "SubjectsObjectStoreMeta",
+                "processor_1",
+                "processor_2",
+                "processor_3",
+                "state_1",
+                "state_2",
+                "state_3"
+            ]
+        );
         Ok(())
     }
 
     #[test]
     fn test_session_context_builder_agents_build_with_tables_add_session_interface() -> Result<()> {
-        let session =
+        let (session, messages) =
             test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
                 .add_session_interface(Some(&["state_1"]))?
                 .build_with_tables()?;
-        assert_eq!(session.get_states().len(), 18);
-        assert_eq!(session.get_tasks().len(), 4);
+        assert_eq!(session.subjects().len(), 19);
+        assert_eq!(session.tasks().len(), 4);
         assert_eq!(
-            session.get_tasks().get("session_1").unwrap().get_name(),
+            session.tasks().get("session_1").unwrap().get_name(),
             "session_1"
         );
         let test = session
-            .get_tasks()
+            .tasks()
             .get("session_1")
             .unwrap()
             .get_processors()
@@ -1373,15 +1449,35 @@ mod tests {
             .map(|p| p.get_name())
             .collect::<Vec<_>>();
         assert_eq!(test, ["session_1"]);
-        let test = session
-            .get_tasks()
-            .get("session_1")
-            .unwrap()
-            .get_runtime_env();
-        assert_eq!(test.get_name(), "session_1-runtime_env");
         assert_eq!(session.get_name(), "session_1");
-        assert_eq!(session.get_max_iter(), 25);
+        assert_eq!(session.get_max_steps(), 25);
         assert!(session.get_diagnostics());
+        let mut keys = messages
+            .unwrap()
+            .keys()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        keys.sort();
+        assert_eq!(
+            keys,
+            [
+                "SessionMermaid",
+                "SessionProcessors",
+                "SessionRuntimeEnvs",
+                "SessionSubjectSchemas",
+                "SessionTasks",
+                "SessionTasksRunLog",
+                "SubjectsChangeLog",
+                "SubjectsNumRows",
+                "SubjectsObjectStoreMeta",
+                "processor_1",
+                "processor_2",
+                "processor_3",
+                "state_1",
+                "state_2",
+                "state_3"
+            ]
+        );
         Ok(())
     }
 
@@ -1389,7 +1485,7 @@ mod tests {
     fn test_session_context_builder_agents_build_with_tables_missing_processor_configs_subjects()
     -> Result<()> {
         // Check that missing config subscriptions can be identified
-        let mut state = test_session_context_builder_agents::make_test_state_agents()?;
+        let mut subjects = test_session_context_builder_agents::make_test_state_agents()?;
         let join_config = DataConfig {
             lhs_name: Some("state_1".to_string()),
             rhs_name: Some("state_2".to_string()),
@@ -1402,18 +1498,21 @@ mod tests {
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
-        state.push(join_config_state);
+        subjects.push(join_config_state);
+        let subjects_plan = subjects
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
         let mut task_plans =
             test_session_context_builder::make_test_session_context_builder_parallel_tasks();
         task_plans.push(TaskPlan {
             task_name: "task_4".to_string(),
-            runtime_env_name: "rt_1".to_string(),
             processor_names: vec!["processor_4".to_string()],
         });
         let mut processor_plans =
@@ -1421,24 +1520,22 @@ mod tests {
         processor_plans.push(
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_4"))
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_3".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_3".to_string(),
                 }])
-                .with_subscriptions(&[TableSubscription::OnUpdateFullTable {
-                    table_name: "state_3".to_string(),
+                .with_subscriptions(&[Subscription::OnUpdateAllRecordBatches {
+                    subject_name: "state_3".to_string(),
                 }])
-                .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()?,
         );
         let result = SessionContextBuilder::new()
             .with_name("session_1")
             .with_tasks(task_plans.clone())
             .with_processors(processor_plans)
-            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
+            .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_diagnostics(true)
-            .with_state(state.clone())
+            .with_subjects(subjects_plan.clone())
             .build_with_tables();
         match result {
             Ok(_) => panic!("Should have failed"),
@@ -1454,37 +1551,62 @@ mod tests {
         processor_plans.push(
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_4"))
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_3".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_3".to_string(),
                 }])
-                .with_subscriptions(&[TableSubscription::OnUpdateFullTable {
-                    table_name: "state_3".to_string(),
+                .with_subscriptions(&[Subscription::OnUpdateAllRecordBatches {
+                    subject_name: "state_3".to_string(),
                 }])
-                .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()?,
         );
-        let session = SessionContextBuilder::new()
+        let (session, messages) = SessionContextBuilder::new()
             .with_name("session_1")
             .with_tasks(task_plans)
             .with_processors(processor_plans)
-            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
+            .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_diagnostics(true)
-            .with_state(state.clone())
+            .with_subjects(subjects_plan.clone())
             .add_processor_subjects()?
             .build_with_tables()?;
-        assert_eq!(session.get_states().len(), 19);
-        assert_eq!(session.get_tasks().len(), 4);
+        assert_eq!(session.subjects().len(), 20);
+        assert_eq!(session.tasks().len(), 4);
         assert_eq!(session.get_name(), "session_1");
-        assert_eq!(session.get_max_iter(), 25);
+        assert_eq!(session.get_max_steps(), 25);
+        let mut keys = messages
+            .unwrap()
+            .keys()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        keys.sort();
+        assert_eq!(
+            keys,
+            [
+                "SessionMermaid",
+                "SessionProcessors",
+                "SessionRuntimeEnvs",
+                "SessionSubjectSchemas",
+                "SessionTasks",
+                "SessionTasksRunLog",
+                "SubjectsChangeLog",
+                "SubjectsNumRows",
+                "SubjectsObjectStoreMeta",
+                "processor_1",
+                "processor_2",
+                "processor_3",
+                "processor_4",
+                "state_1",
+                "state_2",
+                "state_3"
+            ]
+        );
         Ok(())
     }
 
     #[test]
     fn test_session_context_builder_agents_build_with_tables_missing_data_config_subjects()
     -> Result<()> {
-        let state = test_session_context_builder_agents::make_test_state_agents()?;
+        let subjects = test_session_context_builder_agents::make_test_state_agents()?;
 
         // Test that mismatches in the lhs/rhs name are identified
         let join_config = DataConfig {
@@ -1495,14 +1617,18 @@ mod tests {
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
-        let mut state_test = state.clone();
-        state_test.push(join_config_state);
+        let mut subjects_test = subjects.clone();
+        subjects_test.push(join_config_state);
+        let subjects_plans = subjects_test
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
 
         let result = SessionContextBuilder::new()
             .with_tasks(
@@ -1510,8 +1636,8 @@ mod tests {
             )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
-            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
-            .with_state(state_test)
+            .with_runtime_env(test_task::make_runtime_env("rt_1")?)
+            .with_subjects(subjects_plans)
             .with_diagnostics(true)
             .build_with_tables();
         match result {
@@ -1535,14 +1661,18 @@ mod tests {
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
-        let mut state_test = state.clone();
-        state_test.push(join_config_state);
+        let mut subjects_test = subjects.clone();
+        subjects_test.push(join_config_state);
+        let subjects_plans = subjects_test
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
 
         let result = SessionContextBuilder::new()
             .with_tasks(
@@ -1550,8 +1680,8 @@ mod tests {
             )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
-            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
-            .with_state(state_test)
+            .with_runtime_env(test_task::make_runtime_env("rt_1")?)
+            .with_subjects(subjects_plans)
             .with_diagnostics(true)
             .build_with_tables();
         match result {
@@ -1576,14 +1706,18 @@ mod tests {
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
-        let mut state_test = state.clone();
-        state_test.push(join_config_state);
+        let mut subjects_test = subjects.clone();
+        subjects_test.push(join_config_state);
+        let subjects_plans = subjects_test
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
 
         let result = SessionContextBuilder::new()
             .with_tasks(
@@ -1591,8 +1725,8 @@ mod tests {
             )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
-            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
-            .with_state(state_test)
+            .with_runtime_env(test_task::make_runtime_env("rt_1")?)
+            .with_subjects(subjects_plans)
             .with_diagnostics(true)
             .build_with_tables();
         match result {
@@ -1609,7 +1743,7 @@ mod tests {
     #[test]
     fn test_session_context_builder_agents_build_with_tables_failing_processor_config_builds()
     -> Result<()> {
-        let state = test_session_context_builder_agents::make_test_state_agents()?;
+        let subjects = test_session_context_builder_agents::make_test_state_agents()?;
 
         // Test for mismatch between processor and config types
         let join_config = LimitConfig {
@@ -1617,14 +1751,18 @@ mod tests {
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
-        let mut state_test = state.clone();
-        state_test.push(join_config_state);
+        let mut subjects_test = subjects.clone();
+        subjects_test.push(join_config_state);
+        let subjects_plans = subjects_test
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
 
         let result = SessionContextBuilder::new()
             .with_tasks(
@@ -1632,8 +1770,8 @@ mod tests {
             )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
-            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
-            .with_state(state_test)
+            .with_runtime_env(test_task::make_runtime_env("rt_1")?)
+            .with_subjects(subjects_plans)
             .with_diagnostics(true)
             .build_with_tables();
         match result {
@@ -1654,14 +1792,18 @@ mod tests {
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
-        let mut state_test = state.clone();
-        state_test.push(join_config_state);
+        let mut subjects_test = subjects.clone();
+        subjects_test.push(join_config_state);
+        let subjects_plans = subjects_test
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
 
         let result = SessionContextBuilder::new()
             .with_tasks(
@@ -1669,8 +1811,8 @@ mod tests {
             )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
-            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
-            .with_state(state_test)
+            .with_runtime_env(test_task::make_runtime_env("rt_1")?)
+            .with_subjects(subjects_plans)
             .with_diagnostics(true)
             .build_with_tables();
         match result {
@@ -1691,14 +1833,18 @@ mod tests {
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
-        let mut state_test = state.clone();
-        state_test.push(join_config_state);
+        let mut subjects_test = subjects.clone();
+        subjects_test.push(join_config_state);
+        let subjects_plans = subjects_test
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
 
         let result = SessionContextBuilder::new()
             .with_tasks(
@@ -1706,8 +1852,8 @@ mod tests {
             )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
-            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
-            .with_state(state_test)
+            .with_runtime_env(test_task::make_runtime_env("rt_1")?)
+            .with_subjects(subjects_plans)
             .with_diagnostics(true)
             .build_with_tables();
         match result {

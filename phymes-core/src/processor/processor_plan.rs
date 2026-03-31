@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    MappableTrait, ProcessorTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription,
-    TableUpdatePolicyTrait,
+    MappableTrait, ProcessorTrait, Publication, SubscribeEventTrait, Subscription, UpdateEventTrait,
 };
 
 /// The plan for the processors
@@ -11,13 +10,13 @@ pub struct ProcessorPlan {
     /// The processor
     processor: Arc<dyn ProcessorTrait>,
     /// The subjects the processor publishes on
-    publications: Vec<TablePublication>,
+    publications: Vec<Publication>,
     /// The subjects the processor subscribes to
-    subscriptions: Vec<TableSubscription>,
+    subscriptions: Vec<Subscription>,
     /// The policy for subscribing to subjects
-    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
+    subscribe_policy: Box<dyn SubscribeEventTrait>,
     /// The policy for determining when tables have been updated
-    update_policy: Box<dyn TableUpdatePolicyTrait>,
+    update_policy: Box<dyn UpdateEventTrait>,
 }
 
 impl PartialEq for ProcessorPlan {
@@ -34,10 +33,10 @@ impl PartialEq for ProcessorPlan {
 impl ProcessorPlan {
     pub fn new(
         processor: Arc<dyn ProcessorTrait>,
-        publications: &[TablePublication],
-        subscriptions: &[TableSubscription],
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-        update_policy: Box<dyn TableUpdatePolicyTrait>,
+        publications: &[Publication],
+        subscriptions: &[Subscription],
+        subscribe_policy: Box<dyn SubscribeEventTrait>,
+        update_policy: Box<dyn UpdateEventTrait>,
     ) -> Self {
         ProcessorPlan {
             processor,
@@ -56,30 +55,30 @@ impl ProcessorPlan {
     pub fn get_type(&self) -> &str {
         self.processor.get_type()
     }
-    pub fn get_subscriptions(&self) -> &Vec<TableSubscription> {
+    pub fn get_subscriptions(&self) -> &Vec<Subscription> {
         &self.subscriptions
     }
-    pub fn get_subscriptions_owned(self) -> Vec<TableSubscription> {
+    pub fn get_subscriptions_owned(self) -> Vec<Subscription> {
         self.subscriptions
     }
-    pub fn get_publications(&self) -> &Vec<TablePublication> {
+    pub fn get_publications(&self) -> &Vec<Publication> {
         &self.publications
     }
-    pub fn get_publications_owned(self) -> Vec<TablePublication> {
+    pub fn get_publications_owned(self) -> Vec<Publication> {
         self.publications
     }
     #[allow(clippy::borrowed_box)]
-    pub fn get_subscribe_policy(&self) -> &Box<dyn TableSubscribePolicyTrait> {
+    pub fn get_subscribe_policy(&self) -> &Box<dyn SubscribeEventTrait> {
         &self.subscribe_policy
     }
-    pub fn get_subscribe_policy_owned(self) -> Box<dyn TableSubscribePolicyTrait> {
+    pub fn get_subscribe_policy_owned(self) -> Box<dyn SubscribeEventTrait> {
         self.subscribe_policy
     }
     #[allow(clippy::borrowed_box)]
-    pub fn get_update_policy(&self) -> &Box<dyn TableUpdatePolicyTrait> {
+    pub fn get_update_policy(&self) -> &Box<dyn UpdateEventTrait> {
         &self.update_policy
     }
-    pub fn get_update_policy_owned(self) -> Box<dyn TableUpdatePolicyTrait> {
+    pub fn get_update_policy_owned(self) -> Box<dyn UpdateEventTrait> {
         self.update_policy
     }
 }
@@ -96,9 +95,9 @@ pub struct ProcessorSubjects {
     /// Name of the processor
     pub name: String,
     /// The subjects the processor publishes on
-    pub publications: Vec<TablePublication>,
+    pub publications: Vec<Publication>,
     /// The subjects the processor subscribes to
-    pub subscriptions: Vec<TableSubscription>,
+    pub subscriptions: Vec<Subscription>,
 }
 
 impl MappableTrait for ProcessorSubjects {

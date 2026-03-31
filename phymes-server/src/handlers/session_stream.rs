@@ -16,7 +16,7 @@ use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
 use phymes_core::{
     AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, IPCMessage,
     JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait,
-    Table, TableBuilder, TableBuilderTrait, TableTrait,
+    Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 
 // General imports
@@ -37,7 +37,7 @@ pub async fn session_stream(
         String,
         Vec<JoinUserInboxSessionContextsMermaidDiagrams>,
     )>,
-    State((_, mut state)): State<(UserState, ServerState)>,
+    State((users, mut state)): State<(UserState, ServerState)>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
@@ -57,7 +57,9 @@ pub async fn session_stream(
                 .contains_key(&current_user)
             {
                 // Initialize the user session contexts
-                let _session_names = match state.make_session_contexts(&user_session_contexts, true)
+                let _session_names = match state
+                    .make_session_contexts(&user_session_contexts, true, users.users.runtime_env())
+                    .await
                 {
                     Ok(session_names) => session_names,
                     Err(err) => {
@@ -65,18 +67,6 @@ pub async fn session_stream(
                             .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 };
-
-                // Read in any updates to the session context
-                match state.read_session_contexts(
-                    &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                    &current_user,
-                ) {
-                    Ok(()) => tracing::info!("Read state for {}", current_user),
-                    Err(e) => tracing::info!(
-                        "Failed to read the session stream state {e:?} for {}",
-                        current_user
-                    ),
-                }
             }
 
             let session_ctx_arc = match state
@@ -105,7 +95,7 @@ pub async fn session_stream(
                                     .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                             }
                         };
-                    Table::get_builder()
+                    Subject::get_builder()
                         .with_name(payload.get_subject())
                         .with_schema(schema)
                         .with_bytes(payload.get_message())
@@ -143,7 +133,7 @@ pub async fn session_stream(
                             .filter(|(_k, v)| v.get_name().contains(payload.get_session_name()))
                             .flat_map(|(_k, v)| {
                                 let name = v.get_name().to_string();
-                                TableBuilder::new_from_ipc_stream(&v.get_message_own())
+                                SubjectBuilder::new_from_ipc_stream(&v.get_message_own())
                                     .unwrap()
                                     .with_name(name.as_str())
                                     .build()
@@ -167,7 +157,7 @@ pub async fn session_stream(
                         .filter(|(_k, v)| v.get_name().contains(payload.get_session_name()))
                         .flat_map(|(_k, v)| {
                             let name = v.get_name().to_string();
-                            TableBuilder::new_from_ipc_stream(&v.get_message_own())
+                            SubjectBuilder::new_from_ipc_stream(&v.get_message_own())
                                 .unwrap()
                                 .with_name(name.as_str())
                                 .build()
@@ -179,21 +169,7 @@ pub async fn session_stream(
                     let response = Bytes::from(serde_json::to_string(&response).unwrap());
 
                     // Update the row counts
-                    session_ctx_arc
-                        .try_write()
-                        .unwrap()
-                        .update_subject_num_rows_table();
-
-                    // Write the updates to disk
-                    if let Err(e) = state.write_session_contexts(
-                        &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                        &current_user,
-                    ) {
-                        return JsonError::new(format!(
-                            "Failed to write the session stream state {e:?}"
-                        ))
-                        .to_response(StatusCode::INTERNAL_SERVER_ERROR);
-                    }
+                    let _ = session_ctx_arc.update_subject_num_rows().await;
 
                     // Send the stream
                     Body::from(response).into_response()
@@ -222,13 +198,14 @@ pub async fn session_stream(
                             map.into_iter()
                                 .filter_map(|(_k, v)| {
                                     if v.get_name().contains(payload.get_session_name()) {
-                                        let batches =
-                                            TableBuilder::new_from_ipc_stream(&v.get_message_own())
-                                                .unwrap()
-                                                .with_name("")
-                                                .build()
-                                                .unwrap()
-                                                .get_record_batches_own();
+                                        let batches = SubjectBuilder::new_from_ipc_stream(
+                                            &v.get_message_own(),
+                                        )
+                                        .unwrap()
+                                        .with_name("")
+                                        .build()
+                                        .unwrap()
+                                        .get_record_batches_own();
                                         Some(batches)
                                     } else {
                                         None
@@ -238,7 +215,7 @@ pub async fn session_stream(
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
-                    let response = TableBuilder::new()
+                    let response = SubjectBuilder::new()
                         .with_name("session_stream_response")
                         .with_record_batches(batches)
                         .unwrap()
@@ -250,21 +227,7 @@ pub async fn session_stream(
                         .unwrap();
 
                     // Update the row counts
-                    session_ctx_arc
-                        .try_write()
-                        .unwrap()
-                        .update_subject_num_rows_table();
-
-                    // Write the updates to disk
-                    if let Err(e) = state.write_session_contexts(
-                        &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                        &current_user,
-                    ) {
-                        return JsonError::new(format!(
-                            "Failed to write the session stream state {e:?}"
-                        ))
-                        .to_response(StatusCode::INTERNAL_SERVER_ERROR);
-                    }
+                    let _ = session_ctx_arc.update_subject_num_rows().await;
 
                     // Send the stream
                     Body::from(response).into_response()

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageMap,
-    MessageBuilderTrait, Table, TableBuilderTrait, TablePublication, TableTrait,
+    MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait,
     create_session_tasks_subscribe_publish_batch,
 };
 
@@ -37,7 +37,7 @@ impl<'a> NextSuperstepSession<'a> {
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let subscription_names = vec![vec!["OnUpdateFullTable", "AlwaysFullTable"]]
+        let subscription_names = vec![vec!["OnUpdateAllRecordBatches", "AlwaysAllRecordBatches"]]
             .into_iter()
             .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
             .collect::<Vec<_>>();
@@ -69,7 +69,7 @@ impl<'a> NextSuperstepSession<'a> {
             publication_names,
             publication_table_names,
         )?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(
                 AvailableSubjects::SessionTasksSubscribePublish
                     .to_string()
@@ -84,8 +84,8 @@ impl<'a> NextSuperstepSession<'a> {
                     .to_string()
                     .as_str(),
             )
-            .with_update(&TablePublication::Replace {
-                table_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+            .with_update(&Publication::Replace {
+                subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
             })
             .with_publisher(self.session_context_name)
             .make_name()?
@@ -101,7 +101,7 @@ impl<'a> NextSuperstepSession<'a> {
     NextSuperstepSession_runtime_env-rt@{shape: subproc, label: NextSuperstepSession_runtime_env}
 
 	subgraph max_superstep_t
-		SessionSupersteps-subject-.->|FullTable|group_by_session_superstep_p-subscribe
+		SessionSupersteps-subject-.->|AllRecordBatches|group_by_session_superstep_p-subscribe
 		group_by_session_superstep_p-subscribe-->group_by_session_superstep_p-processor
 		group_by_session_superstep_p-processor-->group_by_session_superstep_p-publish
 		group_by_session_superstep_p-publish-->|Replace|SessionSuperstepMax-subject
@@ -143,16 +143,17 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait,
-        TablePublication, TableTrait, create_session_supersteps_batch,
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait,
+        MessageBuilderTrait, Publication, SubjectTrait, Subscription,
+        create_session_supersteps_batch,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
         SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream, create_message_map,
+        SessionContextBuilderTrait, SessionStream, SessionStreamStepMinimal,
+        SessionStreamStepTrait, SubscriptionTrait, create_message_map,
     };
 
     use super::*;
@@ -161,11 +162,11 @@ mod tests {
     async fn test_next_superstep_session() -> Result<()> {
         // Initialize the session
         let next_superstep_session = NextSuperstepSession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             next_superstep_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             next_superstep_session.as_mermaid_erdiagram(),
             false,
             true,
@@ -175,24 +176,60 @@ mod tests {
         .add_processor_subjects()?
         .add_next_tasks()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
+
+        // Session Tasks
+        let mut next_superstep_messages = next_superstep_session
+            .as_task_messages()?
+            .into_iter()
+            .rev()
+            .collect::<Vec<_>>();
+
+        // Run the session
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
+        let session_stream = SessionStream::new(
+            next_superstep_messages.pop().unwrap(),
+            Arc::clone(&session_ctx_arc),
+        );
+        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+
+        assert_eq!(response.len(), 0);
+
+        // Test supserstep 1
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionSuperstepMax.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SessionSuperstepMax.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        let column = subject.get_column_as_vec_str("session_name");
+        assert_eq!(column, ["next_superstep_session"]);
+        let column = subject.get_column_as_vec_primitive::<u32>("superstep-Max")?;
+        assert_eq!(column, [2]); // Should be one without the forced execution of session step session tasks
 
         // Make the test session data
         let session_names = ["session_1", "session_1", "session_1", "session_1"]
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let supersteps = vec![0, 1, 2, 3];
+        let supersteps = vec![3, 4, 5, 6];
         let batch = create_session_supersteps_batch(session_names, supersteps)?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(AvailableSubjects::SessionSupersteps.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
         let superstep_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
             .with_subject(AvailableSubjects::SessionSupersteps.to_string().as_str())
-            .with_update(&TablePublication::Replace {
-                table_name: AvailableSubjects::SessionSupersteps.to_string(),
+            .with_update(&Publication::Replace {
+                subject_name: AvailableSubjects::SessionSupersteps.to_string(),
             })
             .with_publisher(next_superstep_session.session_context_name)
             .make_name()?
@@ -205,27 +242,27 @@ mod tests {
             .into_iter()
             .rev()
             .collect::<Vec<_>>();
-
-        // Run the session
         message_map.extend(next_superstep_messages.pop().unwrap());
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let _response =
+            SessionStreamStepMinimal::run_superstep(Arc::clone(&session_ctx_arc), message_map)
+                .await?;
 
-        assert_eq!(response.len(), 0);
-
-        {
-            // Test supserstep 1
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get(AvailableSubjects::SessionSuperstepMax.to_string().as_str())
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("session_name");
-            assert_eq!(column, ["session_1"]);
-            let column = table_reading.get_column_as_vec_primitive::<u32>("superstep-Max")?;
-            assert_eq!(column, [3]);
+        // Test supserstep 1
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionSuperstepMax.to_string(),
         }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SessionSuperstepMax.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        let column = subject.get_column_as_vec_str("session_name");
+        assert_eq!(column, ["session_1"]);
+        let column = subject.get_column_as_vec_primitive::<u32>("superstep-Max")?;
+        assert_eq!(column, [6]);
 
         Ok(())
     }

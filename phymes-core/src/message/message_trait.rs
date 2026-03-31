@@ -1,8 +1,8 @@
 use crate::schemas::{create_bytes_record_batch, create_route_bytes_fields};
 use crate::{
     BuildableTrait, BuilderTrait, DataFormat, IPCMessageBuilder, IPCMessageMap, MappableTrait,
-    MessageBuilderTrait, SendableRecordBatchStream, SendableRecordBatchStreamMessageBuilder,
-    TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
+    MessageBuilderTrait, Publication, SendableRecordBatchStream,
+    SendableRecordBatchStreamMessageBuilder, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 
 use anyhow::Result;
@@ -12,13 +12,13 @@ use phymes_diagnostics::{HashMap, TraceableTrait, Tracer};
 /// An [RecordBatch], `IPCStream`, or [SendableRecordBatch] with additional
 /// metadata for subject, publisher, and update
 ///
-/// [SendableRecordBatch]: crate::table::SendableRecordBatchStream
+/// [SendableRecordBatch]: crate::SendableRecordBatchStream
 /// [RecordBatch]: arrow::record_batch::RecordBatch
 pub trait MessageTrait: MappableTrait + BuildableTrait + Send {
     type T;
     fn get_subject(&self) -> &str;
     fn get_publisher(&self) -> &str;
-    fn get_update(&self) -> &TablePublication;
+    fn get_update(&self) -> &Publication;
     fn get_message(&self) -> &<Self as MessageTrait>::T;
     fn get_message_own(self) -> <Self as MessageTrait>::T;
     fn get_message_mut(&mut self) -> &mut <Self as MessageTrait>::T;
@@ -35,7 +35,7 @@ pub struct IPCMessage {
     /// The actual message as an IPC stream
     pub(crate) message: Vec<u8>,
     /// How to update the state
-    pub(crate) update: TablePublication,
+    pub(crate) update: Publication,
 }
 
 impl IPCMessage {
@@ -44,7 +44,7 @@ impl IPCMessage {
         subject: &str,
         publisher: &str,
         message: Option<Vec<u8>>,
-        update: Option<TablePublication>,
+        update: Option<Publication>,
     ) -> Self {
         Self {
             name: name.to_string(),
@@ -73,7 +73,7 @@ impl IPCMessage {
         let fields = create_route_bytes_fields();
 
         // Wrap the message in a table
-        let table = TableBuilder::new_from_ipc_stream(&self.message)?
+        let table = SubjectBuilder::new_from_ipc_stream(&self.message)?
             .with_name(&self.subject)
             .build()?;
 
@@ -95,7 +95,7 @@ impl IPCMessage {
                 .zip(bytes)
                 .map(|((((name, publisher), subject), format), bytes)| {
                     let batch = create_bytes_record_batch(vec![bytes])?;
-                    let values = TableBuilder::new()
+                    let values = SubjectBuilder::new()
                         .with_name(name)
                         .with_record_batches(vec![batch])?
                         .build()?
@@ -103,8 +103,8 @@ impl IPCMessage {
                     let message = IPCMessageBuilder::new()
                         .with_publisher(publisher)
                         .with_subject(subject)
-                        .with_update(&TablePublication::ExtendBytes {
-                            table_name: subject.to_string(),
+                        .with_update(&Publication::ExtendBytes {
+                            subject_name: subject.to_string(),
                             col_name: "bytes".to_string(),
                             serialize_format: format,
                         })
@@ -154,7 +154,7 @@ impl MessageTrait for IPCMessage {
     fn get_publisher(&self) -> &str {
         &self.publisher
     }
-    fn get_update(&self) -> &TablePublication {
+    fn get_update(&self) -> &Publication {
         &self.update
     }
     fn get_message(&self) -> &<Self as MessageTrait>::T {
@@ -178,7 +178,7 @@ pub struct SendableRecordBatchStreamMessage {
     /// The actual message
     pub(crate) message: SendableRecordBatchStream,
     /// How to update the state
-    pub(crate) update: TablePublication,
+    pub(crate) update: Publication,
 }
 
 impl MappableTrait for SendableRecordBatchStreamMessage {
@@ -211,7 +211,7 @@ impl MessageTrait for SendableRecordBatchStreamMessage {
     fn get_publisher(&self) -> &str {
         &self.publisher
     }
-    fn get_update(&self) -> &TablePublication {
+    fn get_update(&self) -> &Publication {
         &self.update
     }
     fn get_message(&self) -> &<Self as MessageTrait>::T {
@@ -252,14 +252,14 @@ where
 mod tests {
     use phymes_diagnostics::HashMap;
 
-    use crate::{TableBuilder, TableTrait, create_route_bytes_record_batch, test_table};
+    use crate::{SubjectBuilder, SubjectTrait, create_route_bytes_record_batch, test_subject};
 
     use super::*;
 
     #[test]
     fn test_input_message_to_map() -> Result<()> {
-        let test_table_1 = test_table::make_test_table("data", 4, 0, 3)?;
-        let test_table_2 = test_table::make_test_table_chat("chat")?;
+        let test_table_1 = test_subject::make_test_subject("data", 4, 0, 3)?;
+        let test_table_2 = test_subject::make_test_subject_chat("chat")?;
         let names = ["data", "chat"]
             .into_iter()
             .map(|s| s.to_string())
@@ -275,7 +275,7 @@ mod tests {
             test_table_2.to_bytes()?.to_vec(),
         ];
         let batch = create_route_bytes_record_batch(names, publishers, subjects, formats, bytes)?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("")
             .with_record_batches(vec![batch])?
             .build()?;
@@ -283,7 +283,7 @@ mod tests {
             .with_name("")
             .with_publisher("")
             .with_subject("")
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_message(table.to_ipc_stream()?)
             .build()?;
         let message_map = message.to_map()?;
@@ -302,13 +302,13 @@ mod tests {
         );
         assert_eq!(
             *message_map.get("from_s1_on_d1").unwrap().get_update(),
-            TablePublication::ExtendBytes {
-                table_name: "d1".to_string(),
+            Publication::ExtendBytes {
+                subject_name: "d1".to_string(),
                 col_name: "bytes".to_string(),
                 serialize_format: DataFormat::Ipc
             }
         );
-        let test_table = TableBuilder::new_from_ipc_stream(
+        let test_table = SubjectBuilder::new_from_ipc_stream(
             message_map.get("from_s1_on_d1").unwrap().get_message(),
         )?
         .with_name("")
@@ -334,13 +334,13 @@ mod tests {
         );
         assert_eq!(
             *message_map.get("from_s2_on_d2").unwrap().get_update(),
-            TablePublication::ExtendBytes {
-                table_name: "d2".to_string(),
+            Publication::ExtendBytes {
+                subject_name: "d2".to_string(),
                 col_name: "bytes".to_string(),
                 serialize_format: DataFormat::Bytes
             }
         );
-        let test_table = TableBuilder::new_from_ipc_stream(
+        let test_table = SubjectBuilder::new_from_ipc_stream(
             message_map.get("from_s2_on_d2").unwrap().get_message(),
         )?
         .with_name("")
@@ -358,15 +358,15 @@ mod tests {
     #[test]
     fn test_remove_message_by_subject() -> Result<()> {
         // Test data
-        let test_table = test_table::make_test_table("test_table", 4, 8, 3)?;
+        let test_table = test_subject::make_test_subject("test_table", 4, 8, 3)?;
 
         // Test messages
         let mut messages = HashMap::<String, IPCMessage>::new();
         let message = IPCMessageBuilder::new()
             .with_subject("subject_1")
             .with_publisher("publisher")
-            .with_update(&TablePublication::Extend {
-                table_name: "subject_1".to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: "subject_1".to_string(),
             })
             .with_message(test_table.to_ipc_stream()?)
             .make_random_name()?
@@ -375,7 +375,7 @@ mod tests {
         let message = IPCMessageBuilder::new()
             .with_subject("subject_2")
             .with_publisher("publisher")
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_message(test_table.to_ipc_stream()?)
             .make_random_name()?
             .build()?;
@@ -383,7 +383,7 @@ mod tests {
         let message = IPCMessageBuilder::new()
             .with_subject("subject_1")
             .with_publisher("publisher")
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_message(test_table.to_ipc_stream()?)
             .make_random_name()?
             .build()?;

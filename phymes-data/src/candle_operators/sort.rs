@@ -11,7 +11,7 @@ use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
 use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
-    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+    MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
@@ -120,7 +120,7 @@ impl DataOperatorTrait for Sort {
 /// Take the columns according to the indices over the specified columns
 pub fn take_columns_by_indices(
     column_names: &[String],
-    table: &Table,
+    table: &Subject,
     asort_arr: &ArrayRef,
     asort_tensor: &Tensor,
     device: &Device,
@@ -217,7 +217,7 @@ pub fn sort(
     device: &Device,
 ) -> Result<RecordBatch> {
     // Wrap the lhs into an ArrowTable
-    let lhs_table = Table::get_builder()
+    let lhs_table = Subject::get_builder()
         .with_name("sort")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;

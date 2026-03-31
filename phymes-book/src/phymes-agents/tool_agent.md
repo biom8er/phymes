@@ -23,9 +23,9 @@ The session starts when the user publishes a query (1) to the session. The TGI t
 ```mermaid
 flowchart TD
 	subgraph message_aggregator_task_1
-		user_messages-subject--FullTable-->message_aggregator_processor_1-subscribe
+		user_messages-subject--AllRecordBatches-->message_aggregator_processor_1-subscribe
 		tool_messages-subject-.LastRecordBatch.->message_aggregator_processor_1-subscribe
-		assistant_messages-subject--FullTable-->message_aggregator_processor_1-subscribe
+		assistant_messages-subject--AllRecordBatches-->message_aggregator_processor_1-subscribe
 		message_aggregator_processor_1-subject--LastRecordBatch-->message_aggregator_processor_1-subscribe
 		message_aggregator_processor_1-subscribe-->message_aggregator_processor_1-processor
 		message_aggregator_processor_1-processor-->message_aggregator_processor_1-publish
@@ -40,16 +40,16 @@ flowchart TD
 		message_aggregator_processor_2-publish--Extend-->messages-subject
 	end
 	subgraph chat_task_1
-		chat_task_1-subject-.FullTable.->chat_processor_1-subscribe
-		tools-subject--FullTable-->chat_processor_1-subscribe
-		chat_processor_1-subject--FullTable-->chat_processor_1-subscribe
+		chat_task_1-subject-.AllRecordBatches.->chat_processor_1-subscribe
+		tools-subject--AllRecordBatches-->chat_processor_1-subscribe
+		chat_processor_1-subject--AllRecordBatches-->chat_processor_1-subscribe
 		chat_processor_1-subscribe-->chat_processor_1-processor
 		chat_processor_1-processor-->chat_processor_1-publish
 		chat_processor_1-publish--Replace-->message_parser_task_1-subject
 	end
 	subgraph message_parser_task_1
-		message_parser_task_1-subject-.FullTable.->message_parser_processor_1-subscribe
-		message_parser_processor_1-subject--FullTable-->message_parser_processor_1-subscribe
+		message_parser_task_1-subject-.AllRecordBatches.->message_parser_processor_1-subscribe
+		message_parser_processor_1-subject--AllRecordBatches-->message_parser_processor_1-subscribe
 		message_parser_processor_1-subscribe-->message_parser_processor_1-processor
 		message_parser_processor_1-processor-->message_parser_processor_1-publish
 		message_parser_processor_1-publish--Extend-->assistant_messages-subject
@@ -58,7 +58,7 @@ flowchart TD
 	end
 	subgraph Sort
 		Sort-subject-.LastRecordBatch.->Sort-subscribe
-		available_data_1-subject--FullTable-->Sort-subscribe
+		available_data_1-subject--AllRecordBatches-->Sort-subscribe
 		Sort-subscribe-->Sort-processor
 		Sort-processor-->Sort-publish
 		Sort-publish--Replace-->available_data_1-subject
@@ -93,8 +93,8 @@ flowchart TD
 	tool_rt_1-rt-->Sort
 	tool_rt_1-rt-->HumanInTheLoop
 	rt_default-rt-->session_context_1
-	message_aggregator_processor_1-processor@{shape: rect, label: MessageAggregatorProcessor}
-	message_aggregator_processor_2-processor@{shape: rect, label: MessageAggregatorProcessor}
+	message_aggregator_processor_1-processor@{shape: rect, label: AggregatorProcessor}
+	message_aggregator_processor_2-processor@{shape: rect, label: AggregatorProcessor}
 	chat_processor_1-processor@{shape: rect, label: CandleChatProcessor}
 	message_parser_processor_1-processor@{shape: rect, label: MessageParserProcessor}
 	Sort-processor@{shape: rect, label: CandleDataProcessor}

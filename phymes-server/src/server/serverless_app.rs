@@ -1,7 +1,10 @@
+use std::sync::Arc;
+
 // Server related imports
 use anyhow::{Result, anyhow};
 use axum::{Router, response::Response};
 use http::Request;
+use phymes_core::RuntimeEnv;
 use tower_service::Service;
 
 // From lib
@@ -16,10 +19,14 @@ pub struct Serverless {
 }
 
 impl Serverless {
-    pub fn new(user_session_context_name: Option<&str>) -> Self {
-        Self {
-            router: AppBuilder::new(user_session_context_name).build(),
-        }
+    pub async fn new(
+        user_session_context_name: Option<&str>,
+        runtime_env: &Arc<RuntimeEnv>,
+    ) -> Result<Self> {
+        let router = AppBuilder::new(user_session_context_name, runtime_env)
+            .await?
+            .build();
+        Ok(Self { router })
     }
 
     pub async fn call(&mut self, request: Request<String>) -> Response {
@@ -86,8 +93,8 @@ mod tests {
     };
     use phymes_core::{
         AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
-        ChatBuilderTraitExt, DataFormat, MappableTrait, MessageBuilderTrait, TablePublication,
-        TableTrait,
+        ChatBuilderTraitExt, DataFormat, MappableTrait, MessageBuilderTrait, Publication,
+        RuntimeEnv, SubjectTrait,
     };
     use serde_json::{Map, Value};
 
@@ -121,7 +128,8 @@ mod tests {
     #[tokio::test]
     async fn test_serverless_call() {
         // Check sign_in
-        let mut server = Serverless::new(None);
+        let runtime_env = Arc::new(RuntimeEnv::default());
+        let mut serverless = Serverless::new(None, &runtime_env).await.unwrap();
 
         // Make the credentials with basic authorization
         let credentials = basic_auth("contact@biom8er.com", Some("contact@biom8er.com"));
@@ -134,7 +142,7 @@ mod tests {
             .header("Authorization", credentials)
             .body("".into())
             .unwrap();
-        let response: Response = server.call(request).await;
+        let response: Response = serverless.call(request).await;
         assert_eq!(200, response.status());
 
         // Parse the sign_in request results
@@ -147,7 +155,8 @@ mod tests {
         let values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test subjects_schema
-        let mut server = Serverless::new(None);
+        let runtime_env = Arc::new(RuntimeEnv::default());
+        let mut serverless = Serverless::new(None, &runtime_env).await.unwrap();
 
         // Extract out the JWT token
         let token = values.get("jwt").unwrap().as_str().unwrap();
@@ -160,9 +169,13 @@ mod tests {
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_stream(false)
-            .with_subject(AvailableSubjects::SessionSubjects.to_string().as_str())
+            .with_subject(
+                AvailableSubjects::SessionSubjectSchemas
+                    .to_string()
+                    .as_str(),
+            )
             .make_name()
             .unwrap()
             .build()
@@ -177,7 +190,7 @@ mod tests {
             .header("Authorization", bearer.as_str())
             .body(data)
             .unwrap();
-        let response: Response = server.call(request).await;
+        let response: Response = serverless.call(request).await;
         assert_eq!(200, response.status());
 
         // Parse the response for the subjects_schema
@@ -188,11 +201,61 @@ mod tests {
             .await
             .unwrap();
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
+
+        // Test session_stream
+        let runtime_env = Arc::new(RuntimeEnv::default());
+        let mut serverless = Serverless::new(None, &runtime_env).await.unwrap();
+
+        // Make the chat data
+        let chat = AvailableInterfaceSubjects::UserMessages
+            .to_subject_builder(None)
+            .append_new_user_query_str("Write a function to count prime numbers up to N.", "user")
+            .unwrap()
+            .build()
+            .unwrap();
+        let session_response = SessionInterfaceMessage::get_builder()
+            .with_session_name(session_name.as_str())
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(session_name.as_str())
+            .with_update(&Publication::Extend {
+                subject_name: chat.get_name().to_string(),
+            })
+            .with_stream(true)
+            .with_subject(chat.get_name())
+            .with_message(chat.to_bytes().unwrap().to_vec())
+            .make_name()
+            .unwrap()
+            .build()
+            .unwrap();
+        let data = serde_json::to_string(&session_response).unwrap();
+
+        // Make the request for the session_stream
+        let request: Request<String> = Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:8000/app/v1/chat")
+            .header("Content-type", "application/json")
+            .header("Authorization", bearer.as_str())
+            .body(data)
+            .unwrap();
+        let response: Response = serverless.call(request).await;
+        assert_eq!(200, response.status());
+
+        // Parse the response
+        let bytes: Vec<Bytes> = response
+            .into_body()
+            .into_data_stream()
+            .try_collect()
+            .await
+            .unwrap();
+        let values: Vec<Map<String, Value>> =
+            serde_json::from_slice(bytes.first().unwrap()).unwrap();
+        println!("{values:?}");
     }
 
     #[tokio::test]
     async fn test_serverless_app() {
-        let mut serverless = Serverless::new(None);
+        let runtime_env = Arc::new(RuntimeEnv::default());
+        let mut serverless = Serverless::new(None, &runtime_env).await.unwrap();
 
         // Sign in using serverless_app
         let config = ServerlessConfig {
@@ -200,6 +263,9 @@ mod tests {
             basic_auth: Some("contact@biom8er.com:contact@biom8er.com".to_string()),
             bearer_auth: None,
             data: None,
+            object_store_bucket: None,
+            object_store_backend: None,
+            object_store_config: None,
         };
         let response = serverless_app(config, &mut serverless).await.unwrap();
         assert_eq!(200, response.status());
@@ -222,9 +288,13 @@ mod tests {
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_stream(false)
-            .with_subject(AvailableSubjects::SessionSubjects.to_string().as_str())
+            .with_subject(
+                AvailableSubjects::SessionSubjectSchemas
+                    .to_string()
+                    .as_str(),
+            )
             .make_name()
             .unwrap()
             .build()
@@ -236,6 +306,9 @@ mod tests {
             basic_auth: None,
             bearer_auth: Some(bearer.clone()),
             data: Some(data),
+            object_store_bucket: None,
+            object_store_backend: None,
+            object_store_config: None,
         };
         let response = serverless_app(config, &mut serverless).await.unwrap();
         assert_eq!(200, response.status());
@@ -253,7 +326,7 @@ mod tests {
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_stream(false)
             .with_subject(AvailableSubjects::SubjectsNumRows.to_string().as_str())
             .make_name()
@@ -267,6 +340,9 @@ mod tests {
             basic_auth: None,
             bearer_auth: Some(bearer.clone()),
             data: Some(data),
+            object_store_bucket: None,
+            object_store_backend: None,
+            object_store_config: None,
         };
         let response = serverless_app(config, &mut serverless).await.unwrap();
         assert_eq!(200, response.status());
@@ -284,7 +360,7 @@ mod tests {
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_stream(false)
             .with_subject(AvailableSubjects::SessionMermaid.to_string().as_str())
             .make_name()
@@ -298,6 +374,9 @@ mod tests {
             basic_auth: None,
             bearer_auth: Some(bearer.clone()),
             data: Some(data),
+            object_store_bucket: None,
+            object_store_backend: None,
+            object_store_config: None,
         };
         let response = serverless_app(config, &mut serverless).await.unwrap();
         assert_eq!(200, response.status());
@@ -312,7 +391,7 @@ mod tests {
 
         // Test session_stream using serverless_app
         let chat = AvailableInterfaceSubjects::UserMessages
-            .to_table_builder(None)
+            .to_subject_builder(None)
             .append_new_user_query_str("Write a function to count prime numbers up to N.", "user")
             .unwrap()
             .build()
@@ -321,8 +400,8 @@ mod tests {
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())
-            .with_update(&TablePublication::Extend {
-                table_name: chat.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: chat.get_name().to_string(),
             })
             .with_stream(true)
             .with_subject(chat.get_name())
@@ -338,6 +417,9 @@ mod tests {
             basic_auth: None,
             bearer_auth: Some(bearer.clone()),
             data: Some(data),
+            object_store_bucket: None,
+            object_store_backend: None,
+            object_store_config: None,
         };
         let response = serverless_app(config, &mut serverless).await.unwrap();
         assert_eq!(200, response.status());
@@ -357,7 +439,7 @@ mod tests {
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_stream(false)
             .with_subject("")
             .make_name()
@@ -371,6 +453,9 @@ mod tests {
             basic_auth: None,
             bearer_auth: Some(bearer.clone()),
             data: Some(data),
+            object_store_bucket: None,
+            object_store_backend: None,
+            object_store_config: None,
         };
         let response = serverless_app(config, &mut serverless).await.unwrap();
         assert_eq!(200, response.status());

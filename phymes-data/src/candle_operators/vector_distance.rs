@@ -7,7 +7,7 @@ use arrow::{
 };
 use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
-    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+    MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType,
 };
 use serde::{Deserialize, Serialize};
 
@@ -196,7 +196,7 @@ impl DataOperatorTrait for VectorDistance {
 /// Helper method to extract out the embeddings information from the LHS and RHS arguments
 fn embeddings_to_tensor(
     values: &str,
-    table: &Table,
+    table: &Subject,
     device: &Device,
 ) -> Result<(usize, usize, Tensor)> {
     match table.get_column_data_type(values)? {
@@ -300,10 +300,10 @@ fn embeddings_to_tensor(
 /// Helper method to calculate the relative similarity scores
 fn tensor_to_scores(
     lhs_values: &str,
-    lhs_table: &Table,
+    lhs_table: &Subject,
     lhs_tensor: Tensor,
     _rhs_values: &str,
-    _rhs_table: &Table,
+    _rhs_table: &Subject,
     rhs_tensor: Tensor,
     dist_operator: &DataDistanceOperator,
 ) -> Result<ArrayRef> {
@@ -382,11 +382,11 @@ fn vector_distance(
     device: &Device,
 ) -> Result<RecordBatch> {
     // Wrap the lhs and rhs into an ArrowTable
-    let lhs_table = Table::get_builder()
+    let lhs_table = Subject::get_builder()
         .with_name("vector_distance_lhs")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
-    let rhs_table = Table::get_builder()
+    let rhs_table = Subject::get_builder()
         .with_name("vector_distance_rhs")
         .with_record_batches(rhs_args.to_vec())?
         .build()?;

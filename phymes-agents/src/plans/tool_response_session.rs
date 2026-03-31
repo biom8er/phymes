@@ -79,7 +79,9 @@ impl<'a> ToolResponseSession<'a> {
     {}
     {p}["{p}"] {{
         Utf8 operator "PackTabular"
+        Utf8 encoding "None"
         Utf8 format "None"
+        Utf8 schema "Messages"
         Boolean cpu "false"
         Utf8 lhs_name "{subject_name}"
         Utf8 doc_name "{subject_name}"
@@ -109,18 +111,17 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage,
-        MappableTrait, MessageBuilderTrait, TablePublication, TableTrait,
-        create_bytes_record_batch,
+        MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait,
+        SubjectTrait, Subscription, create_bytes_record_batch,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
         AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
         SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
-        create_message_map,
+        SubscriptionTrait, create_message_map,
     };
 
     use super::*;
@@ -131,11 +132,11 @@ mod tests {
         let tool_response_session = ToolResponseSession::default();
         dbg!(&tool_response_session.as_mermaid_flowchart());
         dbg!(&tool_response_session.as_mermaid_erdiagram());
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             &tool_response_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             &tool_response_session.as_mermaid_erdiagram(),
             false,
             true,
@@ -146,16 +147,16 @@ mod tests {
         .add_next_supersteps()?
         .add_next_tasks()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Replace the Bytes to trigger the session
         let message_map = {
             let batch = create_bytes_record_batch(vec!["{}".into()])?;
-            let table = AvailableSubjects::Bytes.to_table(None, Some(vec![batch]))?;
+            let table = AvailableSubjects::Bytes.to_subject(None, Some(vec![batch]))?;
             let session_tasks_message = IPCMessage::get_builder()
                 .with_subject(table.get_name())
-                .with_update(&TablePublication::Replace {
-                    table_name: table.get_name().to_string(),
+                .with_update(&Publication::Replace {
+                    subject_name: table.get_name().to_string(),
                 })
                 .with_publisher(tool_response_session.session_context_name)
                 .with_message(table.to_ipc_stream()?)
@@ -163,6 +164,9 @@ mod tests {
                 .build()?;
             create_message_map(vec![session_tasks_message])
         };
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
@@ -172,22 +176,26 @@ mod tests {
 
         {
             // Test
-            let session_reading = session_ctx_arc.read();
-
-            let table_reading = session_reading
-                .get_states()
-                .get(
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(
                     AvailableInterfaceSubjects::ToolMessages
                         .to_string()
                         .as_str(),
                 )
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("role");
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("role");
             assert_eq!(column, ["tool"]);
-            let column = table_reading.get_column_as_vec_str("content");
+            let column = subject.get_column_as_vec_str("content");
             assert_eq!(column, ["[{\"bytes\":[123,125]}]"]);
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
             for c in column {
                 assert!(c > 0);
             }

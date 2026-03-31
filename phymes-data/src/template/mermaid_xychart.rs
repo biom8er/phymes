@@ -13,7 +13,7 @@ pub static MERMAID_XYCHART_TEMPLATE: &str = r#"
 /// # Example
 ///
 /// ```rust
-/// use phymes_core::TableScript;
+/// use phymes_core::SubjectScript;
 /// use phymes_data::MERMAID_XYCHART_INPUT;
 /// let inputs = serde_json::json!({
 ///     "title": "chart title",
@@ -21,7 +21,7 @@ pub static MERMAID_XYCHART_TEMPLATE: &str = r#"
 ///     "y_title": "y title"
 /// });
 ///
-/// let input_string = TableScript::new_from_template(MERMAID_XYCHART_INPUT.to_string()).apply_template(&inputs).unwrap()
+/// let input_string = SubjectScript::new_from_template(MERMAID_XYCHART_INPUT.to_string()).apply_template(&inputs).unwrap()
 ///     .lines()
 ///     .map(|line| line.trim())
 ///     .collect::<Vec<&str>>()
@@ -44,8 +44,8 @@ mod tests {
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
     use phymes_core::{
-        BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableScript,
-        TableTrait,
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectScript,
+        SubjectTrait,
     };
     use serde_json::{Map, Value};
 
@@ -67,7 +67,7 @@ mod tests {
         let x_arr: ArrayRef = Arc::new(StringArray::from(x_vec));
         let y_arr: ArrayRef = Arc::new(UInt32Array::from_iter_values(y_vec));
         let batch = RecordBatch::try_from_iter(vec![("x", x_arr), ("y", y_arr)])?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -78,7 +78,7 @@ mod tests {
             "x_title": "x title",
             "y_title": "y title",
         });
-        let input_string = TableScript::new_from_template(MERMAID_XYCHART_INPUT.to_string())
+        let input_string = SubjectScript::new_from_template(MERMAID_XYCHART_INPUT.to_string())
             .apply_template(&inputs)?
             .lines()
             .map(|line| line.trim())
@@ -98,7 +98,7 @@ mod tests {
         ]
         .join("");
         let script_string =
-            TableScript::new_from_template(template).apply_template(&xychart_template_inputs)?;
+            SubjectScript::new_from_template(template).apply_template(&xychart_template_inputs)?;
 
         assert_eq!(
             script_string,

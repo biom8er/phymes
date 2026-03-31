@@ -9,8 +9,9 @@ use phymes_core::{
     MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
     SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, create_bytes_fields,
-    create_session_tasks_subscribe_publish_batch, create_values_fields, remove_message_by_subject,
+    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilderTrait, SubjectTrait,
+    create_bytes_fields, create_session_tasks_subscribe_publish_batch, create_values_fields,
+    remove_message_by_subject,
 };
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
@@ -110,9 +111,9 @@ pub struct ToolCallStream {
     /// Parameters tool calling after polling
     config: Option<ToolCallConfig>,
     /// `ViewTasksSubscribePublishAggregated` subject after polling
-    subject_name: Option<Table>,
+    subject_name: Option<Subject>,
     /// The tables of processor configurations after polling
-    tool_calls: Vec<Table>,
+    tool_calls: Vec<Subject>,
 }
 
 impl ToolCallStream {
@@ -134,7 +135,7 @@ impl ToolCallStream {
         })
     }
 
-    fn init_config(&mut self, config_table: Table) -> Result<()> {
+    fn init_config(&mut self, config_table: Subject) -> Result<()> {
         if self.config.is_none() {
             let config = ToolCallConfig::from_table(&config_table)?;
             self.config.replace(config);
@@ -173,7 +174,7 @@ impl Stream for ToolCallStream {
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
-            let config_table = Table::get_builder()
+            let config_table = Subject::get_builder()
                 .with_name("config")
                 .with_record_batches(batches)?
                 .build()?;
@@ -198,7 +199,7 @@ impl Stream for ToolCallStream {
                 while let Some(Ok(batch)) = ready!(message_stream.poll_next_unpin(cx)) {
                     batches.push(batch);
                 }
-                let table = Table::get_builder()
+                let table = Subject::get_builder()
                     .with_name("task/publisher subscriptions and publications")
                     .with_record_batches(batches)?
                     .build()?;
@@ -272,7 +273,7 @@ impl Stream for ToolCallStream {
                 .unwrap()
                 .subscription_name
                 .clone()
-                .unwrap_or("AlwaysFullTable".to_string());
+                .unwrap_or("AlwaysAllRecordBatches".to_string());
             let subject_names = self.config.as_ref().unwrap().subject_names.clone();
             let batch = {
                 let mut session_names = Vec::new();
@@ -301,7 +302,7 @@ impl Stream for ToolCallStream {
                     }
 
                     // Extract the subscription configuration batches
-                    let table = Table::get_builder()
+                    let table = Subject::get_builder()
                         .with_name("Tool call subscription subject")
                         .with_record_batches(batches)?
                         .build()?;
@@ -445,7 +446,7 @@ impl RecordBatchStream for ToolCallStream {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{TableBuilder, TablePublication, create_bytes_record_batch};
+    use phymes_core::{Publication, SubjectBuilder, create_bytes_record_batch};
     use phymes_data::DataConfig;
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
@@ -459,11 +460,7 @@ mod tests {
         let span = SpanBuilder::default().with_span(name).build()?;
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
-        let runtime_env = Arc::new(RuntimeEnv {
-            name: "service".to_string(),
-            memory_limit: None,
-            time_limit: None,
-        });
+        let runtime_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Make the tool_call_processor config
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -474,7 +471,7 @@ mod tests {
             ..Default::default()
         };
         let tool_call_processor_config_json = serde_json::to_vec(&tool_call_processor_config)?;
-        let tool_call_processor_config_table = TableBuilder::new()
+        let tool_call_processor_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&tool_call_processor_config_json, 1)?
             .build()?;
@@ -484,7 +481,7 @@ mod tests {
                 .with_name(tool_call_processor_config_table.get_name())
                 .with_publisher("")
                 .with_subject(tool_call_processor_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(tool_call_processor_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -496,7 +493,7 @@ mod tests {
             ..Default::default()
         };
         let processor_1_config_json = serde_json::to_vec(&processor_1_config)?;
-        let processor_1_config_table = TableBuilder::new()
+        let processor_1_config_table = SubjectBuilder::new()
             .with_name("processor_1")
             .with_json(&processor_1_config_json, 1)?
             .build()?;
@@ -506,7 +503,7 @@ mod tests {
                 .with_name(processor_1_config_table.get_name())
                 .with_publisher("")
                 .with_subject(processor_1_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(processor_1_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -517,7 +514,7 @@ mod tests {
             ..Default::default()
         };
         let processor_2_config_json = serde_json::to_vec(&processor_2_config)?;
-        let processor_2_config_table = TableBuilder::new()
+        let processor_2_config_table = SubjectBuilder::new()
             .with_name("processor_2")
             .with_json(&processor_2_config_json, 1)?
             .build()?;
@@ -527,7 +524,7 @@ mod tests {
                 .with_name(processor_2_config_table.get_name())
                 .with_publisher("")
                 .with_subject(processor_2_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(processor_2_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -546,9 +543,9 @@ mod tests {
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
         let subscription_names = vec![
-            vec!["OnUpdateFullTable", "AlwaysLastRecordBatch"],
-            vec!["OnUpdateFullTable", "AlwaysLastRecordBatch"],
-            vec!["OnUpdateFullTable", "AlwaysLastRecordBatch"],
+            vec!["OnUpdateAllRecordBatches", "AlwaysLastRecordBatch"],
+            vec!["OnUpdateAllRecordBatches", "AlwaysLastRecordBatch"],
+            vec!["OnUpdateAllRecordBatches", "AlwaysLastRecordBatch"],
         ]
         .into_iter()
         .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
@@ -583,7 +580,7 @@ mod tests {
             publication_names,
             publication_table_names,
         )?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(
                 AvailableSubjects::SessionTasksSubscribePublish
                     .to_string()
@@ -597,7 +594,7 @@ mod tests {
                 .with_name(table.get_name())
                 .with_publisher("")
                 .with_subject(table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(table.to_record_batch_stream())
                 .build()?,
         );
@@ -607,7 +604,7 @@ mod tests {
         let mut stream = processor.process(message, Some(&diagnostic_builder), runtime_env)?;
 
         // Wrap the results in a table
-        let table_reading = TableBuilder::new_from_sendable_record_batch_stream(
+        let table_reading = SubjectBuilder::new_from_sendable_record_batch_stream(
             stream.remove(name).unwrap().message.take().unwrap(),
         )
         .await?
@@ -625,10 +622,10 @@ mod tests {
         assert_eq!(
             flattened,
             [
-                "OnUpdateFullTable",
+                "OnUpdateAllRecordBatches",
                 "AlwaysLastRecordBatch",
-                "AlwaysFullTable",
-                "OnUpdateFullTable",
+                "AlwaysAllRecordBatches",
+                "OnUpdateAllRecordBatches",
                 "AlwaysLastRecordBatch"
             ]
         );
@@ -665,11 +662,7 @@ mod tests {
         let span = SpanBuilder::default().with_span(name).build()?;
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
-        let runtime_env = Arc::new(RuntimeEnv {
-            name: "service".to_string(),
-            memory_limit: None,
-            time_limit: None,
-        });
+        let runtime_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Make the tool_call_processor config
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -680,7 +673,7 @@ mod tests {
             ..Default::default()
         };
         let tool_call_processor_config_json = serde_json::to_vec(&tool_call_processor_config)?;
-        let tool_call_processor_config_table = TableBuilder::new()
+        let tool_call_processor_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&tool_call_processor_config_json, 1)?
             .build()?;
@@ -690,7 +683,7 @@ mod tests {
                 .with_name(tool_call_processor_config_table.get_name())
                 .with_publisher("")
                 .with_subject(tool_call_processor_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(tool_call_processor_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -703,7 +696,7 @@ mod tests {
         };
         let processor_1_config_json = serde_json::to_vec(&processor_1_config)?;
         let processor_1_config_batches = create_bytes_record_batch(vec![processor_1_config_json])?;
-        let processor_1_config_table = TableBuilder::new()
+        let processor_1_config_table = SubjectBuilder::new()
             .with_name("processor_1")
             .with_record_batches(vec![processor_1_config_batches])?
             .build()?;
@@ -713,7 +706,7 @@ mod tests {
                 .with_name(processor_1_config_table.get_name())
                 .with_publisher("")
                 .with_subject(processor_1_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(processor_1_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -725,7 +718,7 @@ mod tests {
         };
         let processor_2_config_json = serde_json::to_vec(&processor_2_config)?;
         let processor_2_config_batches = create_bytes_record_batch(vec![processor_2_config_json])?;
-        let processor_2_config_table = TableBuilder::new()
+        let processor_2_config_table = SubjectBuilder::new()
             .with_name("processor_2")
             .with_record_batches(vec![processor_2_config_batches])?
             .build()?;
@@ -735,7 +728,7 @@ mod tests {
                 .with_name(processor_2_config_table.get_name())
                 .with_publisher("")
                 .with_subject(processor_2_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(processor_2_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -754,9 +747,9 @@ mod tests {
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
         let subscription_names = vec![
-            vec!["OnUpdateFullTable", "AlwaysLastRecordBatch"],
-            vec!["OnUpdateFullTable", "AlwaysLastRecordBatch"],
-            vec!["OnUpdateFullTable", "AlwaysLastRecordBatch"],
+            vec!["OnUpdateAllRecordBatches", "AlwaysLastRecordBatch"],
+            vec!["OnUpdateAllRecordBatches", "AlwaysLastRecordBatch"],
+            vec!["OnUpdateAllRecordBatches", "AlwaysLastRecordBatch"],
         ]
         .into_iter()
         .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
@@ -791,7 +784,7 @@ mod tests {
             publication_names,
             publication_table_names,
         )?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(
                 AvailableSubjects::SessionTasksSubscribePublish
                     .to_string()
@@ -805,7 +798,7 @@ mod tests {
                 .with_name(table.get_name())
                 .with_publisher("")
                 .with_subject(table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(table.to_record_batch_stream())
                 .build()?,
         );
@@ -815,7 +808,7 @@ mod tests {
         let mut stream = processor.process(message, Some(&diagnostic_builder), runtime_env)?;
 
         // Wrap the results in a table
-        let table_reading = TableBuilder::new_from_sendable_record_batch_stream(
+        let table_reading = SubjectBuilder::new_from_sendable_record_batch_stream(
             stream.remove(name).unwrap().message.take().unwrap(),
         )
         .await?
@@ -833,10 +826,10 @@ mod tests {
         assert_eq!(
             flattened,
             [
-                "OnUpdateFullTable",
+                "OnUpdateAllRecordBatches",
                 "AlwaysLastRecordBatch",
-                "AlwaysFullTable",
-                "OnUpdateFullTable",
+                "AlwaysAllRecordBatches",
+                "OnUpdateAllRecordBatches",
                 "AlwaysLastRecordBatch"
             ]
         );

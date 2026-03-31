@@ -7,7 +7,7 @@ use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
 use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
-    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+    MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
@@ -197,9 +197,9 @@ fn pivot_missing_values(
     pvt_columns: &[&str],
     default_values: &[&str],
     new_agg_columns: &[String],
-    pvt_columns_table: &Table,
-    pvt_rows_table: &Table,
-    pvt_values_table: &Table,
+    pvt_columns_table: &Subject,
+    pvt_rows_table: &Subject,
+    pvt_values_table: &Subject,
 ) -> Result<RecordBatch> {
     // Initialize the pivot table schema
     let mut pvt_fields = pvt_rows_table
@@ -340,7 +340,7 @@ fn pivot_missing_values(
     }
 
     // Build the pivot table
-    let table = Table::get_builder()
+    let table = Subject::get_builder()
         .with_name("pivot_missing_values")
         .with_schema(Arc::new(Schema::new(pvt_fields)))
         .with_json_values(&rows_vec)?
@@ -353,9 +353,9 @@ fn pivot_values(
     lhs_values: &[&str],
     pvt_columns: &[&str],
     new_agg_columns: &[String],
-    pvt_columns_table: &Table,
-    pvt_rows_table: &Table,
-    pvt_values_table: &Table,
+    pvt_columns_table: &Subject,
+    pvt_rows_table: &Subject,
+    pvt_values_table: &Subject,
     device: &Device,
 ) -> Result<RecordBatch> {
     // Build the pivot table columns
@@ -440,7 +440,7 @@ pub fn pivot(
         .copied()
         .collect::<Vec<&str>>();
     let pvt_values_group = group_by(pvt_values, lhs_args, agg_columns, agg_operators, device)?;
-    let pvt_values_table = Table::get_builder()
+    let pvt_values_table = Subject::get_builder()
         .with_name("pivot")
         .with_record_batches(vec![pvt_values_group])?
         .build()?;
@@ -471,11 +471,11 @@ pub fn pivot(
     let pvt_rows_group = group_by(lhs_values, &[pvt_values_batches], &[], &[], device)?;
 
     // Wrap the all grouped batches into tables
-    let pvt_columns_table = Table::get_builder()
+    let pvt_columns_table = Subject::get_builder()
         .with_name("pvt_columns_table")
         .with_record_batches(vec![pvt_columns_group])?
         .build()?;
-    let pvt_rows_table = Table::get_builder()
+    let pvt_rows_table = Subject::get_builder()
         .with_name("pvt_rows_table")
         .with_record_batches(vec![pvt_rows_group])?
         .build()?;

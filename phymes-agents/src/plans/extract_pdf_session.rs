@@ -28,7 +28,7 @@ impl<'a> ExtractPDFSession<'a> {
 		extract_pdf_p-subscribe-->extract_pdf_p-processor
 		extract_pdf_p-processor-->extract_pdf_p-publish
 		extract_pdf_p-publish-->|Extend|extract_pdf_s-subject
-		extract_pdf_s-subject-->|FullTable|chunk_documents_p-subscribe
+		extract_pdf_s-subject-->|AllRecordBatches|chunk_documents_p-subscribe
 		chunk_documents_p-subscribe-->chunk_documents_p-processor
 		chunk_documents_p-processor-->chunk_documents_p-publish
 		chunk_documents_p-publish-->|Extend|Documents-subject
@@ -91,17 +91,18 @@ mod tests {
     use std::sync::Arc;
 
     use anyhow::Result;
-    use parking_lot::RwLock;
+    use futures::TryStreamExt;
     use phymes_core::{
         AttachmentBuilderTraitExt, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
-        BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, TablePublication, TableTrait,
+        BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject,
+        SubjectBuilderTrait, SubjectTrait, Subscription,
     };
     use phymes_data::make_pdf_document;
 
     use crate::{
         AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
         SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep,
-        SessionStreamStepTrait, create_message_map,
+        SessionStreamStepTrait, SubscriptionTrait, create_message_map,
     };
 
     use super::*;
@@ -110,18 +111,22 @@ mod tests {
     async fn test_extract_pdf_session() -> Result<()> {
         // Initialize the session
         let extract_pdf_session = ExtractPDFSession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             extract_pdf_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(extract_pdf_session.as_mermaid_erdiagram(), false, true)?
+        .with_subjects_from_mermaid_erdiagram(
+            extract_pdf_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
         .with_name(extract_pdf_session.session_context_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Create the document message
         let document_texts = &[
@@ -136,19 +141,22 @@ mod tests {
 
         // Wrap into the message
         let blob = AvailableInterfaceSubjects::UserPdf
-            .to_table_builder(None)
+            .to_subject_builder(None)
             .with_attachment(Some("WikiBioComponents"), Some("pdf"), &bytes, None)?
             .build()?;
         let blob_message = IPCMessage::get_builder()
             .with_message(blob.to_ipc_stream()?)
             .with_subject(blob.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: blob.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: blob.get_name().to_string(),
             })
             .with_publisher(extract_pdf_session.session_context_name)
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![blob_message]);
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Run the first superstep
         let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map)
@@ -159,20 +167,25 @@ mod tests {
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get(AvailableSubjects::Documents.to_string().as_str())
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 21);
-            let column = table_reading.get_column_as_vec_str("chunk_id");
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableSubjects::Documents.to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::Documents.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 21);
+            let column = subject.get_column_as_vec_str("chunk_id");
             assert_eq!(column.first().unwrap(), &"WikiBioComponents_1_0");
             assert_eq!(column.last().unwrap(), &"WikiBioComponents_4_2");
-            let column = table_reading.get_column_as_vec_str("document_id");
+            let column = subject.get_column_as_vec_str("document_id");
             assert_eq!(column.first().unwrap(), &"WikiBioComponents");
             assert_eq!(column.last().unwrap(), &"WikiBioComponents");
-            let column = table_reading.get_column_as_vec_str("text");
+            let column = subject.get_column_as_vec_str("text");
             assert_eq!(
                 column.first().unwrap(),
                 &"Proteins are large biomolecules and macromolecules that comprise one or more long chains of amino acid residues. Proteins perform a vast array of functions within organisms, including catalysing metabolic reactions, DNA replication, responding to stimuli, providing structure to cells and organisms, and transporting molecules from one location to another. Proteins differ from one another primarily in their sequence of amino acids, which is dictated by the nucleotide sequence of their genes, and which usually"
