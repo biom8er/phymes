@@ -66,6 +66,18 @@ impl<'a> OpenAlexAgentSession<'a> {
 	%% ------------------------------------------------------------------------------"#)
     }
     pub fn as_mermaid_erdiagram(&self) -> String {
+        let bucket = "openalex";
+        let mut config = Map::<String, Value>::new();
+        let _ = config.insert(
+            AmazonS3ConfigKey::SkipSignature.as_ref().to_string(),
+            Value::String("true".to_string()),
+        );
+        let _ = config.insert(
+            AmazonS3ConfigKey::Endpoint.as_ref().to_string(),
+            Value::String("https://s3.amazonaws.com".to_string()),
+        );
+        let backend_config = serde_json::to_string(&config).unwrap().replace('"', "'");
+        // List-UInt8 bytes
         format!(r#"erDiagram
     list_open_alex_aws_bucket_s["list_open_alex_aws_bucket_s"] {{
         Utf8 location
@@ -76,7 +88,12 @@ impl<'a> OpenAlexAgentSession<'a> {
         Int64 last_modified
     }}
     get_open_alex_aws_bucket_p["get_open_alex_aws_bucket_p"] {{
-        List-UInt8 bytes
+        UInt32 timeout "15"
+        Utf8 ops_type "Get"
+        Utf8 backend "Aws"
+        Utf8 bucket "{bucket}"
+        Utf8 backend_config "{backend_config}"
+        Utf8 subject_name "list_open_alex_aws_bucket_s"
     }}
     get_open_alex_aws_bucket_s["get_open_alex_aws_bucket_s"] {{
         Utf8 location
@@ -159,46 +176,50 @@ mod tests {
 
         // Make the test session data
         let mut message_map = HashMap::<String, IPCMessage>::new();
-        let bucket_name = "openalex";
         let messages = "list_open_alex_aws_bucket_s";
-        let mut store_config = Map::<String, Value>::new();
-        let _ = store_config.insert(
-            AmazonS3ConfigKey::SkipSignature.as_ref().to_string(),
-            Value::String("true".to_string()),
-        );
-        let _ = store_config.insert(
-            AmazonS3ConfigKey::Endpoint.as_ref().to_string(),
-            Value::String("https://s3.amazonaws.com".to_string()),
-        );
-        let config = ObjectStoreConfig {
-            timeout: 5,
-            ops_type: ObjectStoreOptsType::Get,
-            backend: ObjectStorageBackend::Aws,
-            bucket: Some(bucket_name.to_string()),
-            backend_config: Some(store_config.clone()),
-            locations: None,
-            chunk_size: None,
-            subject_name: Some(messages.to_string()),
-            ..Default::default()
-        };
-        let config_json = serde_json::to_vec(&config)?;
-        let config_batch = create_bytes_record_batch(vec![config_json])?;
-        let config_table = SubjectBuilder::new()
-            .with_name("get_open_alex_aws_bucket_p")
-            .with_record_batches(vec![config_batch])?
-            .build()?;
-        let _ = message_map.insert(
-            config_table.get_name().to_string(),
-            IPCMessage::get_builder()
-                .with_name(config_table.get_name())
-                .with_publisher(open_alex_agent_session.session_context_name)
-                .with_subject(config_table.get_name())
-                .with_update(&Publication::Replace {
-                    subject_name: config_table.get_name().to_string(),
-                })
-                .with_message(config_table.to_ipc_stream()?)
-                .build()?,
-        );
+
+        // // Make the Get config
+        // let bucket_name = "openalex";
+        // let mut store_config = Map::<String, Value>::new();
+        // let _ = store_config.insert(
+        //     AmazonS3ConfigKey::SkipSignature.as_ref().to_string(),
+        //     Value::String("true".to_string()),
+        // );
+        // let _ = store_config.insert(
+        //     AmazonS3ConfigKey::Endpoint.as_ref().to_string(),
+        //     Value::String("https://s3.amazonaws.com".to_string()),
+        // );
+        // let config = ObjectStoreConfig {
+        //     timeout: 5,
+        //     ops_type: ObjectStoreOptsType::Get,
+        //     backend: ObjectStorageBackend::Aws,
+        //     bucket: Some(bucket_name.to_string()),
+        //     backend_config: Some(store_config.clone()),
+        //     locations: None,
+        //     chunk_size: None,
+        //     subject_name: Some(messages.to_string()),
+        //     ..Default::default()
+        // };
+        // let config_json = serde_json::to_vec(&config)?;
+        // let config_batch = create_bytes_record_batch(vec![config_json])?;
+        // let config_table = SubjectBuilder::new()
+        //     .with_name("get_open_alex_aws_bucket_p")
+        //     .with_record_batches(vec![config_batch])?
+        //     .build()?;
+        // let _ = message_map.insert(
+        //     config_table.get_name().to_string(),
+        //     IPCMessage::get_builder()
+        //         .with_name(config_table.get_name())
+        //         .with_publisher(open_alex_agent_session.session_context_name)
+        //         .with_subject(config_table.get_name())
+        //         .with_update(&Publication::Replace {
+        //             subject_name: config_table.get_name().to_string(),
+        //         })
+        //         .with_message(config_table.to_ipc_stream()?)
+        //         .build()?,
+        // );
+
+        // Make the list of paths to Get
         // let location = vec!["data/works/updated_date=2018-01-12/part_0000.gz".to_string()];
         let location = vec!["data/works/updated_date=2026-03-10/part_0005.gz".to_string()];
         // let location = vec!["data/works/manifest".to_string()];
@@ -260,7 +281,7 @@ mod tests {
             );
         }
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTraces.to_string(),
+            subject_name: AvailableSubjects::SessionMetrics.to_string(),
         }
         .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
         .unwrap()

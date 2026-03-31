@@ -209,18 +209,17 @@ impl<'a> SyncContentSession<'a> {
         let local_object_store_backend = self.local_object_store_backend.to_string();
         let local_object_store_bucket = self.local_object_store_bucket.unwrap_or_default();
         // DM: not yet incorporated
-        let _local_object_store_config = if let Some(config) = self.local_object_store_config {
-            serde_json::to_string(config).unwrap()
+        let local_object_store_config = if let Some(config) = self.local_object_store_config {
+            serde_json::to_string(config).unwrap().replace('"', "'")
         } else {
             "{}".to_string()
         };
-        // Utf8 backend_config "{local_object_store_config}"
         let remote_object_store_name = self.remote_object_store_name;
         let remote_object_store_backend = self.remote_object_store_backend.to_string();
         let remote_object_store_bucket = self.remote_object_store_bucket.unwrap_or_default();
         // DM: not yet incorporated
-        let _remote_object_store_config = if let Some(config) = self.remote_object_store_config {
-            serde_json::to_string(config).unwrap().replace('"', "'")
+        let remote_object_store_config = if let Some(config) = self.remote_object_store_config {
+            serde_json::to_string(config).unwrap().replace('"', "'").replace('"', "'")
         } else {
             "{}".to_string()
         };
@@ -305,6 +304,7 @@ impl<'a> SyncContentSession<'a> {
         Utf8 ops_type "Get"
         Utf8 backend "{remote_object_store_backend}"
         Utf8 bucket "{remote_object_store_bucket}"
+        Utf8 backend_config "{remote_object_store_config}"
         Utf8 subject_name "select_create_update_{remote_object_store_name}_s"
     }}
     get_{remote_object_store_name}_s["get_{remote_object_store_name}_s"] {{
@@ -362,6 +362,7 @@ impl<'a> SyncContentSession<'a> {
         Utf8 ops_type "Delete"
         Utf8 backend "{local_object_store_backend}"
         Utf8 bucket "{local_object_store_bucket}"
+        Utf8 backend_config "{local_object_store_config}"
         Utf8 subject_name "select_delete_{local_object_store_name}_s"
     }}
     delete_{local_object_store_name}_s["delete_{local_object_store_name}_s"] {{

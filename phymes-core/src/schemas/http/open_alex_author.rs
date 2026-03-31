@@ -196,7 +196,7 @@ impl Affiliation {
     pub fn build_author_affiliation_table(self, author_id: &str) -> AuthorAffiliationTable {
         AuthorAffiliationTable {
             author_id: author_id.to_string(),
-            institution_id: self.institution.id,
+            institution_id: self.institution.id.unwrap_or_default(),
             years: self.years,
         }
     }
@@ -208,7 +208,7 @@ impl Affiliation {
         AwardAffiliationTable {
             award_id: award_id.to_string(),
             orcid: orcid.to_string(),
-            institution_id: self.institution.id,
+            institution_id: self.institution.id.unwrap_or_default(),
             years: self.years,
         }
     }

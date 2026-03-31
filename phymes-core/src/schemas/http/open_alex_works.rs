@@ -437,7 +437,7 @@ impl Authorship {
             String::new()
         };
         let institution_ids = if let Some(institutions) = self.institutions {
-            institutions.into_iter().map(|i| i.id).collect::<Vec<_>>()
+            institutions.into_iter().map(|i| i.id.unwrap_or_default()).collect::<Vec<_>>()
         } else {
             Vec::new()
         };
@@ -506,9 +506,9 @@ impl AvailableSchemaTrait for WorkAuthorshipTable {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ApcInfo {
-    pub value: Option<u32>,
+    pub value: Option<f32>, // changed from u32
     pub currency: Option<Currency>,
-    pub value_usd: Option<u32>,
+    pub value_usd: Option<f32>, // changed from u32
     pub provenance: Option<String>,
 }
 
@@ -536,9 +536,9 @@ pub struct WorkApcInfoTable {
     pub work_id: String,
     pub is_list: bool,
     pub is_paid: bool,
-    pub value: u32,
+    pub value: f32,
     pub currency: Currency,
-    pub value_usd: u32,
+    pub value_usd: f32,
     pub provenance: String,
 }
 
@@ -553,7 +553,7 @@ impl WorkApcInfoTable {
         fields_vec.extend(
             field_names
                 .iter()
-                .map(|f| Field::new(*f, DataType::UInt32, false))
+                .map(|f| Field::new(*f, DataType::Float32, false))
                 .collect::<Vec<_>>(),
         );
         let field_names = ["is_list", "is_paid"];

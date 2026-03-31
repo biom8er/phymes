@@ -74,7 +74,7 @@ pub mod open_alex {
         TopicTable,
     };
     pub use open_alex_works::{
-        WorkApcInfoTable, WorkAuthorshipTable, WorkAwardTable, WorkBiblioTable,
+        Work, WorkApcInfoTable, WorkAuthorshipTable, WorkAwardTable, WorkBiblioTable,
         WorkCitationPercentileTable, WorkCitedByPercentileYearTable, WorkConceptTable,
         WorkCorrespondingAuthorTable, WorkCorrespondingInstitutionTable, WorkCountsByYearTable,
         WorkFunderTable, WorkIdsTable, WorkIndexedInTable, WorkKeywordTable, WorkLocationTable,

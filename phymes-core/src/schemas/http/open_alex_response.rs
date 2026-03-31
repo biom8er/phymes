@@ -1,3 +1,9 @@
+use std::io::BufRead;
+use anyhow::{anyhow, Result};
+use arrow::array::RecordBatch;
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
+
 use crate::{
     AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, JsonSchemaTrait, MappableTrait,
     Subject, SubjectBuilderTrait, SubjectTrait, create_route_bytes_record_batch,
@@ -38,15 +44,37 @@ use crate::{
         },
     },
 };
-use anyhow::Result;
-use arrow::array::RecordBatch;
-use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OpenAlexResponseWorks {
     pub results: Vec<Work>,
     pub meta: Option<Meta>,
+}
+
+impl OpenAlexResponseWorks {
+    /// Parse JSONL format
+    pub fn from_jsonl(bytes: &[u8]) -> Result<Self> {
+        let cursor = std::io::Cursor::new(bytes);
+        let reader = std::io::BufReader::new(cursor);        
+        let mut results = Vec::new();
+        for (line_num, line) in reader.lines().enumerate() {
+            let line = line?; // Read the line as a String
+
+            if line.trim().is_empty() {
+                continue; // Skip empty lines
+            }
+
+            match serde_json::from_str::<Work>(&line) {
+                Ok(record) => {
+                    results.push(record);
+                }
+                Err(e) => {
+                    return Err(anyhow!("Error `{e}` parsing line {}: `{line}`", line_num + 1));
+                }
+            }
+        }
+        Ok(OpenAlexResponseWorks { results, meta: None })
+    }
 }
 
 impl JsonSchemaTrait for OpenAlexResponseWorks {

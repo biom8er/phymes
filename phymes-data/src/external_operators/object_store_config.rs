@@ -5,7 +5,6 @@ use clap::{Parser, ValueEnum};
 use phymes_core::{MappableTrait, ObjectStorageBackend, Subject, SubjectTrait};
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
 
 use crate::DataConfigTrait;
 
@@ -90,11 +89,11 @@ pub struct ObjectStoreConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bucket: Option<String>,
 
-    /// Serialized JSON value representing a HashMap of ObjectStore configurations
+    /// Serialized JSON String representing a `Map<String, Value>` of ObjectStore configurations
     /// See AWS, GCP, and Azure documentation for valid Key/Value pairs
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub backend_config: Option<Map<String, Value>>,
+    pub backend_config: Option<String>,
 
     /// Additional [GetOptions] Serialized JSON String
     ///

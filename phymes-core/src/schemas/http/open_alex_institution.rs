@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Institution {
-    pub id: String,
+    pub id: Option<String>,
     pub ror: Option<String>,
     pub display_name: Option<String>,
     pub display_name_acronyms: Option<Vec<String>>,
@@ -50,7 +50,7 @@ impl Institution {
     ) -> AuthorLastKnownInstitutionsTable {
         AuthorLastKnownInstitutionsTable {
             author_id: author_id.to_string(),
-            institution_id: self.id,
+            institution_id: self.id.unwrap_or_default(),
         }
     }
     #[allow(clippy::type_complexity)]
@@ -71,12 +71,13 @@ impl Institution {
         Vec<InstitutionConceptTable>,
         Vec<InstitutionLineageTable>,
     ) {
+        let id = self.id.clone().unwrap_or_default();
         let institution_display_name_acronyms = self
             .display_name_acronyms
             .unwrap_or_default()
             .into_iter()
             .map(|t| InstitutionDisplayNameAcronymsTable {
-                institution_id: self.id.clone(),
+                institution_id: id.clone(),
                 display_name: t,
             })
             .collect::<Vec<_>>();
@@ -85,63 +86,63 @@ impl Institution {
             .unwrap_or_default()
             .into_iter()
             .map(|t| InstitutionDisplayNameAlternativesTable {
-                institution_id: self.id.clone(),
+                institution_id: id.clone(),
                 display_name: t,
             })
             .collect::<Vec<_>>();
         let institution_geo = self
             .geo
-            .map(|t| t.build_institution_geo_table(&self.id.clone()));
+            .map(|t| t.build_institution_geo_table(&id));
         let institution_ids = self
             .ids
-            .map(|t| t.build_institution_ids_table(&self.id.clone()));
+            .map(|t| t.build_institution_ids_table(&id));
         let institution_associated_institution = self
             .associated_institutions
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.build_institution_associated_institution_table(&self.id))
+            .map(|t| t.build_institution_associated_institution_table(&id))
             .collect::<Vec<_>>();
         let institution_repository = self
             .repositories
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.build_institution_repository_table(&self.id))
+            .map(|t| t.build_institution_repository_table(&id))
             .collect::<Vec<_>>();
         let institution_role = self
             .roles
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.build_institution_role_table(&self.id))
+            .map(|t| t.build_institution_role_table(&id))
             .collect::<Vec<_>>();
         let institution_international_names = self
             .international
-            .map(|t| t.build_insitution_international_names_table(&self.id.clone()));
+            .map(|t| t.build_insitution_international_names_table(&id));
         let institution_summary_stats = self
             .summary_stats
-            .map(|t| t.build_institution_summary_stats_table(&self.id));
+            .map(|t| t.build_institution_summary_stats_table(&id));
         let institution_counts_by_year = self
             .counts_by_year
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.build_institution_counts_by_year(&self.id))
+            .map(|t| t.build_institution_counts_by_year(&id))
             .collect::<Vec<_>>();
         let institution_concepts = self
             .x_concepts
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.build_institution_concept_table(&self.id))
+            .map(|t| t.build_institution_concept_table(&id))
             .collect::<Vec<_>>();
         let institution_lineage = self
             .lineage
             .unwrap_or_default()
             .into_iter()
             .map(|t| InstitutionLineageTable {
-                institution_id: self.id.clone(),
+                institution_id: self.id.clone().unwrap_or_default(),
                 lineage_id: t,
             })
             .collect::<Vec<_>>();
         let institution = InstitutionTable {
-            institution_id: self.id,
+            institution_id: id,
             ror: self.ror.unwrap_or_default(),
             display_name: self.display_name.unwrap_or_default(),
             country_code: self.country_code.unwrap_or_default(),

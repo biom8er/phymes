@@ -489,7 +489,7 @@ impl DataConfigTrait for AvailableProcessors {
                 ops_type: ObjectStoreOptsType::default(),
                 backend: ObjectStorageBackend::default(),
                 bucket: Some("bucket".to_string()),
-                backend_config: Some(Map::<String, Value>::new()),
+                backend_config: Some("{}".to_string()),
                 locations: Some(vec!["location".to_string()]),
                 subject_name: Some("subject_name".to_string()),
                 ..Default::default()

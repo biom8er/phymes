@@ -230,10 +230,21 @@ pub fn extract_tabular(
                             .with_record_batches(vec![batch])?
                             .build()?
                     }
-                    Err(err) => {
-                        return Err(anyhow!(
-                            "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
-                        ));
+                    Err(_err) => {
+                        match open_alex::OpenAlexResponseWorks::from_jsonl(&values_vec) {
+                            Ok(open_alex_response) => {
+                                let batch = open_alex_response.to_record_batch("extract_tabular")?;
+                                Subject::get_builder()
+                                    .with_name("OpenAlexResponseWorks")
+                                    .with_record_batches(vec![batch])?
+                                    .build()?
+                            }
+                            Err(err) => {
+                                return Err(anyhow!(
+                                    "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
+                                ));
+                            }
+                        }
                     }
                 }
             }

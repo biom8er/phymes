@@ -273,7 +273,12 @@ impl Stream for ObjectStoreStream {
                     self.store.replace(store);
                 } else if self.store.is_none() {
                     let bucket = self.config.as_ref().unwrap().bucket.clone();
-                    let config = self.config.as_ref().unwrap().backend_config.clone();
+                    let config = if let Some(config_str) = self.config.as_ref().unwrap().backend_config.as_ref() {
+                        let config_map = serde_json::from_str::<Map<String, Value>>(config_str)?;
+                        Some(config_map)
+                    } else {
+                        None
+                    };
                     let store = make_store(
                         &self.config.as_ref().unwrap().backend,
                         bucket.as_ref(),
@@ -363,7 +368,6 @@ impl Stream for ObjectStoreStream {
                         // Get operation
                         let store = self.store.as_ref().unwrap().clone();
                         let path = self.path.as_ref().unwrap().clone();
-                        dbg!(&path);
 
                         // Add in any addition `GetOptions`
                         if let Some(_options) = self.config.as_ref().unwrap().get_options.as_ref() {
@@ -489,7 +493,6 @@ impl Stream for ObjectStoreStream {
                             ObjectStoreOptsType::Get => {
                                 // Extract out the metadata
                                 self.meta.replace(result.meta.clone());
-                                dbg!(&self.meta.as_ref().unwrap().location);
 
                                 // Ready the stream for polling
                                 let fut = Box::pin(result.bytes());
@@ -580,7 +583,6 @@ impl Stream for ObjectStoreStream {
                         }
                     }
                     Err(err) => {
-                        dbg!(&err);
                         self.state = ObjectStoreState::Done;
                         Poll::Ready(Some(Err(err.into())))
                     }
@@ -611,7 +613,6 @@ impl Stream for ObjectStoreStream {
 
                         // Make the object store batch
                         let location = vec![self.meta.as_ref().unwrap().location.to_string()];
-                            dbg!(&self.meta.as_ref().unwrap().location);
                         let bucket = vec![
                             self.config
                                 .as_ref()
@@ -1895,7 +1896,7 @@ mod tests {
             ops_type: ObjectStoreOptsType::Get,
             backend: ObjectStorageBackend::Aws,
             bucket: Some(bucket_name.to_string()),
-            backend_config: Some(store_config.clone()),
+            backend_config: Some(serde_json::to_string(&store_config)?),
             locations: None,
             chunk_size: None,
             subject_name: Some(messages.to_string()),
@@ -2042,7 +2043,7 @@ mod tests {
             ops_type: ObjectStoreOptsType::Get,
             backend: ObjectStorageBackend::Aws,
             bucket: Some(bucket_name.to_string()),
-            backend_config: Some(store_config),
+            backend_config: Some(serde_json::to_string(&store_config)?),
             locations: Some(location),
             chunk_size: None,
             subject_name: None,
