@@ -94,6 +94,21 @@ pub enum Currency {
     Unknown,
 }
 
+impl Display for Currency {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::USD => write!(f, "USD"),
+            Self::EUR => write!(f, "EUR"),
+            Self::GBP => write!(f, "GBP"),
+            Self::JPY => write!(f, "JPY"),
+            Self::CNY => write!(f, "CNY"),
+            Self::AUD => write!(f, "AUD"),
+            Self::CAD => write!(f, "CAD"),
+            Self::Unknown => write!(f, "Unknown"),
+        }
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -107,6 +122,18 @@ pub enum ConceptLevel {
     Unknown,
 }
 
+impl Display for ConceptLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Domain => write!(f, "Domain"),
+            Self::Field => write!(f, "Field"),
+            Self::Subfield => write!(f, "Subfield"),
+            Self::Topic => write!(f, "JPY"),
+            Self::Unknown => write!(f, "Unknown"),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum InstitutionRelationship {
@@ -116,6 +143,17 @@ pub enum InstitutionRelationship {
     #[default]
     #[serde(other)]
     Unknown,
+}
+
+impl Display for InstitutionRelationship {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Parent => write!(f, "Parent"),
+            Self::Child => write!(f, "Child"),
+            Self::Related => write!(f, "Related"),
+            Self::Unknown => write!(f, "Unknown"),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
@@ -131,6 +169,21 @@ pub enum InstitutionType {
     #[default]
     #[serde(other)]
     Other,
+}
+
+impl Display for InstitutionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Archive => write!(f, "Archive"),
+            Self::Company => write!(f, "Company"),
+            Self::Education => write!(f, "Education"),
+            Self::Facility => write!(f, "Facility"),
+            Self::Government => write!(f, "Government"),
+            Self::Healthcare => write!(f, "Healthcare"),
+            Self::Nonprofit => write!(f, "Nonprofit"),
+            Self::Other => write!(f, "Other"),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
@@ -252,6 +305,19 @@ pub enum OaStatus {
     #[default]
     #[serde(other)]
     Unknown,
+}
+
+impl Display for OaStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Gold => write!(f, "Gold"),
+            Self::Hybrid => write!(f, "Hybrid"),
+            Self::Green => write!(f, "Green"),
+            Self::Bronze => write!(f, "Bronze"),
+            Self::Closed => write!(f, "Closed"),
+            Self::Unknown => write!(f, "Unknown"),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq)]

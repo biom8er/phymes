@@ -544,7 +544,7 @@ pub struct WorkApcInfoTable {
 
 impl WorkApcInfoTable {
     fn to_fields() -> Fields {
-        let field_names = ["work_id", "Currency", "provenance"];
+        let field_names = ["work_id", "currency", "provenance"];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))

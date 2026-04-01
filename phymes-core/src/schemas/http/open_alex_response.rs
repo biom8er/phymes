@@ -645,7 +645,6 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
                     .to_ipc_stream()?,
             );
         }
-
         let batch = create_route_bytes_record_batch(names, publishers, subjects, formats, bytes)?;
         Ok(batch)
     }
