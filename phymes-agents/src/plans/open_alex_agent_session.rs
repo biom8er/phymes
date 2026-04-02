@@ -43,19 +43,164 @@ impl<'a> OpenAlexAgentSession<'a> {
 		extract_open_alex_aws_bucket_p-subscribe-->extract_open_alex_aws_bucket_p-processor
 		extract_open_alex_aws_bucket_p-processor-->extract_open_alex_aws_bucket_p-publish
 		extract_open_alex_aws_bucket_p-publish-->|Replace|extract_open_alex_aws_bucket_s-subject
-		extract_open_alex_aws_bucket_p-publish-->|Replace|open_alex_works_s-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkAwardTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkAuthorshipTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkFunderTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkApcInfoTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkLocationTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkOpenAccessTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkBiblioTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkCitationPercentileTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkCitedByPercentileYearTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkCountsByYearTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkConceptTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkTopicTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkKeywordTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkMeshTagTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkSdgTagTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkCorrespondingAuthorTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkCorrespondingInstitutionTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkIndexedInTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkIdsTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkReferencedWorksTable-subject
+		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkRelatedWorksTable-subject
 	end
 	{session_context_name}_r-rt-->extract_open_alex_aws_bucket_t
 	extract_open_alex_aws_bucket_p-subscribe@{{shape: diamond, label: All}}
 	extract_open_alex_aws_bucket_p-processor@{{shape: rect, label: ExtractTabular}}
 	extract_open_alex_aws_bucket_p-publish@{{shape: fork}}
 	extract_open_alex_aws_bucket_s-subject@{{shape: doc, label: extract_open_alex_aws_bucket_s}}
-	open_alex_works_s-subject@{{shape: doc, label: open_alex_works_s}}
+	WorkTable-subject@{{shape: doc, label: WorkTable}}
+	WorkAwardTable-subject@{{shape: doc, label: WorkAwardTable}}
+	WorkAuthorshipTable-subject@{{shape: doc, label: WorkAuthorshipTable}}
+	WorkFunderTable-subject@{{shape: doc, label: WorkFunderTable}}
+	WorkApcInfoTable-subject@{{shape: doc, label: WorkApcInfoTable}}
+	WorkLocationTable-subject@{{shape: doc, label: WorkLocationTable}}
+	WorkOpenAccessTable-subject@{{shape: doc, label: WorkOpenAccessTable}}
+	WorkBiblioTable-subject@{{shape: doc, label: WorkBiblioTable}}
+	WorkCitationPercentileTable-subject@{{shape: doc, label: WorkCitationPercentileTable}}
+	WorkCitedByPercentileYearTable-subject@{{shape: doc, label: WorkCitedByPercentileYearTable}}
+	WorkCountsByYearTable-subject@{{shape: doc, label: WorkCountsByYearTable}}
+	WorkConceptTable-subject@{{shape: doc, label: WorkConceptTable}}
+	WorkTopicTable-subject@{{shape: doc, label: WorkTopicTable}}
+	WorkKeywordTable-subject@{{shape: doc, label: WorkKeywordTable}}
+	WorkMeshTagTable-subject@{{shape: doc, label: WorkMeshTagTable}}
+	WorkSdgTagTable-subject@{{shape: doc, label: WorkSdgTagTable}}
+	WorkCorrespondingAuthorTable-subject@{{shape: doc, label: WorkCorrespondingAuthorTable}}
+	WorkCorrespondingInstitutionTable-subject@{{shape: doc, label: WorkCorrespondingInstitutionTable}}
+	WorkIndexedInTable-subject@{{shape: doc, label: WorkIndexedInTable}}
+	WorkIdsTable-subject@{{shape: doc, label: WorkIdsTable}}
+	WorkReferencedWorksTable-subject@{{shape: doc, label: WorkReferencedWorksTable}}
+	WorkRelatedWorksTable-subject@{{shape: doc, label: WorkRelatedWorksTable}}
 	%% ------------------------------------------------------------------------------
 	%% OpenAlex search for OpenAccess articles by topic
-    %% 1. Filter works by Topic
-    %% 2. List OpenAccess PDF URLs
+    %% 1. Extract `WorkTopicTable`
+    %% 2. Filter works by Topic
 	%% ------------------------------------------------------------------------------
+	subgraph filter_work_topic_table_t
+		WorkTopicTable-subject-.->|AllRecordBatches|extract_work_topic_table_p-subscribe
+		extract_work_topic_table_p-subscribe-->extract_work_topic_table_p-processor
+		extract_work_topic_table_p-processor-->extract_work_topic_table_p-publish
+		extract_work_topic_table_p-publish-->|Replace|extract_work_topic_table_s-subject
+		extract_work_topic_table_s-subject-->|AllRecordBatches|cmp_work_topic_table_p-subscribe
+		cmp_work_topic_table_p-subscribe-->cmp_work_topic_table_p-processor
+		cmp_work_topic_table_p-processor-->cmp_work_topic_table_p-publish
+		cmp_work_topic_table_p-publish-->|Replace|cmp_work_topic_table_s-subject
+		cmp_work_topic_table_s-subject-->|AllRecordBatches|filter_work_topic_table_p-subscribe
+		filter_work_topic_table_p-subscribe-->filter_work_topic_table_p-processor
+		filter_work_topic_table_p-processor-->filter_work_topic_table_p-publish
+		filter_work_topic_table_p-publish-->|Replace|filter_work_topic_table_s-subject
+		filter_work_topic_table_s-subject-->|AllRecordBatches|select_work_topic_table_p-subscribe
+		select_work_topic_table_p-subscribe-->select_work_topic_table_p-processor
+		select_work_topic_table_p-processor-->select_work_topic_table_p-publish
+		select_work_topic_table_p-publish-->|Replace|select_work_topic_table_s-subject
+		open_alex_topics_s-subject-->|AllRecordBatches|join_work_topic_table_p-subscribe
+		select_work_topic_table_s-subject-->|AllRecordBatches|join_work_topic_table_p-subscribe
+		join_work_topic_table_p-subscribe-->join_work_topic_table_p-processor
+		join_work_topic_table_p-processor-->join_work_topic_table_p-publish
+		join_work_topic_table_p-publish-->|Replace|join_work_topic_table_s-subject
+	end
+	{session_context_name}_r-rt-->filter_work_topic_table_t
+	extract_work_topic_table_p-subscribe@{{shape: diamond, label: All}}
+	extract_work_topic_table_p-processor@{{shape: rect, label: ExtractTabular}}
+	extract_work_topic_table_p-publish@{{shape: fork}}
+	extract_work_topic_table_s-subject@{{shape: doc, label: extract_work_topic_table_s}}
+	cmp_work_topic_table_p-subscribe@{{shape: diamond, label: All}}
+	cmp_work_topic_table_p-processor@{{shape: rect, label: Select}}
+	cmp_work_topic_table_p-publish@{{shape: fork}}
+	cmp_work_topic_table_s-subject@{{shape: doc, label: cmp_work_topic_table_s}}
+	filter_work_topic_table_p-subscribe@{{shape: diamond, label: All}}
+	filter_work_topic_table_p-processor@{{shape: rect, label: Filter}}
+	filter_work_topic_table_p-publish@{{shape: fork}}
+	filter_work_topic_table_s-subject@{{shape: doc, label: filter_work_topic_table_s}}
+	select_work_topic_table_p-subscribe@{{shape: diamond, label: All}}
+	select_work_topic_table_p-processor@{{shape: rect, label: Select}}
+	select_work_topic_table_p-publish@{{shape: fork}}
+	select_work_topic_table_s-subject@{{shape: doc, label: select_work_topic_table_s}}
+	open_alex_topics_s-subject@{{shape: doc, label: open_alex_topics_s}}
+	join_work_topic_table_p-subscribe@{{shape: diamond, label: All}}
+	join_work_topic_table_p-processor@{{shape: rect, label: Join}}
+	join_work_topic_table_p-publish@{{shape: fork}}
+	join_work_topic_table_s-subject@{{shape: doc, label: join_work_topic_table_s}}
+	%% ------------------------------------------------------------------------------
+	%% OpenAlex search for OpenAccess PDF URLs
+    %% 1. Extract `WorkLocationTable`
+    %% 2. Join filtered `WorkTopicTable` and `WorkLocationTable` on work_id
+    %% 3. List OpenAccess PDF URLs
+	%% ------------------------------------------------------------------------------
+	subgraph select_open_access_pdf_url_t
+		WorkLocationTable-subject-.->|AllRecordBatches|extract_work_location_table_p-subscribe
+		extract_work_location_table_p-subscribe-->extract_work_location_table_p-processor
+		extract_work_location_table_p-processor-->extract_work_location_table_p-publish
+		extract_work_location_table_p-publish-->|Replace|extract_work_location_table_s-subject
+		extract_work_location_table_s-subject-->|AllRecordBatches|cmp_work_location_table_p-subscribe
+		cmp_work_location_table_p-subscribe-->cmp_work_location_table_p-processor
+		cmp_work_location_table_p-processor-->cmp_work_location_table_p-publish
+		cmp_work_location_table_p-publish-->|Replace|cmp_work_location_table_s-subject
+		cmp_work_location_table_s-subject-->|AllRecordBatches|filter_work_location_table_p-subscribe
+		filter_work_location_table_p-subscribe-->filter_work_location_table_p-processor
+		filter_work_location_table_p-processor-->filter_work_location_table_p-publish
+		filter_work_location_table_p-publish-->|Replace|filter_work_location_table_s-subject
+		filter_work_location_table_s-subject-->|AllRecordBatches|select_work_location_table_p-subscribe
+		select_work_location_table_p-subscribe-->select_work_location_table_p-processor
+		select_work_location_table_p-processor-->select_work_location_table_p-publish
+		select_work_location_table_p-publish-->|Replace|select_work_location_table_s-subject
+		join_work_topic_table_s-subject-.->|AllRecordBatches|join_work_location_table_p-subscribe
+		select_work_location_table_s-subject-->|AllRecordBatches|join_work_location_table_p-subscribe
+		join_work_location_table_p-subscribe-->join_work_location_table_p-processor
+		join_work_location_table_p-processor-->join_work_location_table_p-publish
+		join_work_location_table_p-publish-->|Replace|join_work_location_table_s-subject
+		join_work_location_table_s-subject-->|AllRecordBatches|select_open_acces_pdf_url_p-subscribe
+		select_open_acces_pdf_url_p-subscribe-->select_open_acces_pdf_url_p-processor
+		select_open_acces_pdf_url_p-processor-->select_open_acces_pdf_url_p-publish
+		select_open_acces_pdf_url_p-publish-->|Replace|select_open_acces_pdf_url_s-subject
+	end
+	{session_context_name}_r-rt-->select_open_access_pdf_url_t
+	extract_work_location_table_p-subscribe@{{shape: diamond, label: All}}
+	extract_work_location_table_p-processor@{{shape: rect, label: ExtractTabular}}
+	extract_work_location_table_p-publish@{{shape: fork}}
+	extract_work_location_table_s-subject@{{shape: doc, label: extract_work_location_table_s}}
+	cmp_work_location_table_p-subscribe@{{shape: diamond, label: All}}
+	cmp_work_location_table_p-processor@{{shape: rect, label: Select}}
+	cmp_work_location_table_p-publish@{{shape: fork}}
+	cmp_work_location_table_s-subject@{{shape: doc, label: cmp_work_location_table_s}}
+	filter_work_location_table_p-subscribe@{{shape: diamond, label: All}}
+	filter_work_location_table_p-processor@{{shape: rect, label: Filter}}
+	filter_work_location_table_p-publish@{{shape: fork}}
+	filter_work_location_table_s-subject@{{shape: doc, label: filter_work_location_table_s}}
+	select_work_location_table_p-subscribe@{{shape: diamond, label: All}}
+	select_work_location_table_p-processor@{{shape: rect, label: Select}}
+	select_work_location_table_p-publish@{{shape: fork}}
+	select_work_location_table_s-subject@{{shape: doc, label: select_work_location_table_s}}
+	join_work_location_table_p-subscribe@{{shape: diamond, label: All}}
+	join_work_location_table_p-processor@{{shape: rect, label: Join}}
+	join_work_location_table_p-publish@{{shape: fork}}
+	join_work_location_table_s-subject@{{shape: doc, label: join_work_location_table_s}}
+	select_open_acces_pdf_url_p-subscribe@{{shape: diamond, label: All}}
+	select_open_acces_pdf_url_p-processor@{{shape: rect, label: Select}}
+	select_open_acces_pdf_url_p-publish@{{shape: fork}}
+	select_open_acces_pdf_url_s-subject@{{shape: doc, label: select_open_acces_pdf_url_s}}
 	%% ------------------------------------------------------------------------------
 	%% HTTP OpenAccess PDF download
     %% 1. Download PDF
@@ -115,25 +260,197 @@ impl<'a> OpenAlexAgentSession<'a> {
     extract_open_alex_aws_bucket_s["extract_open_alex_aws_bucket_s"] {{
         List-UInt8 bytes
     }}
-    open_alex_works_s["open_alex_works_s"] {{
+    WorkTable["WorkTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkAwardTable["WorkAwardTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkAuthorshipTable["WorkAuthorshipTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkFunderTable["WorkFunderTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkApcInfoTable["WorkApcInfoTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkLocationTable["WorkLocationTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkOpenAccessTable["WorkOpenAccessTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkBiblioTable["WorkBiblioTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkCitationPercentileTable["WorkCitationPercentileTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkCitedByPercentileYearTable["WorkCitedByPercentileYearTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkCountsByYearTable["WorkCountsByYearTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkConceptTable["WorkConceptTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkTopicTable["WorkTopicTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkKeywordTable["WorkKeywordTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkMeshTagTable["WorkMeshTagTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkSdgTagTable["WorkSdgTagTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkCorrespondingAuthorTable["WorkCorrespondingAuthorTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkCorrespondingInstitutionTable["WorkCorrespondingInstitutionTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkIndexedInTable["WorkIndexedInTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkIdsTable["WorkIdsTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkReferencedWorksTable["WorkReferencedWorksTable"] {{
+        List-UInt8 bytes
+    }}
+    WorkRelatedWorksTable["WorkRelatedWorksTable"] {{
+        List-UInt8 bytes
+    }}
+    extract_work_topic_table_p["extract_work_topic_table_p"] {{
+	    Boolean cpu "false"
+	    Utf8 format "Ipc"
+        Utf8 schema "Empty"
+        Utf8 encoding "None"
+	    Utf8 lhs_name "WorkTopicTable"
+	    List-Utf8 lhs_values "['bytes']"
+	    Utf8 operator "ExtractTabular"
+	    Utf8 lhs_stream "Accumulate"
+    }}
+    cmp_work_topic_table_p["cmp_work_topic_table_p"] {{
+        List-Utf8 as_columns "['work_id','topic_id','is_primary','score','cmp_is_primary','cmp_score']"
+		List-Utf8 cast_templates "['','','','','true','0.5']"
+        List-Utf8 cast_datatypes "['Utf8','Utf8','Boolean','Float32','Boolean','Float32']"
+        List-Utf8 column_operators "['None','None','None','None','Value','Value']"
+        Boolean cpu "false"
+        Utf8 lhs_name "extract_work_topic_table_s"
+        List-Utf8 lhs_values "['work_id','topic_id','is_primary','score','cmp_is_primary','cmp_score']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    filter_work_topic_table_p["filter_work_topic_table_p"] {{
+        List-Utf8 cmp_columns "['cmp_is_primary', 'cmp_score']"
+        List-Utf8 cmp_operators "['Equals', 'GreaterThan']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "cmp_work_topic_table_s"
+        List-Utf8 lhs_values "['is_primary', 'score']"
+        Utf8 operator "Filter"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_work_topic_table_p["select_work_topic_table_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_work_topic_table_s"
+        List-Utf8 lhs_values "['work_id','topic_id','is_primary','score']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    open_alex_topics_s["open_alex_topics_s"] {{
+        Utf8 topic_id "https://openalex.org/T10123"
+    }}
+    join_work_topic_table_p["join_work_topic_table_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_fk "topic_id"
+        Utf8 lhs_name "open_alex_topics_s"
+        Utf8 lhs_pk "topic_id"
+        Utf8 operator "Join"
+        Utf8 rhs_fk "topic_id"
+        Utf8 rhs_name "select_work_topic_table_s"
+        Utf8 rhs_pk "topic_id"
+        Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
+    }}
+    join_work_topic_table_s["join_work_topic_table_s"] {{
+        Utf8 topic_id
         Utf8 work_id
-        Utf8 display_name
-        Utf8 title
-        Utf8 doi
-        Utf8 type_
-        Utf8 publication_date
-        Utf8 created_date
-        Utf8 updated_date
-        Utf8 abstract_
-        Utf8 language
-        UInt32 publication_year
-        UInt32 locations_count
-        UInt32 countries_distinct_count
-        UInt32 institutions_distinct_count
-        UInt32 referenced_works_count
-        Boolean is_paratext
-        Boolean is_retracted
-        Boolean is_xpac
+        Boolean is_primary
+        Float32 score
+    }}
+    extract_work_location_table_p["extract_work_location_table_p"] {{
+	    Boolean cpu "false"
+	    Utf8 format "Ipc"
+        Utf8 schema "Empty"
+        Utf8 encoding "None"
+	    Utf8 lhs_name "WorkLocationTable"
+	    List-Utf8 lhs_values "['bytes']"
+	    Utf8 operator "ExtractTabular"
+	    Utf8 lhs_stream "Accumulate"
+    }}
+    cmp_work_location_table_p["cmp_work_location_table_p"] {{
+        List-Utf8 as_columns "['work_id','landing_page_url','pdf_url','source_id','license','version','is_best_oa','is_primary','is_oa','cmp_is_best_oa']"
+		List-Utf8 cast_templates "['','','','','','','','','','true']"
+        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Boolean','Boolean','Boolean','Boolean']"
+        List-Utf8 column_operators "['None','None','None','None','None','None','None','None','None','Value']"
+        Boolean cpu "false"
+        Utf8 lhs_name "extract_work_location_table_s"
+        List-Utf8 lhs_values "['work_id','landing_page_url','pdf_url','source_id','license','version','is_best_oa','is_primary','is_oa','cmp_is_best_oa']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    filter_work_location_table_p["filter_work_location_table_p"] {{
+        List-Utf8 cmp_columns "['cmp_is_best_oa']"
+        List-Utf8 cmp_operators "['Equals']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "cmp_work_location_table_s"
+        List-Utf8 lhs_values "['is_best_oa']"
+        Utf8 operator "Filter"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_work_location_table_p["select_work_location_table_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_work_location_table_s"
+        List-Utf8 lhs_values "['work_id','landing_page_url','pdf_url','source_id','license','version','is_best_oa','is_primary','is_oa']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    join_work_location_table_p["join_work_location_table_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_fk "work_id"
+        Utf8 lhs_name "join_work_topic_table_s"
+        Utf8 lhs_pk "work_id"
+        Utf8 operator "Join"
+        Utf8 rhs_fk "work_id"
+        Utf8 rhs_name "select_work_location_table_s"
+        Utf8 rhs_pk "work_id"
+        Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
+    }}
+    select_open_acces_pdf_url_p["select_open_acces_pdf_url_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "join_work_location_table_s"
+        List-Utf8 lhs_values "['work_id','topic_id','score','pdf_url','source_id','version']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_open_acces_pdf_url_s["select_open_acces_pdf_url_s"] {{
+        Utf8 work_id
+        Utf8 topic_id
+        Float32 score
+        Utf8 pdf_url
+        Utf8 source_id
+        Utf8 version
     }}"#)
     }
 }
@@ -303,18 +620,85 @@ mod tests {
 
         // Test session stream
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: "open_alex_works_s".to_string(),
+            subject_name: "WorkTable".to_string(),
         }
         .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
         let subject = Subject::get_builder()
-            .with_name("open_alex_works_s")
-            .with_record_batches(batches)
-            .unwrap()
-            .build()
-            .unwrap();
+            .with_name("WorkTable")
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 34973);
+        let column = subject.get_column_as_vec_str("work_id");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
+        assert_eq!(column.last().unwrap(), &"https://openalex.org/W4367307220");
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "WorkTopicTable".to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name("WorkTopicTable")
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 91321);
+        let column = subject.get_column_as_vec_str("work_id");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
+        assert_eq!(column.last().unwrap(), &"https://openalex.org/W4367307220");
+        let column = subject.get_column_as_vec_str("topic_id");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
+        assert_eq!(column.last().unwrap(), &"https://openalex.org/T13802");
+        let column = subject.get_column_as_vec_primitive::<f32>("score")?;
+        assert_eq!(column.first().unwrap(), &0.9994);
+        assert_eq!(column.last().unwrap(), &0.2251);
+        let column = subject.get_column_as_vec_bool("is_primary")?;
+        assert_eq!(column.first().unwrap(), &true);
+        assert_eq!(column.last().unwrap(), &true);
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "WorkLocationTable".to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name("WorkLocationTable")
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 48958);
+        let column = subject.get_column_as_vec_str("work_id");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
+        assert_eq!(column.last().unwrap(), &"https://openalex.org/W4367307220");
+        let column = subject.get_column_as_vec_bool("is_best_oa")?;
+        assert_eq!(column.first().unwrap(), &false);
+        assert_eq!(column.last().unwrap(), &false);
+        let column = subject.get_column_as_vec_bool("is_primary")?;
+        assert_eq!(column.first().unwrap(), &true);
+        assert_eq!(column.last().unwrap(), &true);
+        let column = subject.get_column_as_vec_bool("is_oa")?;
+        assert_eq!(column.first().unwrap(), &false);
+        assert_eq!(column.last().unwrap(), &false);
+        let column = subject.get_column_as_vec_str("landing_page_url");
+        assert_eq!(column.first().unwrap(), &"https://doi.org/10.1016/j.str.2014.09.012");
+        assert_eq!(column.last().unwrap(), &"http://dx.doi.org/10.2307/jj.2430693");
+        let column = subject.get_column_as_vec_str("pdf_url");
+        assert_eq!(column.first().unwrap(), &"");
+        assert_eq!(column.last().unwrap(), &"");
+        let column = subject.get_column_as_vec_str("source_id");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/S7112016");
+        assert_eq!(column.last().unwrap(), &"");
+        let column = subject.get_column_as_vec_str("license");
+        assert_eq!(column.first().unwrap(), &"");
+        assert_eq!(column.last().unwrap(), &"cc-by");
+        let column = subject.get_column_as_vec_str("version");
+        assert_eq!(column.first().unwrap(), &"publishedVersion");
+        assert_eq!(column.last().unwrap(), &"publishedVersion");
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "extract_open_alex_aws_bucket_s".to_string(),
@@ -323,12 +707,85 @@ mod tests {
         .unwrap()
         .try_collect()
         .await?;
+        assert!(batches.is_empty());
+        
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "join_work_topic_table_s".to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
         let subject = Subject::get_builder()
-            .with_name("extract_open_alex_aws_bucket_s")
-            .with_record_batches(batches)
-            .unwrap()
-            .build()
-            .unwrap();
+            .with_name("join_work_topic_table_s")
+            .with_record_batches(batches)?
+            .build()?;
+        dbg!(subject.count_rows());
+        // assert_eq!(subject.count_rows(), 48958);
+        let column = subject.get_column_as_vec_str("work_id");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"");
+        // assert_eq!(column.last().unwrap(), &"");
+        let column = subject.get_column_as_vec_str("topic_id");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"");
+        // assert_eq!(column.last().unwrap(), &"");
+        let column = subject.get_column_as_vec_bool("is_primary")?;
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &true);
+        // assert_eq!(column.last().unwrap(), &true);
+        let column = subject.get_column_as_vec_primitive::<f32>("score")?;
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &0);
+        // assert_eq!(column.last().unwrap(), &0);
+        
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "select_open_acces_pdf_url_s".to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name("select_open_acces_pdf_url_s")
+            .with_record_batches(batches)?
+            .build()?;
+        dbg!(subject.count_rows());
+        // assert_eq!(subject.count_rows(), 48958);
+        let column = subject.get_column_as_vec_str("work_id");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"");
+        // assert_eq!(column.last().unwrap(), &"");
+        let column = subject.get_column_as_vec_str("topic_id");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"");
+        // assert_eq!(column.last().unwrap(), &"");
+        let column = subject.get_column_as_vec_primitive::<f32>("score")?;
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &0);
+        // assert_eq!(column.last().unwrap(), &0);
+        let column = subject.get_column_as_vec_str("pdf_url");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"");
+        // assert_eq!(column.last().unwrap(), &"");
+        let column = subject.get_column_as_vec_str("source_id");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"");
+        // assert_eq!(column.last().unwrap(), &"");
+        let column = subject.get_column_as_vec_str("version");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"");
+        // assert_eq!(column.last().unwrap(), &"");
 
         Ok(())
     }

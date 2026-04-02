@@ -591,7 +591,7 @@ impl SessionStreamStepTrait for SessionStreamStep {
     ) -> Result<Option<IPCMessageMap>> {
         // Get the next superstep handling any initialization
         let step = Self::current_superstep(&session_context).await;
-        dbg!(&step);
+        // dbg!(&step);
 
         // Start the diagnostics
         let (mut diagnostics_vec, span, trace) = if session_context.get_diagnostics() {

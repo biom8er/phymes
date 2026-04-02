@@ -67,7 +67,6 @@ impl ProcessorTrait for CandleDataProcessor {
         runtime_env: Arc<RuntimeEnv>,
     ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
-        println!("Starting processor {}", self.get_name());
 
         // Extract out the config
         let config = match remove_message_by_subject(self.get_name(), &mut message) {

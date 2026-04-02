@@ -13,9 +13,7 @@ use crate::{
 use anyhow::{Result, anyhow};
 use arrow::{
     array::{
-        Array, ArrayRef, FixedSizeListArray, Float32Array, Float64Array, Int8Array, Int16Array,
-        Int32Array, Int64Array, LargeStringArray, ListArray, StringArray, UInt8Array, UInt16Array,
-        UInt32Array, UInt64Array,
+        Array, ArrayRef, BooleanArray, FixedSizeListArray, Float32Array, Float64Array, Int8Array, Int16Array, Int32Array, Int64Array, LargeStringArray, ListArray, StringArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array
     },
     compute::{cast, concat_batches, kernels::concat},
     csv::WriterBuilder,
@@ -454,6 +452,26 @@ pub trait SubjectTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
         }
     }
 
+    /// Get a column as a vector of boolean types
+    fn get_array_as_vec_bool(arr: &Arc<dyn Array>, column_name: &str) -> Result<Vec<bool>> {
+        let data_type = arr.data_type();
+        match data_type {
+            DataType::Boolean => {
+                let arr_vec = arr
+                    .as_any()
+                    .downcast_ref::<BooleanArray>()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|s| s)
+                    .collect::<Vec<_>>();
+                Ok(arr_vec)
+            }
+            _ => Err(anyhow!(
+                "Expected bool data type but found {data_type} for column {column_name}."
+            )),
+        }
+    }
+
     /// Get a column as a vector of primitive types
     fn get_array_as_vec_primitive<T>(arr: &Arc<dyn Array>, column_name: &str) -> Result<Vec<T>>
     where
@@ -477,7 +495,7 @@ pub trait SubjectTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             //         .downcast_ref::<BooleanArray>()
             //         .unwrap()
             //         .iter()
-            //         .filter_map(|s| NumCast::from(s.unwrap_or_default() as bool))
+            //         .filter_map(|s| NumCast::from(s.unwrap_or_default() as u8))
             //         .collect::<Vec<_>>();
             //     Ok(arr_vec)
             // }
@@ -754,6 +772,20 @@ pub trait SubjectTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
         for batch in self.get_record_batches() {
             if let Some(array) = batch.column_by_name(column_name) {
                 let vec = Self::get_array_as_vec_nonprimitive::<T>(&array.clone(), column_name)?;
+                result.extend(vec);
+            } else {
+                return Err(anyhow!("Column {column_name} not found"));
+            }
+        }
+        Ok(result)
+    }
+
+    /// Get a column as a vector of boolean types
+    fn get_column_as_vec_bool(&self, column_name: &str) -> Result<Vec<bool>> {
+        let mut result = Vec::new();
+        for batch in self.get_record_batches() {
+            if let Some(array) = batch.column_by_name(column_name) {
+                let vec = Self::get_array_as_vec_bool(&array.clone(), column_name)?;
                 result.extend(vec);
             } else {
                 return Err(anyhow!("Column {column_name} not found"));
