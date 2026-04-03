@@ -9,8 +9,7 @@ use std::{
 use anyhow::{Result, anyhow};
 use arrow::{
     array::{
-        ArrayRef, ArrowPrimitiveType, FixedSizeListArray, Float32Array, Float64Array, Int64Array,
-        ListArray, PrimitiveBuilder, RecordBatch, StringArray, UInt8Array, UInt32Array,
+        ArrayRef, ArrowPrimitiveType, BooleanArray, FixedSizeListArray, Float32Array, Float64Array, Int64Array, ListArray, PrimitiveBuilder, RecordBatch, StringArray, UInt8Array, UInt32Array
     },
     compute::{
         cast,
@@ -628,6 +627,24 @@ pub fn select(
         ) {
             match column_operators.get(index).unwrap() {
                 DataColumnOperator::Value => match cast_datatypes.get(index).unwrap() {
+                    DataType::Boolean => {
+                        let value = if let Some(template) = cast_templates.get_mut(index) {
+                            if template.is_empty() {
+                                Default::default()
+                            } else {
+                                let value = template.parse::<bool>()?;
+                                *template = String::new();
+                                value
+                            }
+                        } else {
+                            Default::default()
+                        };
+                        let default_vec = (0..lhs_table.count_rows())
+                            .map(|_| value)
+                            .collect::<Vec<bool>>();
+                        let arr: ArrayRef = Arc::new(BooleanArray::from(default_vec));
+                        missing_vec.push((column_name, arr));
+                    }
                     DataType::UInt8 => {
                         let value = if let Some(template) = cast_templates.get_mut(index) {
                             if template.is_empty() {

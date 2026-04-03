@@ -306,9 +306,9 @@ impl Work {
             cited_by_count: self.cited_by_count.unwrap_or_default(),
             countries_distinct_count: self.countries_distinct_count.unwrap_or_default(),
             institutions_distinct_count: self.institutions_distinct_count.unwrap_or_default(),
-            is_paratext: self.is_paratext.unwrap_or_default(),
-            is_retracted: self.is_retracted.unwrap_or_default(),
-            is_xpac: self.is_xpac.unwrap_or_default(),
+            is_paratext: self.is_paratext.unwrap_or_default() as u8,
+            is_retracted: self.is_retracted.unwrap_or_default() as u8,
+            is_xpac: self.is_xpac.unwrap_or_default() as u8,
             referenced_works_count: self.referenced_works_count.unwrap_or_default(),
             language: self.language.unwrap_or_default(),
         };
@@ -356,9 +356,12 @@ pub struct WorkTable {
     pub cited_by_count: u32,
     pub countries_distinct_count: u32,
     pub institutions_distinct_count: u32,
-    pub is_paratext: bool,
-    pub is_retracted: bool,
-    pub is_xpac: bool,
+    // pub is_paratext: bool,
+    // pub is_retracted: bool,
+    // pub is_xpac: bool,
+    pub is_paratext: u8,
+    pub is_retracted: u8,
+    pub is_xpac: u8,
     pub referenced_works_count: u32,
     pub language: LanguageCode,
 }
@@ -398,7 +401,8 @@ impl WorkTable {
         fields_vec.extend(
             field_names
                 .iter()
-                .map(|f| Field::new(*f, DataType::Boolean, false))
+                // .map(|f| Field::new(*f, DataType::Boolean, false))
+                .map(|f| Field::new(*f, DataType::UInt8, false))
                 .collect::<Vec<_>>(),
         );
         Fields::from(fields_vec)
@@ -446,7 +450,7 @@ impl Authorship {
             author_position: self.author_position.unwrap_or_default(),
             author_id,
             institution_ids,
-            is_corresponding: self.is_corresponding.unwrap_or_default(),
+            is_corresponding: self.is_corresponding.unwrap_or_default() as u8,
             countries: self.countries.unwrap_or_default(),
             raw_affiliation_strings: self.raw_affiliation_strings.unwrap_or_default(),
             raw_author_name: self.raw_author_name.unwrap_or_default(),
@@ -460,7 +464,8 @@ pub struct WorkAuthorshipTable {
     pub author_position: AuthorPosition,
     pub author_id: String,
     pub institution_ids: Vec<String>,
-    pub is_corresponding: bool,
+    // pub is_corresponding: bool,
+    pub is_corresponding: u8,
     pub countries: Vec<CountryCode>,
     pub raw_affiliation_strings: Vec<String>,
     pub raw_author_name: String,
@@ -485,7 +490,8 @@ impl WorkAuthorshipTable {
         fields_vec.extend(
             field_names
                 .iter()
-                .map(|f| Field::new(*f, DataType::Boolean, false))
+                // .map(|f| Field::new(*f, DataType::Boolean, false))
+                .map(|f| Field::new(*f, DataType::UInt8, false))
                 .collect::<Vec<_>>(),
         );
         Fields::from(fields_vec)
@@ -521,8 +527,8 @@ impl ApcInfo {
     ) -> WorkApcInfoTable {
         WorkApcInfoTable {
             work_id: work_id.to_string(),
-            is_list,
-            is_paid,
+            is_list: is_list as u8,
+            is_paid: is_paid as u8,
             value: self.value.unwrap_or_default(),
             currency: self.currency.unwrap_or_default(),
             value_usd: self.value_usd.unwrap_or_default(),
@@ -534,8 +540,10 @@ impl ApcInfo {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkApcInfoTable {
     pub work_id: String,
-    pub is_list: bool,
-    pub is_paid: bool,
+    // pub is_list: bool,
+    // pub is_paid: bool,
+    pub is_list: u8,
+    pub is_paid: u8,
     pub value: f32,
     pub currency: Currency,
     pub value_usd: f32,
@@ -560,7 +568,8 @@ impl WorkApcInfoTable {
         fields_vec.extend(
             field_names
                 .iter()
-                .map(|f| Field::new(*f, DataType::Boolean, false))
+                // .map(|f| Field::new(*f, DataType::Boolean, false))
+                .map(|f| Field::new(*f, DataType::UInt8, false))
                 .collect::<Vec<_>>(),
         );
         Fields::from(fields_vec)
@@ -661,9 +670,9 @@ impl Location {
         };
         WorkLocationTable {
             work_id: work_id.to_string(),
-            is_best_oa,
-            is_primary,
-            is_oa: self.is_oa.unwrap_or_default(),
+            is_best_oa: is_best_oa as u8,
+            is_primary: is_primary as u8,
+            is_oa: self.is_oa.unwrap_or_default() as u8,
             landing_page_url: self.landing_page_url.unwrap_or_default(),
             pdf_url: self.pdf_url.unwrap_or_default(),
             source_id,
@@ -676,9 +685,12 @@ impl Location {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkLocationTable {
     pub work_id: String,
-    pub is_best_oa: bool,
-    pub is_primary: bool,
-    pub is_oa: bool,
+    // pub is_best_oa: bool,
+    // pub is_primary: bool,
+    // pub is_oa: bool,
+    pub is_best_oa: u8,
+    pub is_primary: u8,
+    pub is_oa: u8,
     pub landing_page_url: String,
     pub pdf_url: String,
     pub source_id: String,
@@ -704,7 +716,8 @@ impl WorkLocationTable {
         fields_vec.extend(
             field_names
                 .iter()
-                .map(|f| Field::new(*f, DataType::Boolean, false))
+                // .map(|f| Field::new(*f, DataType::Boolean, false))
+                .map(|f| Field::new(*f, DataType::UInt8, false))
                 .collect::<Vec<_>>(),
         );
         Fields::from(fields_vec)
@@ -735,10 +748,10 @@ impl OpenAccess {
     pub fn build_work_open_access_table(self, work_id: &str) -> WorkOpenAccessTable {
         WorkOpenAccessTable {
             work_id: work_id.to_string(),
-            is_oa: self.is_oa.unwrap_or_default(),
+            is_oa: self.is_oa.unwrap_or_default() as u8,
             oa_status: self.oa_status.unwrap_or_default(),
             oa_url: self.oa_url.unwrap_or_default(),
-            any_repository_has_fulltext: self.any_repository_has_fulltext.unwrap_or_default(),
+            any_repository_has_fulltext: self.any_repository_has_fulltext.unwrap_or_default() as u8,
         }
     }
 }
@@ -746,10 +759,12 @@ impl OpenAccess {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkOpenAccessTable {
     pub work_id: String,
-    pub is_oa: bool,
+    // pub is_oa: bool,
+    pub is_oa: u8,
     pub oa_status: OaStatus,
     pub oa_url: String,
-    pub any_repository_has_fulltext: bool,
+    // pub any_repository_has_fulltext: bool,
+    pub any_repository_has_fulltext: u8,
 }
 
 impl WorkOpenAccessTable {
@@ -763,7 +778,8 @@ impl WorkOpenAccessTable {
         fields_vec.extend(
             field_names
                 .iter()
-                .map(|f| Field::new(*f, DataType::Boolean, false))
+                // .map(|f| Field::new(*f, DataType::Boolean, false))
+                .map(|f| Field::new(*f, DataType::UInt8, false))
                 .collect::<Vec<_>>(),
         );
         Fields::from(fields_vec)
@@ -849,8 +865,8 @@ impl CitationPercentile {
         WorkCitationPercentileTable {
             work_id: work_id.to_string(),
             value: self.value.unwrap_or_default(),
-            is_in_top_1_percent: self.is_in_top_1_percent.unwrap_or_default(),
-            is_in_top_10_percent: self.is_in_top_10_percent.unwrap_or_default(),
+            is_in_top_1_percent: self.is_in_top_1_percent.unwrap_or_default() as u8,
+            is_in_top_10_percent: self.is_in_top_10_percent.unwrap_or_default() as u8,
         }
     }
 }
@@ -859,8 +875,10 @@ impl CitationPercentile {
 pub struct WorkCitationPercentileTable {
     pub work_id: String,
     pub value: f64,
-    pub is_in_top_1_percent: bool,
-    pub is_in_top_10_percent: bool,
+    // pub is_in_top_1_percent: bool,
+    // pub is_in_top_10_percent: bool,
+    pub is_in_top_1_percent: u8,
+    pub is_in_top_10_percent: u8,
 }
 
 impl WorkCitationPercentileTable {
@@ -881,7 +899,8 @@ impl WorkCitationPercentileTable {
         fields_vec.extend(
             field_names
                 .iter()
-                .map(|f| Field::new(*f, DataType::Boolean, false))
+                // .map(|f| Field::new(*f, DataType::Boolean, false))
+                .map(|f| Field::new(*f, DataType::UInt8, false))
                 .collect::<Vec<_>>(),
         );
         Fields::from(fields_vec)
@@ -1063,7 +1082,7 @@ impl MeshTag {
             descriptor_name: self.descriptor_name.unwrap_or_default(),
             qualifier_ui: self.qualifier_ui.unwrap_or_default(),
             qualifier_name: self.qualifier_name.unwrap_or_default(),
-            is_major_topic: self.is_major_topic.unwrap_or_default(),
+            is_major_topic: self.is_major_topic.unwrap_or_default() as u8,
         }
     }
 }
@@ -1075,7 +1094,8 @@ pub struct WorkMeshTagTable {
     pub descriptor_name: String,
     pub qualifier_ui: String,
     pub qualifier_name: String,
-    pub is_major_topic: bool,
+    // pub is_major_topic: bool,
+    pub is_major_topic: u8,
 }
 
 impl WorkMeshTagTable {
@@ -1095,7 +1115,8 @@ impl WorkMeshTagTable {
         fields_vec.extend(
             field_names
                 .iter()
-                .map(|f| Field::new(*f, DataType::Boolean, false))
+                // .map(|f| Field::new(*f, DataType::Boolean, false))
+                .map(|f| Field::new(*f, DataType::UInt8, false))
                 .collect::<Vec<_>>(),
         );
         Fields::from(fields_vec)
@@ -1236,7 +1257,7 @@ impl WorkTopic {
         WorkTopicTable {
             work_id: work_id.to_string(),
             topic_id: self.id.unwrap_or_default(),
-            is_primary,
+            is_primary: is_primary as u8,
             score: self.score.unwrap_or_default(),
         }
     }
@@ -1246,7 +1267,8 @@ impl WorkTopic {
 pub struct WorkTopicTable {
     pub work_id: String,
     pub topic_id: String,
-    pub is_primary: bool,
+    // pub is_primary: bool,
+    pub is_primary: u8,
     pub score: f32,
 }
 
@@ -1268,7 +1290,8 @@ impl WorkTopicTable {
         fields_vec.extend(
             field_names
                 .iter()
-                .map(|f| Field::new(*f, DataType::Boolean, false))
+                // .map(|f| Field::new(*f, DataType::Boolean, false))
+                .map(|f| Field::new(*f, DataType::UInt8, false))
                 .collect::<Vec<_>>(),
         );
         Fields::from(fields_vec)

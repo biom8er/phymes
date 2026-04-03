@@ -99,11 +99,7 @@ impl<'a> OpenAlexAgentSession<'a> {
     %% 2. Filter works by Topic
 	%% ------------------------------------------------------------------------------
 	subgraph filter_work_topic_table_t
-		WorkTopicTable-subject-.->|AllRecordBatches|extract_work_topic_table_p-subscribe
-		extract_work_topic_table_p-subscribe-->extract_work_topic_table_p-processor
-		extract_work_topic_table_p-processor-->extract_work_topic_table_p-publish
-		extract_work_topic_table_p-publish-->|Replace|extract_work_topic_table_s-subject
-		extract_work_topic_table_s-subject-->|AllRecordBatches|cmp_work_topic_table_p-subscribe
+		WorkTopicTable-subject-.->|AllRecordBatches|cmp_work_topic_table_p-subscribe
 		cmp_work_topic_table_p-subscribe-->cmp_work_topic_table_p-processor
 		cmp_work_topic_table_p-processor-->cmp_work_topic_table_p-publish
 		cmp_work_topic_table_p-publish-->|Replace|cmp_work_topic_table_s-subject
@@ -122,10 +118,6 @@ impl<'a> OpenAlexAgentSession<'a> {
 		join_work_topic_table_p-publish-->|Replace|join_work_topic_table_s-subject
 	end
 	{session_context_name}_r-rt-->filter_work_topic_table_t
-	extract_work_topic_table_p-subscribe@{{shape: diamond, label: All}}
-	extract_work_topic_table_p-processor@{{shape: rect, label: ExtractTabular}}
-	extract_work_topic_table_p-publish@{{shape: fork}}
-	extract_work_topic_table_s-subject@{{shape: doc, label: extract_work_topic_table_s}}
 	cmp_work_topic_table_p-subscribe@{{shape: diamond, label: All}}
 	cmp_work_topic_table_p-processor@{{shape: rect, label: Select}}
 	cmp_work_topic_table_p-publish@{{shape: fork}}
@@ -150,11 +142,7 @@ impl<'a> OpenAlexAgentSession<'a> {
     %% 3. List OpenAccess PDF URLs
 	%% ------------------------------------------------------------------------------
 	subgraph select_open_access_pdf_url_t
-		WorkLocationTable-subject-.->|AllRecordBatches|extract_work_location_table_p-subscribe
-		extract_work_location_table_p-subscribe-->extract_work_location_table_p-processor
-		extract_work_location_table_p-processor-->extract_work_location_table_p-publish
-		extract_work_location_table_p-publish-->|Replace|extract_work_location_table_s-subject
-		extract_work_location_table_s-subject-->|AllRecordBatches|cmp_work_location_table_p-subscribe
+		WorkLocationTable-subject-.->|AllRecordBatches|cmp_work_location_table_p-subscribe
 		cmp_work_location_table_p-subscribe-->cmp_work_location_table_p-processor
 		cmp_work_location_table_p-processor-->cmp_work_location_table_p-publish
 		cmp_work_location_table_p-publish-->|Replace|cmp_work_location_table_s-subject
@@ -177,10 +165,6 @@ impl<'a> OpenAlexAgentSession<'a> {
 		select_open_acces_pdf_url_p-publish-->|Replace|select_open_acces_pdf_url_s-subject
 	end
 	{session_context_name}_r-rt-->select_open_access_pdf_url_t
-	extract_work_location_table_p-subscribe@{{shape: diamond, label: All}}
-	extract_work_location_table_p-processor@{{shape: rect, label: ExtractTabular}}
-	extract_work_location_table_p-publish@{{shape: fork}}
-	extract_work_location_table_s-subject@{{shape: doc, label: extract_work_location_table_s}}
 	cmp_work_location_table_p-subscribe@{{shape: diamond, label: All}}
 	cmp_work_location_table_p-processor@{{shape: rect, label: Select}}
 	cmp_work_location_table_p-publish@{{shape: fork}}
@@ -326,26 +310,16 @@ impl<'a> OpenAlexAgentSession<'a> {
     WorkRelatedWorksTable["WorkRelatedWorksTable"] {{
         List-UInt8 bytes
     }}
-    extract_work_topic_table_p["extract_work_topic_table_p"] {{
-	    Boolean cpu "false"
-	    Utf8 format "Ipc"
-        Utf8 schema "Empty"
-        Utf8 encoding "None"
-	    Utf8 lhs_name "WorkTopicTable"
-	    List-Utf8 lhs_values "['bytes']"
-	    Utf8 operator "ExtractTabular"
-	    Utf8 lhs_stream "Accumulate"
-    }}
     cmp_work_topic_table_p["cmp_work_topic_table_p"] {{
         List-Utf8 as_columns "['work_id','topic_id','is_primary','score','cmp_is_primary','cmp_score']"
-		List-Utf8 cast_templates "['','','','','true','0.5']"
-        List-Utf8 cast_datatypes "['Utf8','Utf8','Boolean','Float32','Boolean','Float32']"
+		List-Utf8 cast_templates "['','','','','1','0.5']"
+        List-Utf8 cast_datatypes "['Utf8','Utf8','UInt8','Float32','UInt8','Float32']"
         List-Utf8 column_operators "['None','None','None','None','Value','Value']"
         Boolean cpu "false"
-        Utf8 lhs_name "extract_work_topic_table_s"
+        Utf8 lhs_name "WorkTopicTable"
         List-Utf8 lhs_values "['work_id','topic_id','is_primary','score','cmp_is_primary','cmp_score']"
         Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     filter_work_topic_table_p["filter_work_topic_table_p"] {{
         List-Utf8 cmp_columns "['cmp_is_primary', 'cmp_score']"
@@ -355,14 +329,14 @@ impl<'a> OpenAlexAgentSession<'a> {
         Utf8 lhs_name "cmp_work_topic_table_s"
         List-Utf8 lhs_values "['is_primary', 'score']"
         Utf8 operator "Filter"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     select_work_topic_table_p["select_work_topic_table_p"] {{
         Boolean cpu "false"
         Utf8 lhs_name "filter_work_topic_table_s"
         List-Utf8 lhs_values "['work_id','topic_id','is_primary','score']"
         Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     open_alex_topics_s["open_alex_topics_s"] {{
         Utf8 topic_id "https://openalex.org/T10123"
@@ -383,29 +357,19 @@ impl<'a> OpenAlexAgentSession<'a> {
     join_work_topic_table_s["join_work_topic_table_s"] {{
         Utf8 topic_id
         Utf8 work_id
-        Boolean is_primary
+        UInt8 is_primary
         Float32 score
-    }}
-    extract_work_location_table_p["extract_work_location_table_p"] {{
-	    Boolean cpu "false"
-	    Utf8 format "Ipc"
-        Utf8 schema "Empty"
-        Utf8 encoding "None"
-	    Utf8 lhs_name "WorkLocationTable"
-	    List-Utf8 lhs_values "['bytes']"
-	    Utf8 operator "ExtractTabular"
-	    Utf8 lhs_stream "Accumulate"
     }}
     cmp_work_location_table_p["cmp_work_location_table_p"] {{
         List-Utf8 as_columns "['work_id','landing_page_url','pdf_url','source_id','license','version','is_best_oa','is_primary','is_oa','cmp_is_best_oa']"
-		List-Utf8 cast_templates "['','','','','','','','','','true']"
-        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Boolean','Boolean','Boolean','Boolean']"
+		List-Utf8 cast_templates "['','','','','','','','','','1']"
+        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','UInt8','UInt8','UInt8','UInt8']"
         List-Utf8 column_operators "['None','None','None','None','None','None','None','None','None','Value']"
         Boolean cpu "false"
-        Utf8 lhs_name "extract_work_location_table_s"
+        Utf8 lhs_name "WorkLocationTable"
         List-Utf8 lhs_values "['work_id','landing_page_url','pdf_url','source_id','license','version','is_best_oa','is_primary','is_oa','cmp_is_best_oa']"
         Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     filter_work_location_table_p["filter_work_location_table_p"] {{
         List-Utf8 cmp_columns "['cmp_is_best_oa']"
@@ -415,14 +379,14 @@ impl<'a> OpenAlexAgentSession<'a> {
         Utf8 lhs_name "cmp_work_location_table_s"
         List-Utf8 lhs_values "['is_best_oa']"
         Utf8 operator "Filter"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     select_work_location_table_p["select_work_location_table_p"] {{
         Boolean cpu "false"
         Utf8 lhs_name "filter_work_location_table_s"
         List-Utf8 lhs_values "['work_id','landing_page_url','pdf_url','source_id','license','version','is_best_oa','is_primary','is_oa']"
         Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     join_work_location_table_p["join_work_location_table_p"] {{
         Boolean cpu "false"
@@ -598,6 +562,24 @@ mod tests {
             );
         }
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionEvents.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        if !batches.is_empty() {
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionEvents.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            println!(
+                "{}\n{}",
+                AvailableSubjects::SessionEvents,
+                String::from_utf8(subject.to_csv(b',', true)?)?
+            );
+        }
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionMetrics.to_string(),
         }
         .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
@@ -656,9 +638,9 @@ mod tests {
         let column = subject.get_column_as_vec_primitive::<f32>("score")?;
         assert_eq!(column.first().unwrap(), &0.9994);
         assert_eq!(column.last().unwrap(), &0.2251);
-        let column = subject.get_column_as_vec_bool("is_primary")?;
-        assert_eq!(column.first().unwrap(), &true);
-        assert_eq!(column.last().unwrap(), &true);
+        let column = subject.get_column_as_vec_primitive::<u8>("is_primary")?;
+        assert_eq!(column.first().unwrap(), &1);
+        assert_eq!(column.last().unwrap(), &1);
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "WorkLocationTable".to_string(),
@@ -675,15 +657,15 @@ mod tests {
         let column = subject.get_column_as_vec_str("work_id");
         assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
         assert_eq!(column.last().unwrap(), &"https://openalex.org/W4367307220");
-        let column = subject.get_column_as_vec_bool("is_best_oa")?;
-        assert_eq!(column.first().unwrap(), &false);
-        assert_eq!(column.last().unwrap(), &false);
-        let column = subject.get_column_as_vec_bool("is_primary")?;
-        assert_eq!(column.first().unwrap(), &true);
-        assert_eq!(column.last().unwrap(), &true);
-        let column = subject.get_column_as_vec_bool("is_oa")?;
-        assert_eq!(column.first().unwrap(), &false);
-        assert_eq!(column.last().unwrap(), &false);
+        let column = subject.get_column_as_vec_primitive::<u8>("is_best_oa")?;
+        assert_eq!(column.first().unwrap(), &0);
+        assert_eq!(column.last().unwrap(), &0);
+        let column = subject.get_column_as_vec_primitive::<u8>("is_primary")?;
+        assert_eq!(column.first().unwrap(), &1);
+        assert_eq!(column.last().unwrap(), &1);
+        let column = subject.get_column_as_vec_primitive::<u8>("is_oa")?;
+        assert_eq!(column.first().unwrap(), &0);
+        assert_eq!(column.last().unwrap(), &0);
         let column = subject.get_column_as_vec_str("landing_page_url");
         assert_eq!(column.first().unwrap(), &"https://doi.org/10.1016/j.str.2014.09.012");
         assert_eq!(column.last().unwrap(), &"http://dx.doi.org/10.2307/jj.2430693");
@@ -720,28 +702,19 @@ mod tests {
             .with_name("join_work_topic_table_s")
             .with_record_batches(batches)?
             .build()?;
-        dbg!(subject.count_rows());
-        // assert_eq!(subject.count_rows(), 48958);
+        assert_eq!(subject.count_rows(), 13);
         let column = subject.get_column_as_vec_str("work_id");
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(column.first().unwrap(), &"");
-        // assert_eq!(column.last().unwrap(), &"");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2036680792");
+        assert_eq!(column.last().unwrap(), &"https://openalex.org/W2037563286");
         let column = subject.get_column_as_vec_str("topic_id");
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(column.first().unwrap(), &"");
-        // assert_eq!(column.last().unwrap(), &"");
-        let column = subject.get_column_as_vec_bool("is_primary")?;
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(column.first().unwrap(), &true);
-        // assert_eq!(column.last().unwrap(), &true);
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
+        assert_eq!(column.last().unwrap(), &"https://openalex.org/T10123");
+        let column = subject.get_column_as_vec_primitive::<u8>("is_primary")?;
+        assert_eq!(column.first().unwrap(), &1);
+        assert_eq!(column.last().unwrap(), &1);
         let column = subject.get_column_as_vec_primitive::<f32>("score")?;
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(column.first().unwrap(), &0);
-        // assert_eq!(column.last().unwrap(), &0);
+        assert_eq!(column.first().unwrap(), &0.9998);
+        assert_eq!(column.last().unwrap(), &0.9998);
         
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "select_open_acces_pdf_url_s".to_string(),
@@ -754,38 +727,25 @@ mod tests {
             .with_name("select_open_acces_pdf_url_s")
             .with_record_batches(batches)?
             .build()?;
-        dbg!(subject.count_rows());
-        // assert_eq!(subject.count_rows(), 48958);
+        assert_eq!(subject.count_rows(), 9);
         let column = subject.get_column_as_vec_str("work_id");
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(column.first().unwrap(), &"");
-        // assert_eq!(column.last().unwrap(), &"");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2036554147");
+        assert_eq!(column.last().unwrap(), &"https://openalex.org/W4408584426");
         let column = subject.get_column_as_vec_str("topic_id");
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(column.first().unwrap(), &"");
-        // assert_eq!(column.last().unwrap(), &"");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
+        assert_eq!(column.last().unwrap(), &"https://openalex.org/T10123");
         let column = subject.get_column_as_vec_primitive::<f32>("score")?;
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(column.first().unwrap(), &0);
-        // assert_eq!(column.last().unwrap(), &0);
+        assert_eq!(column.first().unwrap(), &0.9998);
+        assert_eq!(column.last().unwrap(), &0.9688);
         let column = subject.get_column_as_vec_str("pdf_url");
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(column.first().unwrap(), &"");
-        // assert_eq!(column.last().unwrap(), &"");
+        assert_eq!(column.first().unwrap(), &"http://www.jidonline.org/article/S0022202X15321485/pdf");
+        assert_eq!(column.last().unwrap(), &"https://doi.org/10.37184/jlnh.2959-1805.3.9");
         let column = subject.get_column_as_vec_str("source_id");
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(column.first().unwrap(), &"");
-        // assert_eq!(column.last().unwrap(), &"");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/S28607811");
+        assert_eq!(column.last().unwrap(), &"https://openalex.org/S4387288081");
         let column = subject.get_column_as_vec_str("version");
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(column.first().unwrap(), &"");
-        // assert_eq!(column.last().unwrap(), &"");
+        assert_eq!(column.first().unwrap(), &"publishedVersion");
+        assert_eq!(column.last().unwrap(), &"publishedVersion");
 
         Ok(())
     }

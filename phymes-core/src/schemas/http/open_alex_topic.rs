@@ -28,7 +28,7 @@ impl Topic {
         WorkTopicTable {
             work_id: work_id.to_string(),
             topic_id: self.id,
-            is_primary,
+            is_primary: is_primary as u8,
             score,
         }
     }
