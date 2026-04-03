@@ -129,10 +129,6 @@ impl TaskTrait for Task {
                     &mut messages,
                 )?;
 
-            // Copy the message keys for error events
-            let mut message_sub_keys = message_sub.keys().into_iter().map(|k| k.to_string()).collect::<Vec<_>>();
-            message_sub_keys.sort();
-
             // Trace the processor subscribed messages
             let (trace, trace_builder) = if let Some(diagnostic_builder) = trace_builder.as_ref() {
                 let trace_builder = diagnostic_builder.clone().to_child(processor.get_name())?;
@@ -146,27 +142,8 @@ impl TaskTrait for Task {
                 (None, None)
             };
 
-            // DM, todo!() also add baseline metrics here to better capture overall processor metrics
-
             // Run the processor
-            let message_builder = match processor.process(message_sub, trace_builder.as_ref(), runtime_env.clone()) {
-                Ok(message_builder) => message_builder,
-                Err(err) => {
-                    // Error propogation with many polls and streams often fails to capture the error-causing processor
-                    //  so we need to log the error event as close to when it happens as possible
-                    if let Some(diagnostic_builder) = trace_builder.as_ref() {
-                        let event = diagnostic_builder.clone().warn(line!(), file!(), processor.get_name());
-                        event.insert(
-                            self.get_name(),
-                            &serde_json::Value::String(format!(
-                                "Processor `{}` with messages `{message_sub_keys:?}` resulted in an error: `{err:?}`",
-                                processor.get_name(),
-                            )),
-                        );
-                    };
-                    return Err(err);
-                }
-            };
+            let message_builder = processor.process(message_sub, trace_builder.as_ref(), runtime_env.clone())?;
 
             // Build and trace the processor published messages
             let message_pub = build_and_publish_to_stream(

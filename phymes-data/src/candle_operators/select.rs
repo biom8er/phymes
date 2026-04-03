@@ -2394,8 +2394,24 @@ pub fn select(
                     ));
                 }
             },
-            DataColumnOperator::Len => {
-                todo!()
+            DataColumnOperator::Len => match column_data_type {
+                DataType::Utf8 => {
+                    let lhs_vec = Subject::get_array_as_vec_nonprimitive::<String>(
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                        column_name,
+                    )?;
+                    let agg_values = lhs_vec
+                        .into_iter()
+                        .map(|s| s.len() as u32)
+                        .collect::<Vec<_>>();
+                    Arc::new(UInt32Array::from(agg_values))
+                },
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
+                        column_operators.get(index).unwrap()
+                    ));
+                }
             }
             DataColumnOperator::BroadcastCount => {
                 let num_rows = lhs_table.count_rows();

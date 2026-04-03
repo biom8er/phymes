@@ -481,7 +481,8 @@ impl Stream for HTTPClientRequestStream {
 
                     // Determine the filename
                     let filename = if let Some(url) = self.url.take() {
-                        url.split("/").last().unwrap_or_default().to_string()
+                        // url.split("/").last().unwrap_or_default().to_string()
+                        url
                     } else {
                         String::new()
                     };

@@ -192,6 +192,22 @@ impl<'a> OpenAlexAgentSession<'a> {
     %% 3. EmbedTextSession (where query = Ontology term)
     %% 4. RetrieveTextSession
 	%% ------------------------------------------------------------------------------
+	subgraph download_open_access_pdf_t
+		select_open_acces_pdf_url_s-subject-.->|AllRecordBatches|download_open_access_pdf_p-subscribe
+		download_open_access_pdf_p-subscribe-->download_open_access_pdf_p-processor
+		download_open_access_pdf_p-processor-->download_open_access_pdf_p-publish
+		download_open_access_pdf_p-publish-->|Extend|UserPdf-subject
+	end
+	{session_context_name}_r-rt-->download_open_access_pdf_t
+	download_open_access_pdf_p-processor@{{shape: rect, label: HTTPClientRequestProcessor}}
+	download_open_access_pdf_p-publish@{{shape: fork}}
+	download_open_access_pdf_p-subscribe@{{shape: diamond, label: All}}
+	UserPdf-subject@{{shape: doc, label: UserPdf}}
+	%% ------------------------------------------------------------------------------
+	%% Extensions
+    %% 1. ExtractPDFSession
+    %% 2. EmbedTextSession (where query = Ontology term)
+    %% 3. RetrieveTextSession
 	%% ------------------------------------------------------------------------------"#)
     }
     pub fn as_mermaid_erdiagram(&self) -> String {
@@ -361,23 +377,23 @@ impl<'a> OpenAlexAgentSession<'a> {
         Float32 score
     }}
     cmp_work_location_table_p["cmp_work_location_table_p"] {{
-        List-Utf8 as_columns "['work_id','landing_page_url','pdf_url','source_id','license','version','is_best_oa','is_primary','is_oa','cmp_is_best_oa']"
-		List-Utf8 cast_templates "['','','','','','','','','','1']"
-        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','UInt8','UInt8','UInt8','UInt8']"
-        List-Utf8 column_operators "['None','None','None','None','None','None','None','None','None','Value']"
+        List-Utf8 as_columns "['work_id','landing_page_url','pdf_url','source_id','license','version','is_best_oa','is_primary','is_oa','cmp_is_best_oa','pdf_url_len','cmp_pdf_url_len']"
+		List-Utf8 cast_templates "['','','','','','','','','','1','','']"
+        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','UInt8','UInt8','UInt8','UInt8','UInt32','UInt32']"
+        List-Utf8 column_operators "['None','None','None','None','None','None','None','None','None','Value','Len','Zeros']"
         Boolean cpu "false"
         Utf8 lhs_name "WorkLocationTable"
-        List-Utf8 lhs_values "['work_id','landing_page_url','pdf_url','source_id','license','version','is_best_oa','is_primary','is_oa','cmp_is_best_oa']"
+        List-Utf8 lhs_values "['work_id','landing_page_url','pdf_url','source_id','license','version','is_best_oa','is_primary','is_oa','cmp_is_best_oa','pdf_url','cmp_pdf_url_len']"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
     }}
     filter_work_location_table_p["filter_work_location_table_p"] {{
-        List-Utf8 cmp_columns "['cmp_is_best_oa']"
-        List-Utf8 cmp_operators "['Equals']"
+        List-Utf8 cmp_columns "['cmp_is_best_oa','cmp_pdf_url_len']"
+        List-Utf8 cmp_operators "['Equals','GreaterThan']"
         Utf8 cmp_predicate "All"
         Boolean cpu "false"
         Utf8 lhs_name "cmp_work_location_table_s"
-        List-Utf8 lhs_values "['is_best_oa']"
+        List-Utf8 lhs_values "['is_best_oa','pdf_url_len']"
         Utf8 operator "Filter"
         Utf8 lhs_stream "Stream"
     }}
@@ -404,6 +420,7 @@ impl<'a> OpenAlexAgentSession<'a> {
     select_open_acces_pdf_url_p["select_open_acces_pdf_url_p"] {{
         Boolean cpu "false"
         Utf8 lhs_name "join_work_location_table_s"
+        List-Utf8 as_columns "['','','','content','','']"
         List-Utf8 lhs_values "['work_id','topic_id','score','pdf_url','source_id','version']"
         Utf8 operator "Select"
         Utf8 lhs_stream "Accumulate"
@@ -412,9 +429,24 @@ impl<'a> OpenAlexAgentSession<'a> {
         Utf8 work_id
         Utf8 topic_id
         Float32 score
-        Utf8 pdf_url
+        Utf8 content
         Utf8 source_id
         Utf8 version
+    }}
+    download_open_access_pdf_p["download_open_access_pdf_p"] {{
+        UInt32 timeout "15"
+        Utf8 request_type "Get"
+        Utf8 user_agent_type "rust-openalex-client/2.0"
+        Utf8 subject_name "select_open_acces_pdf_url_s"
+        Utf8 request_schema "Attachments"
+        Utf8 base_url ""
+    }}
+    UserPdf["UserPdf"] {{
+        Utf8 filename
+        Utf8 extension
+        List-UInt8 bytes
+        Utf8 metadata
+        Int64 timestamp
     }}"#)
     }
 }
@@ -426,20 +458,58 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, ObjectStorageBackend, Publication, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_bytes_record_batch, create_object_store_meta_batch
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, ObjectStorageBackend, Publication, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_bytes_record_batch, create_object_store_meta_batch, create_queries_batch
     };
     use phymes_data::{ObjectStoreConfig, ObjectStoreOptsType};
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream, SubscriptionTrait,
+        AvailableInterfaceSubjects, EmbedTextSession, ExtractPDFSession, RetrieveTextSession, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait
     };
 
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_open_alex_agent_session() -> Result<()> {
+        // Extract PDF session        
+        let extract_pdf_session = ExtractPDFSession::default();
+        let extract_pdf_session_builder = SessionContextBuilder::from_mermaid_flowchart(
+            extract_pdf_session.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_subjects_from_mermaid_erdiagram(
+            extract_pdf_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
+        .with_name(extract_pdf_session.session_context_name);
+
+        // Embed text session
+        let embed_text_session = EmbedTextSession::default();
+        let embed_text_session_builder = SessionContextBuilder::from_mermaid_flowchart(
+            &embed_text_session.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_subjects_from_mermaid_erdiagram(
+            &embed_text_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
+        .with_name(embed_text_session.session_context_name);
+
+        // Retrieve text session
+        let retrieve_text_session = RetrieveTextSession::default();
+        let retrieve_text_builder = SessionContextBuilder::from_mermaid_flowchart(
+            retrieve_text_session.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_subjects_from_mermaid_erdiagram(
+            retrieve_text_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
+        .with_name(retrieve_text_session.session_context_name);
+
         // Initialize the session
         let open_alex_agent_session = OpenAlexAgentSession::default();
         let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
@@ -448,6 +518,9 @@ mod tests {
         )?
         .with_subjects_from_mermaid_erdiagram(&open_alex_agent_session.as_mermaid_erdiagram(), false, true)?
         .with_name(open_alex_agent_session.session_context_name)
+        .extend(extract_pdf_session_builder)?
+        .extend(embed_text_session_builder)?
+        .extend(retrieve_text_builder)?
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
@@ -534,6 +607,24 @@ mod tests {
                 .build()?,
         );
 
+        // Make the query
+        let query_ids = vec!["query_1".to_string()];
+        let text = vec!["Is statin therapy intensity significantly associated with musculoskeletal symptoms?".to_string()];
+        let query_batch = create_queries_batch(query_ids, text)?;
+        let query_subject = AvailableInterfaceSubjects::UserQueries
+            .to_subject(None, Some(vec![query_batch]))?;
+        let _ = message_map.insert(
+            query_subject.get_name().to_string(),
+            IPCMessage::get_builder()
+                .with_name(query_subject.get_name())
+                .with_publisher(open_alex_agent_session.session_context_name)
+                .with_subject(query_subject.get_name())
+                .with_update(&Publication::Replace {
+                    subject_name: query_subject.get_name().to_string(),
+                })
+                .with_message(query_subject.to_ipc_stream()?)
+                .build()?,
+        );
        
         let _ = session_ctx_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
@@ -600,7 +691,7 @@ mod tests {
 
         assert_eq!(response.len(), 0);
 
-        // Test session stream
+        // Test AWS object store GET
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "WorkTable".to_string(),
         }
@@ -690,7 +781,8 @@ mod tests {
         .try_collect()
         .await?;
         assert!(batches.is_empty());
-        
+
+        // Test join work topic with user defined topics       
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "join_work_topic_table_s".to_string(),
         }
@@ -716,6 +808,7 @@ mod tests {
         assert_eq!(column.first().unwrap(), &0.9998);
         assert_eq!(column.last().unwrap(), &0.9998);
         
+        // Test select open access PDF url as content
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "select_open_acces_pdf_url_s".to_string(),
         }
@@ -727,7 +820,7 @@ mod tests {
             .with_name("select_open_acces_pdf_url_s")
             .with_record_batches(batches)?
             .build()?;
-        assert_eq!(subject.count_rows(), 9);
+        assert_eq!(subject.count_rows(), 6);
         let column = subject.get_column_as_vec_str("work_id");
         assert_eq!(column.first().unwrap(), &"https://openalex.org/W2036554147");
         assert_eq!(column.last().unwrap(), &"https://openalex.org/W4408584426");
@@ -737,7 +830,7 @@ mod tests {
         let column = subject.get_column_as_vec_primitive::<f32>("score")?;
         assert_eq!(column.first().unwrap(), &0.9998);
         assert_eq!(column.last().unwrap(), &0.9688);
-        let column = subject.get_column_as_vec_str("pdf_url");
+        let column = subject.get_column_as_vec_str("content");
         assert_eq!(column.first().unwrap(), &"http://www.jidonline.org/article/S0022202X15321485/pdf");
         assert_eq!(column.last().unwrap(), &"https://doi.org/10.37184/jlnh.2959-1805.3.9");
         let column = subject.get_column_as_vec_str("source_id");
@@ -746,6 +839,89 @@ mod tests {
         let column = subject.get_column_as_vec_str("version");
         assert_eq!(column.first().unwrap(), &"publishedVersion");
         assert_eq!(column.last().unwrap(), &"publishedVersion");
+        
+        // Test HTTP request of open access PDF
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableInterfaceSubjects::UserPdf.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 6);
+        let column = subject.get_column_as_vec_str("filename");
+        dbg!(&column);
+        assert_eq!(column.first().unwrap(), &"pdf");
+        assert_eq!(column.last().unwrap(), &"jlnh.2959-1805.3.9");
+        let column = subject.get_column_as_vec_str("extension");
+        assert_eq!(column.first().unwrap(), &"text/html; charset=UTF-8");
+        assert_eq!(column.last().unwrap(), &"application/pdf");
+        let column = subject.get_column_as_vec_str("metadata");
+        assert_eq!(column.first().unwrap(), &"tool");
+        assert_eq!(column.last().unwrap(), &"tool");
+        let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+        for c in column {
+            assert!(c > 0);
+        }
+        let column = subject
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        assert!(column.len() > 100);
+
+        // Test PDF extraction, embedding, and retrieval
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(
+                AvailableInterfaceSubjects::ToolMessages
+                    .to_string()
+                    .as_str(),
+            )
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 1);
+        let column = subject.get_column_as_vec_str("role");
+        assert_eq!(column.first().unwrap(), &"tool");
+        let column = subject.get_column_as_vec_str("content");
+        assert_eq!(
+            column.first().unwrap(),
+            &"[{\"text\":\"Deoxyribonucleic acid (DNA) is a polymer composed of two polynucleotide chains that coil around each other to form a double helix. The polymer carries genetic instructions for the development, functioning, growth and reproduction of all known organisms and many viruses. DNA and ribonucleic acid (RNA) are nucleic acids. Alongside proteins, lipids and complex carbohydrates (polysaccharides), nucleic acids are one of the four major types of macromolecules that are essential for all known forms of life.The two \"}]"
+        );
+        let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+        for t in column {
+            assert!(t > 0);
+        }
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::EmbeddingScores.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::EmbeddingScores.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 1);
+        let column = subject.get_column_as_vec_str("chunk_id");
+        assert_eq!(column.first().unwrap(), &"WikiBioComponents_2_0");
+        let column = subject.get_column_as_vec_str("query_id");
+        assert_eq!(column.first().unwrap(), &"1770146381963577");
+        let column = subject.get_column_as_vec_primitive::<f32>("score")?;
+        for t in column {
+            assert!(t > 0.15); // Threshold used for filtering
+        }
 
         Ok(())
     }
