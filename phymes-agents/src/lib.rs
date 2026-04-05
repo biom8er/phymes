@@ -14,7 +14,7 @@ pub use messages::{
     SessionInterfaceMessageTrait,
 };
 #[cfg(feature = "api")]
-pub use plans::DownloadContentSession;
+pub use plans::GetContentSession;
 #[cfg(feature = "api")]
 pub use plans::ExecuteWorkspaceSession;
 pub use plans::{

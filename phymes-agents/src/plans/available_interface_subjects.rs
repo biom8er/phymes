@@ -90,6 +90,8 @@ pub enum AvailableInterfaceSubjects {
     UserCsv,
     #[value(name = "UserJson")]
     UserJson,
+    #[value(name = "UserObject")]
+    UserObject,
     #[value(name = "AggregatedMessages")]
     AggregatedMessages,
     #[value(name = "AggregatedAttachments")]
@@ -106,6 +108,8 @@ pub enum AvailableInterfaceSubjects {
     AssistantJson,
     #[value(name = "AssistantScript")]
     AssistantScript,
+    #[value(name = "AssistantObject")]
+    AssistantObject,
 }
 
 impl Display for AvailableInterfaceSubjects {
@@ -120,6 +124,7 @@ impl Display for AvailableInterfaceSubjects {
             Self::UserScript => write!(f, "UserScript"),
             Self::UserCsv => write!(f, "UserCsv"),
             Self::UserJson => write!(f, "UserJson"),
+            Self::UserObject => write!(f, "UserObject"),
             Self::AggregatedMessages => write!(f, "AggregatedMessages"),
             Self::AggregatedAttachments => write!(f, "AggregatedAttachments"),
             Self::AssistantMessages => write!(f, "AssistantMessages"),
@@ -128,6 +133,7 @@ impl Display for AvailableInterfaceSubjects {
             Self::AssistantCsv => write!(f, "AssistantCsv"),
             Self::AssistantJson => write!(f, "AssistantJson"),
             Self::AssistantScript => write!(f, "AssistantScript"),
+            Self::AssistantObject => write!(f, "AssistantObject"),
         }
     }
 }
@@ -162,6 +168,10 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AssistantScript => {
                 AvailableSubjects::Attachments.to_subject(Some(name.as_str()), batches)
             }
+            Self::UserObject
+            | Self::AssistantObject => {
+                AvailableSubjects::ObjectStore.to_subject(Some(name.as_str()), batches)
+            }
         }
     }
 
@@ -191,6 +201,10 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AggregatedAttachments
             | Self::AssistantScript => {
                 AvailableSubjects::Attachments.to_subject_builder(Some(name.as_str()))
+            }
+            Self::UserObject
+            | Self::AssistantObject => {
+                AvailableSubjects::ObjectStore.to_subject_builder(Some(name.as_str()))
             }
         }
     }
@@ -225,6 +239,8 @@ impl AvailableSchemaTrait for AvailableInterfaceSubjects {
             | Self::AssistantJson
             | Self::AggregatedAttachments
             | Self::AssistantScript => AvailableSubjects::Attachments.to_schema(),
+            Self::UserObject
+            | Self::AssistantObject => AvailableSubjects::ObjectStore.to_schema(),
         }
     }
 }
@@ -242,6 +258,7 @@ impl AvailableInterfaceSubjects {
             | Self::UserScript
             | Self::UserCsv
             | Self::UserJson
+            | Self::UserObject
             | Self::AggregatedAttachments
             | Self::AggregatedMessages => false,
             Self::AssistantMessages
@@ -249,7 +266,8 @@ impl AvailableInterfaceSubjects {
             | Self::ToolMessages
             | Self::AssistantImage
             | Self::AssistantCsv
-            | Self::AssistantJson => true,
+            | Self::AssistantJson 
+            | Self::AssistantObject => true,
         }
     }
     /// Is the subject published to by the session?
@@ -263,13 +281,15 @@ impl AvailableInterfaceSubjects {
             | Self::UserImage
             | Self::UserScript
             | Self::UserCsv
-            | Self::UserJson => true,
+            | Self::UserJson
+            | Self::UserObject => true,
             Self::AssistantMessages
             | Self::AssistantScript
             | Self::ToolMessages
             | Self::AssistantImage
             | Self::AssistantCsv
             | Self::AssistantJson
+            | Self::AssistantObject
             | Self::AggregatedAttachments
             | Self::AggregatedMessages => false,
         }
@@ -286,12 +306,14 @@ impl AvailableInterfaceSubjects {
             | Self::UserScript
             | Self::UserCsv
             | Self::UserJson
+            | Self::UserObject
             | Self::AssistantMessages
             | Self::AssistantScript
             | Self::ToolMessages
             | Self::AssistantImage
             | Self::AssistantCsv
-            | Self::AssistantJson => false,
+            | Self::AssistantJson
+            | Self::AssistantObject => false,
             Self::AggregatedAttachments | Self::AggregatedMessages => true,
         }
     }
@@ -306,7 +328,8 @@ impl AvailableInterfaceSubjects {
             | Self::UserImage
             | Self::UserScript
             | Self::UserCsv
-            | Self::UserJson => true,
+            | Self::UserJson
+            | Self::UserObject => true,
             Self::AggregatedAttachments
             | Self::AggregatedMessages
             | Self::AssistantMessages
@@ -314,7 +337,8 @@ impl AvailableInterfaceSubjects {
             | Self::ToolMessages
             | Self::AssistantImage
             | Self::AssistantCsv
-            | Self::AssistantJson => false,
+            | Self::AssistantJson
+            | Self::AssistantObject => false,
         }
     }
 }

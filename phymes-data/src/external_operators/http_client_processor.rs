@@ -453,7 +453,8 @@ impl Stream for HTTPClientRequestStream {
                     self.poll_next(cx)
                 }
                 Err(err) => {
-                    self.state = HTTPClientRequestState::Done;
+                    // self.state = HTTPClientRequestState::Done;
+                    self.state = HTTPClientRequestState::NotStarted;
                     Poll::Ready(Some(Err(anyhow!(error_report(&err)))))
                 }
             },
@@ -510,7 +511,8 @@ impl Stream for HTTPClientRequestStream {
                     self.poll_next(cx)
                 }
                 Err(err) => {
-                    self.state = HTTPClientRequestState::Done;
+                    // self.state = HTTPClientRequestState::Done;
+                    self.state = HTTPClientRequestState::NotStarted;
                     Poll::Ready(Some(Err(anyhow!(error_report(&err)))))
                 }
             },

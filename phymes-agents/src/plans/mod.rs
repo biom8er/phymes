@@ -38,7 +38,7 @@ pub(crate) use count_subject_rows_session::CountSubjectRowsSession;
 pub use diagnostic_session::DiagnosticSession;
 pub use document_rag_session::DocumentRAGSession;
 #[cfg(feature = "api")]
-pub use download_content_session::DownloadContentSession;
+pub use download_content_session::GetContentSession;
 pub use embed_text_session::EmbedTextSession;
 #[cfg(feature = "api")]
 pub use execute_workspace_session::ExecuteWorkspaceSession;

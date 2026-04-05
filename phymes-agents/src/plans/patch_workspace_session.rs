@@ -2,25 +2,30 @@
 pub struct PatchWorkspaceSession<'a> {
     /// Session
     pub session_context_name: &'a str,
+    /// Workspace subject name
+    pub workspace_subject_name: &'a str,
+    /// Patch subject name
+    pub patch_subject_name: &'a str,
 }
 
 impl<'a> Default for PatchWorkspaceSession<'a> {
     fn default() -> Self {
-        // Create the project directory
-        let session_context_name = "patch_workspace_session";
-
-        // Initialize with reasonable default names
         Self {
-            session_context_name,
+            session_context_name: "patch_workspace_session",
+            workspace_subject_name: "Workspace",
+            patch_subject_name: "WorkspacePatch",
         }
     }
 }
 
 impl<'a> PatchWorkspaceSession<'a> {
     /// Return the Mermaid.js flowchart representation of the session
-    pub fn as_mermaid_flowchart(&self) -> &str {
-        r#"flowchart TD
-	patch_workspace_r-rt@{shape: subproc, label: patch_workspace_r}
+    pub fn as_mermaid_flowchart(&self) -> String {
+        let session_context_name = self.session_context_name;
+        let workspace_subject_name = self.workspace_subject_name;
+        let patch_subject_name = self.patch_subject_name;
+        format!(r#"flowchart TD
+	{session_context_name}_r-rt@{{shape: subproc, label: patch_workspace_r}}
 	%% ------------------------------------------------------------------------------
 	%% Apply patch to workspace
     %% - We listen for updates both on the config `apply_patch_p` subject
@@ -28,42 +33,44 @@ impl<'a> PatchWorkspaceSession<'a> {
     %% - The `tool_call_session` is used to trigger the operator when only the config is updated
 	%% ------------------------------------------------------------------------------
 	subgraph apply_patch_t
-		WorkspacePatch-subject-.->|AllRecordBatches|apply_patch_p-subscribe
-		Workspace-subject-.->|AllRecordBatches|apply_patch_p-subscribe
+        {workspace_subject_name}-subject-.->|AllRecordBatches|apply_patch_p-subscribe
+		{patch_subject_name}-subject-.->|AllRecordBatches|apply_patch_p-subscribe
 		apply_patch_p-subject-.->|LastRecordBatch|apply_patch_p-subscribe
 		apply_patch_p-subscribe-->apply_patch_p-processor
 		apply_patch_p-processor-->apply_patch_p-publish
 		apply_patch_p-publish-->|Extend|apply_patch_s-subject
 	end
-	patch_workspace_r-rt-->apply_patch_t
-	WorkspacePatch-subject@{shape: doc, label: WorkspacePatch}
-	Workspace-subject@{shape: doc, label: Workspace}
-	apply_patch_p-subject@{shape: doc, label: apply_patch_p}
-	apply_patch_p-processor@{shape: rect, label: Patch}
-	apply_patch_p-publish@{shape: fork}
-	apply_patch_p-subscribe@{shape: diamond, label: All}
-	apply_patch_s-subject@{shape: doc, label: apply_patch_s}
-	%% ------------------------------------------------------------------------------"#
+	{session_context_name}_r-rt-->apply_patch_t
+	{workspace_subject_name}-subject@{{shape: doc, label: {workspace_subject_name}}}
+	{patch_subject_name}-subject@{{shape: doc, label: {patch_subject_name}}}
+	apply_patch_p-subject@{{shape: doc, label: apply_patch_p}}
+	apply_patch_p-processor@{{shape: rect, label: Patch}}
+	apply_patch_p-publish@{{shape: fork}}
+	apply_patch_p-subscribe@{{shape: diamond, label: All}}
+	apply_patch_s-subject@{{shape: doc, label: apply_patch_s}}
+	%% ------------------------------------------------------------------------------"#)
     }
     /// Return the Mermaid.js ER diagram representation of the session
-    pub fn as_mermaid_erdiagram(&self) -> &str {
-        r#"erDiagram
-    WorkspacePatch["WorkspacePatch"] {
+    pub fn as_mermaid_erdiagram(&self) -> String {
+        let workspace_subject_name = self.workspace_subject_name;
+        let patch_subject_name = self.patch_subject_name;
+        format!(r#"erDiagram
+    {patch_subject_name}["{patch_subject_name}"] {{
         Utf8 filename
         Utf8 diff
         Utf8 operator
-    }
-    Workspace["Workspace"] {
+    }}
+    {workspace_subject_name}["{workspace_subject_name}"] {{
         Utf8 path
         Utf8 content
-    }
-    apply_patch_p["apply_patch_p"] {
+    }}
+    apply_patch_p["apply_patch_p"] {{
         List-UInt8 bytes
-    }
-    apply_patch_s["apply_patch_s"] {
+    }}
+    apply_patch_s["apply_patch_s"] {{
         Utf8 path
         Utf8 content
-    }"#
+    }}"#)
     }
 }
 
@@ -94,11 +101,11 @@ mod tests {
         // Initialize the session
         let patch_workspace_session = PatchWorkspaceSession::default();
         let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
-            patch_workspace_session.as_mermaid_flowchart(),
+            &patch_workspace_session.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            patch_workspace_session.as_mermaid_erdiagram(),
+            &patch_workspace_session.as_mermaid_erdiagram(),
             false,
             true,
         )?
@@ -296,11 +303,11 @@ pub use todo::Todo"#,
         // Initialize the session
         let patch_workspace_session = PatchWorkspaceSession::default();
         let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
-            patch_workspace_session.as_mermaid_flowchart(),
+            &patch_workspace_session.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            patch_workspace_session.as_mermaid_erdiagram(),
+            &patch_workspace_session.as_mermaid_erdiagram(),
             false,
             true,
         )?

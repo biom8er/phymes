@@ -208,7 +208,6 @@ impl<'a> SyncContentSession<'a> {
         let local_object_store_name = self.local_object_store_name;
         let local_object_store_backend = self.local_object_store_backend.to_string();
         let local_object_store_bucket = self.local_object_store_bucket.unwrap_or_default();
-        // DM: not yet incorporated
         let local_object_store_config = if let Some(config) = self.local_object_store_config {
             serde_json::to_string(config).unwrap().replace('"', "'")
         } else {
@@ -217,7 +216,6 @@ impl<'a> SyncContentSession<'a> {
         let remote_object_store_name = self.remote_object_store_name;
         let remote_object_store_backend = self.remote_object_store_backend.to_string();
         let remote_object_store_bucket = self.remote_object_store_bucket.unwrap_or_default();
-        // DM: not yet incorporated
         let remote_object_store_config = if let Some(config) = self.remote_object_store_config {
             serde_json::to_string(config).unwrap().replace('"', "'").replace('"', "'")
         } else {

@@ -341,7 +341,7 @@ impl<'a> OpenAlexAgentSession<'a> {
         List-Utf8 cmp_columns "['cmp_is_primary', 'cmp_score']"
         List-Utf8 cmp_operators "['Equals', 'GreaterThan']"
         Utf8 cmp_predicate "All"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "cmp_work_topic_table_s"
         List-Utf8 lhs_values "['is_primary', 'score']"
         Utf8 operator "Filter"
@@ -391,7 +391,7 @@ impl<'a> OpenAlexAgentSession<'a> {
         List-Utf8 cmp_columns "['cmp_is_best_oa','cmp_pdf_url_len']"
         List-Utf8 cmp_operators "['Equals','GreaterThan']"
         Utf8 cmp_predicate "All"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "cmp_work_location_table_s"
         List-Utf8 lhs_values "['is_best_oa','pdf_url_len']"
         Utf8 operator "Filter"
@@ -458,7 +458,7 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, ObjectStorageBackend, Publication, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_bytes_record_batch, create_object_store_meta_batch, create_queries_batch
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, ObjectStorageBackend, Publication, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_bytes_record_batch, create_object_store_meta_batch, create_queries_batch
     };
     use phymes_data::{ObjectStoreConfig, ObjectStoreOptsType};
     use phymes_diagnostics::HashMap;
@@ -606,31 +606,12 @@ mod tests {
                 .with_message(message_subject.to_ipc_stream()?)
                 .build()?,
         );
-
-        // Make the query
-        let query_ids = vec!["query_1".to_string()];
-        let text = vec!["Is statin therapy intensity significantly associated with musculoskeletal symptoms?".to_string()];
-        let query_batch = create_queries_batch(query_ids, text)?;
-        let query_subject = AvailableInterfaceSubjects::UserQueries
-            .to_subject(None, Some(vec![query_batch]))?;
-        let _ = message_map.insert(
-            query_subject.get_name().to_string(),
-            IPCMessage::get_builder()
-                .with_name(query_subject.get_name())
-                .with_publisher(open_alex_agent_session.session_context_name)
-                .with_subject(query_subject.get_name())
-                .with_update(&Publication::Replace {
-                    subject_name: query_subject.get_name().to_string(),
-                })
-                .with_message(query_subject.to_ipc_stream()?)
-                .build()?,
-        );
        
         let _ = session_ctx_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
 
-        // Run the session
+        // 1. Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
@@ -670,24 +651,6 @@ mod tests {
                 String::from_utf8(subject.to_csv(b',', true)?)?
             );
         }
-        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-        //     subject_name: AvailableSubjects::SessionMetrics.to_string(),
-        // }
-        // .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-        // .unwrap()
-        // .try_collect()
-        // .await?;
-        // if !batches.is_empty() {
-        //     let subject = Subject::get_builder()
-        //         .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
-        //         .with_record_batches(batches)?
-        //         .build()?;
-        //     println!(
-        //         "{}\n{}",
-        //         AvailableSubjects::SessionTraces,
-        //         String::from_utf8(subject.to_csv(b',', true)?)?
-        //     );
-        // }
 
         assert_eq!(response.len(), 0);
 
@@ -871,9 +834,113 @@ mod tests {
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
-        assert!(column.len() > 100);
+        assert!(column.len() > 100);        
+
+        // Make the query data
+        let mut message_map = HashMap::<String, IPCMessage>::new();
+        let chat = AvailableInterfaceSubjects::UserMessages
+            .to_subject_builder(None)
+            .append_new_user_query_str("What are two XPC-causing mutations identified in Chinese patients?", "user")?
+            .build()?;
+        let _ = message_map.insert(
+            chat.get_name().to_string(),
+            IPCMessage::get_builder()
+                .with_message(chat.to_ipc_stream()?)
+                .with_subject(chat.get_name())
+                .with_update(&Publication::Extend {
+                    subject_name: chat.get_name().to_string(),
+                })
+                .with_publisher(open_alex_agent_session.session_context_name)
+                .make_name()?
+                .build()?
+        );
+
+        // 2. Run the session
+        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionErrors.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        if !batches.is_empty() {
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            println!(
+                "{}\n{}",
+                AvailableSubjects::SessionErrors,
+                String::from_utf8(subject.to_csv(b',', true)?)?
+            );
+        }
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionEvents.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        if !batches.is_empty() {
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionEvents.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            println!(
+                "{}\n{}",
+                AvailableSubjects::SessionEvents,
+                String::from_utf8(subject.to_csv(b',', true)?)?
+            );
+        }
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionMetrics.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        if !batches.is_empty() {
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            println!(
+                "{}\n{}",
+                AvailableSubjects::SessionTraces,
+                String::from_utf8(subject.to_csv(b',', true)?)?
+            );
+        }
+
+        assert_eq!(response.len(), 0);
 
         // Test PDF extraction, embedding, and retrieval
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::EmbeddingScores.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::EmbeddingScores.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        dbg!(&subject.count_rows());
+        // assert_eq!(subject.count_rows(), 5);
+        let column = subject.get_column_as_vec_str("chunk_id");
+        dbg!(column.first().unwrap());
+        // assert_eq!(column.first().unwrap(), &""https://doi.org/10.37184/jlnh.2959-1805.3.9_4_1");
+        let column = subject.get_column_as_vec_str("query_id");
+        dbg!(column.first().unwrap());
+        // assert_eq!(column.first().unwrap(), &"1775410537711065");
+        let column = subject.get_column_as_vec_primitive::<f32>("score")?;
+        for t in column {
+            assert!(t > 0.15); // Threshold used for filtering
+        }
+
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
         }
@@ -903,29 +970,6 @@ mod tests {
         let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
         for t in column {
             assert!(t > 0);
-        }
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::EmbeddingScores.to_string(),
-        }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::EmbeddingScores.to_string().as_str())
-            .with_record_batches(batches)?
-            .build()?;
-        dbg!(&subject.count_rows());
-        // assert_eq!(subject.count_rows(), 1);
-        let column = subject.get_column_as_vec_str("chunk_id");
-        dbg!(column.first().unwrap());
-        // assert_eq!(column.first().unwrap(), &"WikiBioComponents_2_0");
-        let column = subject.get_column_as_vec_str("query_id");
-        dbg!(column.first().unwrap());
-        // assert_eq!(column.first().unwrap(), &"1770146381963577");
-        let column = subject.get_column_as_vec_primitive::<f32>("score")?;
-        for t in column {
-            assert!(t > 0.15); // Threshold used for filtering
         }
 
         Ok(())
