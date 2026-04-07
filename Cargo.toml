@@ -5,6 +5,8 @@ members = [
     "phymes-app",
     "phymes-core",
     "phymes-data",
+    "phymes-message",
+    "phymes-schemas",
     "phymes-server",
     "phymes-diagnostics"
 ]

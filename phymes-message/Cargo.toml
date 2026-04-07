@@ -1,0 +1,28 @@
+[package]
+name = "phymes-message"
+version = "0.3.0"
+edition = "2024"
+authors = ["Douglas McCloskey"]
+description = "The subject-based messages used in PHYMES"
+license = "MIT AND Apache-2.0"
+repository = "https://github.com/biom8er/phymes"
+documentation = "https://docs.rs/phymes-message"
+
+[features]
+default = ["wsl"]
+wasip2 = ["phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-schemas/wasip2"]
+wsl = ["phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-schemas/wsl"]
+hf_hub = []
+api = []
+gpu = []
+candle = []
+
+[dependencies]
+phymes-core = { path = "../phymes-core", default-features = false, optional = true }
+phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
+phymes-schemas = { path = "../phymes-schemas", default-features = false, optional = true }
+arrow = { version = "58.0.0", default-features = false, features = ["csv", "json", "ipc", "prettyprint"] }
+anyhow = { version = "1", default-features = false }
+clap = { version = "4.2.4", features = ["derive"] }
+bytes = "1.11.1"
+getrandom = { version = "0.3.1", features = ["wasm_js"] }

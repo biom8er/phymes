@@ -49,12 +49,4 @@ minijinja-contrib = { version = "2.16.0", features = ["pycompat"] }
 bytes = "1.11.1"
 getrandom = { version = "0.3.1", features = ["wasm_js"] }
 num-traits = { version = "0.2", default-features = false }
-diff-match-patch-rs = "0.5.1"
 object_store = { version = "0.13.1", optional = true }
-
-[dev-dependencies]
-criterion = { version = "0.8.2", default-features = false, features = ["cargo_bench_support"] }
-
-[[bench]]
-name = "apply_diff"
-harness = false

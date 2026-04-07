@@ -1,3 +1,4 @@
+mod chat_builder;
 mod chat_config;
 mod chat_processor;
 mod message_parser_processor;
@@ -5,6 +6,7 @@ mod tool_call_config;
 mod tool_call_processor;
 mod tool_parser;
 
+pub use chat_builder::{ChatBuilderTraitExt, ChatTraitExt};
 pub use chat_config::CandleChatConfig;
 pub use chat_processor::{
     CandleChatProcessor, bench_chat_processor, process_logits_sampler, process_prompt_chat,

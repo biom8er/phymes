@@ -5617,8 +5617,6 @@ dependencies = [
  "bytes",
  "chrono",
  "clap",
- "criterion",
- "diff-match-patch-rs",
  "futures",
  "getrandom 0.3.4",
  "hashbrown 0.15.5",
@@ -5652,6 +5650,7 @@ dependencies = [
  "clap",
  "criterion",
  "cudarc 0.9.15",
+ "diff-match-patch-rs",
  "flate2",
  "futures",
  "getrandom 0.2.17",
@@ -5695,6 +5694,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "phymes-message"
+version = "0.3.0"
+dependencies = [
+ "anyhow",
+ "arrow",
+ "bytes",
+ "clap",
+ "getrandom 0.3.4",
+ "phymes-core",
+ "phymes-diagnostics",
+ "phymes-schemas",
+]
+
+[[package]]
 name = "phymes-ml"
 version = "0.3.0"
 dependencies = [
@@ -5730,6 +5743,19 @@ dependencies = [
  "tracing",
  "tracing-chrome",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "phymes-schemas"
+version = "0.3.0"
+dependencies = [
+ "anyhow",
+ "arrow",
+ "clap",
+ "phymes-core",
+ "phymes-diagnostics",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
