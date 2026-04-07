@@ -13,11 +13,11 @@ pub use plans::GetContentSession;
 #[cfg(feature = "api")]
 pub use plans::ExecuteWorkspaceSession;
 pub use plans::{
-    AvailableInterfaceSubjects, AvailableProcessors, AvailableSessionPlans, BuilderSession,
+    AvailableProcessors, AvailableSessionPlans, BuilderSession,
     ChatAgentSession, DiagnosticSession, DocumentRAGSession, EmbedTextSession,
     ExtractOntologySession, ExtractPDFSession, GenerateTextSession, MeltStudyDataSession,
     PatchWorkspaceSession, RetrieveTextSession, SyncContentSession, ToolAgentSession,
-    ToolCallSession, ToolResponseSession, UserSession, check_agent_subjects,
+    ToolCallSession, ToolResponseSession, UserSession,
     make_example_mermaid_table,
 };
 pub use session::{

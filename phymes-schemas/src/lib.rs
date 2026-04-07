@@ -33,8 +33,8 @@ pub use embed::{
 };
 pub use http::{e_utils, open_alex, semantic_scholar};
 pub use schemas::{
-    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, JsonSchemaTrait, 
-    create_schema_from_fields
+    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, JsonSchemaTrait, AvailableInterfaceSubjects,
+    check_agent_subjects, create_schema_from_fields
 };
 pub use storage::{
     AttachmentBuilderTraitExt, AttachmentsSubject, WorkspacePatchSubject, WorkspaceSubject,

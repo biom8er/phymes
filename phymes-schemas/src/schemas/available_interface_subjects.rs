@@ -4,11 +4,13 @@ use anyhow::Result;
 use arrow::array::RecordBatch;
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
-    MappableTrait, Subject, SubjectBuilder, SubjectPlan, SubjectPlanBuilderTrait,
+    BuildableTrait, BuilderTrait, Subject, SubjectBuilder, SubjectPlan, SubjectPlanBuilderTrait,
 };
-use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
+
+use crate::{
+    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait,
+};
 
 /// Check that one or more of the [AvailableInterfaceSubjects] are provided in the [SessionContextBuilder]
 ///
