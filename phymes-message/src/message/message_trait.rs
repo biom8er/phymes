@@ -5,8 +5,9 @@ use phymes_core::{
 };
 use phymes_diagnostics::{HashMap, TraceableTrait, Tracer};
 use phymes_schemas::{create_bytes_record_batch, create_route_bytes_fields};
+use phymes_event::Publication;
 
-use crate::{IPCMessageBuilder, IPCMessageMap, Publication, MessageBuilderTrait, SendableRecordBatchStreamMessageBuilder};
+use crate::{IPCMessageBuilder, IPCMessageMap, MessageBuilderTrait, SendableRecordBatchStreamMessageBuilder};
 
 /// An [RecordBatch], `IPCStream`, or [SendableRecordBatch] with additional
 /// metadata for subject, publisher, and update

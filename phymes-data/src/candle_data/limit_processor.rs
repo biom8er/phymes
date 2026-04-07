@@ -289,7 +289,7 @@ mod tests {
     use futures::{Stream, TryStreamExt};
     use phymes_core::{SubjectBuilder, SubjectTrait, test_subject};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
-    use phymes_message::Publication;
+    use phymes_event::Publication;
 
     #[tokio::test]
     async fn test_limit_processor() -> Result<()> {

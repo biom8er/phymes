@@ -454,7 +454,7 @@ mod tests {
     use phymes_core::SubjectBuilder;
     use phymes_data::DataConfig;
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
-    use phymes_message::Publication;
+    use phymes_event::Publication;
     use phymes_schemas::create_bytes_record_batch;
 
     use super::*;

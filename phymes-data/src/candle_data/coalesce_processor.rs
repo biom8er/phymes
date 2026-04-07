@@ -450,7 +450,7 @@ mod tests {
     use futures::TryStreamExt;
     use phymes_core::{RecordBatchStreamAdapter, SubjectBuilder, SubjectTrait, test_subject};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
-    use phymes_message::Publication;
+    use phymes_event::Publication;
 
     #[tokio::test]
     async fn test_coalesce_processor() -> Result<()> {

@@ -16,15 +16,16 @@ mkl-dynamic = ["dep:intel-mkl-src", "intel-mkl-src/mkl-dynamic-lp64-iomp", "cand
 cuda = ["candle-core/cuda"]
 cudnn = ["candle-core/cudnn"]
 nccl = ["cuda", "cudarc/nccl"]
-wasip2 = ["phymes-core/wasip2", "phymes-diagnostics/wasip2", "phymes-message/wasip2", "phymes-schemas/wasip2", "phymes-processor/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "lopdf/wasm_js", "dep:quick-xml", "dep:object_store"]
-wsl = ["phymes-core/wsl", "phymes-diagnostics/wsl", "phymes-message/wsl", "phymes-schemas/wsl", "phymes-processor/wsl", "tokio/full", "lopdf/async", "lopdf/rayon", "quick-xml/tokio", "dep:object_store", "dep:tempfile"]
+wasip2 = ["phymes-core/wasip2", "phymes-diagnostics/wasip2", "phymes-message/wasip2", "phymes-event/wasip2", "phymes-schemas/wasip2", "phymes-processor/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "lopdf/wasm_js", "dep:quick-xml", "dep:object_store"]
+wsl = ["phymes-core/wsl", "phymes-diagnostics/wsl", "phymes-message/wsl", "phymes-event/wsl", "phymes-schemas/wsl", "phymes-processor/wsl", "tokio/full", "lopdf/async", "lopdf/rayon", "quick-xml/tokio", "dep:object_store", "dep:tempfile"]
 gpu = ["cuda", "cudnn", "nccl"]
-api = ["phymes-core/api", "phymes-message/api", "phymes-schemas/api", "phymes-processor/api", "reqwest/default-tls", "dep:urlencoding", "quick-xml/serialize", "object_store/aws", "object_store/gcp", "object_store/azure", "object_store/http"]
+api = ["phymes-core/api", "phymes-message/api", "phymes-event/api", "phymes-schemas/api", "phymes-processor/api", "reqwest/default-tls", "dep:urlencoding", "quick-xml/serialize", "object_store/aws", "object_store/gcp", "object_store/azure", "object_store/http"]
 candle = [] # force use of candle models when api is available
 
 [dependencies]
 phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
 phymes-core = { path = "../phymes-core", default-features = false, optional = true }
+phymes-event = { path = "../phymes-event", default-features = false, optional = true }
 phymes-message = { path = "../phymes-message", default-features = false, optional = true }
 phymes-schemas = { path = "../phymes-schemas", default-features = false, optional = true }
 phymes-processor = { path = "../phymes-processor", default-features = false, optional = true }

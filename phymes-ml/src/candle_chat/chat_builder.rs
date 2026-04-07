@@ -473,7 +473,8 @@ mod tests {
         BuildableTrait, BuilderTrait, RuntimeEnv,
         test_subject::{make_test_subject_chat, make_test_subject_tool},
     };
-    use phymes_message::{MessageBuilderTrait, Publication, SendableRecordBatchStreamMessage};
+    use phymes_event::Publication;
+    use phymes_message::{MessageBuilderTrait, SendableRecordBatchStreamMessage};
     use phymes_processor::ProcessorTrait;
     use phymes_schemas::Tool;
     use futures::TryStreamExt;

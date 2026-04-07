@@ -1,7 +1,8 @@
 use anyhow::{Result, anyhow};
 use phymes_core::{BuilderTrait, SendableRecordBatchStream};
+use phymes_event::Publication;
 
-use crate::{IPCMessage, Publication, SendableRecordBatchStreamMessage};
+use crate::{IPCMessage, SendableRecordBatchStreamMessage};
 
 /// Utility function to create a random ID
 pub fn make_random_id() -> Result<u128> {

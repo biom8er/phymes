@@ -410,7 +410,7 @@ mod tests {
     use arrow::array::{ArrayRef, StringArray};
     use phymes_core::SubjectBuilder;
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
-    use phymes_message::Publication;
+    use phymes_event::Publication;
 
     use crate::AvailableCandleAssets;
 

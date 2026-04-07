@@ -470,7 +470,7 @@ mod tests {
     #[allow(unused_imports)]
     use futures::TryStreamExt;
     #[allow(unused_imports)]
-    use phymes_message::Publication;
+    use phymes_event::Publication;
 
     #[allow(unused_imports)]
     use super::*;

@@ -1,10 +1,5 @@
-mod event;
 mod message;
-pub use event::{
-    AvailableSubscribeEvents, AvailableUpdateEvents, Publication, SubjectChangedSinceLastRunUpdate,
-    SubjectExistsUpdate, SubjectHasBatchesUpdate, SubscribeEventTrait, Subscription,
-    UpdateEventTrait,
-};
+
 pub use message::{
     IPCMessage, IPCMessageBuilder, IPCMessageMap, MessageBuilderTrait, MessageTrait,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,

@@ -5662,6 +5662,7 @@ dependencies = [
  "parking_lot",
  "phymes-core",
  "phymes-diagnostics",
+ "phymes-event",
  "phymes-message",
  "phymes-processor",
  "phymes-schemas",
@@ -5697,6 +5698,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "phymes-event"
+version = "0.3.0"
+dependencies = [
+ "anyhow",
+ "arrow",
+ "clap",
+ "phymes-core",
+ "phymes-diagnostics",
+ "phymes-schemas",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "phymes-message"
 version = "0.3.0"
 dependencies = [
@@ -5707,6 +5722,7 @@ dependencies = [
  "getrandom 0.3.4",
  "phymes-core",
  "phymes-diagnostics",
+ "phymes-event",
  "phymes-schemas",
  "serde",
  "serde_json",
@@ -5740,6 +5756,7 @@ dependencies = [
  "phymes-core",
  "phymes-data",
  "phymes-diagnostics",
+ "phymes-event",
  "phymes-message",
  "phymes-processor",
  "phymes-schemas",
@@ -5763,6 +5780,7 @@ dependencies = [
  "futures",
  "phymes-core",
  "phymes-diagnostics",
+ "phymes-event",
  "phymes-message",
  "serde",
  "serde_json",

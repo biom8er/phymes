@@ -289,7 +289,7 @@ mod tests {
         test_subject::{make_test_subject, make_test_subject_chat},
     };
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
-    use phymes_message::Publication;
+    use phymes_event::Publication;
 
     use super::*;
 

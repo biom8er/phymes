@@ -611,7 +611,7 @@ mod tests {
     use futures::TryStreamExt;
     use phymes_core::Subject;
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
-    use phymes_message::Publication;
+    use phymes_event::Publication;
 
     use super::*;
 

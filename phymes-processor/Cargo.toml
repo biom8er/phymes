@@ -10,9 +10,9 @@ documentation = "https://docs.rs/phymes-processor"
 
 [features]
 default = ["wsl"]
-api = ["phymes-core/api", "phymes-message/api"]
-wasip2 = ["phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-message/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt"]
-wsl = ["phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-message/wsl", "tokio/full"]
+api = ["phymes-core/api", "phymes-message/api", "phymes-event/api"]
+wasip2 = ["phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-message/wasip2", "phymes-event/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt"]
+wsl = ["phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-message/wsl", "phymes-event/wsl", "tokio/full"]
 hf_hub = []
 gpu = []
 candle = [] # force use of candle models when api is available
@@ -20,6 +20,7 @@ candle = [] # force use of candle models when api is available
 [dependencies]
 phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
 phymes-core = { path = "../phymes-core", default-features = false, optional = true }
+phymes-event = { path = "../phymes-event", default-features = false, optional = true }
 phymes-message = { path = "../phymes-message", default-features = false, optional = true }
 arrow = { version = "58.0.0", default-features = false, features = ["csv", "json", "ipc"] }
 tokio = { version = "1.49.0", default-features = false, optional = true}

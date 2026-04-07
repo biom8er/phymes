@@ -580,7 +580,7 @@ mod tests {
     use futures::TryStreamExt;
     use phymes_core::SubjectBuilder;
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
-    use phymes_message::Publication;
+    use phymes_event::Publication;
     use phymes_schemas::{open_alex, semantic_scholar};
 
     #[tokio::test]

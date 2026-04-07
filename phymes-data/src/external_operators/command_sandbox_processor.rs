@@ -1735,7 +1735,7 @@ mod tests {
     use arrow::array::{ArrayRef, StringArray, UInt32Array};
     use futures::TryStreamExt;
     use phymes_core::SubjectBuilder;
-    use phymes_message::Publication;
+    use phymes_event::Publication;
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
     use std::{fs::File, io::Write};
     use tempfile::TempDir;

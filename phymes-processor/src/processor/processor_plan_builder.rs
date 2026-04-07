@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use phymes_message::{AvailableUpdateEvents, Publication, SubscribeEventTrait, Subscription, UpdateEventTrait};
+use phymes_event::{AvailableUpdateEvents, Publication, SubscribeEventTrait, Subscription, UpdateEventTrait};
 use crate::{ProcessorPlan, ProcessorSubjects, ProcessorTrait};
 
 /// The builder for the [ProcessorPlan]

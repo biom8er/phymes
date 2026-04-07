@@ -13,7 +13,8 @@ use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, MetricBuilderTrait,
     SpanBuilder,
 };
-use phymes_message::{MessageBuilderTrait, Publication, SendableRecordBatchStreamMessage};
+use phymes_event::Publication;
+use phymes_message::{MessageBuilderTrait, SendableRecordBatchStreamMessage};
 use phymes_processor::ProcessorTrait;
 use phymes_schemas::from_diagnostics_to_tables;
 

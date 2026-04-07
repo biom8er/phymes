@@ -5,7 +5,7 @@ use clap::ValueEnum;
 use phymes_core::MappableTrait;
 use serde::{Deserialize, Serialize};
 
-use crate::event::{SubscribeEventTrait,
+use crate::subscribe::{SubscribeEventTrait,
     AllSubjectNamesSubscribe, AllSubjectSchemasSubscribe, AlwaysSubscribe,
     AnySubjectSchemaSubscribe, AnySubscribeNameSubscribe, ChatContentSubscribe,
 };

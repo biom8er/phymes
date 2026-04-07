@@ -386,7 +386,8 @@ mod tests {
         test_subject::make_test_subject,
     };
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder};
-    use phymes_message::{MessageBuilderTrait, Publication, SendableRecordBatchStreamMessage};
+    use phymes_event::Publication;
+    use phymes_message::{MessageBuilderTrait, SendableRecordBatchStreamMessage};
 
     #[tokio::test]
     async fn test_processor() -> Result<()> {

@@ -1007,7 +1007,7 @@ mod tests {
     use futures::TryStreamExt;
     use phymes_core::{ObjectStorageBackend, Subject, SubjectBuilder, test_subject};
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
-    use phymes_message::Publication;
+    use phymes_event::Publication;
 
     #[cfg(not(target_family = "wasm"))]
     use tempfile::TempDir;
