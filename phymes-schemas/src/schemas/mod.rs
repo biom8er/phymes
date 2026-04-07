@@ -1,12 +1,13 @@
 mod available_subjects;
 mod chat;
 mod embed;
+mod error;
 mod http;
 mod schema_traits;
 mod storage;
 pub use available_subjects::{AvailableSubjects, create_schema_from_fields};
 pub use chat::{
-    ChatBuilderTraitExt, ChatCompletionRequest, ChatCompletionResponse, ChatTraitExt, FinishReason,
+    ChatCompletionRequest, ChatCompletionResponse, FinishReason,
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolCall, ToolChoiceType,
     ToolType, create_bytes_fields, create_bytes_record_batch, create_chat_fields,
     create_chat_record_batch, create_route_bytes_fields, create_route_bytes_record_batch,
@@ -19,6 +20,7 @@ pub use embed::{
     create_embeddings_scores_fields, create_join_chunks_scores_fields, create_queries_batch,
     create_queries_fields, create_query_embeddings_batch, create_query_embeddings_fields,
 };
+pub use error::create_error_subject;
 pub use http::{e_utils, open_alex, semantic_scholar};
 pub use schema_traits::{AvailableSchemaTrait, AvailableSubjectsTrait, JsonSchemaTrait};
 pub use storage::{
@@ -41,9 +43,6 @@ pub use user::{
     JoinUserInboxSessionContextsMermaidDiagrams, UserSubject, create_user_batch,
     create_user_inbox_batch, create_user_session_contexts_batch,
 };
-
-mod error;
-pub use error::{create_error_message_map, create_error_message_map_stream};
 
 mod diagnostics;
 pub use diagnostics::{

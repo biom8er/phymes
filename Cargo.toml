@@ -6,6 +6,7 @@ members = [
     "phymes-core",
     "phymes-data",
     "phymes-message",
+    "phymes-processor",
     "phymes-schemas",
     "phymes-server",
     "phymes-diagnostics"

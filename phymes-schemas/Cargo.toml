@@ -13,7 +13,7 @@ default = ["wsl"]
 wasip2 = ["phymes-diagnostics/wasip2", "phymes-core/wasip2"]
 wsl = ["phymes-diagnostics/wsl", "phymes-core/wsl"]
 hf_hub = []
-api = []
+api = ["phymes-core/api"]
 gpu = []
 candle = []
 

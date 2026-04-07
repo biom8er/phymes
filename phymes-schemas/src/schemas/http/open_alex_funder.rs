@@ -1,6 +1,6 @@
 use phymes_core::MappableTrait;
 use crate::{
-    AvailableSchemaTrait, MappableTrait, create_schema_from_fields,
+    AvailableSchemaTrait, create_schema_from_fields,
     schemas::http::{
         AwardFunderTable, WorkFunderTable,
         open_alex_common::{CountryCode, CountsByYear, RoleType, SummaryStats},

@@ -1,7 +1,12 @@
 use std::sync::Arc;
+use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
+use phymes_core::MappableTrait;
+use phymes_diagnostics::HashMap;
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 use crate::{
-    AvailableSchemaTrait, MappableTrait, create_schema_from_fields,
+    AvailableSchemaTrait, create_schema_from_fields,
     schemas::http::{
         open_alex_author::Author,
         open_alex_award::Award,
@@ -14,10 +19,6 @@ use crate::{
         open_alex_source::Source,
     },
 };
-use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use phymes_diagnostics::HashMap;
-use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Work {

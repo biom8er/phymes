@@ -2,10 +2,10 @@ use std::fmt::Display;
 
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
-use phymes_core::{MappableTrait, SubscribeEventTrait};
+use phymes_core::MappableTrait;
 use serde::{Deserialize, Serialize};
 
-use crate::event::{
+use crate::event::{SubscribeEventTrait,
     AllSubjectNamesSubscribe, AllSubjectSchemasSubscribe, AlwaysSubscribe,
     AnySubjectSchemaSubscribe, AnySubscribeNameSubscribe, ChatContentSubscribe,
 };

@@ -1,15 +1,14 @@
 mod schemas;
 pub use schemas::{
     AttachmentBuilderTraitExt, AttachmentsSubject, AvailableSchemaTrait, AvailableSubjects,
-    AvailableSubjectsTrait, ChatBuilderTraitExt, ChatCompletionRequest, ChatCompletionResponse,
-    ChatTraitExt, DiagnosticsVisualizations, EmbeddingRequest, EmbeddingResponse, EncodingFormat,
+    AvailableSubjectsTrait, ChatCompletionRequest, ChatCompletionResponse,
+    DiagnosticsVisualizations, EmbeddingRequest, EmbeddingResponse, EncodingFormat,
     FinishReason, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     JoinUserInboxSessionContextsMermaidDiagrams, JsonSchemaTrait, SessionMermaidSubject, Tool,
     ToolCall, ToolChoiceType, ToolType, UserSubject, WorkspacePatchSubject, WorkspaceSubject,
     create_attachments_batch, create_attachments_fields, create_bytes_fields,
     create_bytes_record_batch, create_chat_fields, create_chat_record_batch,
-    create_documents_batch, create_documents_embeddings_batch, create_error_message_map,
-    create_error_message_map_stream, create_mermaid_content_template_batch,
+    create_documents_batch, create_documents_embeddings_batch, create_mermaid_content_template_batch,
     create_mermaid_sequence_diagram_participants_template_batch,
     create_metrics_mermaid_gantt_batch, create_n_quads_batch, create_n_triples_batch,
     create_object_store_batch, create_object_store_meta_batch, create_parse_n_quads_batch,
@@ -27,5 +26,5 @@ pub use schemas::{
     create_user_session_contexts_batch, create_values_fields, create_values_record_batch,
     create_workspace_batch, create_workspace_fields, create_workspace_patch_batch,
     create_workspace_patch_fields, e_utils, from_diagnostics_to_tables, open_alex,
-    semantic_scholar,
+    semantic_scholar, create_route_bytes_fields, create_error_subject
 };

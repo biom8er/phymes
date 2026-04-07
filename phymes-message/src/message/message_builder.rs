@@ -1,9 +1,7 @@
 use anyhow::{Result, anyhow};
-use phymes_core::{
-    BuilderTrait, Publication, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-};
+use phymes_core::{BuilderTrait, SendableRecordBatchStream};
 
-use crate::IPCMessage;
+use crate::{IPCMessage, Publication, SendableRecordBatchStreamMessage};
 
 /// Utility function to create a random ID
 pub fn make_random_id() -> Result<u128> {
@@ -238,7 +236,8 @@ impl MessageBuilderTrait for SendableRecordBatchStreamMessageBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::{MappableTrait, MessageTrait, SubjectTrait, test_subject};
+    use phymes_core::{MappableTrait, SubjectTrait, test_subject};
+    use crate::MessageTrait;
 
     use super::*;
 

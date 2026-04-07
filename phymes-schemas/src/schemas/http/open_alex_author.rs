@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
 use phymes_core::MappableTrait;
+use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
+use serde::{Deserialize, Serialize};
+
 use crate::{
     AvailableSchemaTrait, create_schema_from_fields,
     schemas::http::{
@@ -8,9 +11,7 @@ use crate::{
         open_alex_common::{CountsByYear, SummaryStats},
         open_alex_institution::Institution,
     },
-}
-use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use serde::{Deserialize, Serialize};
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Author {

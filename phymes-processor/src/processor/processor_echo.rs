@@ -1,13 +1,15 @@
-use crate::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
-    RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
+use anyhow::Result;
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
+use phymes_diagnostics::{DiagnosticBuilder, HashMap};
+use phymes_message::{
+    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
     SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
 };
-use anyhow::Result;
-use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::{Level, event};
+
+use crate::ProcessorTrait;
 
 /// Processor that returns (i.e., echos) the [RecordBatch]es
 ///

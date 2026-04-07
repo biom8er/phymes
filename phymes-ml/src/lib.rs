@@ -15,7 +15,7 @@ pub use candle_assets::{
 pub use candle_chat::{
     CandleChatConfig, CandleChatProcessor, MessageParserProcessor, ToolCallConfig,
     ToolCallProcessor, bench_chat_processor, extract_tool_calls_str, process_logits_sampler,
-    process_prompt_chat,
+    process_prompt_chat, ChatBuilderTraitExt, ChatTraitExt,
 };
 pub use candle_embed::{CandleEmbedConfig, CandleEmbedProcessor};
 pub use candle_models::{QuantizedBert, QuantizedQwen2, QuantizerdBertConfig};

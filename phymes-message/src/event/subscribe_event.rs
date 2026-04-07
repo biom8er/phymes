@@ -1,7 +1,9 @@
 use arrow::datatypes::SchemaRef;
-use phymes_core::{MappableTrait, Subscription};
+use phymes_core::MappableTrait;
 use phymes_diagnostics::HashMap;
 use std::fmt::Debug;
+
+use crate::Subscription;
 
 /// Determine when all subscriptions are ready
 pub trait SubscribeEventTrait: MappableTrait + Debug + Send + Sync {
@@ -284,7 +286,7 @@ impl MappableTrait for ChatContentSubscribe {
 }
 
 pub(crate) mod test_subscribe_policy {
-    use crate::test_subject;
+    use phymes_core::test_subject;
 
     use super::*;
 

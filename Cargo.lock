@@ -5662,6 +5662,9 @@ dependencies = [
  "parking_lot",
  "phymes-core",
  "phymes-diagnostics",
+ "phymes-message",
+ "phymes-processor",
+ "phymes-schemas",
  "quick-xml",
  "rayon",
  "reqwest 0.13.2",
@@ -5705,6 +5708,8 @@ dependencies = [
  "phymes-core",
  "phymes-diagnostics",
  "phymes-schemas",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -5743,6 +5748,23 @@ dependencies = [
  "tracing",
  "tracing-chrome",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "phymes-processor"
+version = "0.3.0"
+dependencies = [
+ "anyhow",
+ "arrow",
+ "clap",
+ "futures",
+ "phymes-core",
+ "phymes-diagnostics",
+ "phymes-message",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

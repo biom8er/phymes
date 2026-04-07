@@ -56,18 +56,6 @@ pub fn check_agent_subjects(subjects: &[String]) -> Result<()> {
     Ok(())
 }
 
-/// Helper function to create the message map from a vector of messages
-pub fn create_message_map<T>(messages: Vec<T>) -> HashMap<String, T>
-where
-    T: MappableTrait,
-{
-    let mut incoming_message_map = HashMap::<String, T>::new();
-    for message in messages {
-        incoming_message_map.insert(message.get_name().to_string(), message);
-    }
-    incoming_message_map
-}
-
 /// The available subjects that the user can publish on from the messaging interface
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableInterfaceSubjects {

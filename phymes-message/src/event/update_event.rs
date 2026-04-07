@@ -1,6 +1,8 @@
-use phymes_core::{MappableTrait, Subscription};
+use phymes_core::MappableTrait;
 use phymes_diagnostics::HashMap;
 use std::fmt::Debug;
+
+use crate::Subscription;
 
 /// Determine when a subject has been updated
 pub trait UpdateEventTrait: MappableTrait + Debug + Send + Sync {

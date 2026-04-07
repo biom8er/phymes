@@ -1,0 +1,31 @@
+[package]
+name = "phymes-processor"
+version = "0.3.0"
+edition = "2024"
+authors = ["Douglas McCloskey"]
+description = "The streaming message processor used in PHYMES"
+license = "MIT AND Apache-2.0"
+repository = "https://github.com/biom8er/phymes"
+documentation = "https://docs.rs/phymes-processor"
+
+[features]
+default = ["wsl"]
+api = ["phymes-core/api", "phymes-message/api"]
+wasip2 = ["phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-message/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt"]
+wsl = ["phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-message/wsl", "tokio/full"]
+hf_hub = []
+gpu = []
+candle = [] # force use of candle models when api is available
+
+[dependencies]
+phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
+phymes-core = { path = "../phymes-core", default-features = false, optional = true }
+phymes-message = { path = "../phymes-message", default-features = false, optional = true }
+arrow = { version = "58.0.0", default-features = false, features = ["csv", "json", "ipc"] }
+tokio = { version = "1.49.0", default-features = false, optional = true}
+futures = { version = "0.3.31", default-features = false }
+clap = { version = "4.2.4", features = ["derive"] }
+anyhow = { version = "1", default-features = false }
+tracing = "0.1.41"
+serde_json = "1.0.133"
+serde = "1.0.215"

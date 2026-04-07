@@ -1,13 +1,12 @@
 use anyhow::Result;
 use clap::ValueEnum;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, DataFormat, MappableTrait,  MessageBuilderTrait, SendableRecordBatchStream,
-    SendableRecordBatchStreamMessageBuilder, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+    BuildableTrait, BuilderTrait, DataFormat, MappableTrait, SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
-use phymes_schemas::{create_bytes_record_batch, create_route_bytes_fields};
 use phymes_diagnostics::{HashMap, TraceableTrait, Tracer};
+use phymes_schemas::{create_bytes_record_batch, create_route_bytes_fields};
 
-use crate::{IPCMessageBuilder, IPCMessageMap, Publication};
+use crate::{IPCMessageBuilder, IPCMessageMap, Publication, MessageBuilderTrait, SendableRecordBatchStreamMessageBuilder};
 
 /// An [RecordBatch], `IPCStream`, or [SendableRecordBatch] with additional
 /// metadata for subject, publisher, and update
@@ -250,9 +249,9 @@ where
 
 #[cfg(test)]
 mod tests {
+    use phymes_core::{SubjectBuilder, SubjectTrait, test_subject};
     use phymes_diagnostics::HashMap;
-
-    use crate::{SubjectBuilder, SubjectTrait, create_route_bytes_record_batch, test_subject};
+    use phymes_schemas::create_route_bytes_record_batch;
 
     use super::*;
 

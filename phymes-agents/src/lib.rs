@@ -11,7 +11,7 @@ pub use event::{
 };
 pub use messages::{
     SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-    SessionInterfaceMessageTrait,
+    SessionInterfaceMessageTrait, create_message_map, create_error_message_map, create_error_message_map_stream
 };
 #[cfg(feature = "api")]
 pub use plans::GetContentSession;
@@ -22,7 +22,7 @@ pub use plans::{
     ChatAgentSession, DiagnosticSession, DocumentRAGSession, EmbedTextSession,
     ExtractOntologySession, ExtractPDFSession, GenerateTextSession, MeltStudyDataSession,
     PatchWorkspaceSession, RetrieveTextSession, SyncContentSession, ToolAgentSession,
-    ToolCallSession, ToolResponseSession, UserSession, check_agent_subjects, create_message_map,
+    ToolCallSession, ToolResponseSession, UserSession, check_agent_subjects,
     make_example_mermaid_table,
 };
 pub use session::{

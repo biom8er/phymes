@@ -1,9 +1,7 @@
-use crate::{
-    MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
-    SendableRecordBatchStreamMessageMap, message::SendableRecordBatchStreamMessageBuilderMap,
-};
 use anyhow::{Result, anyhow};
+use phymes_core::{MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream};
 use phymes_diagnostics::DiagnosticBuilder;
+use phymes_message::{SendableRecordBatchStreamMessageMap, SendableRecordBatchStreamMessageBuilderMap};
 use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::{Level, event};
@@ -192,16 +190,12 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
 /// Mock objects and functions for processor testing
 pub mod test_processor {
     use super::*;
-    use crate::{
-        BuildableTrait, BuilderTrait, MessageBuilderTrait, MessageTrait,
-        SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
-        test_subject::make_test_record_batch,
-    };
 
     use arrow::{array::RecordBatch, compute::concat_batches, datatypes::SchemaRef};
     use futures::{Stream, StreamExt};
-    use hashbrown::HashMap;
-    use phymes_diagnostics::{DiagnosticBuilderTrait, MetricBuilderTrait};
+    use phymes_core::{BuildableTrait, BuilderTrait, test_subject::make_test_record_batch};
+    use phymes_diagnostics::{DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
+    use phymes_message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder};
     use std::{
         pin::Pin,
         sync::Arc,
@@ -386,14 +380,13 @@ pub mod test_processor {
 mod tests {
     use super::*;
     use std::sync::Arc;
-
-    use crate::{
-        BuildableTrait, BuilderTrait, MessageBuilderTrait, Publication, RuntimeEnv,
-        SendableRecordBatchStreamMessage, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+    use anyhow::Result;
+    use phymes_core::{
+        BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
         test_subject::make_test_subject,
     };
-    use anyhow::Result;
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder};
+    use phymes_message::{MessageBuilderTrait, Publication, SendableRecordBatchStreamMessage};
 
     #[tokio::test]
     async fn test_processor() -> Result<()> {

@@ -28,7 +28,7 @@ mod tool_response_session;
 mod user_session;
 
 pub use available_interface_subjects::{
-    AvailableInterfaceSubjects, check_agent_subjects, create_message_map,
+    AvailableInterfaceSubjects, check_agent_subjects,
 };
 pub use available_processors::AvailableProcessors;
 pub use available_session_plans::AvailableSessionPlans;
