@@ -3,9 +3,7 @@ use std::sync::Arc;
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MessageBuilderTrait, ProcessorTrait, Publication, RuntimeEnv,
-    SendableRecordBatchStreamMessage, Subject, SubjectBuilderTrait, SubjectTrait,
-    from_diagnostics_to_tables, test_subject::TestSubjectSizes,
+    BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectTrait, test_subject::TestSubjectSizes,
 };
 use phymes_data::{
     AvailableCandleOperators, CandleDataProcessor, DataAggregatorOperator, DataComparatorOperator,
@@ -15,6 +13,9 @@ use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, MetricBuilderTrait,
     SpanBuilder,
 };
+use phymes_message::{MessageBuilderTrait, Publication, SendableRecordBatchStreamMessage};
+use phymes_processor::ProcessorTrait;
+use phymes_schemas::from_diagnostics_to_tables;
 
 fn benchmark_candle_ops_processor(c: &mut Criterion) {
     // Cases for dataset sizes

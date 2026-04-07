@@ -2191,9 +2191,10 @@ mod tests {
             .build()?;
 
         // Make the system prompt and add the user query
+        let message_batch = create_chat_record_batch(vec!["user".to_string()], vec!["Hello from Docker!".to_string()], vec![0])?;
         let message_builder = SubjectBuilder::new()
             .with_name(messages)
-            .append_new_user_query_str("Hello from Docker!", "user")?;
+            .with_record_batches(vec![message_batch])?;
 
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -2446,9 +2447,10 @@ mod tests {
             .build()?;
 
         // Make the system prompt and add the user query
+        let message_batch = create_chat_record_batch(vec!["user".to_string()], vec!["Hello from Docker!".to_string()], vec![0])?;
         let message_builder = SubjectBuilder::new()
             .with_name(messages)
-            .append_new_user_query_str("Hello from Docker!", "user")?;
+            .with_record_batches(vec![message_batch])?;
 
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();

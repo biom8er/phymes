@@ -628,9 +628,10 @@ mod tests {
             .build()?;
 
         // Make the system prompt and add the user query
+        let message_batch = create_chat_record_batch(vec!["user".to_string()], vec![open_alex_request.to_get_query()?], vec![0])?;
         let message_builder = SubjectBuilder::new()
             .with_name(messages)
-            .append_new_user_query_str(&open_alex_request.to_get_query()?, "user")?;
+            .with_record_batches(vec![message_batch])?;
 
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -812,9 +813,10 @@ mod tests {
             .build()?;
 
         // Make the system prompt and add the user query
+        let message_batch = create_chat_record_batch(vec!["user".to_string()], vec![open_alex_request.to_get_query()?], vec![0])?;
         let message_builder = SubjectBuilder::new()
             .with_name(messages)
-            .append_new_user_query_str(&open_alex_request.to_get_query()?, "user")?;
+            .with_record_batches(vec![message_batch])?;
 
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -925,9 +927,10 @@ mod tests {
             .build()?;
 
         // Make the system prompt and add the user query
+        let message_batch = create_chat_record_batch(vec!["user".to_string()], vec![esearch_url], vec![0])?;
         let message_builder = SubjectBuilder::new()
             .with_name(messages)
-            .append_new_user_query_str(&esearch_url, "user")?;
+            .with_record_batches(vec![message_batch])?;
 
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -1013,9 +1016,10 @@ mod tests {
             .build()?;
 
         // Make the system prompt and add the user query
+        let message_batch = create_chat_record_batch(vec!["user".to_string()], vec![efetch_url], vec![0])?;
         let message_builder = SubjectBuilder::new()
             .with_name(messages)
-            .append_new_user_query_str(&efetch_url, "user")?;
+            .with_record_batches(vec![message_batch])?;
 
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -1115,9 +1119,10 @@ mod tests {
             .build()?;
 
         // Make the system prompt and add the user query
+        let message_batch = create_chat_record_batch(vec!["user".to_string()], vec![download_url], vec![0])?;
         let message_builder = SubjectBuilder::new()
             .with_name(messages)
-            .append_new_user_query_str(&download_url, "user")?;
+            .with_record_batches(vec![message_batch])?;
 
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
