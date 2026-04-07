@@ -3,7 +3,7 @@ use std::sync::Arc;
 use phymes_core::MappableTrait;
 use crate::{
     AvailableSchemaTrait, create_schema_from_fields,
-    schemas::http::open_alex_common::{
+    http::open_alex_common::{
         CountryCode, CountsByYear, Currency, SourceType, SummaryStats,
     },
 };

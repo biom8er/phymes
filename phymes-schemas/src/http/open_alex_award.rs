@@ -3,7 +3,7 @@ use std::sync::Arc;
 use phymes_core::MappableTrait;
 use crate::{
     AvailableSchemaTrait, create_schema_from_fields,
-    schemas::http::{
+    http::{
         WorkAwardTable, open_alex_author::Affiliation, open_alex_common::Currency,
         open_alex_funder::Funder,
     },

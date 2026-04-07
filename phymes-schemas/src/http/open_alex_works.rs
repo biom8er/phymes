@@ -7,7 +7,7 @@ use serde_json::{Map, Value};
 
 use crate::{
     AvailableSchemaTrait, create_schema_from_fields,
-    schemas::http::{
+    http::{
         open_alex_author::Author,
         open_alex_award::Award,
         open_alex_common::{

@@ -1,6 +1,6 @@
 use phymes_core::MappableTrait;
 use crate::{
-    AvailableSchemaTrait, create_schema_from_fields, schemas::http::WorkTopicTable,
+    AvailableSchemaTrait, create_schema_from_fields, http::WorkTopicTable,
 };
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
 use serde::{Deserialize, Serialize};

@@ -1,5 +1,4 @@
-use crate::schemas::chat::openai_common;
-use crate::{Function, impl_builder_methods};
+use crate::{Function, impl_builder_methods, chat::openai_common};
 
 use serde::de::{self, MapAccess, SeqAccess, Visitor};
 use serde::ser::SerializeMap;

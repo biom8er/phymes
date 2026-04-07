@@ -102,8 +102,7 @@ impl ProcessorTrait for CandleDataProcessor {
     }
 }
 
-/// Compute the relative similarity score between two embeddings
-#[allow(dead_code)]
+/// Data operator stream
 pub struct CandleDataStream {
     /// The messages containing the lhs and rhs
     /// which we cannot determine until we intialize the config
@@ -111,7 +110,7 @@ pub struct CandleDataStream {
     /// Parameters for tensor operations
     config_stream: SendableRecordBatchStream,
     /// The tensor services needed for inference
-    runtime_env: Arc<RuntimeEnv>,
+    _runtime_env: Arc<RuntimeEnv>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for tensor operations
@@ -124,8 +123,6 @@ pub struct CandleDataStream {
     lhs_inbox: Vec<RecordBatch>,
     /// The polled record batches from the input
     rhs_inbox: Vec<RecordBatch>,
-    /// The prepared record batches for the output
-    outbox: Vec<RecordBatch>,
     /// Switch to finished polling
     is_finished: bool,
 }
@@ -141,13 +138,12 @@ impl CandleDataStream {
             messages,
             config_stream,
             diagnostic_builder,
-            runtime_env,
+            _runtime_env: runtime_env,
             config: None,
             tensor_service: None,
             data_operator: None,
             lhs_inbox: Vec::new(),
             rhs_inbox: Vec::new(),
-            outbox: Vec::new(),
             is_finished: false,
         })
     }

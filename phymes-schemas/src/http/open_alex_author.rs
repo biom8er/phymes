@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AvailableSchemaTrait, create_schema_from_fields,
-    schemas::http::{
+    http::{
         AwardAffiliationTable,
         open_alex_common::{CountsByYear, SummaryStats},
         open_alex_institution::Institution,

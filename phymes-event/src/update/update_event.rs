@@ -161,7 +161,7 @@ mod test_update_policy {
 
 #[cfg(test)]
 mod tests {
-    use crate::event::subscribe_event::test_subscribe_policy;
+    use crate::subscribe::test_subscribe_policy;
 
     use super::*;
 

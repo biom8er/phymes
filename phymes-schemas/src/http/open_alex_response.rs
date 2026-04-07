@@ -25,7 +25,7 @@ use crate::{
         SourceSocietyTable, SourceSummaryStatsTable, SourceTable, TopicDomainTable,
         TopicFieldTable, TopicIdsTable, TopicKeywordTable, TopicSubfieldTable, TopicTable,
     },
-    schemas::http::{
+    http::{
         open_alex_author::Author,
         open_alex_award::Award,
         open_alex_common::OpenAlexEntity,

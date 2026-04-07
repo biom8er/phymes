@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::schemas::http::{
+use crate::http::{
     AuthorCountsByYearTable, AuthorSummaryStatsTable, FunderCountsByYearTable,
     FunderSummaryStatsTable, InstitutionCountsByYearTable, InstitutionSummaryStatsTable,
     PublisherCountsByYearTable, PublisherSummaryStatsTable, SourceCountsByYearTable,

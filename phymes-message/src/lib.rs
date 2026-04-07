@@ -1,5 +1,10 @@
+mod interface;
 mod message;
 
+pub use interface::{
+    SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
+    SessionInterfaceMessageTrait, create_message_map, create_error_message_map, create_error_message_map_stream
+};
 pub use message::{
     IPCMessage, IPCMessageBuilder, IPCMessageMap, MessageBuilderTrait, MessageTrait,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,

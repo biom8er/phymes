@@ -1,5 +1,4 @@
 mod event;
-mod messages;
 mod plans;
 mod session;
 mod task;
@@ -8,10 +7,6 @@ pub use event::{
     PublicationTrait, SubscriptionTrait, build_and_publish_to_stream, clear_subject,
     extend_subject, get_subject, list_subject, make_object_store_path,
     make_object_store_paths_record_batch, subscribe_to_subject, update_publisher,
-};
-pub use messages::{
-    SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-    SessionInterfaceMessageTrait, create_message_map, create_error_message_map, create_error_message_map_stream
 };
 #[cfg(feature = "api")]
 pub use plans::GetContentSession;

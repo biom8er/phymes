@@ -1,9 +1,11 @@
 use anyhow::{Error, Result};
-use phymes_core::{BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
-use phymes_message::{IPCMessage, IPCMessageBuilder, Publication, MessageBuilderTrait, SendableRecordBatchStreamMessage,
+use phymes_core::{BuilderTrait, MappableTrait, SubjectTrait};
+use phymes_diagnostics::HashMap;
+use phymes_event::Publication;
+use phymes_schemas::{AvailableSubjects, create_error_subject};
+
+use crate::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder};
-use phymes_diagnostics::{HashMap, create_timestamp_micros};
-use phymes_schemas::{AvailableSubjects, create_chat_record_batch};
 
 pub fn create_error_message_map_stream(
     err: &Error,
