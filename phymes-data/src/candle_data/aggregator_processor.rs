@@ -13,7 +13,7 @@ use phymes_message::{
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects};
-use phymes_task::ProcessorTrait;
+use phymes_processor::ProcessorTrait;
 
 use crate::{
     CandleTensorService, DataConfig, DataConfigTrait, DataOperatorTrait, TensorProcessorTrait,
@@ -285,10 +285,11 @@ impl RecordBatchStream for AggregatorStream {
 mod tests {
     use crate::{AvailableCandleOperators, DataConfig};
     use phymes_core::{
-        Publication, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+        SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
         test_subject::{make_test_subject, make_test_subject_chat},
     };
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
+    use phymes_message::Publication;
 
     use super::*;
 

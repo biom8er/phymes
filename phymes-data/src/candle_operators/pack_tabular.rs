@@ -7,11 +7,11 @@ use flate2::{
     Compression,
     write::{DeflateEncoder, GzEncoder, ZlibEncoder},
 };
-use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, Function,
-    FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Subject,
-    SubjectBuilderTrait, SubjectTrait, Tool, ToolType, create_attachments_batch,
-    create_chat_record_batch, create_object_store_batch, make_extension, make_filename,
+use phymes_core::{BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, make_extension, make_filename};
+use phymes_schemas::{
+    AvailableSubjects, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
+    create_attachments_batch,
+    create_chat_record_batch, create_object_store_batch,
 };
 use phymes_diagnostics::create_timestamp_micros;
 use serde::{Deserialize, Serialize};

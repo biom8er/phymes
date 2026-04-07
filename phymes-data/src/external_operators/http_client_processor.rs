@@ -12,17 +12,22 @@ use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use bytes::Bytes;
 use futures::{FutureExt, Stream, StreamExt};
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait,
-    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
-    create_attachments_batch, create_bytes_fields, create_chat_record_batch, create_values_fields,
-    remove_message_by_subject,
+    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
+    SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
 };
+use phymes_schemas::{
+    AvailableSchemaTrait, AvailableSubjects,
+    create_attachments_batch, create_bytes_fields, create_chat_record_batch, create_values_fields,
+};
+use phymes_message::{
+    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap,
+    remove_message_by_subject,
+};
+use phymes_processor::ProcessorTrait;
 use reqwest::{
     Client, Response,
     header::{CONTENT_TYPE, USER_AGENT},
@@ -573,10 +578,10 @@ mod tests {
 
     use super::*;
     use futures::TryStreamExt;
-    use phymes_core::{
-        ChatBuilderTraitExt, Publication, SubjectBuilder, open_alex, semantic_scholar,
-    };
+    use phymes_core::SubjectBuilder;
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
+    use phymes_message::Publication;
+    use phymes_schemas::{open_alex, semantic_scholar};
 
     #[tokio::test]
     async fn test_http_client_processor_open_alex_get_message_from_message() -> Result<()> {

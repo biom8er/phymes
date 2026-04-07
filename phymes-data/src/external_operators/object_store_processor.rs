@@ -17,18 +17,23 @@ use object_store::{
 };
 use parking_lot::Mutex;
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, ChunkedWriter,
-    MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, OnChunk,
-    ProcessorTrait, RecordBatchStream, RuntimeEnv, RuntimeEnvTrait, SendableRecordBatchStream,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
-    SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
-    SubjectBuilder, SubjectBuilderTrait, SubjectTrait, create_bytes_fields,
-    create_object_store_batch, create_object_store_meta_batch, create_values_fields, make_store,
-    remove_message_by_subject,
+    BuildableTrait, BuilderTrait, ChunkedWriter,
+    MappableTrait, ObjectStorageBackend, OnChunk, RecordBatchStream, RuntimeEnv, RuntimeEnvTrait, SendableRecordBatchStream,
+    SubjectBuilder, SubjectBuilderTrait, SubjectTrait, make_store,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
 };
+use phymes_message::{
+    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
+    SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
+    remove_message_by_subject,
+};
+use phymes_schemas::{
+    AvailableSchemaTrait, AvailableSubjects, create_bytes_fields,
+    create_object_store_batch, create_object_store_meta_batch, create_values_fields,
+};
+use phymes_processor::ProcessorTrait;
 use serde_json::{Map, Value, json};
 
 use crate::{DataConfigTrait, ObjectStoreConfig, ObjectStoreOptsType};
@@ -1000,8 +1005,9 @@ impl RecordBatchStream for ObjectStoreStream {
 mod tests {
     use super::*;
     use futures::TryStreamExt;
-    use phymes_core::{ObjectStorageBackend, Publication, Subject, SubjectBuilder, test_subject};
+    use phymes_core::{ObjectStorageBackend, Subject, SubjectBuilder, test_subject};
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
+    use phymes_message::Publication;
 
     #[cfg(not(target_family = "wasm"))]
     use tempfile::TempDir;

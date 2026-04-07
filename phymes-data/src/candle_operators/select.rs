@@ -27,10 +27,9 @@ use arrow::{
 };
 use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast, WrappingShl, WrappingShr};
-use phymes_core::{
-    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
-    MappableTrait, Subject, SubjectBuilderTrait, SubjectScript, SubjectTrait, Tool, ToolType,
-    from_str_to_data_type,
+use phymes_core::{BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, MappableTrait, Subject, SubjectBuilderTrait, SubjectScript, SubjectTrait, from_str_to_data_type};
+use phymes_schemas::{
+    AvailableSubjects, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
 };
 use phymes_diagnostics::HashSet;
 use serde_json::json;

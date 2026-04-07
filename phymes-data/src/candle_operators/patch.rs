@@ -6,10 +6,9 @@ use arrow::{
     datatypes::{DataType, Field, Int64Type, Schema, UInt32Type},
 };
 use candle_core::Device;
-use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, Function,
-    FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, PatchOperator, Subject,
-    SubjectBuilderTrait, SubjectTrait, Tool, ToolType, apply_patch_auto,
+use phymes_core::{BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_schemas::{
+    AvailableSchemaTrait, AvailableSubjects, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -17,7 +16,7 @@ use tracing::instrument;
 
 use crate::{
     DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate,
-    DataJoinOperator, ToolTrait,
+    DataJoinOperator, PatchOperator, ToolTrait, apply_patch_auto,
     candle_data::DataConfig,
     candle_operators::{
         DataOperatorTrait, from_json_object_columns,
@@ -773,9 +772,8 @@ pub fn patch(
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{PatchOperator, WorkspacePatchSubject};
-
-    use crate::device;
+    use crate::{PatchOperator, device};
+    use phymes_schemas::WorkspacePatchSubject;
 
     use super::*;
 

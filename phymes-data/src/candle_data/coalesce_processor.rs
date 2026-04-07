@@ -10,12 +10,15 @@ use arrow::compute::concat_batches;
 use arrow::datatypes::SchemaRef;
 use futures::stream::{Stream, StreamExt};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
-    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilderTrait, remove_message_by_subject,
+    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilderTrait
 };
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
+use phymes_message::{
+    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, remove_message_by_subject,
+};
+use phymes_processor::ProcessorTrait;
 
 use crate::{DataConfigTrait, LimitConfig};
 
@@ -445,10 +448,9 @@ mod tests {
     use arrow::array::{StringViewArray, UInt32Array};
     use arrow::datatypes::{DataType, Field, Schema};
     use futures::TryStreamExt;
-    use phymes_core::{
-        Publication, RecordBatchStreamAdapter, SubjectBuilder, SubjectTrait, test_subject,
-    };
+    use phymes_core::{RecordBatchStreamAdapter, SubjectBuilder, SubjectTrait, test_subject};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
+    use phymes_message::Publication;
 
     #[tokio::test]
     async fn test_coalesce_processor() -> Result<()> {

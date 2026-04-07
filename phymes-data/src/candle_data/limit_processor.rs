@@ -7,12 +7,16 @@ use arrow::datatypes::SchemaRef;
 use arrow::record_batch::RecordBatch;
 use futures::stream::{Stream, StreamExt};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
-    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilderTrait, remove_message_by_subject,
+    BuildableTrait, BuilderTrait, MappableTrait,
+    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilderTrait,
 };
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
+use phymes_message::{
+    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, remove_message_by_subject,
+};
+use phymes_processor::ProcessorTrait;
 
 use crate::{DataConfigTrait, LimitConfig};
 
@@ -283,8 +287,9 @@ mod tests {
     use arrow::datatypes::{DataType, Field, Schema};
     use arrow::record_batch::RecordBatchOptions;
     use futures::{Stream, TryStreamExt};
-    use phymes_core::{Publication, SubjectBuilder, SubjectTrait, test_subject};
+    use phymes_core::{SubjectBuilder, SubjectTrait, test_subject};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
+    use phymes_message::Publication;
 
     #[tokio::test]
     async fn test_limit_processor() -> Result<()> {

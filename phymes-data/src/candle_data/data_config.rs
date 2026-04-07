@@ -2,13 +2,12 @@ use std::fmt::Display;
 
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
-use phymes_core::{
-    AvailableSubjects, DataEncoding, DataFormat, DiffType, MappableTrait, Subject, SubjectTrait,
-};
+use phymes_core::{DataEncoding, DataFormat, MappableTrait, Subject, SubjectTrait};
 use phymes_diagnostics::HashSet;
+use phymes_schemas::AvailableSubjects;
 use serde::{Deserialize, Serialize};
 
-use crate::{AvailableJinja2Templates, candle_operators::AvailableCandleOperators};
+use crate::{AvailableJinja2Templates, candle_operators::AvailableCandleOperators, DiffType};
 
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
 pub enum DataStreamManager {

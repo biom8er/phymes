@@ -8,8 +8,10 @@ use lopdf::{
     content::{Content, Operation},
     dictionary,
 };
-use phymes_core::{
-    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Tool, ToolType,
+
+use phymes_core::{BuildableTrait, BuilderTrait, DataEncoding, DataFormat, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_schemas::{
+    AvailableSubjects, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};

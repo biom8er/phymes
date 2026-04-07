@@ -3,10 +3,10 @@ use std::{env, fmt::Display};
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
-    WorkspaceSubject, create_workspace_batch,
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait
 };
 use phymes_diagnostics::{HashMap, HashSet};
+use phymes_schemas::{WorkspaceSubject, create_workspace_batch};
 use serde::{Deserialize, Serialize};
 
 use crate::DataConfigTrait;

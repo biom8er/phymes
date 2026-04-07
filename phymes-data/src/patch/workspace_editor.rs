@@ -1,5 +1,5 @@
-use crate::WorkspaceSubject;
 use anyhow::{Result, anyhow};
+use phymes_schemas::WorkspaceSubject;
 use std::{
     fs,
     io::{Read, Write},

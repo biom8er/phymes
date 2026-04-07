@@ -10,10 +10,12 @@ use arrow::{
 use anyhow::{Result, anyhow};
 use candle_core::Device;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
-    MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType,
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_diagnostics::HashSet;
+use phymes_schemas::{
+    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
+};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;

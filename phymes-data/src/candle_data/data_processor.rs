@@ -1,31 +1,34 @@
-use crate::{
-    CandleTensorService, DataConfig, DataConfigTrait, DataOperatorTrait, DataStreamManager,
-    TensorProcessorTrait, device,
-};
-use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
-    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
-    create_bytes_fields, create_values_fields, remove_message_by_subject,
-};
-
+use anyhow::{Result, anyhow};
 use arrow::{
     datatypes::{Schema, SchemaRef},
     record_batch::RecordBatch,
 };
-
-use anyhow::{Result, anyhow};
 use futures::{Stream, StreamExt};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait,
+    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait
+};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
 };
+use phymes_message::{
+    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, remove_message_by_subject,
+};
+use phymes_processor::ProcessorTrait;
+use phymes_schemas::{create_bytes_fields, create_values_fields};
 use std::{
     pin::Pin,
     sync::Arc,
     task::{Context, Poll, ready},
 };
 use tracing::{Level, event, instrument};
+
+use crate::{
+    CandleTensorService, DataConfig, DataConfigTrait, DataOperatorTrait, DataStreamManager,
+    TensorProcessorTrait, device,
+};
 
 /// Tensor processor made possible by Candle
 ///
@@ -606,8 +609,9 @@ mod tests {
     use crate::{DataDistanceOperator, candle_operators::AvailableCandleOperators};
     use arrow::array::{Float32Array, StringArray};
     use futures::TryStreamExt;
-    use phymes_core::{Publication, Subject};
+    use phymes_core::Subject;
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
+    use phymes_message::Publication;
 
     use super::*;
 

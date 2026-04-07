@@ -3,11 +3,10 @@ use std::collections::HashMap;
 use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
-use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, Function,
-    FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Subject,
-    SubjectBuilderTrait, SubjectScript, SubjectTrait, Tool, ToolType, create_bytes_record_batch,
-    create_mermaid_content_template_batch,
+use phymes_core::{BuildableTrait, BuilderTrait, DataEncoding, DataFormat, MappableTrait, Subject, SubjectBuilderTrait, SubjectScript, SubjectTrait};
+use phymes_schemas::{
+    AvailableSubjects, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
+    create_bytes_record_batch, create_mermaid_content_template_batch,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};

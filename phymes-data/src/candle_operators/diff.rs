@@ -6,17 +6,17 @@ use arrow::{
     datatypes::{Schema, SchemaRef},
 };
 use candle_core::Device;
-use phymes_core::{
-    BuildableTrait, BuilderTrait, DiffType, Function, FunctionParameters, JSONSchemaDefine,
-    JSONSchemaType, MappableTrait, PatchOperator, Subject, SubjectBuilderTrait, SubjectTrait, Tool,
-    ToolType, compute_diff,
+use phymes_core::{BuildableTrait, BuilderTrait, DataEncoding, DataFormat, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_schemas::{
+    AvailableSubjects, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tracing::instrument;
 
 use crate::{
-    DataJoinOperator, ToolTrait,
+    DataJoinOperator, DiffType, PatchOperator, ToolTrait,
+    compute_diff,
     candle_data::DataConfig,
     candle_operators::{DataOperatorTrait, join::join},
 };
