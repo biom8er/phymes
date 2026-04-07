@@ -1,10 +1,8 @@
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 
-use phymes_core::{
-    BuildableTrait, BuilderTrait, DataFormat, MappableTrait, MessageBuilderTrait, MessageTrait,
-    Publication,
-};
+use phymes_core::{BuildableTrait, BuilderTrait, DataFormat, MappableTrait};
+use phymes_message::{MessageBuilderTrait, MessageTrait, Publication};
 
 /// Composition of [MessageTrait] with additional functions for inter-session communication
 pub trait SessionInterfaceMessageTrait: MessageTrait {

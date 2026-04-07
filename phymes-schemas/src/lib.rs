@@ -26,5 +26,6 @@ pub use schemas::{
     create_user_session_contexts_batch, create_values_fields, create_values_record_batch,
     create_workspace_batch, create_workspace_fields, create_workspace_patch_batch,
     create_workspace_patch_fields, e_utils, from_diagnostics_to_tables, open_alex,
-    semantic_scholar, create_route_bytes_fields, create_error_subject
+    semantic_scholar, create_route_bytes_fields, create_error_subject, 
+    ChatCompletionMessage, Content, MessageRole
 };

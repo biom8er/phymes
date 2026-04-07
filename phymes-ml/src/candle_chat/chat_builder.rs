@@ -1,19 +1,16 @@
-use phymes_core::{
-    RecordBatchReceiverStream, SendableRecordBatchStream, Subject, SubjectBuilder,
-    SubjectBuilderTrait, SubjectScript, SubjectTrait, create_chat_record_batch,
-};
-use phymes_schemas::create_chat_record_batch;
-
 use anyhow::Result;
 use arrow::{
     array::{Int64Array, StringArray},
     record_batch::RecordBatch,
 };
 use futures::StreamExt;
+use phymes_core::{
+    RecordBatchReceiverStream, SendableRecordBatchStream, Subject, SubjectBuilder,
+    SubjectBuilderTrait, SubjectScript, SubjectTrait,
+};
 use phymes_diagnostics::create_timestamp_micros;
+use phymes_schemas::{create_chat_record_batch, ChatCompletionMessage, Content, MessageRole, ToolCall, Tool};
 use tracing::{Level, event};
-
-use super::openai_chat_completion::{self, ChatCompletionMessage, Content, MessageRole, ToolCall};
 
 pub trait ChatTraitExt: Sized {
     /// Apply a template to build the message
@@ -23,7 +20,7 @@ pub trait ChatTraitExt: Sized {
         bos_token: Option<&str>,
         eos_token: Option<&str>,
         add_generation_prompt: bool,
-        tools: Option<Vec<openai_chat_completion::Tool>>,
+        tools: Option<Vec<Tool>>,
     ) -> Result<String>;
 
     fn to_openai_messages(self) -> Vec<ChatCompletionMessage>;
@@ -36,7 +33,7 @@ impl ChatTraitExt for Subject {
         bos_token: Option<&str>,
         eos_token: Option<&str>,
         add_generation_prompt: bool,
-        tools: Option<Vec<openai_chat_completion::Tool>>,
+        tools: Option<Vec<Tool>>,
     ) -> Result<String> {
         // // Trim all white spaces from the prompt
         // let template = chat_template
@@ -275,17 +272,19 @@ impl ChatBuilderTraitExt for SubjectBuilder {
 
 mod test_messages {
     use super::*;
-    use crate::{
-        BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait,
-        ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
-        SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
-        SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
-    };
     use anyhow::anyhow;
     use arrow::datatypes::SchemaRef;
     use futures::Stream;
-
+    use phymes_core::{
+        BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv
+    };
+    use phymes_message::{
+        MessageBuilderTrait, MessageTrait,
+        SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
+        SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
+    };
     use phymes_diagnostics::{DiagnosticBuilder, HashMap};
+    use phymes_processor::ProcessorTrait;
     use std::{
         pin::Pin,
         sync::Arc,
@@ -396,11 +395,11 @@ mod test_messages {
                             .with_name("messages")
                             .with_record_batches(batches)?
                             .build()?;
-                        let tool_vec: Vec<openai_chat_completion::Tool> = tool_table
+                        let tool_vec: Vec<Tool> = tool_table
                             .get_column_as_vec_str("tool")
                             .iter()
                             .map(|s| {
-                                let tool: openai_chat_completion::Tool =
+                                let tool: Tool =
                                     serde_json::from_str(s).unwrap();
                                 tool
                             })
@@ -470,12 +469,13 @@ mod test_messages {
 mod tests {
     use std::sync::Arc;
 
-    use super::openai_chat_completion::Tool;
-    use crate::{
-        BuildableTrait, BuilderTrait, MessageBuilderTrait, ProcessorTrait, Publication, RuntimeEnv,
-        SendableRecordBatchStreamMessage,
+    use phymes_core::{
+        BuildableTrait, BuilderTrait, RuntimeEnv,
         test_subject::{make_test_subject_chat, make_test_subject_tool},
     };
+    use phymes_message::{MessageBuilderTrait, Publication, SendableRecordBatchStreamMessage};
+    use phymes_processor::ProcessorTrait;
+    use phymes_schemas::Tool;
     use futures::TryStreamExt;
     use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap};
 

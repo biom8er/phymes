@@ -5,9 +5,9 @@ use arrow::{
     datatypes::DataType,
     record_batch::RecordBatch,
 };
-use phymes_core::{BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, from_str_to_data_type};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 use phymes_schemas::{
-    AvailableSubjects, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
+    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
 };
 use serde::{Deserialize, Serialize};
 

@@ -14,15 +14,17 @@ use candle_core::{DType, Tensor};
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait,
-    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilder, SubjectBuilderTrait,
-    SubjectTrait, remove_message_by_subject,
+    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_data::{DataConfigTrait, device};
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
+use phymes_message::{
+    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, remove_message_by_subject,
+};
+use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects};
+use phymes_processor::ProcessorTrait;
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 use tracing::{Level, event, instrument};
 
@@ -558,7 +560,7 @@ mod tests {
     use arrow::array::{Float32Array, ListArray, StringArray};
     use candle_core::Device;
     use futures::TryStreamExt;
-    use phymes_core::Publication;
+    use phymes_message::Publication;
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use crate::{

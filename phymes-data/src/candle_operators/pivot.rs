@@ -7,7 +7,7 @@ use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
 use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 use phymes_schemas::{
-    AvailableSubjects, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
+    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};

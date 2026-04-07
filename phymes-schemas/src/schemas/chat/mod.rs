@@ -12,7 +12,7 @@ pub use chat_types::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaT
 pub use messages::{create_chat_fields, create_chat_record_batch};
 pub use openai_chat_completion::{
     ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolCall, ToolChoiceType,
-    ToolType,
+    ToolType, ChatCompletionMessage, Content, MessageRole
 };
 pub use tools::{
     create_bytes_fields, create_bytes_record_batch, create_route_bytes_fields,

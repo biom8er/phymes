@@ -12,7 +12,7 @@ pub use chat::{
     ToolType, create_bytes_fields, create_bytes_record_batch, create_chat_fields,
     create_chat_record_batch, create_route_bytes_fields, create_route_bytes_record_batch,
     create_tools_fields, create_tools_record_batch, create_values_fields,
-    create_values_record_batch,
+    create_values_record_batch, ChatCompletionMessage, Content, MessageRole
 };
 pub use embed::{
     EmbeddingRequest, EmbeddingResponse, EncodingFormat, create_document_embeddings_fields,

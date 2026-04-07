@@ -5,18 +5,22 @@ use std::{
 };
 
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat,
-    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream,
-    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilderTrait, SubjectTrait, ToolCall,
-    create_bytes_record_batch, create_chat_record_batch, create_route_bytes_record_batch,
-    remove_message_by_subject,
+    BuildableTrait, BuilderTrait, DataFormat, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
 };
+use phymes_message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, 
+    remove_message_by_subject,
+};
+use phymes_schemas::{
+    AvailableSchemaTrait, AvailableSubjects, ToolCall,
+    create_bytes_record_batch, create_chat_record_batch, create_route_bytes_record_batch,
+};
+use phymes_processor::ProcessorTrait;
 
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
@@ -404,8 +408,9 @@ impl RecordBatchStream for MessageParserStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{Publication, SubjectBuilder};
+    use phymes_core::SubjectBuilder;
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
+    use phymes_message::Publication;
 
     use crate::AvailableCandleAssets;
 

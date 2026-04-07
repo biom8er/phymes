@@ -8,22 +8,25 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, ChatCompletionRequest,
-    ChatCompletionResponse, ChatTraitExt, FinishReason, MappableTrait, MessageBuilderTrait,
-    MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
-    SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Subject,
-    SubjectBuilderTrait, SubjectTrait, Tool, ToolChoiceType, create_chat_record_batch,
-    remove_message_by_subject,
+    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_data::{DataConfigTrait, HTTPClientRequestState};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
 };
+use phymes_schemas::{
+    AvailableSchemaTrait, AvailableSubjects, ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolChoiceType, create_chat_record_batch
+};
+use phymes_message::{
+    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
+    SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
+    remove_message_by_subject,
+};
+use phymes_processor::ProcessorTrait;
 use reqwest::{Client, header::CONTENT_TYPE};
 use tracing::{Level, event};
 
-use crate::candle_chat::CandleChatConfig;
+use crate::{ChatTraitExt, candle_chat::CandleChatConfig};
 
 #[derive(Debug)]
 pub struct OpenAIChatProcessor {

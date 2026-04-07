@@ -1,28 +1,30 @@
-use crate::{CandleEmbedConfig, candle_embed::convert_embedding_vector_to_record_batch};
-
-use phymes_data::{DataConfigTrait, HTTPClientRequestState};
-use reqwest::{Client, header::CONTENT_TYPE};
-
-use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, EmbeddingRequest,
-    EmbeddingResponse, EncodingFormat, MappableTrait, MessageBuilderTrait, MessageTrait,
-    ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
-    SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Subject,
-    SubjectBuilder, SubjectBuilderTrait, SubjectTrait, remove_message_by_subject,
-};
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
-
-use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
-
 use anyhow::{Result, anyhow};
+use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 use futures::{FutureExt, Stream, StreamExt};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject,
+    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+};
+use phymes_data::{DataConfigTrait, HTTPClientRequestState};
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
+use phymes_message::{
+    MessageBuilderTrait, MessageTrait,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
+    SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
+};
+use phymes_schemas::{
+    AvailableSchemaTrait, AvailableSubjects, EmbeddingRequest, EmbeddingResponse, EncodingFormat, 
+};
+use phymes_processor::ProcessorTrait;
+use reqwest::{Client, header::CONTENT_TYPE};
 use std::{
     pin::Pin,
     sync::Arc,
     task::{Context, Poll, ready},
 };
 use tracing::{Level, event};
+
+use crate::{CandleEmbedConfig, candle_embed::convert_embedding_vector_to_record_batch};
 
 #[derive(Debug)]
 pub struct OpenAIEmbedProcessor {
@@ -468,7 +470,7 @@ mod tests {
     #[allow(unused_imports)]
     use futures::TryStreamExt;
     #[allow(unused_imports)]
-    use phymes_core::Publication;
+    use phymes_message::Publication;
 
     #[allow(unused_imports)]
     use super::*;

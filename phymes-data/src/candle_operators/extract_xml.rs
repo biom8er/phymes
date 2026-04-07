@@ -4,9 +4,9 @@ use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use clap::ValueEnum;
-use phymes_core::{BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{BuildableTrait, BuilderTrait, DataFormat, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 use phymes_schemas::{
-    AvailableSubjects, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
+    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
     create_parse_owl_batch, create_parse_xml_batch,
 };
 use quick_xml::{

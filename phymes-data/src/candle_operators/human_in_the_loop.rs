@@ -6,9 +6,9 @@ use crate::{ToolTrait, candle_data::DataConfig};
 use super::data_operator::DataOperatorTrait;
 use anyhow::Result;
 use candle_core::Device;
-use phymes_core::{BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 use phymes_schemas::{
-    AvailableSubjects, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
+    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
     create_chat_record_batch
 };
 use serde::{Deserialize, Serialize};
