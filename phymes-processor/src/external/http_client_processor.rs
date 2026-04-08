@@ -1,12 +1,8 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv,
-};
-use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap,
-};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
+use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap,
@@ -79,9 +75,9 @@ impl ProcessorTrait for HTTPClientRequestProcessor {
 mod tests {
     use super::*;
     use futures::TryStreamExt;
-    use phymes_core::SubjectBuilder;
+    use phymes_core::{SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
     use phymes_data::{extract_pdf, filter_pdf, load_pdf_document};
-    use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
+    use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder};
     use phymes_event::Publication;
     use phymes_schemas::{create_chat_record_batch, open_alex, semantic_scholar};
     use phymes_streams::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};

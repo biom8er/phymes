@@ -1,32 +1,17 @@
-use std::{
-    pin::Pin,
-    sync::Arc,
-    task::{Context, Poll, ready},
-};
+use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use arrow::{array::RecordBatch, datatypes::SchemaRef};
-use futures::{FutureExt, Stream, StreamExt};
-use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilderTrait, SubjectTrait,
-};
-use phymes_data::{DataConfigTrait, HTTPClientRequestState};
-use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
-};
-use phymes_schemas::{
-    AvailableSchemaTrait, AvailableSubjects, ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolChoiceType, create_chat_record_batch
-};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
+use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
     SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
     remove_message_by_subject,
 };
-use phymes_processor::ProcessorTrait;
-use reqwest::{Client, header::CONTENT_TYPE};
+use phymes_streams::OpenAIChatStream;
 use tracing::{Level, event};
 
-use crate::{ChatTraitExt, candle_chat::CandleChatConfig};
+use crate::ProcessorTrait;
 
 #[derive(Debug)]
 pub struct OpenAIChatProcessor {

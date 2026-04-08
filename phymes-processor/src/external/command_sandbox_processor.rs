@@ -1,13 +1,8 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use arrow::{array::RecordBatch};
-use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv,
-};
-use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap,
-};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
+use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
@@ -81,9 +76,19 @@ impl ProcessorTrait for CommandSandboxProcessor {
     }
 }
 
-pub mod test_command_sandbox_processor {
+#[cfg(test)]
+mod tests {
+    use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
+    use futures::TryStreamExt;
+    use phymes_core::{SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+    use phymes_event::Publication;
+    use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
+    use phymes_schemas::create_chat_record_batch;
+    use phymes_streams::{CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod};
+    use std::{fs::File, io::Write};
+    use tempfile::{NamedTempFile, TempDir};
+
     use super::*;
-    use arrow::array::{ArrayRef, StringArray, UInt32Array};
 
     pub fn create_messages() -> Result<RecordBatch> {
         let names = vec!["Alice", "Bob"];
@@ -93,21 +98,6 @@ pub mod test_command_sandbox_processor {
         let batch = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
         Ok(batch)
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use arrow::array::{ArrayRef, StringArray, UInt32Array};
-    use futures::TryStreamExt;
-    use phymes_core::SubjectBuilder;
-    use phymes_event::Publication;
-    use phymes_diagnostics::{Diagnostics, SpanBuilder};
-    use phymes_schemas::create_chat_record_batch;
-    use phymes_streams::{CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod};
-    use std::{fs::File, io::Write};
-    use tempfile::{NamedTempFile, TempDir};
-
-    use super::*;
 
     #[tokio::test]
     async fn test_command_sandbox_processor_wasmtime_no_workspace_no_messages() -> Result<()> {
@@ -1069,7 +1059,7 @@ mod tests {
             .build()?;
 
         // Make the input data for the script
-        let batch = test_command_sandbox_processor::create_messages()?;
+        let batch = create_messages()?;
 
         let message_table = SubjectBuilder::new()
             .with_record_batches(vec![batch])?
@@ -1229,7 +1219,7 @@ if __name__ == '__main__':
             .build()?;
 
         // Make the input data for the script
-        let batch = test_command_sandbox_processor::create_messages()?;
+        let batch = create_messages()?;
 
         let message_table = SubjectBuilder::new()
             .with_record_batches(vec![batch])?
@@ -1335,7 +1325,7 @@ if __name__ == '__main__':
             .build()?;
 
         // Make the input data for the script
-        let batch = test_command_sandbox_processor::create_messages()?;
+        let batch = create_messages()?;
 
         let message_table = SubjectBuilder::new()
             .with_record_batches(vec![batch])?
@@ -1692,7 +1682,7 @@ fn main() -> Result<()> {
             .build()?;
 
         // Make the input data for the script
-        let batch = test_command_sandbox_processor::create_messages()?;
+        let batch = create_messages()?;
 
         let message_table = SubjectBuilder::new()
             .with_record_batches(vec![batch.clone()])?
@@ -1910,7 +1900,7 @@ fn main() -> Result<()> {
             .build()?;
 
         // Make the input data for the script
-        let batch_1 = test_command_sandbox_processor::create_messages()?;
+        let batch_1 = create_messages()?;
         let names = vec!["Joe"];
         let names_arr: ArrayRef = Arc::new(StringArray::from(names));
         let ages = vec![40];
@@ -2002,7 +1992,7 @@ apt install --assume-yes protobuf-compiler clang"#;
             .build()?;
 
         // Make the input data for the script
-        let batch = test_command_sandbox_processor::create_messages()?;
+        let batch = create_messages()?;
 
         let message_table = SubjectBuilder::new()
             .with_record_batches(vec![batch])?
@@ -2110,7 +2100,7 @@ apt install --assume-yes protobuf-compiler clang"#;
             .build()?;
 
         // Make the input data for the script
-        let batch = test_command_sandbox_processor::create_messages()?;
+        let batch = create_messages()?;
 
         let message_table = SubjectBuilder::new()
             .with_record_batches(vec![batch])?

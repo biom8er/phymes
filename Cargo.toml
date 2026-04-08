@@ -11,6 +11,7 @@ members = [
     "phymes-schemas",
     "phymes-server",
     "phymes-streams",
+    "phymes-task",
     "phymes-diagnostics"
 ]
 resolver = "3"

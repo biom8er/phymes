@@ -12,7 +12,7 @@ use phymes_data::{
 };
 use phymes_streams::{LimitConfig, ObjectStoreConfig, ObjectStoreOptsType, ToolCallConfig};
 #[cfg(feature = "api")]
-use phymes_stream::{
+use phymes_streams::{
     CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod, HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType,
 };
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig};

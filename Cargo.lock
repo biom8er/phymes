@@ -5762,6 +5762,7 @@ dependencies = [
  "clap",
  "criterion",
  "futures",
+ "object_store",
  "parking_lot",
  "phymes-core",
  "phymes-data",
@@ -5866,6 +5867,39 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+ "urlencoding",
+]
+
+[[package]]
+name = "phymes-task"
+version = "0.3.0"
+dependencies = [
+ "anyhow",
+ "arrow",
+ "bytes",
+ "chrono",
+ "clap",
+ "futures",
+ "getrandom 0.2.17",
+ "getrandom 0.3.4",
+ "object_store",
+ "parking_lot",
+ "phymes-core",
+ "phymes-data",
+ "phymes-diagnostics",
+ "phymes-event",
+ "phymes-message",
+ "phymes-processor",
+ "phymes-schemas",
+ "phymes-streams",
+ "reqwest 0.13.2",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-chrome",
+ "tracing-subscriber",
  "urlencoding",
 ]
 

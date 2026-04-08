@@ -1,30 +1,17 @@
+use std::sync::Arc;
+
 use anyhow::{Result, anyhow};
-use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
-use futures::{FutureExt, Stream, StreamExt};
-use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject,
-    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
-};
-use phymes_data::{DataConfigTrait, HTTPClientRequestState};
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv,};
+use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
     SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
-use phymes_schemas::{
-    AvailableSchemaTrait, AvailableSubjects, EmbeddingRequest, EmbeddingResponse, EncodingFormat, 
-};
-use phymes_processor::ProcessorTrait;
-use reqwest::{Client, header::CONTENT_TYPE};
-use std::{
-    pin::Pin,
-    sync::Arc,
-    task::{Context, Poll, ready},
-};
+use phymes_streams::OpenAIEmbedStream;
 use tracing::{Level, event};
 
-use crate::{CandleEmbedConfig, candle_embed::convert_embedding_vector_to_record_batch};
+use crate::ProcessorTrait;
 
 #[derive(Debug)]
 pub struct OpenAIEmbedProcessor {
