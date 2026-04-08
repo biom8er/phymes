@@ -5859,7 +5859,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "tokenizers",
  "tokio",
  "tracing",
  "tracing-chrome",

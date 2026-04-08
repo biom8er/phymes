@@ -12,22 +12,18 @@ use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use bytes::Bytes;
 use futures::{FutureExt, Stream, StreamExt};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
+    BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
     SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait
 };
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
+    DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait, create_timestamp_micros,
 };
 use phymes_schemas::{
     AvailableSchemaTrait, AvailableSubjects,
     create_attachments_batch, create_bytes_fields, create_chat_record_batch, create_values_fields,
 };
-use phymes_message::{
-    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap,
-    remove_message_by_subject,
-};
+use phymes_message::{MessageTrait, SendableRecordBatchStreamMessageMap, remove_message_by_subject};
 use reqwest::{
     Client, Response,
     header::{CONTENT_TYPE, USER_AGENT},

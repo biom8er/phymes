@@ -16,5 +16,7 @@ pub use external::{
     CommandSandboxStream, HTTPClientRequestStream, HTTPClientRequestState,
 };
 pub use tensor::CandleDataStream;
-pub use token::{ChatBuilderTraitExt, ChatTraitExt, CandleChatStream, MessageParserStream,
+pub use token::{ChatBuilderTraitExt, ChatTraitExt, CandleEmbedStream, CandleChatStream, MessageParserStream,
     ToolCallConfig, ToolCallStream, extract_tool_calls_str};
+#[cfg(feature = "api")]
+pub use token::{OpenAIChatStream, OpenAIEmbedStream};

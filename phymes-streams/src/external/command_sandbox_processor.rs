@@ -18,12 +18,9 @@ use phymes_core::{
 };
 use phymes_data::{DataConfigTrait, WorkspaceEditor};
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
+    DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait, create_timestamp_micros,
 };
-use phymes_message::{
-    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, remove_message_by_subject,
+use phymes_message::{MessageTrait, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_schemas::{
     AvailableSchemaTrait, AvailableSubjects, create_bytes_fields, create_chat_record_batch, create_values_fields,

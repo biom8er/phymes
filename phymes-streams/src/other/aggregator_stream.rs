@@ -10,7 +10,7 @@ use arrow::{
     datatypes::SchemaRef,
 };
 use futures::{Stream, StreamExt};
-use phymes_core::{BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
+use phymes_core::{BuilderTrait, RecordBatchStream, RuntimeEnv,
     SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait,
 };
 use phymes_message::{

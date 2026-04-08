@@ -269,16 +269,12 @@ impl ChatBuilderTraitExt for SubjectBuilder {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use phymes_core::{
-        BuildableTrait, BuilderTrait, RuntimeEnv,
-        test_subject::{make_test_subject_chat, make_test_subject_tool},
+        BuilderTrait,
+        test_subject::make_test_subject_chat,
     };
-    use phymes_message::{MessageBuilderTrait, SendableRecordBatchStreamMessage};
+    
     use phymes_schemas::Tool;
-    use futures::TryStreamExt;
-    use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap};
 
     use super::*;
 

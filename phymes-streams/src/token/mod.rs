@@ -10,10 +10,9 @@ mod tool_call_config;
 mod tool_call_stream;
 mod tool_parser;
 
+pub use candle_embed_stream::CandleEmbedStream;
 pub use chat_builder::{ChatBuilderTraitExt, ChatTraitExt};
 pub use candle_chat_stream::CandleChatStream;
-#[allow(unused_imports)]
-pub use candle_embed_stream::convert_embedding_vector_to_record_batch;
 pub use message_parser_stream::MessageParserStream;
 #[cfg(feature = "api")]
 pub use openai_chat_stream::OpenAIChatStream;
