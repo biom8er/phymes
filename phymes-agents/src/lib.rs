@@ -13,7 +13,7 @@ pub use plans::GetContentSession;
 #[cfg(feature = "api")]
 pub use plans::ExecuteWorkspaceSession;
 pub use plans::{
-    AvailableProcessors, AvailableSessionPlans, BuilderSession,
+    AvailableSessionPlans, BuilderSession,
     ChatAgentSession, DiagnosticSession, DocumentRAGSession, EmbedTextSession,
     ExtractOntologySession, ExtractPDFSession, GenerateTextSession, MeltStudyDataSession,
     PatchWorkspaceSession, RetrieveTextSession, SyncContentSession, ToolAgentSession,

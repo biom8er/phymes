@@ -1,4 +1,3 @@
-mod available_processors;
 mod available_session_plans;
 mod builder_session;
 mod chat_agent_session;
@@ -26,7 +25,6 @@ mod tool_call_session;
 mod tool_response_session;
 mod user_session;
 
-pub use available_processors::AvailableProcessors;
 pub use available_session_plans::AvailableSessionPlans;
 pub use builder_session::{BuilderSession, make_example_mermaid_table};
 pub use chat_agent_session::ChatAgentSession;

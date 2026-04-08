@@ -1,5 +1,6 @@
 mod chat;
 mod core;
+mod data;
 mod embed;
 mod http;
 mod schemas;
@@ -24,6 +25,10 @@ pub use core::{
     create_session_tasks_subscribe_publish_batch, create_subjects_change_log_batch,
     create_subjects_num_rows_batch, create_subjects_object_store_meta_batch, create_user_batch, create_user_inbox_batch,
     create_user_session_contexts_batch, from_diagnostics_to_tables, create_error_subject
+};
+pub use data::{
+    CsvFormat, DataEncoding, DataFormat, JsonFormat, from_data_type_to_str, from_str_to_data_type,
+    make_extension, make_filename, parse_str_to_data_type,
 };
 pub use embed::{
     EmbeddingRequest, EmbeddingResponse, EncodingFormat, create_document_embeddings_fields,

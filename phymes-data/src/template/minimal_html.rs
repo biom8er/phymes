@@ -137,12 +137,14 @@ pub mod test_minimal_html {
 mod tests {
     use anyhow::Result;
     use phymes_core::{
-        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectScript,
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait,
         SubjectTrait,
     };
     use serde_json::Map;
 
-    use crate::template::{TEMPLATE_HEADER_EXPRESSION, TEMPLATE_TABLE_EXPRESSION};
+    use crate::{
+        SubjectScript, TEMPLATE_TABLE_EXPRESSION, template::{MINIMAL_HTML_POST, MINIMAL_HTML_PRE, TEMPLATE_HEADER_EXPRESSION},
+    };
 
     use super::*;
 

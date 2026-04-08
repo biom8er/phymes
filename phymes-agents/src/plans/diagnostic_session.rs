@@ -8,7 +8,7 @@ use phymes_core::{
     SubjectPlan, SubjectPlanBuilderTrait, Subscription,
 };
 use phymes_data::{
-    AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator,
+    AvailableOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator,
     DataColumnOperator, DataConfig,
 };
 use serde_json::json;
@@ -822,7 +822,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             agg_operators: Some(vec![DataAggregatorOperator::Sum]),
             default_values: Some(vec!["0".to_string()]),
             pvt_columns: Some(vec!["metric_name".to_string()]),
-            operator: AvailableCandleOperators::Pivot,
+            operator: AvailableOperators::Pivot,
             cpu: true,
             ..Default::default()
         };
@@ -841,7 +841,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "start_timestamp-metric_value-Sum".to_string(),
                 "end_timestamp-metric_value-Sum".to_string(),
             ]),
-            operator: AvailableCandleOperators::NormalizeTime,
+            operator: AvailableOperators::NormalizeTime,
             ..Default::default()
         };
         let metrics_normalize_time_config_json =
@@ -898,7 +898,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "".to_string(),
                 "".to_string(),
             ]),
-            operator: AvailableCandleOperators::Select,
+            operator: AvailableOperators::Select,
             ..Default::default()
         };
         let metrics_processors_traces_select_and_cast_to_gantt_config_json =
@@ -959,7 +959,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "0".to_string(),
                 "".to_string(),
             ]),
-            operator: AvailableCandleOperators::Select,
+            operator: AvailableOperators::Select,
             ..Default::default()
         };
         let metrics_elapsed_compute_select_and_cast_to_gantt_config_json =
@@ -1019,7 +1019,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "0".to_string(),
                 "".to_string(),
             ]),
-            operator: AvailableCandleOperators::Select,
+            operator: AvailableOperators::Select,
             ..Default::default()
         };
         let metrics_output_rows_select_and_cast_to_gantt_config_json =
@@ -1052,7 +1052,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Txt),
             schema: Some(AvailableSubjects::Attachments),
-            operator: AvailableCandleOperators::ApplyTemplate,
+            operator: AvailableOperators::ApplyTemplate,
             ..Default::default()
         };
         let metrics_processors_traces_apply_gantt_config_json =
@@ -1082,7 +1082,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Txt),
             schema: Some(AvailableSubjects::Attachments),
-            operator: AvailableCandleOperators::ApplyTemplate,
+            operator: AvailableOperators::ApplyTemplate,
             ..Default::default()
         };
         let metrics_elapsed_compute_apply_gantt_config_json =
@@ -1112,7 +1112,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Txt),
             schema: Some(AvailableSubjects::Attachments),
-            operator: AvailableCandleOperators::ApplyTemplate,
+            operator: AvailableOperators::ApplyTemplate,
             ..Default::default()
         };
         let metrics_output_rows_apply_gantt_config_json =
@@ -1128,7 +1128,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         let traces_to_sequence_diagram_messages_config = DataConfig {
             lhs_name: Some(AvailableSubjects::AnalyticsTraces.to_string()),
             rhs_name: Some(AvailableSubjects::AnalyticsTasks.to_string()),
-            operator: AvailableCandleOperators::FromTracesToMessages,
+            operator: AvailableOperators::FromTracesToMessages,
             ..Default::default()
         };
         let traces_to_sequence_diagram_messages_config_json =
@@ -1152,7 +1152,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::None),
             schema: Some(AvailableSubjects::Messages),
-            operator: AvailableCandleOperators::ApplyTemplate,
+            operator: AvailableOperators::ApplyTemplate,
             ..Default::default()
         };
         let apply_sequence_diagram_messages_config_json =
@@ -1194,7 +1194,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "".to_string(),
                 "".to_string(),
             ]),
-            operator: AvailableCandleOperators::Select,
+            operator: AvailableOperators::Select,
             ..Default::default()
         };
         let select_sequence_diagram_messages_config_json =
@@ -1213,7 +1213,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 self.traces_to_sequence_diagram_messages_task_name
                     .to_string(),
             ),
-            operator: AvailableCandleOperators::FromTasksToParticipants,
+            operator: AvailableOperators::FromTasksToParticipants,
             ..Default::default()
         };
         let session_tasks_to_sequence_diagram_participants_config_json =
@@ -1245,7 +1245,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::None),
             schema: Some(AvailableSubjects::Messages),
-            operator: AvailableCandleOperators::ApplyTemplate,
+            operator: AvailableOperators::ApplyTemplate,
             ..Default::default()
         };
         let apply_sequence_diagram_participants_config_json =
@@ -1290,7 +1290,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "".to_string(),
                 "".to_string(),
             ]),
-            operator: AvailableCandleOperators::Select,
+            operator: AvailableOperators::Select,
             ..Default::default()
         };
         let select_sequence_diagram_participants_config_json =
@@ -1314,7 +1314,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Txt),
             schema: Some(AvailableSubjects::Attachments),
-            operator: AvailableCandleOperators::ApplyTemplate,
+            operator: AvailableOperators::ApplyTemplate,
             ..Default::default()
         };
         let apply_sequence_diagram_config_json =
@@ -1392,7 +1392,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "".to_string(),
                 "Low".to_string(),
             ]),
-            operator: AvailableCandleOperators::Select,
+            operator: AvailableOperators::Select,
             ..Default::default()
         };
         let errors_select_and_cast_to_kanban_config_json =
@@ -1413,7 +1413,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Txt),
             schema: Some(AvailableSubjects::Attachments),
-            operator: AvailableCandleOperators::ApplyTemplate,
+            operator: AvailableOperators::ApplyTemplate,
             ..Default::default()
         };
         let errors_apply_kanban_config_json =
@@ -1512,7 +1512,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "".to_string(),
                 "".to_string(),
             ]),
-            operator: AvailableCandleOperators::Select,
+            operator: AvailableOperators::Select,
             ..Default::default()
         };
         let events_select_and_cast_to_kanban_1_config_json =
@@ -1588,7 +1588,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "".to_string(),
                 "Low".to_string(),
             ]),
-            operator: AvailableCandleOperators::Select,
+            operator: AvailableOperators::Select,
             ..Default::default()
         };
         let events_select_and_cast_to_kanban_2_config_json =
@@ -1609,7 +1609,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Txt),
             schema: Some(AvailableSubjects::Attachments),
-            operator: AvailableCandleOperators::ApplyTemplate,
+            operator: AvailableOperators::ApplyTemplate,
             ..Default::default()
         };
         let events_apply_kanban_config_json =
@@ -1625,7 +1625,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         let aggregator_1_config = DataConfig {
             lhs_values: Some(vec!["role".to_string()]),
             asc: Some(true),
-            operator: AvailableCandleOperators::Sort,
+            operator: AvailableOperators::Sort,
             ..Default::default()
         };
         let aggregator_1_config_json = serde_json::to_vec(&aggregator_1_config).unwrap();

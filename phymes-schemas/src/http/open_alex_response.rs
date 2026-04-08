@@ -4,9 +4,9 @@ use arrow::array::RecordBatch;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use phymes_core::{BuildableTrait, BuilderTrait, DataFormat, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 use crate::{
-    AvailableSchemaTrait, JsonSchemaTrait, create_route_bytes_record_batch,
+    AvailableSchemaTrait, JsonSchemaTrait, create_route_bytes_record_batch, DataFormat,
     open_alex::{
         AuthorAffiliationTable, AuthorConceptTable, AuthorCountsByYearTable,
         AuthorDisplayNameAlternativesTable, AuthorIdsTable, AuthorLastKnownInstitutionsTable,

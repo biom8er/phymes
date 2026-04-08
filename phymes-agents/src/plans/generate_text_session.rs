@@ -337,7 +337,7 @@ mod tests {
         SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait,
         Subscription, create_tools_record_batch,
     };
-    use phymes_data::{AvailableCandleOperators, ToolTrait};
+    use phymes_data::{AvailableOperators, ToolTrait};
     use phymes_diagnostics::HashMap;
 
     use crate::{
@@ -553,13 +553,13 @@ mod tests {
         // Add the target tool subjects to the session for testing
         let mut subjects = session_ctx_builder.subjects.take().unwrap();
         let tool = AvailableSubjects::Bytes.to_subject(
-            Some(AvailableCandleOperators::Sort.to_string().as_str()),
+            Some(AvailableOperators::Sort.to_string().as_str()),
             None,
         )?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
         let tool = AvailableSubjects::Bytes.to_subject(
             Some(
-                AvailableCandleOperators::HumanInTheLoop
+                AvailableOperators::HumanInTheLoop
                     .to_string()
                     .as_str(),
             ),
@@ -571,8 +571,8 @@ mod tests {
             .with_subjects(subjects)
             // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
             .add_session_interface(Some(&[
-                AvailableCandleOperators::Sort.to_string().as_str(),
-                AvailableCandleOperators::HumanInTheLoop
+                AvailableOperators::Sort.to_string().as_str(),
+                AvailableOperators::HumanInTheLoop
                     .to_string()
                     .as_str(),
             ]))?
@@ -581,12 +581,12 @@ mod tests {
 
         // Tools data
         let tool_ids = vec![
-            AvailableCandleOperators::Sort.to_string(),
-            AvailableCandleOperators::HumanInTheLoop.to_string(),
+            AvailableOperators::Sort.to_string(),
+            AvailableOperators::HumanInTheLoop.to_string(),
         ];
         let tools = vec![
-            AvailableCandleOperators::Sort.to_json_tool_schema(),
-            AvailableCandleOperators::HumanInTheLoop.to_json_tool_schema(),
+            AvailableOperators::Sort.to_json_tool_schema(),
+            AvailableOperators::HumanInTheLoop.to_json_tool_schema(),
         ];
         let batch = create_tools_record_batch(tool_ids, tools)?;
         let table = SubjectBuilder::new()
@@ -722,7 +722,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableCandleOperators::HumanInTheLoop.to_string(),
+                    subject_name: AvailableOperators::HumanInTheLoop.to_string(),
                 }
                 .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
@@ -730,14 +730,14 @@ mod tests {
                 .await?;
                 assert_eq!(batches.len(), 0);
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableCandleOperators::Sort.to_string(),
+                    subject_name: AvailableOperators::Sort.to_string(),
                 }
                 .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
                 let subject = Subject::get_builder()
-                    .with_name(AvailableCandleOperators::Sort.to_string().as_str())
+                    .with_name(AvailableOperators::Sort.to_string().as_str())
                     .with_record_batches(batches)?
                     .build()?;
                 assert_eq!(subject.count_rows(), 1);
@@ -777,13 +777,13 @@ mod tests {
         // Add the target tool subjects to the session for testing
         let mut subjects = session_ctx_builder.subjects.take().unwrap();
         let tool = AvailableSubjects::Bytes.to_subject(
-            Some(AvailableCandleOperators::Sort.to_string().as_str()),
+            Some(AvailableOperators::Sort.to_string().as_str()),
             None,
         )?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
         let tool = AvailableSubjects::Bytes.to_subject(
             Some(
-                AvailableCandleOperators::HumanInTheLoop
+                AvailableOperators::HumanInTheLoop
                     .to_string()
                     .as_str(),
             ),
@@ -794,8 +794,8 @@ mod tests {
             .with_subjects(subjects)
             // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
             .add_session_interface(Some(&[
-                AvailableCandleOperators::Sort.to_string().as_str(),
-                AvailableCandleOperators::HumanInTheLoop
+                AvailableOperators::Sort.to_string().as_str(),
+                AvailableOperators::HumanInTheLoop
                     .to_string()
                     .as_str(),
             ]))?
@@ -804,12 +804,12 @@ mod tests {
 
         // Tools data
         let tool_ids = vec![
-            AvailableCandleOperators::Sort.to_string(),
-            AvailableCandleOperators::HumanInTheLoop.to_string(),
+            AvailableOperators::Sort.to_string(),
+            AvailableOperators::HumanInTheLoop.to_string(),
         ];
         let tools = vec![
-            AvailableCandleOperators::Sort.to_json_tool_schema(),
-            AvailableCandleOperators::HumanInTheLoop.to_json_tool_schema(),
+            AvailableOperators::Sort.to_json_tool_schema(),
+            AvailableOperators::HumanInTheLoop.to_json_tool_schema(),
         ];
         let batch = create_tools_record_batch(tool_ids, tools)?;
         let table = SubjectBuilder::new()
@@ -974,7 +974,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableCandleOperators::Sort.to_string(),
+                    subject_name: AvailableOperators::Sort.to_string(),
                 }
                 .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
@@ -982,7 +982,7 @@ mod tests {
                 .await?;
                 assert_eq!(batches.len(), 0);
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableCandleOperators::HumanInTheLoop.to_string(),
+                    subject_name: AvailableOperators::HumanInTheLoop.to_string(),
                 }
                 .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
@@ -1037,13 +1037,13 @@ mod tests {
         // Add the target tool subjects to the session for testing
         let mut subjects = session_ctx_builder.subjects.take().unwrap();
         let tool = AvailableSubjects::Bytes.to_subject(
-            Some(AvailableCandleOperators::Sort.to_string().as_str()),
+            Some(AvailableOperators::Sort.to_string().as_str()),
             None,
         )?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
         let tool = AvailableSubjects::Bytes.to_subject(
             Some(
-                AvailableCandleOperators::HumanInTheLoop
+                AvailableOperators::HumanInTheLoop
                     .to_string()
                     .as_str(),
             ),
@@ -1054,8 +1054,8 @@ mod tests {
             .with_subjects(subjects)
             // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
             .add_session_interface(Some(&[
-                AvailableCandleOperators::Sort.to_string().as_str(),
-                AvailableCandleOperators::HumanInTheLoop
+                AvailableOperators::Sort.to_string().as_str(),
+                AvailableOperators::HumanInTheLoop
                     .to_string()
                     .as_str(),
             ]))?
@@ -1064,12 +1064,12 @@ mod tests {
 
         // Tools data
         let tool_ids = vec![
-            AvailableCandleOperators::Sort.to_string(),
-            AvailableCandleOperators::HumanInTheLoop.to_string(),
+            AvailableOperators::Sort.to_string(),
+            AvailableOperators::HumanInTheLoop.to_string(),
         ];
         let tools = vec![
-            AvailableCandleOperators::Sort.to_json_tool_schema(),
-            AvailableCandleOperators::HumanInTheLoop.to_json_tool_schema(),
+            AvailableOperators::Sort.to_json_tool_schema(),
+            AvailableOperators::HumanInTheLoop.to_json_tool_schema(),
         ];
         let batch = create_tools_record_batch(tool_ids, tools)?;
         let table = SubjectBuilder::new()
@@ -1239,7 +1239,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableCandleOperators::Sort.to_string(),
+                    subject_name: AvailableOperators::Sort.to_string(),
                 }
                 .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
@@ -1247,7 +1247,7 @@ mod tests {
                 .await?;
                 assert_eq!(batches.len(), 0);
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableCandleOperators::HumanInTheLoop.to_string(),
+                    subject_name: AvailableOperators::HumanInTheLoop.to_string(),
                 }
                 .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()

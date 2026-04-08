@@ -10,7 +10,7 @@ use phymes_core::{
     Subscription, create_schema_from_fields, create_tools_record_batch,
 };
 use phymes_data::{
-    AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
+    AvailableOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
     DataConfig, DataStreamManager, ToolTrait,
 };
 #[cfg(all(not(feature = "candle"), feature = "api"))]
@@ -119,12 +119,12 @@ impl<'a> ToolAgentSession<'a> {
     }
     pub fn make_tools_table(&self) -> Result<Subject> {
         let tool_ids = vec![
-            AvailableCandleOperators::Sort.to_string(),
-            AvailableCandleOperators::HumanInTheLoop.to_string(),
+            AvailableOperators::Sort.to_string(),
+            AvailableOperators::HumanInTheLoop.to_string(),
         ];
         let tools = vec![
-            AvailableCandleOperators::Sort.to_json_tool_schema(),
-            AvailableCandleOperators::HumanInTheLoop.to_json_tool_schema(),
+            AvailableOperators::Sort.to_json_tool_schema(),
+            AvailableOperators::HumanInTheLoop.to_json_tool_schema(),
         ];
         let batch = create_tools_record_batch(tool_ids, tools)?;
         SubjectBuilder::new()
@@ -590,7 +590,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         let aggregator_config = DataConfig {
             lhs_values: Some(vec!["timestamp".to_string()]),
             asc: Some(true),
-            operator: AvailableCandleOperators::Sort,
+            operator: AvailableOperators::Sort,
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
@@ -619,7 +619,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             lhs_values: Some(vec!["bytes".to_string()]),
             format: Some(DataFormat::CsvDefault),
             schema: Some(AvailableSubjects::Empty), //DM: not used for CSV
-            operator: AvailableCandleOperators::ExtractTabular,
+            operator: AvailableOperators::ExtractTabular,
             encoding: Some(DataEncoding::None),
             ..Default::default()
         };
@@ -645,7 +645,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 DataType::Float32.to_string(),
             ]),
             cast_templates: Some(vec!["".to_string(), "".to_string()]),
-            operator: AvailableCandleOperators::Select,
+            operator: AvailableOperators::Select,
             ..Default::default()
         };
         let vis_renamecols_config_json = serde_json::to_vec(&vis_renamecols_config).unwrap();
@@ -671,7 +671,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Html),
             schema: Some(AvailableSubjects::Attachments),
-            operator: AvailableCandleOperators::ApplyTemplate,
+            operator: AvailableOperators::ApplyTemplate,
             ..Default::default()
         };
         let vis_xychart_config_json = serde_json::to_vec(&vis_xychart_config).unwrap();
@@ -689,7 +689,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             schema: Some(AvailableSubjects::Attachments),
             cpu: false,
             lhs_stream: DataStreamManager::Accumulate,
-            operator: AvailableCandleOperators::PackTabular,
+            operator: AvailableOperators::PackTabular,
             lhs_name: Some(self.tool_summary_task_name.to_string()),
             doc_name: Some(self.tool_summary_task_name.to_string()),
             ..Default::default()
@@ -705,7 +705,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         // Summary config
         let summary_config = DataConfig {
             encoding: Some(DataEncoding::None),
-            operator: AvailableCandleOperators::PackTabular,
+            operator: AvailableOperators::PackTabular,
             format: Some(DataFormat::None),
             schema: Some(AvailableSubjects::Messages),
             cpu: false,
@@ -723,7 +723,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .unwrap();
         let summary_config = DataConfig {
             encoding: Some(DataEncoding::None),
-            operator: AvailableCandleOperators::PackTabular,
+            operator: AvailableOperators::PackTabular,
             format: Some(DataFormat::None),
             schema: Some(AvailableSubjects::Messages),
             cpu: false,

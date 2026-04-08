@@ -17,7 +17,7 @@ use phymes_core::{
     make_random_id,
 };
 use phymes_data::{
-    AvailableCandleOperators, CandleDataStream, DataColumnOperator, DataConfig, DataJoinOperator,
+    AvailableOperators, CandleDataStream, DataColumnOperator, DataConfig, DataJoinOperator,
     DataStreamManager, ObjectStoreConfig, ObjectStoreOptsType, ObjectStoreStream,
 };
 use phymes_diagnostics::HashMap;
@@ -91,7 +91,7 @@ pub fn extend_subject(
         schema: Some(AvailableSubjects::ObjectStore),
         doc_name: Some(sn.to_string()),
         cpu: false,
-        operator: AvailableCandleOperators::PackTabular,
+        operator: AvailableOperators::PackTabular,
         lhs_stream: DataStreamManager::Stream,
         ..Default::default()
     };
@@ -151,7 +151,7 @@ pub fn extend_subject(
         ]),
         cast_templates: None,
         cpu: false,
-        operator: AvailableCandleOperators::Select,
+        operator: AvailableOperators::Select,
         lhs_stream: DataStreamManager::Stream,
         ..Default::default()
     };
@@ -187,7 +187,7 @@ pub fn extend_subject(
         lhs_fk: Some("pk".to_string()),
         rhs_fk: Some("pk".to_string()),
         cpu: false,
-        operator: AvailableCandleOperators::Join,
+        operator: AvailableOperators::Join,
         join_operators: Some(DataJoinOperator::Inner),
         lhs_stream: DataStreamManager::Stream,
         rhs_stream: Some(DataStreamManager::Stream),
@@ -232,7 +232,7 @@ pub fn extend_subject(
         lhs_values: Some(vec!["location_updated".to_string(), "bytes".to_string()]),
         as_columns: Some(vec!["location".to_string(), "bytes".to_string()]),
         cpu: false,
-        operator: AvailableCandleOperators::Select,
+        operator: AvailableOperators::Select,
         lhs_stream: DataStreamManager::Stream,
         ..Default::default()
     };

@@ -8,7 +8,7 @@ use phymes_core::{
     SubjectBuilderTrait, SubjectTrait, Subscription,
 };
 use phymes_data::{
-    AvailableCandleOperators, CandleDataStream, DataConfig, DataStreamManager, LimitConfig,
+    AvailableOperators, CandleDataStream, DataConfig, DataStreamManager, LimitConfig,
     LimitStream, ObjectStoreConfig, ObjectStoreOptsType, ObjectStoreStream,
 };
 use phymes_diagnostics::HashMap;
@@ -52,7 +52,7 @@ pub fn list_subject(
             lhs_values: Some(vec!["last_modified".to_string()]),
             asc: Some(false),
             cpu: false,
-            operator: AvailableCandleOperators::Sort,
+            operator: AvailableOperators::Sort,
             lhs_stream: DataStreamManager::Accumulate,
             ..Default::default()
         };
@@ -103,7 +103,7 @@ pub fn list_subject(
             lhs_values: Some(vec!["last_modified".to_string()]),
             asc: Some(true),
             cpu: false,
-            operator: AvailableCandleOperators::Sort,
+            operator: AvailableOperators::Sort,
             lhs_stream: DataStreamManager::Accumulate,
             ..Default::default()
         };
@@ -179,7 +179,7 @@ pub fn get_subject(
         format: Some(DataFormat::Ipc),
         schema: Some(AvailableSubjects::default()),
         cpu: false,
-        operator: AvailableCandleOperators::ExtractTabular,
+        operator: AvailableOperators::ExtractTabular,
         lhs_stream: DataStreamManager::Stream,
         ..Default::default()
     };

@@ -17,6 +17,7 @@ mod minimal_figures;
 mod minimal_html;
 mod minimal_list;
 mod minimal_table;
+mod subject_script;
 
 pub use available_jinja2_templates::AvailableJinja2Templates;
 
@@ -43,3 +44,4 @@ pub use minimal_html::{
 };
 pub use minimal_list::{MINIMAL_LIST_INPUT, MINIMAL_LIST_TEMPLATE};
 pub use minimal_table::{MINIMAL_TABLE_INPUT, MINIMAL_TABLE_TEMPLATE};
+pub use subject_script::{SubjectScript, items_to_list};

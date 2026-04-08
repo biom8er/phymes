@@ -7,7 +7,7 @@ use phymes_core::{
     Subscription, create_schema_from_fields,
 };
 use phymes_data::{
-    AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
+    AvailableOperators, DataCastOperator, DataColumnOperator, DataConfig,
     DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig,
 };
 #[cfg(all(not(feature = "candle"), feature = "api"))]
@@ -722,7 +722,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         let aggregator_config = DataConfig {
             lhs_values: Some(vec!["timestamp".to_string()]),
             asc: Some(true),
-            operator: AvailableCandleOperators::Sort,
+            operator: AvailableOperators::Sort,
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
@@ -755,7 +755,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             cast_operators: Some(vec![DataCastOperator::Cast, DataCastOperator::None]),
             cast_datatypes: Some(vec![DataType::Utf8.to_string(), DataType::Utf8.to_string()]),
             cast_templates: Some(vec!["".to_string(), "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: {{ content }}".to_string()]),
-            operator: AvailableCandleOperators::Select,
+            operator: AvailableOperators::Select,
             ..Default::default()
         };
         let message_to_query_config_json = serde_json::to_vec(&message_to_query_config).unwrap();
@@ -771,7 +771,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             lhs_name: Some(AvailableInterfaceSubjects::UserPdf.to_string()),
             lhs_pk: Some("filename".to_string()),
             lhs_values: Some(vec!["bytes".to_string()]),
-            operator: AvailableCandleOperators::ExtractPDF,
+            operator: AvailableOperators::ExtractPDF,
             ..Default::default()
         };
         let extract_pdf_config_json = serde_json::to_vec(&extract_pdf_config).unwrap();
@@ -788,7 +788,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             lhs_pk: Some("document_id".to_string()),
             lhs_fk: Some("document_id".to_string()),
             lhs_values: Some(vec!["text".to_string()]),
-            operator: AvailableCandleOperators::ChunkDocuments,
+            operator: AvailableOperators::ChunkDocuments,
             ..Default::default()
         };
         let chunk_document_config_json = serde_json::to_vec(&chunk_document_config).unwrap();
@@ -810,7 +810,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             rhs_fk: Some("chunk_id".to_string()),
             rhs_values: Some(vec!["embedding".to_string()]),
             dist_operator: Some(DataDistanceOperator::NormalizedDotProduct),
-            operator: AvailableCandleOperators::VectorDistance,
+            operator: AvailableOperators::VectorDistance,
             ..Default::default()
         };
         let rel_sim_config_json = serde_json::to_vec(&rel_sim_config).unwrap();
@@ -827,7 +827,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             lhs_pk: Some("chunk_id".to_string()),
             lhs_fk: Some("chunk_id".to_string()),
             lhs_values: Some(vec!["score".to_string()]),
-            operator: AvailableCandleOperators::Sort,
+            operator: AvailableOperators::Sort,
             ..Default::default()
         };
         let sort_scores_config_json = serde_json::to_vec(&sort_scores_config).unwrap();
@@ -848,7 +848,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             rhs_pk: Some("chunk_id".to_string()),
             rhs_fk: Some("chunk_id".to_string()),
             rhs_values: Some(vec!["text".to_string()]),
-            operator: AvailableCandleOperators::Join,
+            operator: AvailableOperators::Join,
             join_operators: Some(DataJoinOperator::Inner),
             ..Default::default()
         };
@@ -870,7 +870,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             cast_operators: Some(vec![DataCastOperator::None]),
             cast_datatypes: Some(vec![DataType::Utf8.to_string()]),
             cast_templates: Some(vec!["".to_string()]),
-            operator: AvailableCandleOperators::Select,
+            operator: AvailableOperators::Select,
             ..Default::default()
         };
         let top_k_select_config_json = serde_json::to_vec(&top_k_select_config).unwrap();
@@ -922,7 +922,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             format: Some(DataFormat::None),
             schema: Some(AvailableSubjects::Messages),
             cpu: false,
-            operator: AvailableCandleOperators::PackTabular,
+            operator: AvailableOperators::PackTabular,
             lhs_stream: DataStreamManager::Accumulate,
             ..Default::default()
         };

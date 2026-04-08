@@ -27,14 +27,14 @@ pub static MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE: &str = r#"
 mod tests {
     use std::sync::Arc;
 
-    use crate::template::{
-        TEMPLATE_TABLE_EXPRESSION,
-        mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE},
+    use crate::{
+        SubjectScript, TEMPLATE_TABLE_EXPRESSION,
+        MERMAID_HTML_POST, MERMAID_HTML_PRE
     };
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use phymes_core::{
-        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectScript,
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait,
         SubjectTrait,
     };
     use serde_json::Map;

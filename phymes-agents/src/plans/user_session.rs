@@ -7,7 +7,7 @@ use phymes_core::{
     SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription,
     create_user_batch, create_user_session_contexts_batch,
 };
-use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator};
+use phymes_data::{AvailableOperators, DataConfig, DataJoinOperator};
 use phymes_diagnostics::create_timestamp_micros;
 
 use crate::{
@@ -218,7 +218,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
         // Configs for filter
         let filter_user_info_data_config = DataConfig {
-            operator: AvailableCandleOperators::Join,
+            operator: AvailableOperators::Join,
             lhs_name: Some(AvailableSubjects::UserInbox.to_string()),
             lhs_pk: Some("email".to_string()),
             lhs_fk: Some("email".to_string()),
@@ -239,7 +239,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 
         // Configs for filter
         let filter_user_session_context_data_config = DataConfig {
-            operator: AvailableCandleOperators::Join,
+            operator: AvailableOperators::Join,
             lhs_name: Some(AvailableSubjects::UserInbox.to_string()),
             lhs_pk: Some("email".to_string()),
             lhs_fk: Some("email".to_string()),
@@ -260,7 +260,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 
         // Configs for join
         let join_user_session_context_data_config = DataConfig {
-            operator: AvailableCandleOperators::Join,
+            operator: AvailableOperators::Join,
             lhs_name: Some(AvailableSubjects::JoinUserInboxSessionContexts.to_string()),
             lhs_pk: Some("email".to_string()),
             lhs_fk: Some("session_context_name".to_string()),

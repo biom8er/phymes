@@ -36,14 +36,13 @@ pub static MINIMAL_CODE_INPUT: &str = r#"{
 mod tests {
     use std::sync::Arc;
 
-    use crate::template::{
-        TEMPLATE_TABLE_EXPRESSION,
-        minimal_html::{MINIMAL_HTML_POST, MINIMAL_HTML_PRE},
+    use crate::{
+        SubjectScript, TEMPLATE_TABLE_EXPRESSION, template::{MINIMAL_HTML_POST, MINIMAL_HTML_PRE},
     };
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use phymes_core::{
-        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectScript,
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait,
         SubjectTrait,
     };
     use serde_json::{Map, Value};

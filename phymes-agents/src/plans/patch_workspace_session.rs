@@ -115,7 +115,7 @@ mod tests {
         SubjectBuilderTrait, SubjectTrait, Subscription, WorkspacePatchSubject,
         create_bytes_record_batch, create_workspace_batch, create_workspace_patch_batch,
     };
-    use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager};
+    use phymes_data::{AvailableOperators, DataConfig, DataStreamManager};
     use phymes_diagnostics::HashMap;
 
     use crate::{
@@ -245,7 +245,7 @@ pub use todo::Todo"#,
                 rhs_pk: Some("filename".to_string()),
                 doc_patch: Some("[\"\"]".to_string()), // DM: equivalent of serde_json::to_string(&[serde_json::to_value("")?])?;
                 cpu: false,
-                operator: AvailableCandleOperators::Patch,
+                operator: AvailableOperators::Patch,
                 lhs_stream: DataStreamManager::Accumulate,
                 rhs_stream: Some(DataStreamManager::Accumulate),
                 ..Default::default()
@@ -451,7 +451,7 @@ pub use todo::Todo"#,
                 rhs_pk: Some("filename".to_string()),
                 doc_patch: Some(doc_patch),
                 cpu: false,
-                operator: AvailableCandleOperators::Patch,
+                operator: AvailableOperators::Patch,
                 lhs_stream: DataStreamManager::Accumulate,
                 rhs_stream: Some(DataStreamManager::Accumulate),
                 ..Default::default()

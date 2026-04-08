@@ -14,7 +14,7 @@ use phymes_core::{
     create_values_fields,
 };
 use phymes_data::{
-    AvailableCandleOperators, DataConfig, DataConfigTrait, LimitConfig, ObjectStoreConfig, device,
+    AvailableOperators, DataConfig, DataConfigTrait, LimitConfig, ObjectStoreConfig, device,
 };
 #[cfg(feature = "api")]
 use phymes_data::{CommandSandboxConfig, HTTPClientConfig};
@@ -787,7 +787,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                             "Schema for `DataConfig` from subject `{}` for processor type `{}` does not match the expected processor type DataProcessor nor any of the `CandleOperator`s {:?}.",
                             subject_plan.get_name(),
                             r#type,
-                            AvailableCandleOperators::all_varient_names()
+                            AvailableOperators::all_varient_names()
                         ));
                     }
                 } else {
@@ -1248,7 +1248,7 @@ pub mod test_session_context_builder_agents {
         AvailableSubscribeEvents, BuildableTrait, BuilderTrait, Publication, SubjectBuilderTrait,
         Subscription, test_subject,
     };
-    use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator};
+    use phymes_data::{AvailableOperators, DataConfig, DataJoinOperator};
 
     use super::*;
 
@@ -1351,7 +1351,7 @@ pub mod test_session_context_builder_agents {
             rhs_fk: Some("id".to_string()),
             lhs_pk: Some("id".to_string()),
             rhs_pk: Some("id".to_string()),
-            operator: AvailableCandleOperators::Join,
+            operator: AvailableOperators::Join,
             join_operators: Some(DataJoinOperator::default()),
             ..Default::default()
         };
@@ -1385,7 +1385,7 @@ pub mod test_session_context_builder_agents {
 mod tests {
     use crate::{TaskTrait, test_session_context_builder, test_task};
     use phymes_core::{BuildableTrait, BuilderTrait, SubjectBuilderTrait};
-    use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator, DataStreamManager};
+    use phymes_data::{AvailableOperators, DataConfig, DataJoinOperator, DataStreamManager};
 
     use super::*;
 
@@ -1493,7 +1493,7 @@ mod tests {
             rhs_fk: Some("id".to_string()),
             lhs_pk: Some("id".to_string()),
             rhs_pk: Some("id".to_string()),
-            operator: AvailableCandleOperators::Join,
+            operator: AvailableOperators::Join,
             join_operators: Some(DataJoinOperator::default()),
             ..Default::default()
         };
@@ -1612,7 +1612,7 @@ mod tests {
         let join_config = DataConfig {
             lhs_name: Some("state_1".to_string()),
             rhs_name: Some("missing_state".to_string()),
-            operator: AvailableCandleOperators::Join,
+            operator: AvailableOperators::Join,
             lhs_stream: DataStreamManager::Accumulate,
             ..Default::default()
         };
@@ -1656,7 +1656,7 @@ mod tests {
             rhs_fk: Some("id".to_string()),
             lhs_pk: Some("title".to_string()),
             rhs_pk: Some("missing_pk".to_string()),
-            operator: AvailableCandleOperators::Join,
+            operator: AvailableOperators::Join,
             lhs_stream: DataStreamManager::Accumulate,
             ..Default::default()
         };
@@ -1702,7 +1702,7 @@ mod tests {
             rhs_pk: Some("title".to_string()),
             lhs_values: Some(vec!["metadata".to_string(), "missing_value".to_string()]),
             rhs_values: Some(vec!["metadata".to_string(), "score".to_string()]),
-            operator: AvailableCandleOperators::Join,
+            operator: AvailableOperators::Join,
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
@@ -1787,7 +1787,7 @@ mod tests {
             lhs_name: Some("state_1".to_string()),
             lhs_values: Some(vec!["id".to_string()]),
             cpu: false,
-            operator: AvailableCandleOperators::NormalizeTime,
+            operator: AvailableOperators::NormalizeTime,
             lhs_stream: DataStreamManager::Accumulate,
             ..Default::default()
         };
@@ -1829,7 +1829,7 @@ mod tests {
             rhs_name: Some("state_2".to_string()),
             lhs_fk: Some("id".to_string()),
             rhs_fk: Some("id".to_string()),
-            operator: AvailableCandleOperators::Join,
+            operator: AvailableOperators::Join,
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();

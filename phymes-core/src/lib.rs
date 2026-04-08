@@ -1,14 +1,9 @@
-mod data;
 mod index;
 mod runtime_env;
 mod storage;
 mod stream;
 mod subject;
 
-pub use data::{
-    CsvFormat, DataEncoding, DataFormat, JsonFormat, from_data_type_to_str, from_str_to_data_type,
-    make_extension, make_filename, parse_str_to_data_type,
-};
 pub use index::{
     BRINIndex, BRINIndexBuilder, BRINIndexReader, BRINRange, BTreeIndex, BTreeIndexBuilder,
     BTreeIndexReader, BTreeNode, GINIndex, GINIndexBuilder, GINIndexReader, GINPosting, GiSTEntry,
@@ -35,6 +30,6 @@ pub use stream::{
 };
 pub use subject::{
     Subject, SubjectBuilder, SubjectBuilderTrait, SubjectFilePartition, SubjectFolderPartition,
-    SubjectPlan, SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectScript,
-    SubjectTrait, items_to_list, test_subject,
+    SubjectPlan, SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlanTrait,
+    SubjectTrait, test_subject,
 };

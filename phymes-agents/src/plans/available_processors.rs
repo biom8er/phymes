@@ -9,7 +9,7 @@ use phymes_core::{
     test_processor::{ProcessorError, ProcessorMock},
 };
 use phymes_data::{
-    AggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor,
+    AggregatorProcessor, AvailableOperators, AvailableJinja2Templates, CandleDataProcessor,
     CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator,
     DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait,
     DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig, LimitProcessor,
@@ -111,32 +111,32 @@ pub enum AvailableProcessors {
 impl Display for AvailableProcessors {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ApplyTemplate => write!(f, "{}", AvailableCandleOperators::ApplyTemplate),
-            Self::VectorDistance => write!(f, "{}", AvailableCandleOperators::VectorDistance),
+            Self::ApplyTemplate => write!(f, "{}", AvailableOperators::ApplyTemplate),
+            Self::VectorDistance => write!(f, "{}", AvailableOperators::VectorDistance),
             Self::Sort => {
-                write!(f, "{}", AvailableCandleOperators::Sort)
+                write!(f, "{}", AvailableOperators::Sort)
             }
-            Self::HumanInTheLoop => write!(f, "{}", AvailableCandleOperators::HumanInTheLoop),
-            Self::ChunkDocuments => write!(f, "{}", AvailableCandleOperators::ChunkDocuments),
-            Self::Join => write!(f, "{}", AvailableCandleOperators::Join),
-            Self::ExtractPDF => write!(f, "{}", AvailableCandleOperators::ExtractPDF),
+            Self::HumanInTheLoop => write!(f, "{}", AvailableOperators::HumanInTheLoop),
+            Self::ChunkDocuments => write!(f, "{}", AvailableOperators::ChunkDocuments),
+            Self::Join => write!(f, "{}", AvailableOperators::Join),
+            Self::ExtractPDF => write!(f, "{}", AvailableOperators::ExtractPDF),
             Self::GroupBy => {
-                write!(f, "{}", AvailableCandleOperators::GroupBy)
+                write!(f, "{}", AvailableOperators::GroupBy)
             }
             Self::Filter => {
-                write!(f, "{}", AvailableCandleOperators::Filter)
+                write!(f, "{}", AvailableOperators::Filter)
             }
             Self::ExtractTabular => {
-                write!(f, "{}", AvailableCandleOperators::ExtractTabular)
+                write!(f, "{}", AvailableOperators::ExtractTabular)
             }
-            Self::Select => write!(f, "{}", AvailableCandleOperators::Select),
-            Self::Pivot => write!(f, "{}", AvailableCandleOperators::Pivot),
-            Self::ExtractXML => write!(f, "{}", AvailableCandleOperators::ExtractXML),
-            Self::Melt => write!(f, "{}", AvailableCandleOperators::Melt),
-            Self::NormalizeTime => write!(f, "{}", AvailableCandleOperators::NormalizeTime),
-            Self::PackTabular => write!(f, "{}", AvailableCandleOperators::PackTabular),
-            Self::Patch => write!(f, "{}", AvailableCandleOperators::Patch),
-            Self::Diff => write!(f, "{}", AvailableCandleOperators::Diff),
+            Self::Select => write!(f, "{}", AvailableOperators::Select),
+            Self::Pivot => write!(f, "{}", AvailableOperators::Pivot),
+            Self::ExtractXML => write!(f, "{}", AvailableOperators::ExtractXML),
+            Self::Melt => write!(f, "{}", AvailableOperators::Melt),
+            Self::NormalizeTime => write!(f, "{}", AvailableOperators::NormalizeTime),
+            Self::PackTabular => write!(f, "{}", AvailableOperators::PackTabular),
+            Self::Patch => write!(f, "{}", AvailableOperators::Patch),
+            Self::Diff => write!(f, "{}", AvailableOperators::Diff),
             Self::ProcessorError => write!(f, "{}", ProcessorError::get_static_name()),
             Self::ProcessorMock => write!(f, "{}", ProcessorMock::get_static_name()),
             Self::ProcessorEcho => write!(f, "{}", ProcessorEcho::get_static_name()),
@@ -191,7 +191,7 @@ impl DataConfigTrait for AvailableProcessors {
                 format: Some(DataFormat::Html),
                 schema: Some(AvailableSubjects::default()),
                 cpu: false,
-                operator: AvailableCandleOperators::ApplyTemplate,
+                operator: AvailableOperators::ApplyTemplate,
                 lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
@@ -204,7 +204,7 @@ impl DataConfigTrait for AvailableProcessors {
                 rhs_values: Some(vec!["rhs_values".to_string()]),
                 dist_operator: Some(DataDistanceOperator::NormalizedDotProduct),
                 cpu: false,
-                operator: AvailableCandleOperators::VectorDistance,
+                operator: AvailableOperators::VectorDistance,
                 lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
@@ -213,14 +213,14 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 asc: Some(true),
                 cpu: false,
-                operator: AvailableCandleOperators::Sort,
+                operator: AvailableOperators::Sort,
                 lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::HumanInTheLoop => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
                 cpu: false,
-                operator: AvailableCandleOperators::HumanInTheLoop,
+                operator: AvailableOperators::HumanInTheLoop,
                 ..Default::default()
             }),
             Self::ChunkDocuments => serde_json::to_vec(&DataConfig {
@@ -230,7 +230,7 @@ impl DataConfigTrait for AvailableProcessors {
                 chunk_size: Some(512),
                 chunk_overlap: Some(64),
                 cpu: false,
-                operator: AvailableCandleOperators::ChunkDocuments,
+                operator: AvailableOperators::ChunkDocuments,
                 lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
@@ -242,7 +242,7 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_fk: Some("lhs_fk".to_string()),
                 rhs_fk: Some("rhs_fk".to_string()),
                 cpu: false,
-                operator: AvailableCandleOperators::Join,
+                operator: AvailableOperators::Join,
                 join_operators: Some(DataJoinOperator::Inner),
                 lhs_stream: DataStreamManager::Accumulate,
                 rhs_stream: Some(DataStreamManager::Accumulate),
@@ -253,7 +253,7 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_pk: Some("lhs_pk".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 cpu: false,
-                operator: AvailableCandleOperators::ExtractPDF,
+                operator: AvailableOperators::ExtractPDF,
                 lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
@@ -263,7 +263,7 @@ impl DataConfigTrait for AvailableProcessors {
                 agg_columns: Some(vec!["agg_columns".to_string()]),
                 agg_operators: Some(vec![DataAggregatorOperator::Sum]),
                 cpu: false,
-                operator: AvailableCandleOperators::GroupBy,
+                operator: AvailableOperators::GroupBy,
                 lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
@@ -274,7 +274,7 @@ impl DataConfigTrait for AvailableProcessors {
                 cmp_operators: Some(vec![DataComparatorOperator::Equals]),
                 cmp_predicate: Some(DataComparatorPredicate::All),
                 cpu: false,
-                operator: AvailableCandleOperators::Filter,
+                operator: AvailableOperators::Filter,
                 lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
@@ -285,7 +285,7 @@ impl DataConfigTrait for AvailableProcessors {
                 format: Some(DataFormat::CsvDefault),
                 schema: Some(AvailableSubjects::default()),
                 cpu: false,
-                operator: AvailableCandleOperators::ExtractTabular,
+                operator: AvailableOperators::ExtractTabular,
                 lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
@@ -295,7 +295,7 @@ impl DataConfigTrait for AvailableProcessors {
                 format: Some(DataFormat::Owl),
                 schema: Some(AvailableSubjects::default()),
                 cpu: false,
-                operator: AvailableCandleOperators::ExtractXML,
+                operator: AvailableOperators::ExtractXML,
                 lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
@@ -309,7 +309,7 @@ impl DataConfigTrait for AvailableProcessors {
                 cast_datatypes: Some(vec![DataType::Utf8.to_string()]),
                 cast_templates: Some(vec!["cast_template".to_string()]),
                 cpu: false,
-                operator: AvailableCandleOperators::Select,
+                operator: AvailableOperators::Select,
                 lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
@@ -321,7 +321,7 @@ impl DataConfigTrait for AvailableProcessors {
                 default_values: Some(vec!["0".to_string()]),
                 pvt_columns: Some(vec!["pvt_columns".to_string()]),
                 cpu: false,
-                operator: AvailableCandleOperators::Pivot,
+                operator: AvailableOperators::Pivot,
                 lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
@@ -330,7 +330,7 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 pvt_columns: Some(vec!["pvt_columns".to_string()]),
                 cpu: false,
-                operator: AvailableCandleOperators::Melt,
+                operator: AvailableOperators::Melt,
                 lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
@@ -338,7 +338,7 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 cpu: false,
-                operator: AvailableCandleOperators::NormalizeTime,
+                operator: AvailableOperators::NormalizeTime,
                 lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
@@ -349,7 +349,7 @@ impl DataConfigTrait for AvailableProcessors {
                 doc_name: Some("doc_name".to_string()),
                 schema: Some(AvailableSubjects::default()),
                 cpu: false,
-                operator: AvailableCandleOperators::PackTabular,
+                operator: AvailableOperators::PackTabular,
                 lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
@@ -366,7 +366,7 @@ impl DataConfigTrait for AvailableProcessors {
                     operator: "Update".to_string(),
                 }])?),
                 cpu: false,
-                operator: AvailableCandleOperators::Patch,
+                operator: AvailableOperators::Patch,
                 lhs_stream: DataStreamManager::Accumulate,
                 rhs_stream: Some(DataStreamManager::Accumulate),
                 ..Default::default()
@@ -380,7 +380,7 @@ impl DataConfigTrait for AvailableProcessors {
                 rhs_pk: Some("pk".to_string()),
                 diff: Some(DiffType::default()),
                 cpu: false,
-                operator: AvailableCandleOperators::Diff,
+                operator: AvailableOperators::Diff,
                 lhs_stream: DataStreamManager::Accumulate,
                 rhs_stream: Some(DataStreamManager::Accumulate),
                 ..Default::default()
@@ -397,7 +397,7 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_values: Some(vec!["timestamp".to_string()]),
                 asc: Some(true),
                 cpu: false,
-                operator: AvailableCandleOperators::Sort,
+                operator: AvailableOperators::Sort,
                 lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
@@ -564,24 +564,24 @@ impl ToolTrait for AvailableProcessors {
             Self::ProcessorEcho => todo!(),
             Self::ProcessorMock => todo!(),
             Self::CandleDataProcessor => todo!(),
-            Self::ChunkDocuments => AvailableCandleOperators::ChunkDocuments.get_description(),
-            Self::ExtractPDF => AvailableCandleOperators::ExtractPDF.get_description(),
-            Self::ExtractTabular => AvailableCandleOperators::ExtractTabular.get_description(),
-            Self::Filter => AvailableCandleOperators::Filter.get_description(),
-            Self::GroupBy => AvailableCandleOperators::GroupBy.get_description(),
-            Self::HumanInTheLoop => AvailableCandleOperators::HumanInTheLoop.get_description(),
-            Self::Join => AvailableCandleOperators::Join.get_description(),
-            Self::NormalizeTime => AvailableCandleOperators::NormalizeTime.get_description(),
-            Self::Pivot => AvailableCandleOperators::Pivot.get_description(),
-            Self::ExtractXML => AvailableCandleOperators::ExtractXML.get_description(),
-            Self::Melt => AvailableCandleOperators::Melt.get_description(),
-            Self::Select => AvailableCandleOperators::Select.get_description(),
-            Self::Sort => AvailableCandleOperators::Sort.get_description(),
-            Self::VectorDistance => AvailableCandleOperators::VectorDistance.get_description(),
-            Self::ApplyTemplate => AvailableCandleOperators::ApplyTemplate.get_description(),
-            Self::PackTabular => AvailableCandleOperators::PackTabular.get_description(),
-            Self::Patch => AvailableCandleOperators::Patch.get_description(),
-            Self::Diff => AvailableCandleOperators::Diff.get_description(),
+            Self::ChunkDocuments => AvailableOperators::ChunkDocuments.get_description(),
+            Self::ExtractPDF => AvailableOperators::ExtractPDF.get_description(),
+            Self::ExtractTabular => AvailableOperators::ExtractTabular.get_description(),
+            Self::Filter => AvailableOperators::Filter.get_description(),
+            Self::GroupBy => AvailableOperators::GroupBy.get_description(),
+            Self::HumanInTheLoop => AvailableOperators::HumanInTheLoop.get_description(),
+            Self::Join => AvailableOperators::Join.get_description(),
+            Self::NormalizeTime => AvailableOperators::NormalizeTime.get_description(),
+            Self::Pivot => AvailableOperators::Pivot.get_description(),
+            Self::ExtractXML => AvailableOperators::ExtractXML.get_description(),
+            Self::Melt => AvailableOperators::Melt.get_description(),
+            Self::Select => AvailableOperators::Select.get_description(),
+            Self::Sort => AvailableOperators::Sort.get_description(),
+            Self::VectorDistance => AvailableOperators::VectorDistance.get_description(),
+            Self::ApplyTemplate => AvailableOperators::ApplyTemplate.get_description(),
+            Self::PackTabular => AvailableOperators::PackTabular.get_description(),
+            Self::Patch => AvailableOperators::Patch.get_description(),
+            Self::Diff => AvailableOperators::Diff.get_description(),
             Self::AggregatorProcessor => todo!(),
             Self::CoalesceProcessor => todo!(),
             Self::LimitProcessor => todo!(),
@@ -606,24 +606,24 @@ impl ToolTrait for AvailableProcessors {
             Self::ProcessorEcho => todo!(),
             Self::ProcessorMock => todo!(),
             Self::CandleDataProcessor => todo!(),
-            Self::ChunkDocuments => AvailableCandleOperators::ChunkDocuments.to_json_tool_schema(),
-            Self::ExtractPDF => AvailableCandleOperators::ExtractPDF.to_json_tool_schema(),
-            Self::ExtractTabular => AvailableCandleOperators::ExtractTabular.to_json_tool_schema(),
-            Self::Filter => AvailableCandleOperators::Filter.to_json_tool_schema(),
-            Self::GroupBy => AvailableCandleOperators::GroupBy.to_json_tool_schema(),
-            Self::HumanInTheLoop => AvailableCandleOperators::HumanInTheLoop.to_json_tool_schema(),
-            Self::Join => AvailableCandleOperators::Join.to_json_tool_schema(),
-            Self::NormalizeTime => AvailableCandleOperators::NormalizeTime.to_json_tool_schema(),
-            Self::Pivot => AvailableCandleOperators::Pivot.to_json_tool_schema(),
-            Self::ExtractXML => AvailableCandleOperators::ExtractXML.to_json_tool_schema(),
-            Self::Melt => AvailableCandleOperators::Melt.to_json_tool_schema(),
-            Self::Select => AvailableCandleOperators::Select.to_json_tool_schema(),
-            Self::Sort => AvailableCandleOperators::Sort.to_json_tool_schema(),
-            Self::VectorDistance => AvailableCandleOperators::VectorDistance.to_json_tool_schema(),
-            Self::ApplyTemplate => AvailableCandleOperators::ApplyTemplate.to_json_tool_schema(),
-            Self::PackTabular => AvailableCandleOperators::PackTabular.to_json_tool_schema(),
-            Self::Patch => AvailableCandleOperators::Patch.to_json_tool_schema(),
-            Self::Diff => AvailableCandleOperators::Diff.to_json_tool_schema(),
+            Self::ChunkDocuments => AvailableOperators::ChunkDocuments.to_json_tool_schema(),
+            Self::ExtractPDF => AvailableOperators::ExtractPDF.to_json_tool_schema(),
+            Self::ExtractTabular => AvailableOperators::ExtractTabular.to_json_tool_schema(),
+            Self::Filter => AvailableOperators::Filter.to_json_tool_schema(),
+            Self::GroupBy => AvailableOperators::GroupBy.to_json_tool_schema(),
+            Self::HumanInTheLoop => AvailableOperators::HumanInTheLoop.to_json_tool_schema(),
+            Self::Join => AvailableOperators::Join.to_json_tool_schema(),
+            Self::NormalizeTime => AvailableOperators::NormalizeTime.to_json_tool_schema(),
+            Self::Pivot => AvailableOperators::Pivot.to_json_tool_schema(),
+            Self::ExtractXML => AvailableOperators::ExtractXML.to_json_tool_schema(),
+            Self::Melt => AvailableOperators::Melt.to_json_tool_schema(),
+            Self::Select => AvailableOperators::Select.to_json_tool_schema(),
+            Self::Sort => AvailableOperators::Sort.to_json_tool_schema(),
+            Self::VectorDistance => AvailableOperators::VectorDistance.to_json_tool_schema(),
+            Self::ApplyTemplate => AvailableOperators::ApplyTemplate.to_json_tool_schema(),
+            Self::PackTabular => AvailableOperators::PackTabular.to_json_tool_schema(),
+            Self::Patch => AvailableOperators::Patch.to_json_tool_schema(),
+            Self::Diff => AvailableOperators::Diff.to_json_tool_schema(),
             Self::AggregatorProcessor => todo!(),
             Self::CoalesceProcessor => todo!(),
             Self::LimitProcessor => todo!(),

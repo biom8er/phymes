@@ -5,7 +5,7 @@ use phymes_core::{
     BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, SubjectBuilder,
     SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription,
 };
-use phymes_data::{AvailableCandleOperators, DataConfig};
+use phymes_data::{AvailableOperators, DataConfig};
 #[cfg(all(not(feature = "candle"), feature = "api"))]
 use phymes_ml::AvailableOpenAIAssets;
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
@@ -263,7 +263,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         let aggregator_config = DataConfig {
             lhs_values: Some(vec!["timestamp".to_string()]),
             asc: Some(true),
-            operator: AvailableCandleOperators::Sort,
+            operator: AvailableOperators::Sort,
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();

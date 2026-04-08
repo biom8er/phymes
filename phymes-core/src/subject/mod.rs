@@ -7,9 +7,7 @@ pub use subject_plan::{SubjectPlan, SubjectPlanTrait};
 pub use subject_plan_builder::{SubjectPlanBuilder, SubjectPlanBuilderTrait};
 
 mod subject_builder;
-mod subject_script;
 mod subject_trait;
 
 pub use subject_builder::{SubjectBuilder, SubjectBuilderTrait};
-pub use subject_script::{SubjectScript, items_to_list};
 pub use subject_trait::{Subject, SubjectTrait, test_subject};
