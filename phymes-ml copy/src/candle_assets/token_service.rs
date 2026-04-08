@@ -30,7 +30,7 @@ pub struct TokenizerConfig {
 }
 
 /// For services that process tokens
-pub trait TokenProcessorTrait: TensorProcessorTrait + Send + Sync + Debug {
+pub trait TokenStreamTrait: TensorProcessorTrait + Send + Sync + Debug {
     /// Backward: propogation of the error signal for updating the tensor weights
     //fn backward(&mut self) -> Result<Self::T>;
     /// Forward: inference using the tensor weights on the specified device
@@ -47,10 +47,10 @@ pub trait TokenProcessorTrait: TensorProcessorTrait + Send + Sync + Debug {
     fn get_tokenizer_config(&self) -> &TokenizerConfig;
 }
 
-/// [ProcessorTrait] extension to running and caching of [TokenProcessorTrait] objects
-pub trait TokenProcessorTraitExt: ProcessorTrait {
+/// [ProcessorTrait] extension to running and caching of [TokenStreamTrait] objects
+pub trait TokenStreamTraitExt: ProcessorTrait {
     /// Access the token service
-    fn token_service(&self) -> &Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>;
+    fn token_service(&self) -> &Arc<Mutex<Option<Box<dyn TokenStreamTrait>>>>;
 }
 
 /// This is a wrapper around a tokenizer to ensure that tokens can be returned to the user in a

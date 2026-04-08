@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    CandleChatConfig, TokenOutputStream, TokenProcessorTrait, TokenProcessorTraitExt, TokenWrapper,
+    CandleChatConfig, TokenOutputStream, TokenStreamTrait, TokenStreamTraitExt, TokenWrapper,
 };
 use anyhow::{Result, anyhow};
 use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
@@ -38,7 +38,7 @@ use crate::ChatTraitExt;
 pub struct CandleChatProcessor {
     name: String,
     r#type: String,
-    token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
+    token_service: Arc<Mutex<Option<Box<dyn TokenStreamTrait>>>>,
 }
 
 impl MappableTrait for CandleChatProcessor {
@@ -105,8 +105,8 @@ impl ProcessorTrait for CandleChatProcessor {
     }
 }
 
-impl TokenProcessorTraitExt for CandleChatProcessor {
-    fn token_service(&self) -> &Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>> {
+impl TokenStreamTraitExt for CandleChatProcessor {
+    fn token_service(&self) -> &Arc<Mutex<Option<Box<dyn TokenStreamTrait>>>> {
         &self.token_service
     }
 }
@@ -123,7 +123,7 @@ pub struct CandleChatStream {
     /// The candle asset needed for inference
     // DM: In a single thread environment, there is minimal to no penalty of using a mutex here
     // DM: in a mult-thread environment, we prevent copying the model assets each time we use it
-    token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
+    token_service: Arc<Mutex<Option<Box<dyn TokenStreamTrait>>>>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for chat inference
@@ -149,7 +149,7 @@ impl CandleChatStream {
         messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<RuntimeEnv>,
-        token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
+        token_service: Arc<Mutex<Option<Box<dyn TokenStreamTrait>>>>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {

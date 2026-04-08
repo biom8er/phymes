@@ -27,14 +27,14 @@ use phymes_schemas::{
 };
 use tracing::{Level, event, instrument};
 
-use crate::{ProcessorTrait, TokenProcessorTrait, TokenProcessorTraitExt};
+use crate::{ProcessorTrait, TokenStreamTrait, TokenStreamTraitExt};
 
 /// Processor for text generation inference (TGI) using Candle models
 #[derive(Debug)]
 pub struct CandleChatProcessor {
     name: String,
     r#type: String,
-    token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
+    token_service: Arc<Mutex<Option<Box<dyn TokenStreamTrait>>>>,
 }
 
 impl MappableTrait for CandleChatProcessor {
@@ -101,8 +101,8 @@ impl ProcessorTrait for CandleChatProcessor {
     }
 }
 
-impl TokenProcessorTraitExt for CandleChatProcessor {
-    fn token_service(&self) -> &Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>> {
+impl TokenStreamTraitExt for CandleChatProcessor {
+    fn token_service(&self) -> &Arc<Mutex<Option<Box<dyn TokenStreamTrait>>>> {
         &self.token_service
     }
 }

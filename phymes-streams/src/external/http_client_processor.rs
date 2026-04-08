@@ -15,6 +15,7 @@ use phymes_core::{
     BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
     SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait
 };
+use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
 };
@@ -27,19 +28,13 @@ use phymes_message::{
     SendableRecordBatchStreamMessageMap,
     remove_message_by_subject,
 };
-use phymes_processor::ProcessorTrait;
 use reqwest::{
     Client, Response,
     header::{CONTENT_TYPE, USER_AGENT},
 };
 use serde_json::{Map, Value};
 
-use crate::{
-    DataConfigTrait,
-    external_operators::http_client_config::{
-        HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType,
-    },
-};
+use crate::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
 
 /// The state of the HTTP Client API request
 ///

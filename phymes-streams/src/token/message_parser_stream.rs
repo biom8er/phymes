@@ -5,7 +5,7 @@ use std::{
 };
 
 use phymes_core::{
-    BuildableTrait, BuilderTrait, DataFormat, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilderTrait, SubjectTrait,
+    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
@@ -16,18 +16,18 @@ use phymes_message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStrea
     SendableRecordBatchStreamMessageMap, 
     remove_message_by_subject,
 };
+use phymes_ml::CandleChatConfig;
 use phymes_schemas::{
-    AvailableSchemaTrait, AvailableSubjects, ToolCall,
+    AvailableSchemaTrait, AvailableSubjects, ToolCall, DataFormat,
     create_bytes_record_batch, create_chat_record_batch, create_route_bytes_record_batch,
 };
-use phymes_processor::ProcessorTrait;
 
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{Stream, StreamExt};
 use tracing::{Level, event, instrument};
 
-use crate::candle_chat::{chat_config::CandleChatConfig, tool_parser::{format_tool_calls_str, extract_tool_calls_str}};
+use crate::{extract_tool_calls_str, token::tool_parser::format_tool_calls_str};
 
 #[allow(dead_code)]
 pub struct MessageParserStream {
@@ -295,7 +295,7 @@ impl Stream for MessageParserStream {
                                     .unwrap()
                                     .to_string(),
                             );
-                            content_vec.push(content);
+                            content_vec.push(content.to_string());
 
                             // // Mock user content
                             // DM: accuracy of SLMs is such that many will not use the HITL template to respond

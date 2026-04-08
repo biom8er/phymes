@@ -13,14 +13,9 @@ use phymes_core::{
     BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilderTrait
 };
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
-use phymes_message::{
-    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, remove_message_by_subject,
-};
-use phymes_processor::ProcessorTrait;
+use phymes_data::DataConfigTrait;
 
-use crate::{DataConfigTrait, LimitConfig};
+use crate::LimitConfig;
 
 /// Concatenate multiple [`RecordBatch`]es
 ///
@@ -374,9 +369,8 @@ mod tests {
     use arrow::array::{StringViewArray, UInt32Array};
     use arrow::datatypes::{DataType, Field, Schema};
     use futures::TryStreamExt;
-    use phymes_core::{RecordBatchStreamAdapter, SubjectBuilder, SubjectTrait, test_subject};
+    use phymes_core::{RecordBatchStreamAdapter, SubjectBuilder, SubjectTrait};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
-    use phymes_event::Publication;
 
     #[tokio::test]
     async fn test_coalesce_stream() -> Result<()> {

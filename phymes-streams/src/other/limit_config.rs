@@ -2,9 +2,8 @@ use anyhow::{Result, anyhow};
 use clap::Parser;
 use phymes_core::{MappableTrait, Subject, SubjectTrait};
 use phymes_diagnostics::HashSet;
+use phymes_data::DataConfigTrait;
 use serde::{Deserialize, Serialize};
-
-use crate::DataConfigTrait;
 
 #[derive(Parser, Debug, Serialize, Deserialize, Clone, Default)]
 #[command(author, version, about, long_about = None)]

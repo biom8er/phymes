@@ -21,7 +21,6 @@ use phymes_schemas::{
     AvailableSchemaTrait, AvailableSubjects,
     create_bytes_fields, create_session_tasks_subscribe_publish_batch, create_values_fields,
 };
-use phymes_processor::ProcessorTrait;
 
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};

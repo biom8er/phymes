@@ -16,6 +16,7 @@ use phymes_core::{
     SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait,
     SubjectTrait,
 };
+use phymes_data::{DataConfigTrait, WorkspaceEditor};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
 };
@@ -27,20 +28,11 @@ use phymes_message::{
 use phymes_schemas::{
     AvailableSchemaTrait, AvailableSubjects, create_bytes_fields, create_chat_record_batch, create_values_fields,
 };
-use phymes_processor::ProcessorTrait;
 use serde_json::Value;
 use tempfile::NamedTempFile;
 use tokio::process::Command;
 
-use crate::{
-    DataConfigTrait, WorkspaceEditor,
-    external_operators::{
-        command_sandbox_config::{
-            CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod,
-        },
-        http_client_processor::error_report,
-    },
-};
+use crate::{CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod, external::http_client_processor::error_report};
 
 /// The state of the command stream
 ///

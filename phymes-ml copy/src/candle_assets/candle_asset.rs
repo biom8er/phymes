@@ -6,7 +6,7 @@ use tokenizers::tokenizer::Tokenizer;
 /// phymes-core dependencies
 use phymes_data::TensorProcessorTrait;
 
-use crate::{CandleModelWeights, TokenProcessorTrait, TokenWrapper, TokenizerConfig};
+use crate::{CandleModelWeights, TokenStreamTrait, TokenWrapper, TokenizerConfig};
 
 /// The actual asset struct
 #[derive(Debug)]
@@ -39,7 +39,7 @@ impl CandleAsset {
     }
 }
 
-impl TokenProcessorTrait for CandleAsset {
+impl TokenStreamTrait for CandleAsset {
     fn forward(
         &mut self,
         input: &TokenWrapper,

@@ -28,13 +28,13 @@ use phymes_processor::ProcessorTrait;
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 use tracing::{Level, event, instrument};
 
-use crate::{CandleEmbedConfig, TokenProcessorTrait, TokenProcessorTraitExt, TokenWrapper};
+use crate::{CandleEmbedConfig, TokenStreamTrait, TokenStreamTraitExt, TokenWrapper};
 
 #[derive(Debug)]
 pub struct CandleEmbedProcessor {
     name: String,
     r#type: String,
-    token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
+    token_service: Arc<Mutex<Option<Box<dyn TokenStreamTrait>>>>,
 }
 
 impl MappableTrait for CandleEmbedProcessor {
@@ -101,8 +101,8 @@ impl ProcessorTrait for CandleEmbedProcessor {
     }
 }
 
-impl TokenProcessorTraitExt for CandleEmbedProcessor {
-    fn token_service(&self) -> &Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>> {
+impl TokenStreamTraitExt for CandleEmbedProcessor {
+    fn token_service(&self) -> &Arc<Mutex<Option<Box<dyn TokenStreamTrait>>>> {
         &self.token_service
     }
 }
@@ -121,7 +121,7 @@ pub struct CandleEmbedStream {
     /// The candle asset needed for inference
     // DM: In a single thread environment, there is minimal to no penalty of using a mutex here
     // DM: in a mult-thread environment, we prevent copying the model assets each time we use it
-    token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
+    token_service: Arc<Mutex<Option<Box<dyn TokenStreamTrait>>>>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for embed inference
@@ -137,7 +137,7 @@ impl CandleEmbedStream {
         messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<RuntimeEnv>,
-        token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
+        token_service: Arc<Mutex<Option<Box<dyn TokenStreamTrait>>>>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {

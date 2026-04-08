@@ -4,6 +4,12 @@ use std::{
     task::{Context, Poll, ready},
 };
 
+use anyhow::{Result, anyhow};
+use arrow::{
+    array::RecordBatch,
+    datatypes::{Fields, SchemaRef},
+};
+use futures::{Stream, StreamExt};
 use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
     SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait,
 };
@@ -13,22 +19,12 @@ use phymes_message::{
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects};
-use phymes_processor::ProcessorTrait;
-
-use crate::{
-    CandleTensorService, DataConfig, DataConfigTrait, DataOperatorTrait, TensorStreamTrait,
-    device,
-};
-use anyhow::{Result, anyhow};
-use arrow::{
-    array::RecordBatch,
-    datatypes::{Fields, SchemaRef},
-};
-use futures::{Stream, StreamExt};
+use phymes_data::{DataConfig, DataConfigTrait, DataOperatorTrait, device};
+use phymes_ml::{CandleTensorService, TensorStreamTrait};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
 };
-use tracing::{Level, event, instrument};
+use tracing::instrument;
 
 #[allow(dead_code)]
 pub struct AggregatorStream {

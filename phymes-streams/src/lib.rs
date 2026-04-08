@@ -15,6 +15,6 @@ pub use external::{
 pub use external::{
     CommandSandboxStream, HTTPClientRequestStream, HTTPClientRequestState,
 };
-pub use tensor::{CandleDataStream, CandleTensorService, TensorStreamTrait};
-pub use token::{ChatBuilderTraitExt, ChatTraitExt, CandleChatConfig, CandleChatStream, process_logits_sampler, process_prompt_chat, MessageParserStream,
+pub use tensor::CandleDataStream;
+pub use token::{ChatBuilderTraitExt, ChatTraitExt, CandleChatStream, MessageParserStream,
     ToolCallConfig, ToolCallStream, extract_tool_calls_str};

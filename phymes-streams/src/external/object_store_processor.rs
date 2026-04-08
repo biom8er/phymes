@@ -21,6 +21,7 @@ use phymes_core::{
     MappableTrait, ObjectStorageBackend, OnChunk, RecordBatchStream, RuntimeEnv, RuntimeEnvTrait, SendableRecordBatchStream,
     SubjectBuilder, SubjectBuilderTrait, SubjectTrait, make_store,
 };
+use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait, create_timestamp_micros,
 };

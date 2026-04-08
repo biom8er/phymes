@@ -10,15 +10,10 @@ use phymes_core::{
     BuildableTrait, BuilderTrait, MappableTrait,
     RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilderTrait,
 };
+use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
-use phymes_message::{
-    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, remove_message_by_subject,
-};
-use phymes_processor::ProcessorTrait;
 
-use crate::{DataConfigTrait, LimitConfig};
+use crate::LimitConfig;
 
 /// A Limit stream skips `skip` rows, and then fetch up to `fetch` rows.
 pub struct LimitStream {
@@ -213,9 +208,8 @@ mod tests {
     use arrow::datatypes::{DataType, Field, Schema};
     use arrow::record_batch::RecordBatchOptions;
     use futures::{Stream, TryStreamExt};
-    use phymes_core::{SubjectBuilder, SubjectTrait, test_subject};
+    use phymes_core::{SubjectBuilder, SubjectTrait};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
-    use phymes_event::Publication;
 
     /// Return a RecordBatch with a single Int32 array with values (0..sz) in a field named "i"
     fn make_partition(sz: i32) -> RecordBatch {

@@ -1,13 +1,10 @@
 use anyhow::Result;
 use candle_core::Tensor;
-use parking_lot::Mutex;
-use phymes_processor::ProcessorTrait;
-use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, sync::Arc};
-use crate::TensorStreamTrait;
+use tokenizers::Tokenizer;
+use crate::{TensorStreamTrait, TokenWrapper, TokenizerConfig};
 
 /// For services that process tokens
-pub trait TokenProcessorTrait: TensorStreamTrait + Send + Sync + Debug {
+pub trait TokenStreamTrait: TensorStreamTrait + Send + Sync + std::fmt::Debug {
     /// Backward: propogation of the error signal for updating the tensor weights
     //fn backward(&mut self) -> Result<Self::T>;
     /// Forward: inference using the tensor weights on the specified device

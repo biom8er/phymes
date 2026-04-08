@@ -7,5 +7,5 @@ pub use available_candle_assets::{
 };
 pub use candle_asset::CandleAsset;
 pub use token_service::{
-    TokenOutputStream, TokenProcessorTrait, TokenProcessorTraitExt, TokenWrapper, TokenizerConfig,
+    TokenOutputStream, TokenStreamTrait, TokenStreamTraitExt, TokenWrapper, TokenizerConfig,
 };

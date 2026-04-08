@@ -5572,7 +5572,7 @@ dependencies = [
  "phymes-core",
  "phymes-data",
  "phymes-diagnostics",
- "phymes-ml",
+ "phymes-streams",
  "reqwest 0.13.2",
  "serde",
  "serde_json",
@@ -5721,7 +5721,6 @@ dependencies = [
 name = "phymes-ml"
 version = "0.3.0"
 dependencies = [
- "accelerate-src",
  "anyhow",
  "arrow",
  "bytes",
@@ -5733,11 +5732,9 @@ dependencies = [
  "chrono",
  "clap",
  "criterion",
- "cudarc 0.9.15",
  "futures",
  "getrandom 0.2.17",
  "getrandom 0.3.4",
- "intel-mkl-src",
  "minijinja",
  "minijinja-contrib",
  "new_string_template",
@@ -5745,9 +5742,6 @@ dependencies = [
  "phymes-core",
  "phymes-data",
  "phymes-diagnostics",
- "phymes-event",
- "phymes-message",
- "phymes-processor",
  "phymes-schemas",
  "reqwest 0.13.2",
  "serde",
@@ -5774,6 +5768,8 @@ dependencies = [
  "phymes-diagnostics",
  "phymes-event",
  "phymes-message",
+ "phymes-schemas",
+ "phymes-streams",
  "serde",
  "serde_json",
  "tokio",
@@ -5826,7 +5822,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "phymes-stream"
+name = "phymes-streams"
 version = "0.3.0"
 dependencies = [
  "accelerate-src",
