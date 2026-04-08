@@ -5768,6 +5768,7 @@ dependencies = [
  "phymes-diagnostics",
  "phymes-event",
  "phymes-message",
+ "phymes-ml",
  "phymes-schemas",
  "phymes-streams",
  "serde",

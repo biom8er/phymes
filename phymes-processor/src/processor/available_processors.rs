@@ -8,21 +8,19 @@ use phymes_schemas::{
     AvailableSubjects, DataEncoding, DataFormat, WorkspacePatchSubject,
 };
 use phymes_data::{
-    AvailableOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator, DataColumnOperator,
-    DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait,
-    DataDistanceOperator, DataJoinOperator, DataStreamManager, ToolTrait,
+    AvailableJinja2Templates, AvailableOperators, DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataJoinOperator, DataStreamManager, DiffType, ToolTrait
 };
 use phymes_streams::{LimitConfig, ObjectStoreConfig, ObjectStoreOptsType, ToolCallConfig};
 #[cfg(feature = "api")]
 use phymes_stream::{
     CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod, HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType,
 };
-use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
+use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig};
 #[cfg(feature = "api")]
 use phymes_ml::AvailableOpenAIAssets;
 use serde::{Deserialize, Serialize};
 
-use crate::{CandleChatProcessor, CandleEmbedConfig, CandleEmbedProcessor, MessageParserProcessor, ToolCallProcessor};
+use crate::{AggregatorProcessor, CandleChatProcessor, CandleDataProcessor, CandleEmbedProcessor, CoalesceProcessor, LimitProcessor, MessageParserProcessor, ObjectStoreProcessor, ProcessorBuilder, ProcessorEcho, ProcessorTrait, ToolCallProcessor, test_processor::{ProcessorError, ProcessorMock}};
 #[cfg(feature = "api")]
 use crate::{OpenAIChatProcessor, OpenAIEmbedProcessor, CommandSandboxProcessor, HTTPClientRequestProcessor};
 

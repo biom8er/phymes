@@ -1,34 +1,21 @@
 use anyhow::{Result, anyhow};
-use arrow::{
-    datatypes::{Schema, SchemaRef},
-    record_batch::RecordBatch,
-};
-use futures::{Stream, StreamExt};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait,
-    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv,
 };
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap,
 };
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
-use phymes_processor::ProcessorTrait;
-use phymes_schemas::{create_bytes_fields, create_values_fields};
-use std::{
-    pin::Pin,
-    sync::Arc,
-    task::{Context, Poll, ready},
-};
+use phymes_data::DataOperatorTrait;
+use phymes_streams::CandleDataStream;
+use std::sync::Arc;
 use tracing::{Level, event, instrument};
 
-use crate::{
-    CandleTensorService, DataConfig, DataConfigTrait, DataOperatorTrait, DataStreamManager,
-    TensorProcessorTrait, device,
-};
+use crate::ProcessorTrait;
 
 /// Tensor processor made possible by Candle
 ///
@@ -104,10 +91,10 @@ impl ProcessorTrait for CandleDataProcessor {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DataDistanceOperator, candle_operators::AvailableOperators};
     use arrow::array::{Float32Array, StringArray};
     use futures::TryStreamExt;
-    use phymes_core::Subject;
+    use phymes_core::{Subject, SubjectBuilder};
+    use phymes_data::{AvailableOperators, DataConfig, DataDistanceOperator, DataStreamManager, test_candle_ops};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
     use phymes_event::Publication;
 
@@ -762,7 +749,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_candle_ops_processor() -> Result<()> {
+    async fn test_candle_ops() -> Result<()> {
         // LHS and RHS messages
         let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let lhs_ids_vec = vec!["1", "2", "3"];
@@ -771,7 +758,7 @@ mod tests {
             vec![0., 1., 0., 1.],
             vec![0., 0., 0., 1.],
         ];
-        let lhs_batch = test_candle_ops_processor::make_embeddings_record_batch_str_f32(
+        let lhs_batch = test_candle_ops::make_embeddings_record_batch_str_f32(
             "lhs_pk",
             lhs_ids_vec,
             lhs_embeddings_vec,
@@ -795,7 +782,7 @@ mod tests {
             vec![1., 1., 1., 1.],
             vec![1., 1., 1., 1.],
         ];
-        let rhs_batch = test_candle_ops_processor::make_embeddings_record_batch_str_f32(
+        let rhs_batch = test_candle_ops::make_embeddings_record_batch_str_f32(
             "rhs_pk",
             rhs_ids_vec,
             rhs_embeddings_vec,
