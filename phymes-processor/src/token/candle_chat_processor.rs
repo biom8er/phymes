@@ -1,33 +1,21 @@
-use std::{
-    pin::Pin,
-    sync::Arc,
-    task::{Context, Poll, ready},
-};
+use std::sync::Arc;
 
-use phymes_streams::{
-    CandleChatConfig, TokenOutputStream, TokenWrapper,
-};
+use phymes_ml::CandleChatConfig;
 use anyhow::{Result, anyhow};
-use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
-use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
-use phymes_data::{DataConfigTrait, device};
-use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
-};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_event::Publication;
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
-use phymes_schemas::{
-    AvailableSchemaTrait, AvailableSubjects, Tool, create_chat_record_batch,
-};
+use phymes_ml::TokenStreamTrait;
+use phymes_streams::CandleChatStream;
 use tracing::{Level, event, instrument};
 
-use crate::{ProcessorTrait, TokenStreamTrait, TokenStreamTraitExt};
+use crate::{ProcessorTrait, TokenStreamTraitExt};
 
 /// Processor for text generation inference (TGI) using Candle models
 #[derive(Debug)]
@@ -109,8 +97,8 @@ impl TokenStreamTraitExt for CandleChatProcessor {
 
 pub mod bench_chat_processor {
     #[cfg(all(not(feature = "candle"), feature = "api"))]
-    use crate::openai_chat::OpenAIChatProcessor;
-    use crate::ChatBuilderTraitExt;
+    use crate::OpenAIChatProcessor;
+    use phymes_streams::ChatBuilderTraitExt;
 
     use super::*;
 
@@ -181,12 +169,9 @@ pub mod bench_chat_processor {
 
 #[cfg(test)]
 mod tests {
-    use phymes_diagnostics::{Diagnostics, SpanBuilder};
-
-    use crate::{
-        AvailableCandleAssets, ChatBuilderTraitExt,
-        candle_assets::{load_model_asset_path, load_tokenizer},
-    };
+    use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
+    use phymes_ml::AvailableCandleAssets;
+    use phymes_streams::ChatBuilderTraitExt;
 
     use super::*;
 

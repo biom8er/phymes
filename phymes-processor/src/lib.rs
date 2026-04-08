@@ -14,6 +14,6 @@ pub use processor::{
     test_processor,
 };
 pub use tensor::CandleDataProcessor;
-pub use token::{CandleChatProcessor, CandleEmbedProcessor, ToolCallProcessor, MessageParserProcessor};
+pub use token::{CandleChatProcessor, CandleEmbedProcessor, ToolCallProcessor, MessageParserProcessor, TokenStreamTraitExt, bench_chat_processor};
 #[cfg(feature = "api")]
 pub use token::{OpenAIChatProcessor, OpenAIEmbedProcessor};

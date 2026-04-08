@@ -7,17 +7,18 @@ extern crate accelerate_src;
 use anyhow::Result;
 use clap::Parser;
 use phymes_core::SubjectTrait;
-
-use phymes_ml::{CandleChatConfig, bench_chat_processor::bench_chat_processor};
+use phymes_ml::CandleChatConfig;
+use phymes_processor::bench_chat_processor::bench_chat_processor;
 
 pub async fn run_main() -> Result<()> {
-    println!(
-        "avx: {}, neon: {}, simd128: {}, f16c: {}",
-        candle_core::utils::with_avx(),
-        candle_core::utils::with_neon(),
-        candle_core::utils::with_simd128(),
-        candle_core::utils::with_f16c()
-    );
+    // DM, todo!(): move to phymes-ml
+    // println!(
+    //     "avx: {}, neon: {}, simd128: {}, f16c: {}",
+    //     candle_core::utils::with_avx(),
+    //     candle_core::utils::with_neon(),
+    //     candle_core::utils::with_simd128(),
+    //     candle_core::utils::with_f16c()
+    // );
 
     // Chat processor config
     let config = CandleChatConfig::parse();

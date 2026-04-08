@@ -9,13 +9,16 @@ repository = "https://github.com/biom8er/phymes"
 documentation = "https://docs.rs/phymes-processor"
 
 [features]
-default = ["wsl"]
+default = ["wsl", "candle"]
 api = ["phymes-core/api", "phymes-data/api", "phymes-message/api", "phymes-event/api", "phymes-streams/api", "phymes-ml/api", "dep:urlencoding"]
 wasip2 = ["phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-data/wasip2", "phymes-message/wasip2", "phymes-event/wasip2", "phymes-streams/wasip2", "phymes-ml/wasip2", "phymes-schemas/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt"]
 wsl = ["phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-data/wsl", "phymes-message/wsl", "phymes-event/wsl", "phymes-streams/wsl", "phymes-schemas/wsl", "phymes-ml/wsl", "tokio/full", "dep:tempfile"]
 hf_hub = ["phymes-streams/hf_hub", "phymes-ml/hf_hub"]
 gpu = ["phymes-data/gpu", "phymes-streams/gpu", "phymes-ml/gpu"]
 candle = ["phymes-streams/candle", "phymes-ml/candle"] # force use of candle models when api is available
+accelerate = ["phymes-streams/accelerate"]
+mkl = ["phymes-streams/mkl"]
+mkl-dynamic = ["phymes-streams/mkl-dynamic"]
 
 [dependencies]
 phymes-core = { path = "../phymes-core", default-features = false, optional = true }
@@ -33,6 +36,8 @@ clap = { version = "4.2.4", features = ["derive"] }
 anyhow = { version = "1", default-features = false }
 parking_lot = "0.12.3"
 tracing = "0.1.41"
+tracing-chrome = "0.7.1"
+tracing-subscriber = "0.3.7"
 serde_json = "1.0.133"
 serde = "1.0.215"
 tempfile = { version = "3.25.0", optional = true }

@@ -1,34 +1,21 @@
-use std::{
-    pin::Pin,
-    sync::Arc,
-    task::{Context, Poll, ready},
-};
+use std::sync::Arc;
 
-use anyhow::{Error, Result, anyhow};
-use arrow::{
-    array::{ArrayRef, Float32Builder, ListBuilder, StringArray},
-    datatypes::{DataType, Field, SchemaRef},
-    record_batch::RecordBatch,
-};
-use candle_core::{DType, Tensor};
-use futures::{Stream, StreamExt};
+use anyhow::{Result, anyhow};
 use parking_lot::Mutex;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, 
 };
-use phymes_data::{DataConfigTrait, device};
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
+use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
-use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects};
-use phymes_processor::ProcessorTrait;
-use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
+use phymes_ml::TokenStreamTrait;
+use phymes_streams::CandleEmbedStream;
 use tracing::{Level, event, instrument};
 
-use crate::{CandleEmbedConfig, TokenStreamTrait, TokenStreamTraitExt, TokenWrapper};
+use crate::{ProcessorTrait, TokenStreamTraitExt};
 
 #[derive(Debug)]
 pub struct CandleEmbedProcessor {
@@ -110,11 +97,12 @@ impl TokenStreamTraitExt for CandleEmbedProcessor {
 
 #[cfg(test)]
 mod tests {
-    use arrow::array::{Float32Array, ListArray, StringArray};
-    use candle_core::Device;
+    use arrow::array::{ArrayRef, Float32Array, ListArray, RecordBatch, StringArray};
     use futures::TryStreamExt;
-    use phymes_diagnostics::{Diagnostics, SpanBuilder};
-    use phymes_ml::{AvailableCandleAssets, load_model_asset_path, load_tokenizer};
+    use phymes_core::{Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+    use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
+    use phymes_event::Publication;
+    use phymes_ml::{AvailableCandleAssets, CandleEmbedConfig};
 
     use super::*;
 

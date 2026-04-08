@@ -5776,6 +5776,8 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+ "tracing-chrome",
+ "tracing-subscriber",
  "urlencoding",
 ]
 
@@ -5864,8 +5866,6 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
- "tracing-chrome",
- "tracing-subscriber",
  "urlencoding",
 ]
 

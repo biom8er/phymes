@@ -6,7 +6,7 @@ use phymes_core::{
     BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectTrait, test_subject::TestSubjectSizes,
 };
 use phymes_data::{
-    AvailableOperators, CandleDataProcessor, DataAggregatorOperator, DataComparatorOperator,
+    AvailableOperators, DataAggregatorOperator, DataComparatorOperator,
     DataComparatorPredicate, DataConfig, DataStreamManager,
 };
 use phymes_diagnostics::{
@@ -15,7 +15,7 @@ use phymes_diagnostics::{
 };
 use phymes_event::Publication;
 use phymes_message::{MessageBuilderTrait, SendableRecordBatchStreamMessage};
-use phymes_processor::ProcessorTrait;
+use phymes_processor::{ProcessorTrait, CandleDataProcessor};
 use phymes_schemas::from_diagnostics_to_tables;
 
 fn benchmark_candle_ops_processor(c: &mut Criterion) {

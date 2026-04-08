@@ -1,12 +1,10 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use arrow::array::Array;
-use futures::stream::StreamExt;
 use phymes_core::{
     BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv,
 };
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap};
+use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
@@ -94,8 +92,8 @@ mod tests {
 
     use super::*;
 
-    use phymes_core::{SubjectBuilder, SubjectTrait, test_subject};
-    use phymes_diagnostics::{Diagnostics, SpanBuilder};
+    use phymes_core::{SubjectBuilder, SubjectBuilderTrait, SubjectTrait, test_subject};
+    use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
     use phymes_event::Publication;
     use phymes_streams::LimitConfig;
 

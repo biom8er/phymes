@@ -1,16 +1,11 @@
 use anyhow::{Result, anyhow};
-use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv,
-};
-use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap,
-};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
+use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
-use phymes_data::DataOperatorTrait;
 use phymes_streams::CandleDataStream;
 use std::sync::Arc;
 use tracing::{Level, event, instrument};
@@ -93,9 +88,9 @@ impl ProcessorTrait for CandleDataProcessor {
 mod tests {
     use arrow::array::{Float32Array, StringArray};
     use futures::TryStreamExt;
-    use phymes_core::{Subject, SubjectBuilder};
+    use phymes_core::{Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
     use phymes_data::{AvailableOperators, DataConfig, DataDistanceOperator, DataStreamManager, test_candle_ops};
-    use phymes_diagnostics::{Diagnostics, SpanBuilder};
+    use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
     use phymes_event::Publication;
 
     use super::*;

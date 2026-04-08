@@ -9,7 +9,7 @@ mod openai_embed_processor;
 mod token_service;
 mod tool_call_processor;
 
-pub use candle_chat_processor::CandleChatProcessor;
+pub use candle_chat_processor::{CandleChatProcessor, bench_chat_processor};
 pub use candle_embed_processor::CandleEmbedProcessor;
 pub use message_parser_processor::MessageParserProcessor;
 #[cfg(feature = "api")]

@@ -5,19 +5,14 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use arrow::datatypes::Fields;
-use futures::StreamExt;
-use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap,
-};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
-};
+use phymes_diagnostics::{DiagnosticBuilder, HashMap};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects};
-use phymes_data::DataOperatorTrait;
 use phymes_streams::AggregatorStream;
 use tracing::{Level, event, instrument};
 

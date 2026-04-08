@@ -3,8 +3,9 @@ use phymes_core::SubjectTrait;
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, MetricBuilderTrait, SpanBuilder,
 };
-use phymes_ml::{AvailableCandleAssets, CandleChatConfig, bench_chat_processor};
+use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 use phymes_schemas::from_diagnostics_to_tables;
+use phymes_processor::bench_chat_processor;
 
 fn benchmark_chat_processor(c: &mut Criterion) {
     // Cases for different input/output lengths
