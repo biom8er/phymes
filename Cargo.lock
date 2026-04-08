@@ -5754,6 +5754,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "phymes-network"
+version = "0.3.0"
+dependencies = [
+ "anyhow",
+ "arrow",
+ "bytes",
+ "chrono",
+ "clap",
+ "criterion",
+ "futures",
+ "getrandom 0.2.17",
+ "getrandom 0.3.4",
+ "object_store",
+ "parking_lot",
+ "phymes-core",
+ "phymes-data",
+ "phymes-diagnostics",
+ "phymes-event",
+ "phymes-message",
+ "phymes-ml",
+ "phymes-processor",
+ "phymes-schemas",
+ "phymes-streams",
+ "phymes-task",
+ "reqwest 0.13.2",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-chrome",
+ "tracing-subscriber",
+ "urlencoding",
+]
+
+[[package]]
 name = "phymes-processor"
 version = "0.3.0"
 dependencies = [
