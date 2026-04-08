@@ -16,7 +16,7 @@ use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects};
 use phymes_processor::ProcessorTrait;
 
 use crate::{
-    CandleTensorService, DataConfig, DataConfigTrait, DataOperatorTrait, TensorProcessorTrait,
+    CandleTensorService, DataConfig, DataConfigTrait, DataOperatorTrait, TensorStreamTrait,
     device,
 };
 use anyhow::{Result, anyhow};
@@ -41,7 +41,7 @@ pub struct AggregatorStream {
     /// Parameters for tensor operations
     config: Option<DataConfig>,
     /// The service for operating over tensors
-    tensor_service: Option<Box<dyn TensorProcessorTrait>>,
+    tensor_service: Option<Box<dyn TensorStreamTrait>>,
     /// The data operator to run
     data_operator: Option<Box<dyn DataOperatorTrait>>,
     /// The Candle model assets needed for inference

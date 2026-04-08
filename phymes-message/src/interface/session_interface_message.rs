@@ -1,8 +1,9 @@
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 
-use phymes_core::{BuildableTrait, BuilderTrait, DataFormat, MappableTrait};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait};
 use phymes_event::Publication;
+use phymes_schemas::DataFormat;
 use crate::{MessageBuilderTrait, MessageTrait};
 
 /// Composition of [MessageTrait] with additional functions for inter-session communication

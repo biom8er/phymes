@@ -27,7 +27,7 @@ use tracing::{Level, event, instrument};
 
 use crate::{
     CandleTensorService, DataConfig, DataConfigTrait, DataOperatorTrait, DataStreamManager,
-    TensorProcessorTrait, device,
+    TensorStreamTrait, device,
 };
 
 /// Data operator stream
@@ -44,7 +44,7 @@ pub struct CandleDataStream {
     /// Parameters for tensor operations
     config: Option<DataConfig>,
     /// The service for operating over tensors
-    tensor_service: Option<Box<dyn TensorProcessorTrait>>,
+    tensor_service: Option<Box<dyn TensorStreamTrait>>,
     /// The data operator to run
     data_operator: Option<Box<dyn DataOperatorTrait>>,
     /// The polled record batches from the input

@@ -10,6 +10,7 @@ members = [
     "phymes-processor",
     "phymes-schemas",
     "phymes-server",
+    "phymes-streams",
     "phymes-diagnostics"
 ]
 resolver = "3"

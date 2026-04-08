@@ -1,2 +1,2 @@
-mod chat_processor;
-pub use chat_processor::OpenAIChatProcessor;
+mod openai_chat_processor;
+pub use openai_chat_processor::OpenAIChatProcessor;

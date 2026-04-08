@@ -17,26 +17,25 @@ use object_store::{
 };
 use parking_lot::Mutex;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, ChunkedWriter,
+    BuilderTrait, ChunkedWriter,
     MappableTrait, ObjectStorageBackend, OnChunk, RecordBatchStream, RuntimeEnv, RuntimeEnvTrait, SendableRecordBatchStream,
     SubjectBuilder, SubjectBuilderTrait, SubjectTrait, make_store,
 };
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
+    DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait, create_timestamp_micros,
 };
 use phymes_message::{
-    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
-    SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
-    remove_message_by_subject,
+    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_schemas::{
     AvailableSchemaTrait, AvailableSubjects, create_bytes_fields,
     create_object_store_batch, create_object_store_meta_batch, create_values_fields,
 };
-use phymes_processor::ProcessorTrait;
 use serde_json::{Map, Value, json};
 
-use crate::{DataConfigTrait, ObjectStoreConfig, ObjectStoreOptsType};
+use crate::{ObjectStoreConfig, ObjectStoreOptsType};
 
 /// The state of the Object Store API request.
 #[allow(clippy::type_complexity)]

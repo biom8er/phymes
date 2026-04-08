@@ -1,10 +1,10 @@
 use anyhow::Result;
 use clap::ValueEnum;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, DataFormat, MappableTrait, SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+    BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_diagnostics::{HashMap, TraceableTrait, Tracer};
-use phymes_schemas::{create_bytes_record_batch, create_route_bytes_fields};
+use phymes_schemas::{create_bytes_record_batch, create_route_bytes_fields, DataFormat};
 use phymes_event::Publication;
 
 use crate::{IPCMessageBuilder, IPCMessageMap, MessageBuilderTrait, SendableRecordBatchStreamMessageBuilder};

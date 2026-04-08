@@ -10,16 +10,18 @@ documentation = "https://docs.rs/phymes-processor"
 
 [features]
 default = ["wsl"]
-api = ["phymes-core/api", "phymes-data/api", "phymes-message/api", "phymes-event/api"]
-wasip2 = ["phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-data/wasip2", "phymes-message/wasip2", "phymes-event/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt"]
-wsl = ["phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-data/wsl", "phymes-message/wsl", "phymes-event/wsl", "tokio/full"]
-hf_hub = []
-gpu = ["phymes-data/gpu"]
-candle = [] # force use of candle models when api is available
+api = ["phymes-core/api", "phymes-data/api", "phymes-message/api", "phymes-event/api", "phymes-streams/api"]
+wasip2 = ["phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-data/wasip2", "phymes-message/wasip2", "phymes-event/wasip2", "phymes-streams/wasip2", "phymes-schemas/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt"]
+wsl = ["phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-data/wsl", "phymes-message/wsl", "phymes-event/wsl", "phymes-streams/wsl", "phymes-schemas/wsl", "tokio/full"]
+hf_hub = ["phymes-streams/hf_hub"]
+gpu = ["phymes-data/gpu", "phymes-streams/gpu"]
+candle = ["phymes-streams/candle"] # force use of candle models when api is available
 
 [dependencies]
 phymes-core = { path = "../phymes-core", default-features = false, optional = true }
 phymes-data = { path = "../phymes-data", default-features = false, optional = true }
+phymes-schemas = { path = "../phymes-schemas", default-features = false, optional = true }
+phymes-streams = { path = "../phymes-streams", default-features = false, optional = true }
 phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
 phymes-event = { path = "../phymes-event", default-features = false, optional = true }
 phymes-message = { path = "../phymes-message", default-features = false, optional = true }
@@ -28,6 +30,7 @@ tokio = { version = "1.49.0", default-features = false, optional = true}
 futures = { version = "0.3.31", default-features = false }
 clap = { version = "4.2.4", features = ["derive"] }
 anyhow = { version = "1", default-features = false }
+parking_lot = "0.12.3"
 tracing = "0.1.41"
 serde_json = "1.0.133"
 serde = "1.0.215"
@@ -37,4 +40,8 @@ criterion = { version = "0.8.2", default-features = false, features = ["cargo_be
 
 [[bench]]
 name = "candle_ops"
+harness = false
+
+[[bench]]
+name = "chat"
 harness = false

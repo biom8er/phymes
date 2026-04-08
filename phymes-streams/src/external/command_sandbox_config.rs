@@ -5,11 +5,10 @@ use clap::{Parser, ValueEnum};
 use phymes_core::{
     BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait
 };
-use phymes_diagnostics::{HashMap, HashSet};
 use phymes_schemas::{WorkspaceSubject, create_workspace_batch};
+use phymes_diagnostics::{HashMap, HashSet};
+use phymes_data::DataConfigTrait;
 use serde::{Deserialize, Serialize};
-
-use crate::DataConfigTrait;
 
 /// Command runners
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
