@@ -2,7 +2,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll, ready};
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use arrow::array::builder::StringViewBuilder;
 use arrow::array::cast::AsArray;
 use arrow::array::{Array, ArrayRef, RecordBatch, RecordBatchOptions};
@@ -10,9 +10,9 @@ use arrow::compute::concat_batches;
 use arrow::datatypes::SchemaRef;
 use futures::stream::{Stream, StreamExt};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilderTrait
+    BuildableTrait, BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilderTrait
 };
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait};
 use phymes_data::DataConfigTrait;
 
 use crate::LimitConfig;

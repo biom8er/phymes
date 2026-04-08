@@ -2,16 +2,16 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll, ready};
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use arrow::datatypes::SchemaRef;
 use arrow::record_batch::RecordBatch;
 use futures::stream::{Stream, StreamExt};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait,
+    BuildableTrait, BuilderTrait,
     RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilderTrait,
 };
 use phymes_data::DataConfigTrait;
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait};
 
 use crate::LimitConfig;
 

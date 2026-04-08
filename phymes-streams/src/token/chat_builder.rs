@@ -1,12 +1,8 @@
 use anyhow::Result;
-use arrow::{
-    array::{Int64Array, StringArray},
-    record_batch::RecordBatch,
-};
+use arrow::array::{Int64Array, StringArray};
 use futures::StreamExt;
 use phymes_core::{
-    RecordBatchReceiverStream, SendableRecordBatchStream, Subject, SubjectBuilder,
-    SubjectBuilderTrait, SubjectTrait,
+    RecordBatchReceiverStream, SendableRecordBatchStream, Subject, SubjectBuilder, SubjectTrait,
 };
 use phymes_data::SubjectScript;
 use phymes_diagnostics::create_timestamp_micros;

@@ -12,8 +12,7 @@ use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, HashSet, MetricBuilderTrait,
 };
 use phymes_message::{
-    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    MessageTrait,
     SendableRecordBatchStreamMessageMap, 
     remove_message_by_subject,
 };
@@ -26,7 +25,6 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{Stream, StreamExt};
 use serde_json::{Map, Value};
-use tracing::{Level, event, instrument};
 
 use crate::ToolCallConfig;
 

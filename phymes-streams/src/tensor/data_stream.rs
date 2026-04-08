@@ -5,15 +5,14 @@ use arrow::{
 };
 use futures::{Stream, StreamExt};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait,
+    BuilderTrait, MappableTrait,
     RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait
 };
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
+    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, MetricBuilderTrait,
 };
 use phymes_message::{
-    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    MessageTrait,
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_data::{DataConfig, DataConfigTrait, DataOperatorTrait, DataStreamManager, device};
@@ -24,7 +23,6 @@ use std::{
     sync::Arc,
     task::{Context, Poll, ready},
 };
-use tracing::{Level, event, instrument};
 
 
 /// Data operator stream

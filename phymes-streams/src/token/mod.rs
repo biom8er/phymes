@@ -12,7 +12,6 @@ mod tool_parser;
 
 pub use chat_builder::{ChatBuilderTraitExt, ChatTraitExt};
 pub use candle_chat_stream::CandleChatStream;
-pub use candle_embed_stream::CandleEmbedStream;
 #[allow(unused_imports)]
 pub use candle_embed_stream::convert_embedding_vector_to_record_batch;
 pub use message_parser_stream::MessageParserStream;

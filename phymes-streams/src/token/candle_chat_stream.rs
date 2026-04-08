@@ -7,17 +7,16 @@ use std::{
 use anyhow::{Result, anyhow};
 use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 use candle_core::DType;
-use candle_transformers::generation::{LogitsProcessor, Sampling};
+use candle_transformers::generation::LogitsProcessor;
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
 use phymes_data::{DataConfigTrait, device};
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
+    DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait, create_timestamp_micros,
 };
 use phymes_message::{
-    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    MessageTrait,
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_ml::{TokenOutputStream, TokenStreamTrait, TokenWrapper, process_logits_sampler, process_prompt_chat, CandleChatConfig};

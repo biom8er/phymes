@@ -7,22 +7,20 @@ use std::{
 use anyhow::{Result, anyhow};
 use arrow::{
     array::RecordBatch,
-    datatypes::{Fields, SchemaRef},
+    datatypes::SchemaRef,
 };
 use futures::{Stream, StreamExt};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
+use phymes_core::{BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
     SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait,
 };
 use phymes_message::{
-    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, remove_message_by_subject,
+    MessageTrait,
+    SendableRecordBatchStreamMessageMap,
 };
-use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects};
 use phymes_data::{DataConfig, DataConfigTrait, DataOperatorTrait, device};
 use phymes_ml::{CandleTensorService, TensorStreamTrait};
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
+    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, MetricBuilderTrait,
 };
 use tracing::instrument;
 
