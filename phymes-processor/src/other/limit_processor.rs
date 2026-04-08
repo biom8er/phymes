@@ -1,23 +1,17 @@
-use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Context, Poll, ready};
 
 use anyhow::{Result, anyhow};
-use arrow::datatypes::SchemaRef;
-use arrow::record_batch::RecordBatch;
-use futures::stream::{Stream, StreamExt};
+use futures::stream::StreamExt;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait,
-    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilderTrait,
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv,
 };
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
-use phymes_data::DataConfigTrait;
-use phymes_streams::{LimitConfig, LimitStream};
+use phymes_streams::LimitStream;
 
 use crate::ProcessorTrait;
 
@@ -97,16 +91,12 @@ impl ProcessorTrait for LimitProcessor {
 
 #[cfg(test)]
 mod tests {
-    use crate::LimitConfig;
 
     use super::*;
-    use arrow::array::{ArrayRef, Int32Array};
-    use arrow::datatypes::{DataType, Field, Schema};
-    use arrow::record_batch::RecordBatchOptions;
-    use futures::{Stream, TryStreamExt};
     use phymes_core::{SubjectBuilder, SubjectTrait, test_subject};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
     use phymes_event::Publication;
+    use phymes_streams::LimitConfig;
 
     #[tokio::test]
     async fn test_limit_processor() -> Result<()> {

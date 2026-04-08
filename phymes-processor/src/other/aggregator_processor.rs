@@ -1,20 +1,15 @@
 use std::{
     pin::Pin,
     sync::Arc,
-    task::{Context, Poll, ready},
 };
 
 use anyhow::{Result, anyhow};
-use arrow::{
-    array::RecordBatch,
-    datatypes::{Fields, SchemaRef},
-};
-use futures::{Stream, StreamExt};
+use arrow::datatypes::Fields;
+use futures::StreamExt;
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap,
 };
 use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait,
 };
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -22,8 +17,8 @@ use phymes_message::{
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects};
-use phymes_data::{CandleTensorService, DataConfig, DataConfigTrait, DataOperatorTrait, TensorProcessorTrait,
-    device};
+use phymes_data::DataOperatorTrait;
+use phymes_streams::AggregatorStream;
 use tracing::{Level, event, instrument};
 
 use crate::ProcessorTrait;
@@ -117,7 +112,7 @@ impl ProcessorTrait for AggregatorProcessor {
 
 #[cfg(test)]
 mod tests {
-    use crate::{AvailableCandleOperators, DataConfig};
+    use phymes_data::{AvailableOperators, DataConfig};
     use phymes_core::{
         SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
         test_subject::{make_test_subject, make_test_subject_chat},
@@ -156,7 +151,7 @@ mod tests {
         let config = DataConfig {
             lhs_values: Some(vec!["timestamp".to_string()]),
             op_kwargs: Some("{\"asc\": true}".to_string()),
-            operator: AvailableCandleOperators::Sort,
+            operator: AvailableOperators::Sort,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
@@ -281,7 +276,7 @@ mod tests {
         let config = DataConfig {
             lhs_values: Some(vec!["timestamp".to_string()]),
             op_kwargs: Some("{\"asc\": true}".to_string()),
-            operator: AvailableCandleOperators::Sort,
+            operator: AvailableOperators::Sort,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;

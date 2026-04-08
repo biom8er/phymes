@@ -1,27 +1,20 @@
-use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Context, Poll, ready};
 
 use anyhow::{Result, anyhow};
-use arrow::array::builder::StringViewBuilder;
-use arrow::array::cast::AsArray;
-use arrow::array::{Array, ArrayRef, RecordBatch, RecordBatchOptions};
-use arrow::compute::concat_batches;
-use arrow::datatypes::SchemaRef;
-use futures::stream::{Stream, StreamExt};
+use arrow::array::Array;
+use futures::stream::StreamExt;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilderTrait
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv,
 };
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
-use phymes_stream::{DataConfigTrait, LimitConfig};
+use phymes_streams::CoalesceStream;
 
 use crate::ProcessorTrait;
-
 
 /// Processor that implements the [RecordBatch] coalesce operator to combine smaller [RecordBatch]es into larger [RecordBatch]es of a specified size
 #[derive(Debug)]
@@ -98,17 +91,13 @@ impl ProcessorTrait for CoalesceProcessor {
 }
 #[cfg(test)]
 mod tests {
-    use std::ops::Range;
 
     use super::*;
 
-    use arrow::array::builder::ArrayBuilder;
-    use arrow::array::{StringViewArray, UInt32Array};
-    use arrow::datatypes::{DataType, Field, Schema};
-    use futures::TryStreamExt;
-    use phymes_core::{RecordBatchStreamAdapter, SubjectBuilder, SubjectTrait, test_subject};
+    use phymes_core::{SubjectBuilder, SubjectTrait, test_subject};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
     use phymes_event::Publication;
+    use phymes_streams::LimitConfig;
 
     #[tokio::test]
     async fn test_coalesce_processor() -> Result<()> {

@@ -104,7 +104,7 @@ impl ProcessorTrait for CandleDataProcessor {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DataDistanceOperator, candle_operators::AvailableCandleOperators};
+    use crate::{DataDistanceOperator, candle_operators::AvailableOperators};
     use arrow::array::{Float32Array, StringArray};
     use futures::TryStreamExt;
     use phymes_core::Subject;
@@ -824,7 +824,7 @@ mod tests {
             rhs_fk: Some("rhs_fk".to_string()),
             rhs_values: Some(vec!["embedding".to_string()]),
             dist_operator: Some(DataDistanceOperator::NormalizedDotProduct),
-            operator: AvailableCandleOperators::VectorDistance,
+            operator: AvailableOperators::VectorDistance,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;

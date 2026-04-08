@@ -3,32 +3,28 @@ use std::{fmt::Display, sync::Arc};
 use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
-use phymes_core::{
-    AvailableSubjects, DataEncoding, DataFormat, DiffType, MappableTrait, ObjectStorageBackend,
-    ProcessorBuilder, ProcessorEcho, ProcessorTrait, Subject, WorkspacePatchSubject,
-    test_processor::{ProcessorError, ProcessorMock},
+use phymes_core::{ObjectStorageBackend, Subject};
+use phymes_schemas::{
+    AvailableSubjects, DataEncoding, DataFormat, WorkspacePatchSubject,
 };
 use phymes_data::{
-    AggregatorProcessor, AvailableOperators, AvailableJinja2Templates, CandleDataProcessor,
-    CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator,
+    AvailableOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator, DataColumnOperator,
     DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait,
-    DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig, LimitProcessor,
-    ObjectStoreConfig, ObjectStoreOptsType, ObjectStoreProcessor, ToolTrait,
+    DataDistanceOperator, DataJoinOperator, DataStreamManager, ToolTrait,
 };
+use phymes_streams::{LimitConfig, ObjectStoreConfig, ObjectStoreOptsType, ToolCallConfig};
 #[cfg(feature = "api")]
-use phymes_data::{
-    CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxProcessor,
-    CommandSandboxRunners, DataIOMethod, HTTPClientConfig, HTTPClientRequestProcessor,
-    HTTPClientRequestSchemas, HTTPClientRequestType,
+use phymes_stream::{
+    CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod, HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType,
 };
-use phymes_ml::{
-    AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, CandleEmbedConfig,
-    CandleEmbedProcessor, MessageParserProcessor, ToolCallConfig, ToolCallProcessor,
-};
+use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 #[cfg(feature = "api")]
-use phymes_ml::{AvailableOpenAIAssets, OpenAIChatProcessor, OpenAIEmbedProcessor};
+use phymes_ml::AvailableOpenAIAssets;
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+
+use crate::{CandleChatProcessor, CandleEmbedConfig, CandleEmbedProcessor, MessageParserProcessor, ToolCallProcessor};
+#[cfg(feature = "api")]
+use crate::{OpenAIChatProcessor, OpenAIEmbedProcessor, CommandSandboxProcessor, HTTPClientRequestProcessor};
 
 /// The available [ProcessorTrait]s
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]

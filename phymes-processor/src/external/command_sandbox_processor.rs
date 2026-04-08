@@ -1,35 +1,19 @@
-use std::{
-    fs::{self, File},
-    io::Write,
-    path::Path,
-    pin::Pin,
-    process::Output,
-    sync::Arc,
-    task::{Context, Poll, ready},
-};
+use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use arrow::{array::RecordBatch, datatypes::SchemaRef};
-use futures::{FutureExt, Stream, StreamExt};
+use arrow::{array::RecordBatch};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait,
-    SubjectTrait,
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv,
 };
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap,
 };
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
-use phymes_schemas::{
-    AvailableSchemaTrait, AvailableSubjects, create_bytes_fields, create_chat_record_batch, create_values_fields,
-};
-use serde_json::Value;
-use tempfile::NamedTempFile;
-use tokio::process::Command;
+use phymes_streams::CommandSandboxStream;
 
 use crate::ProcessorTrait;
 
@@ -118,10 +102,10 @@ mod tests {
     use phymes_core::SubjectBuilder;
     use phymes_event::Publication;
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
+    use phymes_schemas::create_chat_record_batch;
+    use phymes_streams::{CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod};
     use std::{fs::File, io::Write};
-    use tempfile::TempDir;
-
-    use crate::external_operators::command_sandbox_config::DataIOMethod;
+    use tempfile::{NamedTempFile, TempDir};
 
     use super::*;
 
@@ -312,7 +296,7 @@ mod tests {
         let project_name = "phymes-wasm-workspace";
         let tmp_dir = TempDir::new()?;
         let project_dir = tmp_dir.path().join(project_name);
-        let _ = fs::create_dir(&project_dir);
+        let _ = std::fs::create_dir(&project_dir);
 
         // --- From config with wasm module env ---
 
@@ -632,7 +616,7 @@ mod tests {
         let project_name = "phymes-bash-project";
         let tmp_dir = TempDir::new()?;
         let project_dir = tmp_dir.path().join(project_name);
-        let _ = fs::create_dir(&project_dir);
+        let _ = std::fs::create_dir(&project_dir);
 
         // State for the command processor config
         let command_config = CommandSandboxConfig {
@@ -726,7 +710,7 @@ mod tests {
         let project_name = "phymes-bash-workspace";
         let tmp_dir = TempDir::new()?;
         let project_dir = tmp_dir.path().join(project_name);
-        let _ = fs::create_dir(&project_dir);
+        let _ = std::fs::create_dir(&project_dir);
 
         // --- From config ---
         // based on docker run --rm alpine echo "Hello from Docker!"
@@ -1151,11 +1135,11 @@ mod tests {
         let project_name = "phymes-py-project";
         let tmp_dir = TempDir::new()?;
         let project_dir = tmp_dir.path().join(project_name);
-        let _ = fs::create_dir(&project_dir);
+        let _ = std::fs::create_dir(&project_dir);
 
         // Create src directory
         let src_path = format!("{}/src", project_dir.as_path().to_str().unwrap());
-        let _ = fs::create_dir(&src_path);
+        let _ = std::fs::create_dir(&src_path);
 
         // Create the requirements.txt
         let requirements_file_path = format!(
@@ -1311,7 +1295,7 @@ if __name__ == '__main__':
         let project_name = "phymes-py-workspace";
         let tmp_dir = TempDir::new()?;
         let project_dir = tmp_dir.path().join(project_name);
-        let _ = fs::create_dir(&project_dir);
+        let _ = std::fs::create_dir(&project_dir);
 
         // Create the workspace
         let workspace_table = CommandSandboxEnvironments::Python.to_default_workspace(None)?;
@@ -1435,11 +1419,11 @@ if __name__ == '__main__':
         let project_name = "phymes-rs-project";
         let tmp_dir = TempDir::new()?;
         let project_dir = tmp_dir.path().join(project_name);
-        let _ = fs::create_dir(&project_dir);
+        let _ = std::fs::create_dir(&project_dir);
 
         // Create src directory
         let src_path = format!("{}/src", project_dir.as_path().to_str().unwrap());
-        let _ = fs::create_dir(&src_path);
+        let _ = std::fs::create_dir(&src_path);
 
         // Create the cargo.toml
         let requirements_file_path =
@@ -2092,7 +2076,7 @@ apt install --assume-yes protobuf-compiler clang"#;
         let project_name = "phymes-rs-workspace";
         let tmp_dir = TempDir::new()?;
         let project_dir = tmp_dir.path().join(project_name);
-        let _ = fs::create_dir(&project_dir);
+        let _ = std::fs::create_dir(&project_dir);
 
         // --- from TempFile, initialization ---
 

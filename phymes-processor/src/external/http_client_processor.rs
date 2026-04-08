@@ -1,33 +1,18 @@
-use std::{
-    collections::VecDeque,
-    fmt::Write,
-    pin::Pin,
-    sync::Arc,
-    task::{Context, Poll, ready},
-    time::Duration,
-};
+use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use arrow::{array::RecordBatch, datatypes::SchemaRef};
-use bytes::Bytes;
-use futures::{FutureExt, Stream, StreamExt};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv,
 };
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
-};
-use phymes_schemas::{
-    AvailableSchemaTrait, AvailableSubjects,
-    create_attachments_batch, create_bytes_fields, create_chat_record_batch, create_values_fields,
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap,
 };
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap,
     remove_message_by_subject,
 };
-use serde_json::{Map, Value};
+use phymes_streams::HTTPClientRequestStream;
 
 use crate::ProcessorTrait;
 
@@ -92,14 +77,15 @@ impl ProcessorTrait for HTTPClientRequestProcessor {
 
 #[cfg(test)]
 mod tests {
-    use crate::{extract_pdf, filter_pdf, load_pdf_document};
-
     use super::*;
     use futures::TryStreamExt;
     use phymes_core::SubjectBuilder;
+    use phymes_data::{extract_pdf, filter_pdf, load_pdf_document};
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
     use phymes_event::Publication;
-    use phymes_schemas::{open_alex, semantic_scholar};
+    use phymes_schemas::{create_chat_record_batch, open_alex, semantic_scholar};
+    use phymes_streams::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
+    use serde_json::{Map, Value};
 
     #[tokio::test]
     async fn test_http_client_processor_open_alex_get_message_from_message() -> Result<()> {
