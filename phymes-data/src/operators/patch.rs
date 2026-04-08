@@ -17,14 +17,17 @@ use tracing::instrument;
 use crate::{
     DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate,
     DataJoinOperator, PatchOperator, ToolTrait, apply_patch_auto,
-    DataConfig, DataOperatorTrait, from_json_object_columns,
-        group_by::{
-            build_aggregator_column_list_nonprimitive, build_aggregator_column_list_primitive,
-        },
-        join::join,
-        select::select,
-        to_json_object_columns,
-    filter,
+    DataConfig, DataOperatorTrait, 
+    operators::{
+        from_json_object_columns,
+            group_by::{
+                build_aggregator_column_list_nonprimitive, build_aggregator_column_list_primitive,
+            },
+            join::join,
+            select::select,
+            to_json_object_columns,
+        filter,
+    },
 };
 
 /// Inject a table into a string template

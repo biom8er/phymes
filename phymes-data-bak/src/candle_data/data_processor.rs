@@ -542,64 +542,6 @@ impl RecordBatchStream for CandleDataStream {
     }
 }
 
-#[allow(dead_code)]
-pub mod test_candle_ops_processor {
-    use std::sync::Arc;
-
-    use anyhow::Result;
-    use arrow::{
-        array::{ArrayData, ArrayRef, FixedSizeListArray, RecordBatch, StringArray, UInt32Array},
-        buffer::Buffer,
-        datatypes::{DataType, Field},
-    };
-
-    pub fn make_embeddings_f32(embeddings: Vec<Vec<f32>>) -> ArrayRef {
-        // Parse the embeddings
-        let dim_1 = embeddings.len();
-        let dim_2 = embeddings.first().unwrap().len();
-        let embeddings_flat = embeddings.into_iter().flatten().collect::<Vec<_>>();
-
-        // Make the embeddings array
-        let value_data = ArrayData::builder(DataType::Float32)
-            .len(dim_1 * dim_2)
-            .add_buffer(Buffer::from_slice_ref(embeddings_flat))
-            .build()
-            .unwrap();
-        let list_data_type = DataType::FixedSizeList(
-            Arc::new(Field::new_list_field(DataType::Float32, false)),
-            dim_2.try_into().unwrap(),
-        );
-        let list_data = ArrayData::builder(list_data_type.clone())
-            .len(dim_1)
-            .add_child_data(value_data.clone())
-            .build()
-            .unwrap();
-        Arc::new(FixedSizeListArray::from(list_data))
-    }
-
-    pub fn make_embeddings_record_batch_str_f32(
-        id_str: &str,
-        ids: Vec<&str>,
-        embeddings: Vec<Vec<f32>>,
-    ) -> Result<RecordBatch> {
-        let embedding: ArrayRef = make_embeddings_f32(embeddings);
-        let ids_ar: ArrayRef = Arc::new(StringArray::from(ids));
-        let batch = RecordBatch::try_from_iter(vec![(id_str, ids_ar), ("embedding", embedding)])?;
-        Ok(batch)
-    }
-
-    pub fn make_embeddings_record_batch_u32_f32(
-        id_str: &str,
-        ids: Vec<u32>,
-        embeddings: Vec<Vec<f32>>,
-    ) -> Result<RecordBatch> {
-        let embedding: ArrayRef = make_embeddings_f32(embeddings);
-        let ids_ar: ArrayRef = Arc::new(UInt32Array::from(ids));
-        let batch = RecordBatch::try_from_iter(vec![(id_str, ids_ar), ("embedding", embedding)])?;
-        Ok(batch)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::{DataDistanceOperator, candle_operators::AvailableOperators};
@@ -620,7 +562,7 @@ mod tests {
             vec![0., 1., 0., 1.],
             vec![0., 0., 0., 1.],
         ];
-        let lhs_batch = test_candle_ops_processor::make_embeddings_record_batch_str_f32(
+        let lhs_batch = test_candle_ops::make_embeddings_record_batch_str_f32(
             "lhs_pk",
             lhs_ids_vec,
             lhs_embeddings_vec,
@@ -636,7 +578,7 @@ mod tests {
             vec![1., 1., 1., 1.],
             vec![1., 1., 1., 1.],
         ];
-        let rhs_batch = test_candle_ops_processor::make_embeddings_record_batch_str_f32(
+        let rhs_batch = test_candle_ops::make_embeddings_record_batch_str_f32(
             "rhs_pk",
             rhs_ids_vec,
             rhs_embeddings_vec,
@@ -817,14 +759,14 @@ mod tests {
         // Case 3: LHS and RHS messages from multiple stream batch (accumulate LHS and RHS)
         let lhs_ids_vec_1 = vec!["1"];
         let lhs_embeddings_vec_1: Vec<Vec<f32>> = vec![vec![1., 1., 1., 1.]];
-        let lhs_batch_1 = test_candle_ops_processor::make_embeddings_record_batch_str_f32(
+        let lhs_batch_1 = test_candle_ops::make_embeddings_record_batch_str_f32(
             "lhs_pk",
             lhs_ids_vec_1,
             lhs_embeddings_vec_1,
         )?;
         let lhs_ids_vec_2 = vec!["2", "3"];
         let lhs_embeddings_vec_2: Vec<Vec<f32>> = vec![vec![0., 1., 0., 1.], vec![0., 0., 0., 1.]];
-        let lhs_batch_2 = test_candle_ops_processor::make_embeddings_record_batch_str_f32(
+        let lhs_batch_2 = test_candle_ops::make_embeddings_record_batch_str_f32(
             "lhs_pk",
             lhs_ids_vec_2,
             lhs_embeddings_vec_2,
@@ -835,14 +777,14 @@ mod tests {
             .build()?;
         let rhs_ids_vec_1 = vec!["1", "2"];
         let rhs_embeddings_vec_1: Vec<Vec<f32>> = vec![vec![1., 1., 1., 1.], vec![1., 1., 1., 1.]];
-        let rhs_batch_1 = test_candle_ops_processor::make_embeddings_record_batch_str_f32(
+        let rhs_batch_1 = test_candle_ops::make_embeddings_record_batch_str_f32(
             "rhs_pk",
             rhs_ids_vec_1,
             rhs_embeddings_vec_1,
         )?;
         let rhs_ids_vec_2 = vec!["3", "4"];
         let rhs_embeddings_vec_2: Vec<Vec<f32>> = vec![vec![1., 1., 1., 1.], vec![1., 1., 1., 1.]];
-        let rhs_batch_2 = test_candle_ops_processor::make_embeddings_record_batch_str_f32(
+        let rhs_batch_2 = test_candle_ops::make_embeddings_record_batch_str_f32(
             "rhs_pk",
             rhs_ids_vec_2,
             rhs_embeddings_vec_2,
@@ -1260,7 +1202,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_candle_ops_processor() -> Result<()> {
+    async fn test_candle_ops() -> Result<()> {
         // LHS and RHS messages
         let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let lhs_ids_vec = vec!["1", "2", "3"];
@@ -1269,7 +1211,7 @@ mod tests {
             vec![0., 1., 0., 1.],
             vec![0., 0., 0., 1.],
         ];
-        let lhs_batch = test_candle_ops_processor::make_embeddings_record_batch_str_f32(
+        let lhs_batch = test_candle_ops::make_embeddings_record_batch_str_f32(
             "lhs_pk",
             lhs_ids_vec,
             lhs_embeddings_vec,
@@ -1293,7 +1235,7 @@ mod tests {
             vec![1., 1., 1., 1.],
             vec![1., 1., 1., 1.],
         ];
-        let rhs_batch = test_candle_ops_processor::make_embeddings_record_batch_str_f32(
+        let rhs_batch = test_candle_ops::make_embeddings_record_batch_str_f32(
             "rhs_pk",
             rhs_ids_vec,
             rhs_embeddings_vec,

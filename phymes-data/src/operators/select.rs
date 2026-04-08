@@ -27,23 +27,19 @@ use arrow::{
 };
 use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast, WrappingShl, WrappingShr};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectScript, SubjectTrait, from_str_to_data_type};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 use phymes_schemas::{
-    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
+    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType, from_str_to_data_type,
 };
 use phymes_diagnostics::HashSet;
 use serde_json::json;
 use tracing::instrument;
 
 use crate::{
-    DataColumnOperator, ToolTrait,
-    tensor::{DataCastOperator, DataConfig},
-    operators::{
-        DataOperatorTrait,
-        group_by::{
-            build_aggregator_column_fixed_size_list, build_aggregator_column_list_nonprimitive,
-            build_aggregator_column_list_primitive,
-        },
+    DataColumnOperator, ToolTrait, SubjectScript, DataCastOperator, DataConfig, DataOperatorTrait,
+    operators::group_by::{
+        build_aggregator_column_fixed_size_list, build_aggregator_column_list_nonprimitive,
+        build_aggregator_column_list_primitive,
     },
 };
 

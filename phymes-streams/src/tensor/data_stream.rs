@@ -471,7 +471,7 @@ impl RecordBatchStream for CandleDataStream {
 }
 
 #[allow(dead_code)]
-pub mod test_candle_ops_processor {
+pub mod test_candle_ops {
     use std::sync::Arc;
 
     use anyhow::Result;
@@ -548,7 +548,7 @@ mod tests {
             vec![0., 1., 0., 1.],
             vec![0., 0., 0., 1.],
         ];
-        let lhs_batch = test_candle_ops_processor::make_embeddings_record_batch_str_f32(
+        let lhs_batch = test_candle_ops::make_embeddings_record_batch_str_f32(
             "lhs_pk",
             lhs_ids_vec,
             lhs_embeddings_vec,
@@ -564,7 +564,7 @@ mod tests {
             vec![1., 1., 1., 1.],
             vec![1., 1., 1., 1.],
         ];
-        let rhs_batch = test_candle_ops_processor::make_embeddings_record_batch_str_f32(
+        let rhs_batch = test_candle_ops::make_embeddings_record_batch_str_f32(
             "rhs_pk",
             rhs_ids_vec,
             rhs_embeddings_vec,
@@ -745,14 +745,14 @@ mod tests {
         // Case 3: LHS and RHS messages from multiple stream batch (accumulate LHS and RHS)
         let lhs_ids_vec_1 = vec!["1"];
         let lhs_embeddings_vec_1: Vec<Vec<f32>> = vec![vec![1., 1., 1., 1.]];
-        let lhs_batch_1 = test_candle_ops_processor::make_embeddings_record_batch_str_f32(
+        let lhs_batch_1 = test_candle_ops::make_embeddings_record_batch_str_f32(
             "lhs_pk",
             lhs_ids_vec_1,
             lhs_embeddings_vec_1,
         )?;
         let lhs_ids_vec_2 = vec!["2", "3"];
         let lhs_embeddings_vec_2: Vec<Vec<f32>> = vec![vec![0., 1., 0., 1.], vec![0., 0., 0., 1.]];
-        let lhs_batch_2 = test_candle_ops_processor::make_embeddings_record_batch_str_f32(
+        let lhs_batch_2 = test_candle_ops::make_embeddings_record_batch_str_f32(
             "lhs_pk",
             lhs_ids_vec_2,
             lhs_embeddings_vec_2,
@@ -763,14 +763,14 @@ mod tests {
             .build()?;
         let rhs_ids_vec_1 = vec!["1", "2"];
         let rhs_embeddings_vec_1: Vec<Vec<f32>> = vec![vec![1., 1., 1., 1.], vec![1., 1., 1., 1.]];
-        let rhs_batch_1 = test_candle_ops_processor::make_embeddings_record_batch_str_f32(
+        let rhs_batch_1 = test_candle_ops::make_embeddings_record_batch_str_f32(
             "rhs_pk",
             rhs_ids_vec_1,
             rhs_embeddings_vec_1,
         )?;
         let rhs_ids_vec_2 = vec!["3", "4"];
         let rhs_embeddings_vec_2: Vec<Vec<f32>> = vec![vec![1., 1., 1., 1.], vec![1., 1., 1., 1.]];
-        let rhs_batch_2 = test_candle_ops_processor::make_embeddings_record_batch_str_f32(
+        let rhs_batch_2 = test_candle_ops::make_embeddings_record_batch_str_f32(
             "rhs_pk",
             rhs_ids_vec_2,
             rhs_embeddings_vec_2,

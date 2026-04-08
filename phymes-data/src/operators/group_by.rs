@@ -25,8 +25,8 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::{
-    ToolTrait, DataAggregatorOperator, DataConfig, DataOperatorTrait
-    dataators::sort::sort,
+    ToolTrait, DataAggregatorOperator, DataConfig, DataOperatorTrait,
+    operators::sort::sort,
 };
 
 /// Group the [RecordBatch] according to the `lhs_values` columns and aggregate using a specified aggregation operator over specified columns

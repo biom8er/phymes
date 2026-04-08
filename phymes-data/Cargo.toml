@@ -57,9 +57,5 @@ minijinja-contrib = { version = "2.16.0", features = ["pycompat"] }
 criterion = { version = "0.8.2", default-features = false, features = ["cargo_bench_support"] }
 
 [[bench]]
-name = "candle_ops"
-harness = false
-
-[[bench]]
 name = "apply_diff"
 harness = false

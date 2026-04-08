@@ -14,7 +14,7 @@ pub use data_config::{
     DataStreamManager,
 };
 #[allow(unused_imports)]
-pub(crate) use data_processor::test_candle_ops_processor;
+pub(crate) use data_processor::test_candle_ops;
 pub use data_processor::{CandleDataProcessor, CandleDataStream};
 pub use limit_config::LimitConfig;
 pub use limit_processor::{LimitProcessor, LimitStream};

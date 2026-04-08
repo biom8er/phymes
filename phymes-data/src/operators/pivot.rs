@@ -14,10 +14,8 @@ use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
 use crate::{
-    ToolTrait,
-    tensor::{DataAggregatorOperator, DataConfig},
+    ToolTrait, DataAggregatorOperator, DataConfig, DataOperatorTrait,
     operators::{
-        data_operator::DataOperatorTrait,
         group_by::{create_agg_column_name, group_by},
         sort::take_columns_by_indices,
     },

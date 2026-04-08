@@ -562,7 +562,7 @@ pub fn normalized_dot_product(lhs: &Tensor, rhs: &Tensor) -> Result<Tensor> {
 mod tests {
     use crate::device;
 
-    use crate::candle_data::test_candle_ops_processor::{
+    use crate::candle_data::test_candle_ops::{
         make_embeddings_record_batch_str_f32, make_embeddings_record_batch_u32_f32,
     };
 

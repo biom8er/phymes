@@ -9,7 +9,7 @@ pub use operators::{
     HumanInTheLoop, Join, NormalizeTime, PackTabular, Patch, Pivot, Select, Sort,
     VectorDistance, convert_destinations_to_tools, extract_pdf, extract_xml, filter, filter_pdf,
     group_by, load_pdf_document, make_pdf_document, pack_tabular, sort,
-    table_and_data_format_to_record_batch, test_extract_tabular_data,
+    table_and_data_format_to_record_batch, test_extract_tabular_data, test_candle_ops
 };
 pub use patch::{
     ApplyDiffMode, DiffType, PatchOperation, PatchOperator, apply_patch_auto, apply_v4a_diff,

@@ -389,6 +389,63 @@ pub fn pack_tabular(
     Ok(batch)
 }
 
+pub mod test_candle_ops {
+    use std::sync::Arc;
+
+    use anyhow::Result;
+    use arrow::{
+        array::{ArrayData, ArrayRef, FixedSizeListArray, RecordBatch, StringArray, UInt32Array},
+        buffer::Buffer,
+        datatypes::{DataType, Field},
+    };
+
+    pub fn make_embeddings_f32(embeddings: Vec<Vec<f32>>) -> ArrayRef {
+        // Parse the embeddings
+        let dim_1 = embeddings.len();
+        let dim_2 = embeddings.first().unwrap().len();
+        let embeddings_flat = embeddings.into_iter().flatten().collect::<Vec<_>>();
+
+        // Make the embeddings array
+        let value_data = ArrayData::builder(DataType::Float32)
+            .len(dim_1 * dim_2)
+            .add_buffer(Buffer::from_slice_ref(embeddings_flat))
+            .build()
+            .unwrap();
+        let list_data_type = DataType::FixedSizeList(
+            Arc::new(Field::new_list_field(DataType::Float32, false)),
+            dim_2.try_into().unwrap(),
+        );
+        let list_data = ArrayData::builder(list_data_type.clone())
+            .len(dim_1)
+            .add_child_data(value_data.clone())
+            .build()
+            .unwrap();
+        Arc::new(FixedSizeListArray::from(list_data))
+    }
+
+    pub fn make_embeddings_record_batch_str_f32(
+        id_str: &str,
+        ids: Vec<&str>,
+        embeddings: Vec<Vec<f32>>,
+    ) -> Result<RecordBatch> {
+        let embedding: ArrayRef = make_embeddings_f32(embeddings);
+        let ids_ar: ArrayRef = Arc::new(StringArray::from(ids));
+        let batch = RecordBatch::try_from_iter(vec![(id_str, ids_ar), ("embedding", embedding)])?;
+        Ok(batch)
+    }
+
+    pub fn make_embeddings_record_batch_u32_f32(
+        id_str: &str,
+        ids: Vec<u32>,
+        embeddings: Vec<Vec<f32>>,
+    ) -> Result<RecordBatch> {
+        let embedding: ArrayRef = make_embeddings_f32(embeddings);
+        let ids_ar: ArrayRef = Arc::new(UInt32Array::from(ids));
+        let batch = RecordBatch::try_from_iter(vec![(id_str, ids_ar), ("embedding", embedding)])?;
+        Ok(batch)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -396,14 +453,14 @@ mod tests {
         sync::Arc,
     };
 
-    use crate::tensor::test_candle_ops_processor::make_embeddings_record_batch_str_f32;
+    use test_candle_ops::make_embeddings_record_batch_str_f32;
     use arrow::array::{ArrayRef, StringArray};
     use flate2::read::GzDecoder;
 
     use super::*;
 
-    #[tokio::test]
-    async fn test_pack_tabular_message_format() -> Result<()> {
+    #[test]
+    fn test_pack_tabular_message_format() -> Result<()> {
         // Create the input
         let lhs_ids_vec = vec!["1", "2", "3"];
         let lhs_embeddings_vec: Vec<Vec<f32>> = vec![
@@ -445,8 +502,8 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_pack_tabular_blob_formats_none_encoding() -> Result<()> {
+    #[test]
+    fn test_pack_tabular_blob_formats_none_encoding() -> Result<()> {
         // Create the input
         let lhs_ids_vec = vec!["1", "2", "3"];
         let ids_ar: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec));
@@ -487,8 +544,8 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_pack_tabular_blob_formats_gz_encoding() -> Result<()> {
+    #[test]
+    fn test_pack_tabular_blob_formats_gz_encoding() -> Result<()> {
         // Create the input
         let lhs_ids_vec = vec!["1", "2", "3"];
         let ids_ar: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec));

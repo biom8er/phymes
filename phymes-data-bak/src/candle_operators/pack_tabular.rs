@@ -396,7 +396,7 @@ mod tests {
         sync::Arc,
     };
 
-    use crate::candle_data::test_candle_ops_processor::make_embeddings_record_batch_str_f32;
+    use crate::candle_data::test_candle_ops::make_embeddings_record_batch_str_f32;
     use arrow::array::{ArrayRef, StringArray};
     use flate2::read::GzDecoder;
 
