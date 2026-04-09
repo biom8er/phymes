@@ -9,12 +9,9 @@ use axum::{
 
 // General imports
 use anyhow::Result;
-use phymes_network::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
-use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuilderTrait, CsvFormat, DataFormat,
-    JoinUserInboxSessionContextsMermaidDiagrams, MessageTrait, SubjectBuilder, SubjectBuilderTrait,
-    SubjectTrait,
-};
+use phymes_message::{SessionInterfaceMessage, SessionInterfaceMessageTrait, MessageTrait};
+use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects, CsvFormat, DataFormat, JoinUserInboxSessionContextsMermaidDiagrams};
+use phymes_core::{BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
 
 // Library imports
 use crate::handlers::json_error::{ErrorToResponse, JsonError, serde_json_error_response};

@@ -457,15 +457,16 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription, create_object_store_meta_batch
-    };
+    use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
     use phymes_diagnostics::HashMap;
+    use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, create_object_store_meta_batch};
+    use phymes_event::{Publication, Subscription};
+    use phymes_message::{IPCMessage, MessageBuilderTrait};
+    use phymes_streams::ChatBuilderTraitExt;
+    use phymes_task::SubscriptionTrait;
+    use phymes_network::{SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream};
 
-    use crate::{
-        AvailableInterfaceSubjects, EmbedTextSession, ExtractPDFSession, RetrieveTextSession, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait
-    };
-
+    use crate::{EmbedTextSession, ExtractPDFSession, RetrieveTextSession};
     use super::*;
 
     #[ignore = "In progress... Some issues with embeddings and retrieval."]

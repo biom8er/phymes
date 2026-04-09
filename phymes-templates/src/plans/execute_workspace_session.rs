@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow};
-use phymes_data::CommandSandboxEnvironments;
-
-use crate::{AvailableInterfaceSubjects, plans::tool_call_session::ToolSessionTrait};
+use phymes_streams::CommandSandboxEnvironments;
+use phymes_schemas::AvailableInterfaceSubjects;
+use crate::plans::tool_call_session::ToolSessionTrait;
 
 /// A session for executing code workspaces
 ///
@@ -254,18 +254,13 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{
-        BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, Publication,
-        Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait,
-        SubjectTrait, Subscription,
-    };
-    use phymes_data::test_command_sandbox_processor;
+    use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait};
+    use phymes_event::{Publication, Subscription};
+    use phymes_message::{IPCMessage, MessageBuilderTrait};
+    use phymes_processor::test_command_sandbox_processor;
+    use phymes_task::SubscriptionTrait;
     use phymes_diagnostics::HashMap;
-
-    use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream, SubscriptionTrait,
-    };
+    use phymes_network::{SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream};
 
     use super::*;
 

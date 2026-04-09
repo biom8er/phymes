@@ -1,5 +1,5 @@
 use phymes_core::ObjectStorageBackend;
-use phymes_data::HTTPClientRequestSchemas;
+use phymes_streams::HTTPClientRequestSchemas;
 use serde_json::{Map, Value};
 
 /// A session for downloading PDF documents from a HTTP Request
@@ -218,17 +218,16 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_bytes_record_batch
-    };
-    use phymes_data::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
+    use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+    use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, create_bytes_record_batch};
+    use phymes_event::{Publication, Subscription};
+    use phymes_message::{IPCMessage, MessageBuilderTrait};
+    use phymes_streams::{ChatBuilderTraitExt, HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
+    use phymes_task::SubscriptionTrait;
     use phymes_diagnostics::HashMap;
+    use phymes_network::{SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream};
 
-    use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
-        SubscriptionTrait, ToolCallSession,
-    };
+    use crate::ToolCallSession;
 
     use super::*;
 

@@ -11,13 +11,11 @@ use axum::{
 use bytes::Bytes;
 use clap::ValueEnum;
 use futures::prelude::*;
-use phymes_network::{AvailableInterfaceSubjects, SessionStream, create_message_map};
-use phymes_network::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
-use phymes_core::{
-    AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, IPCMessage,
-    JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait,
-    Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
-};
+use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait, create_message_map};
+use phymes_schemas::{AvailableInterfaceSubjects, AvailableSchemaTrait, DataFormat, JoinUserInboxSessionContextsMermaidDiagrams};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+use phymes_network::SessionStream;
+
 
 // General imports
 use anyhow::Result;

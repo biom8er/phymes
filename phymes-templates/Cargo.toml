@@ -10,10 +10,10 @@ documentation = "https://docs.rs/phymes-templates"
 
 [features]
 default = ["wsl", "candle"]
-hf_hub = ["phymes-processor/hf_hub", "phymes-streams/hf_hub", "phymes-task/hf_hub", "phymes-ml/hf_hub"]
-api = ["phymes-core/api", "phymes-streams/api", "phymes-data/api", "phymes-message/api", "phymes-event/api", "phymes-ml/api", "phymes-task/api", "phymes-processor/api", "phymes-network/api", "dep:urlencoding", "object_store/aws", "object_store/gcp", "object_store/azure", "object_store/http"]
 wasip2 = ["phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-streams/wasip2", "phymes-data/wasip2", "phymes-schemas/wasip2", "phymes-message/wasip2", "phymes-event/wasip2", "phymes-ml/wasip2", "phymes-task/wasip2", "phymes-processor/wasip2", "phymes-network/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "dep:object_store"]
 wsl = ["dep:tempfile", "phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-streams/wsl", "phymes-data/wsl", "phymes-schemas/wsl", "phymes-message/wsl", "phymes-event/wsl", "phymes-ml/wsl", "phymes-task/wsl", "phymes-processor/wsl", "phymes-network/wsl", "tokio/full", "tracing-subscriber/env-filter", "dep:object_store"]
+api = ["phymes-core/api", "phymes-streams/api", "phymes-data/api", "phymes-message/api", "phymes-event/api", "phymes-ml/api", "phymes-task/api", "phymes-processor/api", "phymes-network/api", "dep:urlencoding", "object_store/aws", "object_store/gcp", "object_store/azure", "object_store/http"]
+hf_hub = ["phymes-processor/hf_hub", "phymes-streams/hf_hub", "phymes-task/hf_hub", "phymes-ml/hf_hub"]
 gpu = ["phymes-processor/gpu", "phymes-task/gpu", "phymes-streams/gpu", "phymes-data/gpu", "phymes-ml/gpu", "phymes-network/gpu"]
 candle = ["phymes-streams/candle", "phymes-processor/candle", "phymes-task/candle", "phymes-data/candle", "phymes-ml/candle", "phymes-network/candle"]
 accelerate = ["phymes-streams/accelerate", "phymes-processor/accelerate", "phymes-task/accelerate", "phymes-network/accelerate"]

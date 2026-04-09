@@ -6,7 +6,7 @@ mod token;
 
 pub use external::ObjectStoreProcessor;
 #[cfg(feature = "api")]
-pub use external::{CommandSandboxProcessor, HTTPClientRequestProcessor};
+pub use external::{CommandSandboxProcessor, HTTPClientRequestProcessor, test_command_sandbox_processor};
 pub use other::{AggregatorProcessor, collect_messages_by_schema, CoalesceProcessor, LimitProcessor, ProcessorEcho};
 pub use processor::{
     AvailableProcessors, ProcessorBuilder, ProcessorMap, ProcessorPlan, ProcessorPlanBuilder,
