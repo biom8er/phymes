@@ -1,10 +1,10 @@
 use dioxus::{html::FileData, prelude::*};
-use phymes_network::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait};
-use phymes_core::{
-    create_attachments_batch, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait,
-    Publication, Subject, SubjectBuilderTrait, SubjectTrait,
-};
+
+use phymes_schemas::{DataFormat, create_attachments_batch};
 use phymes_diagnostics::create_timestamp_micros;
+use phymes_message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, MessageBuilderTrait};
+use phymes_event::Publication;
+use phymes_core::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 use phymes_server::create_session_name;
 
 #[cfg(not(feature = "serverless"))]

@@ -1,27 +1,18 @@
 // Dioxus imports
 use dioxus::prelude::*;
 
-// General imports
-use phymes_network::AvailableInterfaceSubjects;
+use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjectsTrait, DataFormat};
 use phymes_diagnostics::{convert_timestamp_micros_to_str, create_timestamp_micros};
-
-#[cfg(not(feature = "serverless"))]
-use reqwest::{self, header::CONTENT_TYPE};
-
-// Phymes imports
-use phymes_network::{
-    SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-};
-use phymes_core::{
-    AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, DataFormat,
-    MappableTrait, MessageBuilderTrait, Publication, SubjectBuilder, SubjectBuilderTrait,
-    SubjectTrait,
-};
+use phymes_message::{SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, MessageBuilderTrait};
+use phymes_event::Publication;
+use phymes_streams::ChatBuilderTraitExt;
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
 use phymes_server::create_session_name;
 
 #[cfg(not(feature = "serverless"))]
+use reqwest::{self, header::CONTENT_TYPE};
+#[cfg(not(feature = "serverless"))]
 use super::backend::ADDR_BACKEND;
-
 #[cfg(not(feature = "serverless"))]
 use futures::StreamExt;
 

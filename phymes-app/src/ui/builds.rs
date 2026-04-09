@@ -1,14 +1,11 @@
 use dioxus::prelude::*;
-use phymes_network::{
-    AvailableSessionPlans, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-    SessionContextBuilderMermaidTrait, SessionInterfaceMessage,
-    SessionInterfaceMessageBuilderTrait,
-};
-use phymes_core::{
-    create_session_mermaid_batch, AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat,
-    MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait,
-};
+
+use phymes_schemas::{AvailableSubjects, DataFormat, create_session_mermaid_batch};
 use phymes_diagnostics::create_timestamp_micros;
+use phymes_message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, MessageBuilderTrait};
+use phymes_event::Publication;
+use phymes_core::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_network::{AvailableSessionPlans, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait};
 use phymes_server::create_session_name;
 
 use crate::state::{

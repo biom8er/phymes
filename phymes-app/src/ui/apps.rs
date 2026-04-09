@@ -1,12 +1,10 @@
 use dioxus::prelude::*;
-use phymes_network::{
-    AvailableSessionPlans, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
-    SessionInterfaceMessageBuilderTrait,
-};
-use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, Publication,
-    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
-};
+
+use phymes_schemas::{AvailableSubjects, DataFormat};
+use phymes_message::{MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait};
+use phymes_event::Publication;
+use phymes_core::{BuildableTrait, BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+use phymes_network::AvailableSessionPlans;
 use phymes_server::create_session_name;
 
 use crate::{
