@@ -319,7 +319,7 @@ mod tests {
     use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
     use phymes_streams::ChatBuilderTraitExt;
 
-    use crate::{NetworkBuilderAgentsTrait, SessionStream};
+    use crate::{NetworkBuilderAgentsTrait, NetworkStream};
 
     use super::*;
 
@@ -363,10 +363,10 @@ mod tests {
             let _ = network_arc
                 .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
                 .await;
-            let session_stream =
-                SessionStream::new(incoming_message_map, Arc::clone(&network_arc));
+            let network_stream =
+                NetworkStream::new(incoming_message_map, Arc::clone(&network_arc));
             let mut response: Vec<HashMap<String, IPCMessage>> =
-                session_stream.try_collect().await?;
+                network_stream.try_collect().await?;
 
             // Update the chat history with the response
             let bytes = response
@@ -425,10 +425,10 @@ mod tests {
                 .make_name()?
                 .build()?;
             let incoming_message_map = create_message_map(vec![message]);
-            let session_stream =
-                SessionStream::new(incoming_message_map, Arc::clone(&network_arc));
+            let network_stream =
+                NetworkStream::new(incoming_message_map, Arc::clone(&network_arc));
             let mut response: Vec<HashMap<String, IPCMessage>> =
-                session_stream.try_collect().await?;
+                network_stream.try_collect().await?;
 
             // Update the chat history with the response
             let bytes = response

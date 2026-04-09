@@ -94,7 +94,7 @@ impl AvailableSessionPlans {
     }
 
     /// Get the session stream state
-    pub fn get_session_stream_state(
+    pub fn get_network_stream_state(
         &self,
         session_name: &str,
         runtime_env: &Arc<RuntimeEnv>,
@@ -117,21 +117,21 @@ impl AvailableSessionPlans {
     }
 
     /// Get the session stream state by name
-    pub fn get_session_stream_state_by_name(
+    pub fn get_network_stream_state_by_name(
         session_plan_name: &str,
         session_name: &str,
         runtime_env: &Arc<RuntimeEnv>,
     ) -> Result<(Arc<Network>, Option<IPCMessageMap>)> {
         if session_plan_name == Self::Chat.to_string() {
-            Ok(Self::Chat.get_session_stream_state(session_name, runtime_env))
+            Ok(Self::Chat.get_network_stream_state(session_name, runtime_env))
         } else if session_plan_name == Self::DocChat.to_string() {
-            Ok(Self::DocChat.get_session_stream_state(session_name, runtime_env))
+            Ok(Self::DocChat.get_network_stream_state(session_name, runtime_env))
         } else if session_plan_name == Self::ToolChat.to_string() {
-            Ok(Self::ToolChat.get_session_stream_state(session_name, runtime_env))
+            Ok(Self::ToolChat.get_network_stream_state(session_name, runtime_env))
         } else if session_plan_name == Self::Builder.to_string() {
-            Ok(Self::Builder.get_session_stream_state(session_name, runtime_env))
+            Ok(Self::Builder.get_network_stream_state(session_name, runtime_env))
         } else if session_plan_name == Self::Users.to_string() {
-            Ok(Self::Users.get_session_stream_state(session_name, runtime_env))
+            Ok(Self::Users.get_network_stream_state(session_name, runtime_env))
         } else {
             Err(anyhow!(
                 "Plan name {session_plan_name} was not found in the available session plans."

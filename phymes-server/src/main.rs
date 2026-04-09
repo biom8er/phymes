@@ -43,7 +43,7 @@ async fn main() -> Result<()> {
         .into_data_stream()
         .try_collect()
         .await?;
-    // DM: blocking on the response results in an empty array for session_stream...
+    // DM: blocking on the response results in an empty array for network_stream...
     // let bytes: Vec<Bytes> = block_on(response.into_body().into_data_stream().try_collect()).unwrap();
 
     println!("{bytes:?}");

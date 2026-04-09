@@ -22,13 +22,13 @@ use tracing::{Level, event};
 
 use crate::{
     Network,
-    plans::{NextSuperstepSession, NextTaskSession},
+    core::{NextSuperstepNetwork, NextTaskNetwork},
 };
 
-/// Traits for running a static or dynamic [SessionStream] step
+/// Traits for running a static or dynamic [NetworkStream] step
 ///
-/// [SessionStream]: crate::session::session_stream::SessionStream
-pub trait SessionStreamStepTrait {
+/// [NetworkStream]: crate::session::network_stream::NetworkStream
+pub trait NetworkStreamStepTrait {
     /// Run a super-step
     ///
     /// Inspired by the Pregel model for large-scale graph processing, introduced
@@ -318,25 +318,25 @@ pub trait SessionStreamStepTrait {
         .boxed()
     }
 
-    /// Get the next superstep using the [NextSuperstepSession] pre-compiled tasks and [Network] helpers
+    /// Get the next superstep using the [NextSuperstepNetwork] pre-compiled tasks and [Network] helpers
     fn next_superstep(
         network: &Arc<Network>,
     ) -> impl std::future::Future<Output = u32> + Send {
         async move {
             // Compute the current superstep
-            let next_superstep_messages = NextSuperstepSession::default()
+            let next_superstep_messages = NextSuperstepNetwork::default()
                 .as_task_messages()
                 .unwrap_or_else(|_err| {
-                    panic!("Missing pre-compiled tasks for `NextSuperstepSession`.")
+                    panic!("Missing pre-compiled tasks for `NextSuperstepNetwork`.")
                 });
             for messages in next_superstep_messages.into_iter() {
-                let _ = SessionStreamStepMinimal::run_superstep(
+                let _ = NetworkStreamStepMinimal::run_superstep(
                     Arc::clone(network),
                     messages,
                 )
                 .await
                 .unwrap_or_else(|err| {
-                    panic!("Error `{err}` running pre-compiled tasks for `NextSuperstepSession`.")
+                    panic!("Error `{err}` running pre-compiled tasks for `NextSuperstepNetwork`.")
                 });
             }
 
@@ -384,7 +384,7 @@ pub trait SessionStreamStepTrait {
         }
     }
 
-    /// Get the next tasks to run using the [NextTaskSession] pre-compiled tasks and [Network] helpers
+    /// Get the next tasks to run using the [NextTaskNetwork] pre-compiled tasks and [Network] helpers
     fn next_tasks(
         network: &Arc<Network>,
     ) -> impl std::future::Future<Output = HashMap<(String, String), ProcessorSubjectsMap>> + Send
@@ -401,17 +401,17 @@ pub trait SessionStreamStepTrait {
                 .try_collect()
                 .await.unwrap();
             if subscriptions.is_empty() {
-                let next_task_messages = NextTaskSession::default()
+                let next_task_messages = NextTaskNetwork::default()
                     .as_task_messages()
                     .unwrap_or_else(|_err| {
-                        panic!("Missing pre-compiled tasks for `NextTaskSession`.")
+                        panic!("Missing pre-compiled tasks for `NextTaskNetwork`.")
                     });
                 for messages in next_task_messages.into_iter() {
                     if messages.is_empty() {
                         if let Err(_err) = network.tasks_subscribe().await {
                             return HashMap::<(String, String), ProcessorSubjectsMap>::new();
                         }
-                    } else if let Err(_err) = SessionStreamStepMinimal::run_superstep(
+                    } else if let Err(_err) = NetworkStreamStepMinimal::run_superstep(
                         Arc::clone(network),
                         messages,
                     )
@@ -560,10 +560,10 @@ pub trait SessionStreamStepTrait {
                                     message.to_map()?
                                 }
                                 Err(err) => {
-                                    create_error_message_map(&err, "SessionStreamStep", true)?
+                                    create_error_message_map(&err, "NetworkStreamStep", true)?
                                 }
                             },
-                            Err(err) => create_error_message_map(&err, "SessionStreamStep", true)?,
+                            Err(err) => create_error_message_map(&err, "NetworkStreamStep", true)?,
                         };
 
                         // Add the message to the joined responses
@@ -573,7 +573,7 @@ pub trait SessionStreamStepTrait {
                         // Intercept the error and forward to the error subject
                         event!(Level::ERROR, "{err}");
                         let message_map =
-                            create_error_message_map(&anyhow!("{err}"), "SessionStreamStep", true)?;
+                            create_error_message_map(&anyhow!("{err}"), "NetworkStreamStep", true)?;
                         response_batches.extend(message_map);
                     }
                 }
@@ -584,12 +584,12 @@ pub trait SessionStreamStepTrait {
     }
 }
 
-/// A single step of a [SessionStream]
+/// A single step of a [NetworkStream]
 ///
-/// [SessionStream]: crate::SessionStream
-pub struct SessionStreamStep {}
+/// [NetworkStream]: crate::NetworkStream
+pub struct NetworkStreamStep {}
 
-impl SessionStreamStepTrait for SessionStreamStep {
+impl NetworkStreamStepTrait for NetworkStreamStep {
     async fn run_superstep(
         network: Arc<Network>,
         messages: IPCMessageMap,
@@ -690,12 +690,12 @@ impl SessionStreamStepTrait for SessionStreamStep {
     }
 }
 
-/// A single step of a minimal [SessionStream] that does not including logging and diagnostics
+/// A single step of a minimal [NetworkStream] that does not including logging and diagnostics
 ///
-/// [SessionStream]: crate::SessionStream
-pub struct SessionStreamStepMinimal {}
+/// [NetworkStream]: crate::NetworkStream
+pub struct NetworkStreamStepMinimal {}
 
-impl SessionStreamStepTrait for SessionStreamStepMinimal {
+impl NetworkStreamStepTrait for NetworkStreamStepMinimal {
     /// Minimal implementation of `join_message_streams` without intercepting Errors
     async fn join_message_streams(
         messages: SendableRecordBatchStreamMessageMap,
@@ -834,7 +834,7 @@ mod tests {
             true,
         )?;
         let response =
-            SessionStreamStep::run_superstep(Arc::clone(&network_arc), messages).await?;
+            NetworkStreamStep::run_superstep(Arc::clone(&network_arc), messages).await?;
         assert!(response.is_none());
 
         // check the session and network
@@ -956,7 +956,7 @@ mod tests {
             },
             true,
         )?;
-        let response = SessionStreamStep::run_superstep(Arc::clone(&network_arc), messages)
+        let response = NetworkStreamStep::run_superstep(Arc::clone(&network_arc), messages)
             .await?
             .unwrap();
         assert!(response.is_empty());
@@ -1080,7 +1080,7 @@ mod tests {
             },
             true,
         )?;
-        let response = SessionStreamStep::run_superstep(Arc::clone(&network_arc), messages)
+        let response = NetworkStreamStep::run_superstep(Arc::clone(&network_arc), messages)
             .await?
             .unwrap();
         assert!(response.is_empty());
@@ -1226,7 +1226,7 @@ mod tests {
             },
             true,
         )?);
-        let mut response = SessionStreamStep::run_superstep(Arc::clone(&network_arc), messages)
+        let mut response = NetworkStreamStep::run_superstep(Arc::clone(&network_arc), messages)
             .await?
             .unwrap();
         assert_eq!(response.len(), 3);
@@ -1447,7 +1447,7 @@ mod tests {
         assert_eq!(subscriptions.len(), 2);
 
         // Superstep 2
-        let response = SessionStreamStep::run_superstep(
+        let response = NetworkStreamStep::run_superstep(
             Arc::clone(&network_arc),
             HashMap::<String, IPCMessage>::new(),
         )
@@ -1485,7 +1485,7 @@ mod tests {
             },
             true,
         )?;
-        let mut response = SessionStreamStep::run_superstep(Arc::clone(&network_arc), messages)
+        let mut response = NetworkStreamStep::run_superstep(Arc::clone(&network_arc), messages)
             .await?
             .unwrap();
 
@@ -1608,7 +1608,7 @@ mod tests {
         assert_eq!(subscriptions.len(), 2);
 
         // Supersteps 2
-        let response = SessionStreamStep::run_superstep(
+        let response = NetworkStreamStep::run_superstep(
             Arc::clone(&network_arc),
             HashMap::<String, IPCMessage>::new(),
         )
@@ -1645,7 +1645,7 @@ mod tests {
             false,
         )?;
         let response =
-            SessionStreamStep::run_superstep(Arc::clone(&network_arc), messages).await?;
+            NetworkStreamStep::run_superstep(Arc::clone(&network_arc), messages).await?;
         assert!(response.is_none());
 
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
@@ -1754,7 +1754,7 @@ mod tests {
             },
             true,
         )?;
-        let response = SessionStreamStep::run_superstep(Arc::clone(&network_arc), messages)
+        let response = NetworkStreamStep::run_superstep(Arc::clone(&network_arc), messages)
             .await?
             .unwrap();
 

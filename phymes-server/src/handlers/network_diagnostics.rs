@@ -21,7 +21,7 @@ use phymes_message::{
 };
 use phymes_network::{
     CustomAgentsBuilderTrait, DiagnosticSession, NetworkBuilderAgentsTrait,
-    NetworkBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait,
+    NetworkBuilderTrait, NetworkStream, NetworkStreamStep, NetworkStreamStepTrait,
 };
 use phymes_schemas::{
     AvailableInterfaceSubjects, AvailableSubjects, DataFormat, DiagnosticsVisualizations,
@@ -281,20 +281,20 @@ pub async fn session_diagnostics(
                 .build_with_tables()
                 .unwrap();
             let network_arc = Arc::new(network);
-            SessionStreamStep::update_subjects_and_changelog_from_messages(
+            NetworkStreamStep::update_subjects_and_changelog_from_messages(
                 &network_arc,
                 session_messages.unwrap_or_default(),
                 0,
             )
             .await
             .unwrap();
-            let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
+            let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
 
             // Run and update the session and convert the output to the user specified format
             match (&payload.get_format(), payload.get_stream()) {
                 (DataFormat::Bytes, true) => {
                     // Convert the output to bytes
-                    let response = session_stream.into_stream().map_ok(move |f| {
+                    let response = network_stream.into_stream().map_ok(move |f| {
                         f.into_iter()
                             .filter(|(_k, v)| {
                                 v.get_name()
@@ -319,7 +319,7 @@ pub async fn session_diagnostics(
                 (DataFormat::Bytes, false) => {
                     // Convert the output to bytes
                     let response: Vec<HashMap<String, IPCMessage>> =
-                        session_stream.try_collect().await.unwrap();
+                        network_stream.try_collect().await.unwrap();
                     let response = response
                         .into_iter()
                         .flatten()
@@ -345,7 +345,7 @@ pub async fn session_diagnostics(
                 }
                 (DataFormat::Ipc, true) => {
                     // Convert the output to IPC
-                    let response = session_stream.into_stream().map_ok(move |f| {
+                    let response = network_stream.into_stream().map_ok(move |f| {
                         f.into_iter()
                             .filter(|(_k, v)| {
                                 v.get_name()
@@ -363,7 +363,7 @@ pub async fn session_diagnostics(
                     // DM: the bytes cannot be flattened and then read as a single table
                     //  because the reader will break at the end of the first batch encountered!
                     let response: Vec<HashMap<String, IPCMessage>> =
-                        session_stream.try_collect().await.unwrap();
+                        network_stream.try_collect().await.unwrap();
                     let batches = response
                         .into_iter()
                         .flat_map(|map| {

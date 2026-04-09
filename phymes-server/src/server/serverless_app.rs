@@ -203,7 +203,7 @@ mod tests {
             .unwrap();
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
-        // Test session_stream
+        // Test network_stream
         let runtime_env = Arc::new(RuntimeEnv::default());
         let mut serverless = Serverless::new(None, &runtime_env).await.unwrap();
 
@@ -230,7 +230,7 @@ mod tests {
             .unwrap();
         let data = serde_json::to_string(&session_response).unwrap();
 
-        // Make the request for the session_stream
+        // Make the request for the network_stream
         let request: Request<String> = Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:8000/app/v1/chat")
@@ -390,7 +390,7 @@ mod tests {
             .unwrap();
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
-        // Test session_stream using serverless_app
+        // Test network_stream using serverless_app
         let chat = AvailableInterfaceSubjects::UserMessages
             .to_subject_builder(None)
             .append_new_user_query_str("Write a function to count prime numbers up to N.", "user")

@@ -266,7 +266,7 @@ mod tests {
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
         NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, SessionStreamStep, SessionStreamStepTrait,
+        NetworkBuilderTrait, NetworkStreamStep, NetworkStreamStepTrait,
     };
     use phymes_schemas::{
         AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait,
@@ -376,7 +376,7 @@ mod tests {
         )) {
             // Run the first superstep
             let response =
-                SessionStreamStep::run_superstep(Arc::clone(&network_arc), message_map)
+                NetworkStreamStep::run_superstep(Arc::clone(&network_arc), message_map)
                     .await?
                     .unwrap();
 
@@ -406,7 +406,7 @@ mod tests {
             }
 
             // Run the second superstep
-            let response = SessionStreamStep::run_superstep(
+            let response = NetworkStreamStep::run_superstep(
                 Arc::clone(&network_arc),
                 HashMap::<String, IPCMessage>::new(),
             )

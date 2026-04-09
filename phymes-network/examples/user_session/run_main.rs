@@ -16,7 +16,7 @@ use phymes_subject::{
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
 use phymes_network::{
-    CustomAgentsBuilderTrait, NetworkBuilderAgentsTrait, SessionStream, UserSession,
+    CustomAgentsBuilderTrait, NetworkBuilderAgentsTrait, NetworkStream, UserSession,
 };
 use phymes_schemas::{
     AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjectsTrait,
@@ -61,8 +61,8 @@ pub async fn run_main() -> Result<()> {
         .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
         .await;
 
-    let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
-    let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+    let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+    let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
     let attachment_data = response
         .into_iter()

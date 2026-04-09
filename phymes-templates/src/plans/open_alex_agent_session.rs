@@ -469,7 +469,7 @@ mod tests {
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{
         NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, SessionStream,
+        NetworkBuilderTrait, NetworkStream,
     };
     use phymes_schemas::{
         AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait,
@@ -486,7 +486,7 @@ mod tests {
     async fn test_open_alex_agent_session() -> Result<()> {
         // Extract PDF session
         let extract_pdf_session = ExtractPDFSession::default();
-        let extract_pdf_session_builder = NetworkBuilder::from_mermaid_flowchart(
+        let extract_pdf_network_builder = NetworkBuilder::from_mermaid_flowchart(
             extract_pdf_session.as_mermaid_flowchart(),
             false,
         )?
@@ -499,7 +499,7 @@ mod tests {
 
         // Embed text session
         let embed_text_session = EmbedTextSession::default();
-        let embed_text_session_builder = NetworkBuilder::from_mermaid_flowchart(
+        let embed_text_network_builder = NetworkBuilder::from_mermaid_flowchart(
             &embed_text_session.as_mermaid_flowchart(),
             false,
         )?
@@ -535,8 +535,8 @@ mod tests {
             true,
         )?
         .with_name(open_alex_agent_session.network_name)
-        .extend(extract_pdf_session_builder)?
-        .extend(embed_text_session_builder)?
+        .extend(extract_pdf_network_builder)?
+        .extend(embed_text_network_builder)?
         .extend(retrieve_text_builder)?
         .with_diagnostics(true)
         .add_processor_subjects()?
@@ -623,8 +623,8 @@ mod tests {
             .await;
 
         // 1. Run the session
-        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionErrors.to_string(),
@@ -888,8 +888,8 @@ mod tests {
         );
 
         // 2. Run the session
-        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionErrors.to_string(),

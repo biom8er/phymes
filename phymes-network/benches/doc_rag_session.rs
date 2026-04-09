@@ -10,7 +10,7 @@ use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
 use phymes_network::{
-    CustomAgentsBuilderTrait, DocumentRAGSession, NetworkBuilderAgentsTrait, SessionStream,
+    CustomAgentsBuilderTrait, DocumentRAGSession, NetworkBuilderAgentsTrait, NetworkStream,
 };
 use phymes_schemas::{
     AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjects,
@@ -176,9 +176,9 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     let _ = network_arc
                         .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
                         .await;
-                    let session_stream =
-                        SessionStream::new(message_map, Arc::clone(&network_arc));
-                    session_stream
+                    let network_stream =
+                        NetworkStream::new(message_map, Arc::clone(&network_arc));
+                    network_stream
                         .try_collect::<Vec<HashMap<String, IPCMessage>>>()
                         .await
                 });
@@ -197,9 +197,9 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                         .make_name()?
                         .build()?;
                     let message_map = create_message_map(vec![chat_message]);
-                    let session_stream =
-                        SessionStream::new(message_map, Arc::clone(&network_arc));
-                    session_stream
+                    let network_stream =
+                        NetworkStream::new(message_map, Arc::clone(&network_arc));
+                    network_stream
                         .try_collect::<Vec<HashMap<String, IPCMessage>>>()
                         .await
                 });

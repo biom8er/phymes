@@ -28,7 +28,7 @@ use phymes_task::{TaskMap, TaskPlan};
 use crate::{
     Network, NetworkBuilder, NetworkBuilderMermaidTrait,
     NetworkBuilderTabularTrait, NetworkBuilderTrait,
-    plans::{CountSubjectRowsSession, NextSuperstepSession, NextTaskSession},
+    core::{CountSubjectRowsNetwork, NextSuperstepNetwork, NextTaskNetwork},
 };
 
 type NetworkInput = (
@@ -96,7 +96,7 @@ pub trait NetworkBuilderAgentsTrait {
     /// Add tasks that automatically update the number of subject rows
     ///
     /// # Notes
-    /// * See [CountSubjectRowsSession] for stand alone session and testing
+    /// * See [CountSubjectRowsNetwork] for stand alone session and testing
     fn add_subjects_num_rows(self) -> Result<Self>
     where
         Self: Sized;
@@ -104,7 +104,7 @@ pub trait NetworkBuilderAgentsTrait {
     /// Add tasks that dynamically compute the next set of tasks that are ready to subscribe to their subjects
     ///
     /// # Notes
-    /// * See [NextTaskSession] for stand alone session and testing
+    /// * See [NextTaskNetwork] for stand alone session and testing
     fn add_next_tasks(self) -> Result<Self>
     where
         Self: Sized;
@@ -112,7 +112,7 @@ pub trait NetworkBuilderAgentsTrait {
     /// Add tasks that dynamically compute the next superstep
     ///
     /// # Notes
-    /// * See [NextSuperstepSession] for stand alone session and testing
+    /// * See [NextSuperstepNetwork] for stand alone session and testing
     fn add_next_supersteps(self) -> Result<Self>
     where
         Self: Sized;
@@ -1144,7 +1144,7 @@ impl NetworkBuilderAgentsTrait for NetworkBuilder {
         Self: Sized,
     {
         // Initialize the subjects num rows session
-        let subjects_session = CountSubjectRowsSession::default();
+        let subjects_session = CountSubjectRowsNetwork::default();
         let other_builder = NetworkBuilder::from_mermaid_flowchart(
             subjects_session.as_mermaid_flowchart(),
             false,
@@ -1162,17 +1162,17 @@ impl NetworkBuilderAgentsTrait for NetworkBuilder {
         Self: Sized,
     {
         // Initialize the task subscribe and publish session
-        let next_task_session = NextTaskSession::default();
+        let next_task_network = NextTaskNetwork::default();
         let other_builder = NetworkBuilder::from_mermaid_flowchart(
-            next_task_session.as_mermaid_flowchart(),
+            next_task_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            next_task_session.as_mermaid_erdiagram(),
+            next_task_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(next_task_session.network_name)
+        .with_name(next_task_network.network_name)
         .add_processor_subjects()?;
 
         // Extend the current session context builder
@@ -1184,17 +1184,17 @@ impl NetworkBuilderAgentsTrait for NetworkBuilder {
         Self: Sized,
     {
         // Initialize the task subscribe and publish session
-        let next_superstep_session = NextSuperstepSession::default();
+        let next_superstep_network = NextSuperstepNetwork::default();
         let other_builder = NetworkBuilder::from_mermaid_flowchart(
-            next_superstep_session.as_mermaid_flowchart(),
+            next_superstep_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            next_superstep_session.as_mermaid_erdiagram(),
+            next_superstep_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(next_superstep_session.network_name)
+        .with_name(next_superstep_network.network_name)
         .add_processor_subjects()?;
 
         // Extend the current session context builder
@@ -1340,7 +1340,7 @@ pub mod test_network_builder_agents {
     }
 
     #[allow(dead_code)]
-    pub fn make_test_session_builder_agents(name: &str) -> Result<NetworkBuilder> {
+    pub fn make_test_network_builder_agents(name: &str) -> Result<NetworkBuilder> {
         let processor_plans = make_test_processors_agents()?;
         let mut subjects = make_test_state_agents()?;
 
@@ -1393,7 +1393,7 @@ mod tests {
     #[test]
     fn test_network_builder_agents_build_with_tables_success() -> Result<()> {
         let (session, messages) =
-            test_network_builder_agents::make_test_session_builder_agents("session_1")?
+            test_network_builder_agents::make_test_network_builder_agents("session_1")?
                 .build_with_tables()?;
         assert_eq!(session.subjects().len(), 19);
         assert_eq!(session.tasks().len(), 3);
@@ -1432,7 +1432,7 @@ mod tests {
     #[test]
     fn test_network_builder_agents_build_with_tables_add_session_interface() -> Result<()> {
         let (session, messages) =
-            test_network_builder_agents::make_test_session_builder_agents("session_1")?
+            test_network_builder_agents::make_test_network_builder_agents("session_1")?
                 .add_session_interface(Some(&["state_1"]))?
                 .build_with_tables()?;
         assert_eq!(session.subjects().len(), 19);

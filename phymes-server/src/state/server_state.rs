@@ -12,7 +12,7 @@ use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, create_message_map};
 use phymes_network::{
     AvailableSessionPlans, Network, NetworkBuilder, NetworkBuilderAgentsTrait,
-    NetworkBuilderMermaidTrait, NetworkBuilderTrait, SessionStream,
+    NetworkBuilderMermaidTrait, NetworkBuilderTrait, NetworkStream,
 };
 use phymes_schemas::{
     AvailableSubjects, JoinUserInboxNetworksMermaidDiagrams, UserSubject,
@@ -45,7 +45,7 @@ impl UserState {
     ) -> Result<Self> {
         let session_name = user_network_name.unwrap_or("Users");
         let (network_arc, session_messages) =
-            AvailableSessionPlans::get_session_stream_state_by_name(
+            AvailableSessionPlans::get_network_stream_state_by_name(
                 "Users",
                 session_name,
                 runtime_env,
@@ -86,8 +86,8 @@ impl UserState {
         let message_map = create_message_map(vec![message]);
 
         // Run the tasks for the user session
-        let session_stream = SessionStream::new(message_map, self.users.clone());
-        let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let network_stream = NetworkStream::new(message_map, self.users.clone());
+        let _response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         // Parse out the results
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::User.to_string() }
@@ -290,7 +290,7 @@ impl ServerState {
                 {
                     // Prioritize the available session plans with initialized configs and other state
                     let (network_arc, session_messages) =
-                        AvailableSessionPlans::get_session_stream_state_by_name(
+                        AvailableSessionPlans::get_network_stream_state_by_name(
                             &user_network.network_name,
                             &session_name,
                             runtime_env,

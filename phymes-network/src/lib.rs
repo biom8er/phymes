@@ -1,8 +1,9 @@
-mod plans;
+mod app;
+mod core;
 mod network;
 mod stream;
 
-pub use plans::{
+pub use app::{
     AvailableSessionPlans, BuilderSession, ChatAgentSession, DiagnosticSession, DocumentRAGSession,
     ToolAgentSession, UserSession, make_example_mermaid_table,
 };
@@ -13,5 +14,5 @@ pub use network::{
     NetworkBuilderTrait, test_network_builder, test_network_builder_agents,
 };
 pub use stream::{
-    SessionStream, SessionStreamStep, SessionStreamStepMinimal, SessionStreamStepTrait,
+    NetworkStream, NetworkStreamStep, NetworkStreamStepMinimal, NetworkStreamStepTrait,
 };

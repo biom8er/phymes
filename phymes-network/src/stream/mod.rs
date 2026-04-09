@@ -1,7 +1,7 @@
-mod session_stream;
-mod session_stream_step;
+mod network_stream;
+mod network_stream_step;
 
-pub use session_stream::SessionStream;
-pub use session_stream_step::{
-    SessionStreamStep, SessionStreamStepMinimal, SessionStreamStepTrait,
+pub use network_stream::NetworkStream;
+pub use network_stream_step::{
+    NetworkStreamStep, NetworkStreamStepMinimal, NetworkStreamStepTrait,
 };

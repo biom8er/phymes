@@ -22,7 +22,7 @@ use phymes_message::{
     IPCMessageBuilder, MessageBuilderTrait, MessageTrait, SessionInterfaceMessage,
     SessionInterfaceMessageTrait, create_message_map,
 };
-use phymes_network::{SessionStreamStep, SessionStreamStepTrait};
+use phymes_network::{NetworkStreamStep, NetworkStreamStepTrait};
 use phymes_schemas::{CsvFormat, DataFormat, JoinUserInboxNetworksMermaidDiagrams};
 use phymes_task::SubscriptionTrait;
 
@@ -32,7 +32,7 @@ use crate::state::{ServerState, UserState};
 
 /// Put state input
 #[axum::debug_handler]
-pub async fn session_put_state(
+pub async fn network_put_subjects(
     Extension((current_user, user_networks)): Extension<(
         String,
         Vec<JoinUserInboxNetworksMermaidDiagrams>,
@@ -161,8 +161,8 @@ pub async fn session_put_state(
             let messages = create_message_map(vec![message]);
 
             // Update the session state with the new message
-            let _step = SessionStreamStep::current_superstep(&network_arc).await;
-            if let Err(e) = SessionStreamStep::update_subjects_and_changelog_from_messages(
+            let _step = NetworkStreamStep::current_superstep(&network_arc).await;
+            if let Err(e) = NetworkStreamStep::update_subjects_and_changelog_from_messages(
                 &network_arc,
                 messages,
                 0,
@@ -209,7 +209,7 @@ pub async fn session_put_state(
 
 /// Get state endpoint
 #[axum::debug_handler]
-pub async fn session_get_state(
+pub async fn network_get_subjects(
     Extension((current_user, user_networks)): Extension<(
         String,
         Vec<JoinUserInboxNetworksMermaidDiagrams>,

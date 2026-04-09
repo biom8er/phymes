@@ -846,7 +846,7 @@ mod tests {
     use phymes_schemas::{AttachmentBuilderTraitExt, CsvFormat};
     use phymes_streams::ChatBuilderTraitExt;
 
-    use crate::{NetworkBuilderAgentsTrait, SessionStream};
+    use crate::{NetworkBuilderAgentsTrait, NetworkStream};
 
     use super::*;
 
@@ -905,9 +905,9 @@ mod tests {
             all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
-            let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
+            let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
             let mut response: Vec<HashMap<String, IPCMessage>> =
-                session_stream.try_collect().await?;
+                network_stream.try_collect().await?;
 
             // Update the chat history with the response
             let bytes = response

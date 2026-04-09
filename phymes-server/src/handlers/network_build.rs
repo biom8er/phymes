@@ -22,7 +22,7 @@ use crate::state::{ServerState, UserState};
 
 /// Put state input
 #[axum::debug_handler]
-pub async fn session_build(
+pub async fn network_build(
     Extension((current_user, user_networks)): Extension<(
         String,
         Vec<JoinUserInboxNetworksMermaidDiagrams>,

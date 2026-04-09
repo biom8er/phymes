@@ -1824,7 +1824,7 @@ mod tests {
     use phymes_task::{SubscriptionTrait, test_task};
 
     use crate::{
-        NetworkBuilderAgentsTrait, NetworkBuilderTrait, SessionStream,
+        NetworkBuilderAgentsTrait, NetworkBuilderTrait, NetworkStream,
         test_network_builder,
     };
 
@@ -1859,8 +1859,8 @@ mod tests {
             },
             true,
         )?;
-        let session_stream = SessionStream::new(messages, Arc::clone(&network_arc));
-        let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let network_stream = NetworkStream::new(messages, Arc::clone(&network_arc));
+        let _response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         // Extract the subjects
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
@@ -2030,8 +2030,8 @@ mod tests {
             .await;
 
         // Run
-        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         // Check the response
         let keys = response

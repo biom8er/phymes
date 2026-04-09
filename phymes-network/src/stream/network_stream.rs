@@ -11,9 +11,9 @@ use phymes_diagnostics::HashMap;
 use phymes_message::{IPCMessage, IPCMessageMap};
 use tracing::{Level, event};
 
-use crate::{Network, SessionStreamStep, SessionStreamStepTrait};
+use crate::{Network, NetworkStreamStep, NetworkStreamStepTrait};
 
-pub struct SessionStream {
+pub struct NetworkStream {
     /// The session context
     network: Arc<Network>,
     /// The next superstep
@@ -25,15 +25,15 @@ pub struct SessionStream {
     step: usize,
 }
 
-impl SessionStream {
-    /// New [SessionStream]
+impl NetworkStream {
+    /// New [NetworkStream]
     pub fn new(messages: IPCMessageMap, network: Arc<Network>) -> Self {
         let max_steps = network.get_max_steps();
         let step = 0;
         #[allow(clippy::type_complexity)]
         let next_step: Option<
             Pin<Box<dyn Future<Output = Result<Option<IPCMessageMap>>> + Send>>,
-        > = Some(Box::pin(SessionStreamStep::run_superstep(
+        > = Some(Box::pin(NetworkStreamStep::run_superstep(
             Arc::clone(&network),
             messages,
         )));
@@ -47,7 +47,7 @@ impl SessionStream {
     }
 }
 
-impl Stream for SessionStream {
+impl Stream for NetworkStream {
     type Item = Result<IPCMessageMap>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -68,7 +68,7 @@ impl Stream for SessionStream {
             };
 
             // Prepare the next superstep
-            self.next_step = Some(Box::pin(SessionStreamStep::run_superstep(
+            self.next_step = Some(Box::pin(NetworkStreamStep::run_superstep(
                 Arc::clone(&self.network),
                 HashMap::<String, IPCMessage>::new(),
             )));
@@ -112,7 +112,7 @@ mod tests {
     };
 
     #[tokio::test]
-    async fn test_session_stream_replace_state_update_sequential_tasks() -> Result<()> {
+    async fn test_network_stream_replace_state_update_sequential_tasks() -> Result<()> {
         // Build the session
         let (network, session_messages) =
             test_network_builder::make_test_network_builder_sequential(
@@ -138,8 +138,8 @@ mod tests {
             },
             true,
         )?;
-        let session_stream = SessionStream::new(messages, Arc::clone(&network_arc));
-        let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let network_stream = NetworkStream::new(messages, Arc::clone(&network_arc));
+        let mut response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         // Check the response
         assert_eq!(response.len(), 1);

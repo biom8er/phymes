@@ -5,20 +5,20 @@ use phymes_message::{IPCMessage, IPCMessageMap, MessageBuilderTrait, create_mess
 use phymes_schemas::{AvailableSubjects, create_session_tasks_subscribe_publish_batch};
 
 /// A session for determining the next superstep task publications and subscriptions
-pub struct NextSuperstepSession<'a> {
+pub struct NextSuperstepNetwork<'a> {
     /// Session
     pub network_name: &'a str,
 }
 
-impl Default for NextSuperstepSession<'_> {
+impl Default for NextSuperstepNetwork<'_> {
     fn default() -> Self {
-        NextSuperstepSession {
-            network_name: "next_superstep_session",
+        NextSuperstepNetwork {
+            network_name: "next_superstep_network",
         }
     }
 }
 
-impl<'a> NextSuperstepSession<'a> {
+impl<'a> NextSuperstepNetwork<'a> {
     /// Return the pre-compiled task subscriptions and publications as messages
     pub fn as_task_messages(&self) -> Result<Vec<IPCMessageMap>> {
         // 1. Message to trigger the first superstep
@@ -95,7 +95,7 @@ impl<'a> NextSuperstepSession<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
-    NextSuperstepSession_runtime_env-rt@{shape: subproc, label: NextSuperstepSession_runtime_env}
+    NextSuperstepNetwork_runtime_env-rt@{shape: subproc, label: NextSuperstepNetwork_runtime_env}
 
 	subgraph max_superstep_t
 		SessionSupersteps-subject-.->|AllRecordBatches|group_by_session_superstep_p-subscribe
@@ -103,7 +103,7 @@ impl<'a> NextSuperstepSession<'a> {
 		group_by_session_superstep_p-processor-->group_by_session_superstep_p-publish
 		group_by_session_superstep_p-publish-->|Replace|SessionSuperstepMax-subject
 	end
-	NextSuperstepSession_runtime_env-rt-->max_superstep_t
+	NextSuperstepNetwork_runtime_env-rt-->max_superstep_t
 	SessionSupersteps-subject@{shape: doc, label: SessionSupersteps}
 	group_by_session_superstep_p-subscribe@{shape: diamond, label: All}
 	group_by_session_superstep_p-processor@{shape: rect, label: GroupBy}
@@ -149,26 +149,26 @@ mod tests {
 
     use crate::{
         NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, SessionStream, SessionStreamStepMinimal,
-        SessionStreamStepTrait,
+        NetworkBuilderTrait, NetworkStream, NetworkStreamStepMinimal,
+        NetworkStreamStepTrait,
     };
 
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_next_superstep_session() -> Result<()> {
+    async fn test_next_superstep_network() -> Result<()> {
         // Initialize the session
-        let next_superstep_session = NextSuperstepSession::default();
+        let next_superstep_network = NextSuperstepNetwork::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            next_superstep_session.as_mermaid_flowchart(),
+            next_superstep_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            next_superstep_session.as_mermaid_erdiagram(),
+            next_superstep_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(next_superstep_session.network_name)
+        .with_name(next_superstep_network.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
@@ -176,7 +176,7 @@ mod tests {
         let network_arc = Arc::new(network);
 
         // Session Tasks
-        let mut next_superstep_messages = next_superstep_session
+        let mut next_superstep_messages = next_superstep_network
             .as_task_messages()?
             .into_iter()
             .rev()
@@ -186,11 +186,11 @@ mod tests {
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
-        let session_stream = SessionStream::new(
+        let network_stream = NetworkStream::new(
             next_superstep_messages.pop().unwrap(),
             Arc::clone(&network_arc),
         );
-        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
 
@@ -207,7 +207,7 @@ mod tests {
             .with_record_batches(batches)?
             .build()?;
         let column = subject.get_column_as_vec_str("session_name");
-        assert_eq!(column, ["next_superstep_session"]);
+        assert_eq!(column, ["next_superstep_network"]);
         let column = subject.get_column_as_vec_primitive::<u32>("superstep-Max")?;
         assert_eq!(column, [2]); // Should be one without the forced execution of session step session tasks
 
@@ -228,20 +228,20 @@ mod tests {
             .with_update(&Publication::Replace {
                 subject_name: AvailableSubjects::SessionSupersteps.to_string(),
             })
-            .with_publisher(next_superstep_session.network_name)
+            .with_publisher(next_superstep_network.network_name)
             .make_name()?
             .build()?;
         let mut message_map = create_message_map(vec![superstep_message]);
 
         // Session Tasks
-        let mut next_superstep_messages = next_superstep_session
+        let mut next_superstep_messages = next_superstep_network
             .as_task_messages()?
             .into_iter()
             .rev()
             .collect::<Vec<_>>();
         message_map.extend(next_superstep_messages.pop().unwrap());
         let _response =
-            SessionStreamStepMinimal::run_superstep(Arc::clone(&network_arc), message_map)
+            NetworkStreamStepMinimal::run_superstep(Arc::clone(&network_arc), message_map)
                 .await?;
 
         // Test supserstep 1

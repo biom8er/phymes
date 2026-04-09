@@ -1,21 +1,21 @@
 /// Count the number of rows for each subject
-pub struct CountSubjectRowsSession<'a> {
+pub struct CountSubjectRowsNetwork<'a> {
     /// Session
     pub network_name: &'a str,
 }
 
-impl Default for CountSubjectRowsSession<'_> {
+impl Default for CountSubjectRowsNetwork<'_> {
     fn default() -> Self {
-        CountSubjectRowsSession {
-            network_name: "count_subject_rows_session",
+        CountSubjectRowsNetwork {
+            network_name: "count_subject_rows_network",
         }
     }
 }
 
-impl<'a> CountSubjectRowsSession<'a> {
+impl<'a> CountSubjectRowsNetwork<'a> {
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
-    CountSubjectRowsSession_runtime_env-rt@{shape: subproc, label: CountSubjectRowsSession_runtime_env}
+    CountSubjectRowsNetwork_runtime_env-rt@{shape: subproc, label: CountSubjectRowsNetwork_runtime_env}
 
 	subgraph group_by_subject_change_log_delta_t
 		SubjectsChangeLog-subject-.->|AllRecordBatches|group_by_subject_change_log_delta_p-subscribe
@@ -27,7 +27,7 @@ impl<'a> CountSubjectRowsSession<'a> {
 		select_subject_change_log_delta_p-processor-->select_subject_change_log_delta_p-publish
 		select_subject_change_log_delta_p-publish-->|Replace|SubjectsNumRows-subject
 	end
-	CountSubjectRowsSession_runtime_env-rt-->group_by_subject_change_log_delta_t
+	CountSubjectRowsNetwork_runtime_env-rt-->group_by_subject_change_log_delta_t
 	SubjectsChangeLog-subject@{shape: doc, label: SubjectsChangeLog}
 	group_by_subject_change_log_delta_p-subscribe@{shape: diamond, label: All}
 	group_by_subject_change_log_delta_p-processor@{shape: rect, label: GroupBy}
@@ -88,15 +88,15 @@ mod tests {
 
     use crate::{
         NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, SessionStream, test_network_builder,
+        NetworkBuilderTrait, NetworkStream, test_network_builder,
     };
 
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_count_subject_rows_session() -> Result<()> {
+    async fn test_count_subject_rows_network() -> Result<()> {
         // Initialize the session
-        let subjects_session = CountSubjectRowsSession::default();
+        let subjects_session = CountSubjectRowsNetwork::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             subjects_session.as_mermaid_flowchart(),
             false,
@@ -139,8 +139,8 @@ mod tests {
                 },
                 true,
             )?;
-            let session_stream = SessionStream::new(messages, Arc::clone(&network_arc));
-            let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+            let network_stream = NetworkStream::new(messages, Arc::clone(&network_arc));
+            let _response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
             // Extract out the subjects for the test
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
@@ -172,8 +172,8 @@ mod tests {
             .await;
 
         // Run the session
-        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
 

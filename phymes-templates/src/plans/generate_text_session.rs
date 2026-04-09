@@ -341,7 +341,7 @@ mod tests {
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
         NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, SessionStream,
+        NetworkBuilderTrait, NetworkStream,
     };
     use phymes_schemas::{
         AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait,
@@ -399,8 +399,8 @@ mod tests {
             feature = "gpu"
         )) {
             // Run the session
-            let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
-            let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+            let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+            let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
             assert_eq!(response.len(), 0);
 
@@ -625,8 +625,8 @@ mod tests {
             feature = "gpu"
         )) {
             // Run the session
-            let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
-            let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+            let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+            let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
             assert_eq!(response.len(), 1); // Due to session interface
 
@@ -854,8 +854,8 @@ mod tests {
             feature = "gpu"
         )) {
             // Run the session
-            let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
-            let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+            let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+            let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
             assert_eq!(response.len(), 2);
 
@@ -1106,8 +1106,8 @@ mod tests {
             feature = "gpu"
         )) {
             // Run the session
-            let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
-            let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+            let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+            let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
             assert_eq!(response.len(), 1);
 

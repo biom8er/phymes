@@ -29,7 +29,7 @@ use serde_json::{Map, Value};
 use crate::{
     NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
     NetworkBuilderTrait,
-    plans::{CountSubjectRowsSession, NextSuperstepSession, NextTaskSession},
+    core::{CountSubjectRowsNetwork, NextSuperstepNetwork, NextTaskNetwork},
 };
 
 /// Trait extension for [NetworkBuilderTrait] to enable exporting to and importing from tabular format
@@ -1170,20 +1170,20 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
     }
 
     fn subjects_to_exclude(&self) -> Result<HashSet<String>> {
-        // Exclude subjects from `NextTaskSession`
-        let next_task_session = NextTaskSession::default();
+        // Exclude subjects from `NextTaskNetwork`
+        let next_task_network = NextTaskNetwork::default();
         let tables_publish_subscribe = if let Some(session_name) = self.name.as_ref() {
-            if session_name != next_task_session.network_name {
+            if session_name != next_task_network.network_name {
                 NetworkBuilder::from_mermaid_flowchart(
-                    next_task_session.as_mermaid_flowchart(),
+                    next_task_network.as_mermaid_flowchart(),
                     false,
                 )?
                 .with_subjects_from_mermaid_erdiagram(
-                    next_task_session.as_mermaid_erdiagram(),
+                    next_task_network.as_mermaid_erdiagram(),
                     false,
                     false,
                 )?
-                .with_name(next_task_session.network_name)
+                .with_name(next_task_network.network_name)
                 .add_processor_subjects()?
                 .subjects
                 .unwrap()
@@ -1197,8 +1197,8 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
             Vec::new()
         };
 
-        // Exclude subjects from `NextSuperstepSession`
-        let next_superstep = NextSuperstepSession::default();
+        // Exclude subjects from `NextSuperstepNetwork`
+        let next_superstep = NextSuperstepNetwork::default();
         let tables_next_superstep = if let Some(session_name) = self.name.as_ref() {
             if session_name != next_superstep.network_name {
                 NetworkBuilder::from_mermaid_flowchart(
@@ -1220,7 +1220,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         };
 
         // Exclude subjects from `SubjectsNumRowsSession`
-        let subjects_session = CountSubjectRowsSession::default();
+        let subjects_session = CountSubjectRowsNetwork::default();
         let tables_subjects = if let Some(session_name) = self.name.as_ref() {
             if session_name != subjects_session.network_name {
                 NetworkBuilder::from_mermaid_flowchart(
@@ -1256,12 +1256,12 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
     }
 
     fn tasks_to_exclude(&self) -> Result<HashSet<String>> {
-        // Exclude subjects from `NextTaskSession`
-        let next_task_session = NextTaskSession::default();
+        // Exclude subjects from `NextTaskNetwork`
+        let next_task_network = NextTaskNetwork::default();
         let tasks_publish_subscribe = if let Some(session_name) = self.name.as_ref() {
-            if session_name != next_task_session.network_name {
+            if session_name != next_task_network.network_name {
                 NetworkBuilder::from_mermaid_flowchart(
-                    next_task_session.as_mermaid_flowchart(),
+                    next_task_network.as_mermaid_flowchart(),
                     false,
                 )?
                 .tasks
@@ -1276,8 +1276,8 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
             Vec::new()
         };
 
-        // Exclude subjects from `NextSuperstepSession`
-        let next_superstep = NextSuperstepSession::default();
+        // Exclude subjects from `NextSuperstepNetwork`
+        let next_superstep = NextSuperstepNetwork::default();
         let tasks_next_superstep = if let Some(session_name) = self.name.as_ref() {
             if session_name != next_superstep.network_name {
                 NetworkBuilder::from_mermaid_flowchart(
@@ -1297,7 +1297,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         };
 
         // Exclude subjects from `SubjectsNumRowsSession`
-        let subjects_session = CountSubjectRowsSession::default();
+        let subjects_session = CountSubjectRowsNetwork::default();
         let tasks_subjects = if let Some(session_name) = self.name.as_ref() {
             if session_name != subjects_session.network_name {
                 NetworkBuilder::from_mermaid_flowchart(
@@ -1326,12 +1326,12 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
     }
 
     fn processors_to_exclude(&self) -> Result<HashSet<String>> {
-        // Exclude subjects from `NextTaskSession`
-        let next_task_session = NextTaskSession::default();
+        // Exclude subjects from `NextTaskNetwork`
+        let next_task_network = NextTaskNetwork::default();
         let processors_task_session = if let Some(session_name) = self.name.as_ref() {
-            if session_name != next_task_session.network_name {
+            if session_name != next_task_network.network_name {
                 NetworkBuilder::from_mermaid_flowchart(
-                    next_task_session.as_mermaid_flowchart(),
+                    next_task_network.as_mermaid_flowchart(),
                     false,
                 )?
                 .processors
@@ -1346,8 +1346,8 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
             Vec::new()
         };
 
-        // Exclude subjects from `NextSuperstepSession`
-        let next_superstep = NextSuperstepSession::default();
+        // Exclude subjects from `NextSuperstepNetwork`
+        let next_superstep = NextSuperstepNetwork::default();
         let processors_next_superstep = if let Some(session_name) = self.name.as_ref() {
             if session_name != next_superstep.network_name {
                 NetworkBuilder::from_mermaid_flowchart(
@@ -1367,7 +1367,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         };
 
         // Exclude subjects from `SubjectsNumRowsSession`
-        let subjects_session = CountSubjectRowsSession::default();
+        let subjects_session = CountSubjectRowsNetwork::default();
         let processors_subjects = if let Some(session_name) = self.name.as_ref() {
             if session_name != subjects_session.network_name {
                 NetworkBuilder::from_mermaid_flowchart(

@@ -1866,7 +1866,7 @@ mod tests {
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
         NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, SessionStreamStep, SessionStreamStepTrait,
+        NetworkBuilderTrait, NetworkStreamStep, NetworkStreamStepTrait,
     };
     use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, create_attachments_batch};
     use phymes_task::SubscriptionTrait;
@@ -2002,7 +2002,7 @@ mod tests {
             .await;
 
         // Run the first superstep
-        let response = SessionStreamStep::run_superstep(Arc::clone(&network_arc), message_map)
+        let response = NetworkStreamStep::run_superstep(Arc::clone(&network_arc), message_map)
             .await?
             .unwrap();
 
@@ -2067,7 +2067,7 @@ mod tests {
         }
 
         // Run the second superstep
-        let response = SessionStreamStep::run_superstep(
+        let response = NetworkStreamStep::run_superstep(
             Arc::clone(&network_arc),
             HashMap::<String, IPCMessage>::new(),
         )
@@ -2361,7 +2361,7 @@ mod tests {
         }
 
         // Run the third superstep
-        let response = SessionStreamStep::run_superstep(
+        let response = NetworkStreamStep::run_superstep(
             Arc::clone(&network_arc),
             HashMap::<String, IPCMessage>::new(),
         )
@@ -2491,7 +2491,7 @@ mod tests {
         }
 
         // Run the fourth superstep
-        let response = SessionStreamStep::run_superstep(
+        let response = NetworkStreamStep::run_superstep(
             Arc::clone(&network_arc),
             HashMap::<String, IPCMessage>::new(),
         )
@@ -2557,7 +2557,7 @@ mod tests {
         }
 
         // Run the fifth superstep
-        let response = SessionStreamStep::run_superstep(
+        let response = NetworkStreamStep::run_superstep(
             Arc::clone(&network_arc),
             HashMap::<String, IPCMessage>::new(),
         )
@@ -2643,7 +2643,7 @@ mod tests {
         }
 
         // Run the sixth superstep
-        let response = SessionStreamStep::run_superstep(
+        let response = NetworkStreamStep::run_superstep(
             Arc::clone(&network_arc),
             HashMap::<String, IPCMessage>::new(),
         )
@@ -2701,7 +2701,7 @@ mod tests {
         }
 
         // Run the seventh superstep
-        let response = SessionStreamStep::run_superstep(
+        let response = NetworkStreamStep::run_superstep(
             Arc::clone(&network_arc),
             HashMap::<String, IPCMessage>::new(),
         )
@@ -2787,7 +2787,7 @@ mod tests {
         }
 
         // Run the eigth superstep
-        let response = SessionStreamStep::run_superstep(
+        let response = NetworkStreamStep::run_superstep(
             Arc::clone(&network_arc),
             HashMap::<String, IPCMessage>::new(),
         )

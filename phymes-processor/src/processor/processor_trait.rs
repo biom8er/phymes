@@ -63,7 +63,7 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     /// "abort" such tasks, they may continue to consume resources even after
     /// the plan is dropped, generating intermediate results that are never
     /// used.
-    /// See `join_message_streams` in `SessionStreamStep` for a safe usage of [`spawn`]
+    /// See `join_message_streams` in `NetworkStreamStep` for a safe usage of [`spawn`]
     ///
     /// For more details see [`JoinSet`] and [`RecordBatchReceiverStreamBuilder`]
     /// for structures to help ensure all background tasks are cancelled.

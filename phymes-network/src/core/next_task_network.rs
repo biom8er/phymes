@@ -6,20 +6,20 @@ use phymes_message::{IPCMessage, IPCMessageMap, MessageBuilderTrait, create_mess
 use phymes_schemas::{AvailableSubjects, create_session_tasks_subscribe_publish_batch};
 
 /// A session for determining the next superstep task publications and subscriptions
-pub struct NextTaskSession<'a> {
+pub struct NextTaskNetwork<'a> {
     /// Session
     pub network_name: &'a str,
 }
 
-impl Default for NextTaskSession<'_> {
+impl Default for NextTaskNetwork<'_> {
     fn default() -> Self {
-        NextTaskSession {
-            network_name: "next_task_session",
+        NextTaskNetwork {
+            network_name: "next_task_network",
         }
     }
 }
 
-impl<'a> NextTaskSession<'a> {
+impl<'a> NextTaskNetwork<'a> {
     /// Return the pre-compiled task subscriptions and publications as messages
     ///
     /// # Notes
@@ -431,7 +431,7 @@ impl<'a> NextTaskSession<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
-    NextTaskSession_runtime_env-rt@{shape: subproc, label: NextTaskSession_runtime_env}
+    NextTaskNetwork_runtime_env-rt@{shape: subproc, label: NextTaskNetwork_runtime_env}
 
 	subgraph group_by_tasks_run_log_superstep_t
 		SessionTasksRunLog-subject-.->|AllRecordBatches|group_by_tasks_run_log_superstep_p-subscribe
@@ -443,7 +443,7 @@ impl<'a> NextTaskSession<'a> {
 		select_tasks_run_log_superstep_p-processor-->select_tasks_run_log_superstep_p-publish
 		select_tasks_run_log_superstep_p-publish-->|Replace|select_tasks_run_log_superstep_s-subject
 	end
-	NextTaskSession_runtime_env-rt-->group_by_tasks_run_log_superstep_t
+	NextTaskNetwork_runtime_env-rt-->group_by_tasks_run_log_superstep_t
 	SessionTasksRunLog-subject@{shape: doc, label: SessionTasksRunLog}
 	group_by_tasks_run_log_superstep_p-subscribe@{shape: diamond, label: All}
 	group_by_tasks_run_log_superstep_p-processor@{shape: rect, label: GroupBy}
@@ -468,7 +468,7 @@ impl<'a> NextTaskSession<'a> {
 		select_processors_subscriptions_p-processor-->select_processors_subscriptions_p-publish
 		select_processors_subscriptions_p-publish-->|Replace|select_processors_subscriptions_s-subject
 	end
-	NextTaskSession_runtime_env-rt-->filter_processors_subscriptions_t
+	NextTaskNetwork_runtime_env-rt-->filter_processors_subscriptions_t
 	SessionProcessors-subject@{shape: doc, label: SessionProcessors}
 	cmp_processors_subscriptions_p-subscribe@{shape: diamond, label: All}
 	cmp_processors_subscriptions_p-processor@{shape: rect, label: Select}
@@ -512,7 +512,7 @@ impl<'a> NextTaskSession<'a> {
 		group_by_tasks_processors_subscriptions_p-processor-->group_by_tasks_processors_subscriptions_p-publish
 		group_by_tasks_processors_subscriptions_p-publish-->|Replace|SessionTasksSubscribeAggregate-subject
 	end
-	NextTaskSession_runtime_env-rt-->join_tasks_run_log_superstep_t
+	NextTaskNetwork_runtime_env-rt-->join_tasks_run_log_superstep_t
 	SubjectsChangeLog-subject@{shape: doc, label: SubjectsChangeLog}
 	group_by_subject_change_log_superstep_p-subscribe@{shape: diamond, label: All}
 	group_by_subject_change_log_superstep_p-processor@{shape: rect, label: GroupBy}
@@ -554,7 +554,7 @@ impl<'a> NextTaskSession<'a> {
 		select_processors_publications_p-processor-->select_processors_publications_p-publish
 		select_processors_publications_p-publish-->|Replace|select_processors_publications_s-subject
 	end
-	NextTaskSession_runtime_env-rt-->filter_processors_publications_t
+	NextTaskNetwork_runtime_env-rt-->filter_processors_publications_t
 	cmp_processors_publications_p-subscribe@{shape: diamond, label: All}
 	cmp_processors_publications_p-processor@{shape: rect, label: Select}
 	cmp_processors_publications_p-publish@{shape: fork}
@@ -587,7 +587,7 @@ impl<'a> NextTaskSession<'a> {
 		select_tasks_processors_publications_p-processor-->select_tasks_processors_publications_p-publish
 		select_tasks_processors_publications_p-publish-->|Replace|SessionTasksSubscribePublish-subject
 	end
-	NextTaskSession_runtime_env-rt-->select_tasks_processors_publications_t
+	NextTaskNetwork_runtime_env-rt-->select_tasks_processors_publications_t
 	SessionTasksSubscribe-subject@{shape: doc, label: SessionTasksSubscribe}
 	group_by_tasks_processors_subscriptions_subjects_p-subscribe@{shape: diamond, label: All}
 	group_by_tasks_processors_subscriptions_subjects_p-processor@{shape: rect, label: GroupBy}
@@ -901,14 +901,14 @@ mod tests {
 
     use crate::{
         NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait,
+        NetworkBuilderTrait, NetworkStream, NetworkStreamStep, NetworkStreamStepTrait,
         test_network_builder,
     };
 
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_next_task_session() -> Result<()> {
+    async fn test_next_task_network() -> Result<()> {
         // Initialize the testing runtime
         let runtime_env = RuntimeEnv::get_builder()
             .with_name("rt")
@@ -916,17 +916,17 @@ mod tests {
             .build_arc()?;
 
         // Initialize the session
-        let next_task_session = NextTaskSession::default();
+        let next_task_network = NextTaskNetwork::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            next_task_session.as_mermaid_flowchart(),
+            next_task_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            next_task_session.as_mermaid_erdiagram(),
+            next_task_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(next_task_session.network_name)
+        .with_name(next_task_network.network_name)
         .with_diagnostics(true)
         .with_runtime_env(runtime_env)
         .add_processor_subjects()?
@@ -963,8 +963,8 @@ mod tests {
                 },
                 true,
             )?;
-            let step = SessionStreamStep::current_superstep(&network_arc).await;
-            SessionStreamStep::update_subjects_and_changelog_from_messages(
+            let step = NetworkStreamStep::current_superstep(&network_arc).await;
+            NetworkStreamStep::update_subjects_and_changelog_from_messages(
                 &network_arc,
                 messages,
                 step,
@@ -989,7 +989,7 @@ mod tests {
                 .with_update(&Publication::Replace {
                     subject_name: AvailableSubjects::SessionProcessors.to_string(),
                 })
-                .with_publisher(next_task_session.network_name)
+                .with_publisher(next_task_network.network_name)
                 .make_name()?
                 .build()?;
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
@@ -1009,7 +1009,7 @@ mod tests {
                 .with_update(&Publication::Replace {
                     subject_name: AvailableSubjects::SessionTasks.to_string(),
                 })
-                .with_publisher(next_task_session.network_name)
+                .with_publisher(next_task_network.network_name)
                 .make_name()?
                 .build()?;
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
@@ -1029,7 +1029,7 @@ mod tests {
                 .with_update(&Publication::Replace {
                     subject_name: AvailableSubjects::SessionTasksRunLog.to_string(),
                 })
-                .with_publisher(next_task_session.network_name)
+                .with_publisher(next_task_network.network_name)
                 .make_name()?
                 .build()?;
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
@@ -1049,7 +1049,7 @@ mod tests {
                 .with_update(&Publication::Replace {
                     subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
                 })
-                .with_publisher(next_task_session.network_name)
+                .with_publisher(next_task_network.network_name)
                 .make_name()?
                 .build()?;
             create_message_map(vec![
@@ -1060,7 +1060,7 @@ mod tests {
             ])
         };
 
-        let mut tasks_publish_subscribe_messages = next_task_session
+        let mut tasks_publish_subscribe_messages = next_task_network
             .as_task_messages()?
             .into_iter()
             .rev()
@@ -1071,8 +1071,8 @@ mod tests {
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
-        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
 
@@ -1246,11 +1246,11 @@ mod tests {
         }
 
         // Run the session
-        let session_stream = SessionStream::new(
+        let network_stream = NetworkStream::new(
             tasks_publish_subscribe_messages.pop().unwrap(),
             Arc::clone(&network_arc),
         );
-        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
 
@@ -1444,11 +1444,11 @@ mod tests {
         }
 
         // Run the session
-        let session_stream = SessionStream::new(
+        let network_stream = NetworkStream::new(
             tasks_publish_subscribe_messages.pop().unwrap(),
             Arc::clone(&network_arc),
         );
-        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
 

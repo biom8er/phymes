@@ -1036,7 +1036,7 @@ mod tests {
     use phymes_schemas::AttachmentBuilderTraitExt;
     use phymes_streams::ChatBuilderTraitExt;
 
-    use crate::{NetworkBuilderAgentsTrait, SessionStream};
+    use crate::{NetworkBuilderAgentsTrait, NetworkStream};
 
     use super::*;
 
@@ -1109,14 +1109,14 @@ mod tests {
             let _ = network_arc
                 .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
                 .await;
-            let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
-            let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+            let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+            let _response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
             // Embed the query and invoke a response
             let message_map = create_message_map(vec![chat_message]);
-            let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
+            let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
             let mut response: Vec<HashMap<String, IPCMessage>> =
-                session_stream.try_collect().await?;
+                network_stream.try_collect().await?;
 
             // Update the chat history with the response
             let bytes = response

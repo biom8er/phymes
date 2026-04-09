@@ -402,7 +402,7 @@ mod tests {
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{
         NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, SessionStream,
+        NetworkBuilderTrait, NetworkStream,
     };
     use phymes_schemas::{
         AvailableSubjects, create_bytes_record_batch, create_object_store_meta_batch,
@@ -608,8 +608,8 @@ mod tests {
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
-        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionErrors.to_string(),
@@ -886,7 +886,7 @@ mod tests {
         let tool_call_subject = format!("list_{remote_object_store_name}_p");
         let tool_call_subjects = [tool_call_subject.as_str()];
         let tool_call_session = ToolCallSession::new("tool_call_session", &tool_call_subjects);
-        let tool_call_session_builder = NetworkBuilder::from_mermaid_flowchart(
+        let tool_call_network_builder = NetworkBuilder::from_mermaid_flowchart(
             &tool_call_session.as_mermaid_flowchart(),
             false,
         )?
@@ -919,7 +919,7 @@ mod tests {
         )?
         .with_name(sync_content_session.network_name)
         .with_diagnostics(true)
-        .extend(tool_call_session_builder)?
+        .extend(tool_call_network_builder)?
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?
@@ -1044,8 +1044,8 @@ mod tests {
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
-        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {

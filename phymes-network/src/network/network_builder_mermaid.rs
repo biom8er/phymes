@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     Network, NetworkBuilder, NetworkBuilderAgentsTrait,
     NetworkBuilderTrait,
-    plans::{NextSuperstepSession, NextTaskSession},
+    core::{NextSuperstepNetwork, NextTaskNetwork},
 };
 use anyhow::{Result, anyhow};
 use arrow::{
@@ -127,18 +127,18 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
         let mut processors_exclude = HashSet::new();
         let mut subjects_exclude = HashSet::new();
         {
-            // Exclusions from `NextTaskSession`
-            let next_task_session = NextTaskSession::default();
+            // Exclusions from `NextTaskNetwork`
+            let next_task_network = NextTaskNetwork::default();
             let tasks_publish_subscribe = NetworkBuilder::from_mermaid_flowchart(
-                next_task_session.as_mermaid_flowchart(),
+                next_task_network.as_mermaid_flowchart(),
                 false,
             )?
             .with_subjects_from_mermaid_erdiagram(
-                next_task_session.as_mermaid_erdiagram(),
+                next_task_network.as_mermaid_erdiagram(),
                 false,
                 false,
             )?
-            .with_name(next_task_session.network_name)
+            .with_name(next_task_network.network_name)
             .add_processor_subjects()?;
             if let Some(tasks) = tasks_publish_subscribe.tasks {
                 for task in tasks {
@@ -154,18 +154,18 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
             }
         }
         {
-            // Exclusions from `NextSuperstepSession`
-            let next_superstep_session = NextSuperstepSession::default();
+            // Exclusions from `NextSuperstepNetwork`
+            let next_superstep_network = NextSuperstepNetwork::default();
             let tasks_next_superstep = NetworkBuilder::from_mermaid_flowchart(
-                next_superstep_session.as_mermaid_flowchart(),
+                next_superstep_network.as_mermaid_flowchart(),
                 false,
             )?
             .with_subjects_from_mermaid_erdiagram(
-                next_superstep_session.as_mermaid_erdiagram(),
+                next_superstep_network.as_mermaid_erdiagram(),
                 false,
                 false,
             )?
-            .with_name(next_superstep_session.network_name)
+            .with_name(next_superstep_network.network_name)
             .add_processor_subjects()?;
             if let Some(tasks) = tasks_next_superstep.tasks {
                 for task in tasks {
@@ -1459,7 +1459,7 @@ mod tests {
     #[test]
     fn test_to_mermaid_flowchart() -> Result<()> {
         let builder =
-            test_network_builder_agents::make_test_session_builder_agents("session_1")?
+            test_network_builder_agents::make_test_network_builder_agents("session_1")?
                 .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?
                 .add_next_tasks()?;
 
@@ -1481,7 +1481,7 @@ mod tests {
     #[test]
     fn test_to_mermaid_erdiagram() -> Result<()> {
         let builder =
-            test_network_builder_agents::make_test_session_builder_agents("session_1")?;
+            test_network_builder_agents::make_test_network_builder_agents("session_1")?;
 
         // Make the ER Diagram
         let mermaid_js = builder.to_mermaid_erdiagram(false, false)?;
@@ -1506,7 +1506,7 @@ mod tests {
     #[test]
     fn test_from_mermaid_parallel_with_config_and_session_no_data() -> Result<()> {
         let builder =
-            test_network_builder_agents::make_test_session_builder_agents("session_1")?
+            test_network_builder_agents::make_test_network_builder_agents("session_1")?
                 .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
@@ -1578,7 +1578,7 @@ mod tests {
     #[test]
     fn test_from_mermaid_parallel_with_config_and_session_with_data() -> Result<()> {
         let builder =
-            test_network_builder_agents::make_test_session_builder_agents("session_1")?
+            test_network_builder_agents::make_test_network_builder_agents("session_1")?
                 .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
@@ -1655,7 +1655,7 @@ mod tests {
     #[test]
     fn test_from_mermaid_parallel_no_config_with_session_and_data() -> Result<()> {
         let builder =
-            test_network_builder_agents::make_test_session_builder_agents("session_1")?
+            test_network_builder_agents::make_test_network_builder_agents("session_1")?
                 .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram

@@ -609,7 +609,7 @@ impl Network {
         // let mut subject_names = Vec::new();
         // let mut num_rows = Vec::new();
 
-        // // DM: migrate to using `CountSubjectRowsSession`
+        // // DM: migrate to using `CountSubjectRowsNetwork`
         // // // Sort the hashmap
         // // let mut sorted_map = self.subjects.iter().collect::<Vec<_>>();
         // // sorted_map.sort_by(|a, b| a.0.cmp(b.0));

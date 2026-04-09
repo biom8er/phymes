@@ -126,7 +126,7 @@ mod tests {
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{
         NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, SessionStream,
+        NetworkBuilderTrait, NetworkStream,
     };
     use phymes_schemas::{
         AvailableSubjects, AvailableSubjectsTrait, WorkspacePatchSubject,
@@ -288,8 +288,8 @@ pub use todo::Todo"#,
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
-        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
 
@@ -334,7 +334,7 @@ pub use todo::Todo"#,
     async fn test_patch_workspace_session_dynamic_wo_subjects() -> Result<()> {
         // View task session
         let tool_call_session = ToolCallSession::new("tool_call_session", &["apply_patch_p"]);
-        let tool_call_session_builder = NetworkBuilder::from_mermaid_flowchart(
+        let tool_call_network_builder = NetworkBuilder::from_mermaid_flowchart(
             &tool_call_session.as_mermaid_flowchart(),
             false,
         )?
@@ -361,7 +361,7 @@ pub use todo::Todo"#,
         )?
         .with_name(patch_workspace_session.network_name)
         .with_diagnostics(true)
-        .extend(tool_call_session_builder)?
+        .extend(tool_call_network_builder)?
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?
@@ -494,8 +494,8 @@ pub use todo::Todo"#,
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
-        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
 
@@ -649,8 +649,8 @@ pub use todo::Todo"#,
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
-        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
 

@@ -315,12 +315,12 @@ pub(crate) mod user_session_inner {
     use phymes_schemas::create_user_inbox_batch;
 
     use crate::{
-        Network, NetworkBuilderAgentsTrait, NetworkBuilderTrait, SessionStream,
+        Network, NetworkBuilderAgentsTrait, NetworkBuilderTrait, NetworkStream,
     };
 
     use super::*;
 
-    pub async fn user_session() -> Result<(Arc<Network>, SessionStream)> {
+    pub async fn user_session() -> Result<(Arc<Network>, NetworkStream)> {
         // initialize the session
         let user_agent_session = UserSession::default();
         let (network, session_messages) = user_agent_session
@@ -352,9 +352,9 @@ pub(crate) mod user_session_inner {
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
 
-        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
+        let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
 
-        Ok((network_arc, session_stream))
+        Ok((network_arc, network_stream))
     }
 }
 
@@ -371,8 +371,8 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_user_session() -> Result<()> {
-        let (network_arc, session_stream) = user_session_inner::user_session().await?;
-        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let (network_arc, network_stream) = user_session_inner::user_session().await?;
+        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
         assert!(response.is_empty());
 
         // Check the User subject

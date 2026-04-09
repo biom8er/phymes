@@ -14,7 +14,7 @@ use phymes_diagnostics::HashMap;
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
 use phymes_network::{
-    CustomAgentsBuilderTrait, NetworkBuilderAgentsTrait, SessionStream, ToolAgentSession,
+    CustomAgentsBuilderTrait, NetworkBuilderAgentsTrait, NetworkStream, ToolAgentSession,
 };
 use phymes_schemas::{
     AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjectsTrait, CsvFormat,
@@ -69,8 +69,8 @@ pub async fn run_main() -> Result<()> {
     let _ = network_arc
         .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
         .await;
-    let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
-    let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+    let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+    let mut response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
     // Update the chat history with the response
     let bytes = response
