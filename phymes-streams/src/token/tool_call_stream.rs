@@ -5,20 +5,19 @@ use std::{
 };
 
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilderTrait, SubjectTrait,
+    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
+    SendableRecordBatchStream, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, HashSet, MetricBuilderTrait,
 };
 use phymes_message::{
-    MessageTrait,
-    SendableRecordBatchStreamMessageMap, 
-    remove_message_by_subject,
+    MessageTrait, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_schemas::{
-    AvailableSchemaTrait, AvailableSubjects,
-    create_bytes_fields, create_session_tasks_subscribe_publish_batch, create_values_fields,
+    AvailableSchemaTrait, AvailableSubjects, create_bytes_fields,
+    create_session_tasks_subscribe_publish_batch, create_values_fields,
 };
 
 use anyhow::{Result, anyhow};

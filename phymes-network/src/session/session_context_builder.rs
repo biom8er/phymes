@@ -2,12 +2,15 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use arrow::datatypes::SchemaRef;
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectPlan, SubjectPlanTrait, SubjectTrait};
-use phymes_message::{IPCMessage, IPCMessageMap, MessageBuilderTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
+    SubjectPlan, SubjectPlanTrait, SubjectTrait,
+};
+use phymes_diagnostics::{HashMap, HashSet};
 use phymes_event::{Publication, Subscription};
+use phymes_message::{IPCMessage, IPCMessageMap, MessageBuilderTrait};
 use phymes_processor::ProcessorPlan;
 use phymes_task::{Task, TaskBuilderTrait, TaskMap, TaskPlan};
-use phymes_diagnostics::{HashMap, HashSet};
 
 use crate::SessionContext;
 

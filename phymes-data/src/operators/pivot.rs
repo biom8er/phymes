@@ -5,7 +5,9 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+};
 use phymes_schemas::{
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
 };
@@ -14,7 +16,7 @@ use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
 use crate::{
-    ToolTrait, DataAggregatorOperator, DataConfig, DataOperatorTrait,
+    DataAggregatorOperator, DataConfig, DataOperatorTrait, ToolTrait,
     operators::{
         group_by::{create_agg_column_name, group_by},
         sort::take_columns_by_indices,

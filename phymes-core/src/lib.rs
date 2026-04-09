@@ -30,6 +30,6 @@ pub use stream::{
 };
 pub use subject::{
     Subject, SubjectBuilder, SubjectBuilderTrait, SubjectFilePartition, SubjectFolderPartition,
-    SubjectPlan, SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlanTrait,
-    SubjectTrait, test_subject,
+    SubjectPlan, SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait,
+    test_subject,
 };

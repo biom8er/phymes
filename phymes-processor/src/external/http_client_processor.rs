@@ -4,9 +4,9 @@ use anyhow::{Result, anyhow};
 use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
-    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap,
-    remove_message_by_subject,
+    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_streams::HTTPClientRequestStream;
 
@@ -77,7 +77,9 @@ mod tests {
     use futures::TryStreamExt;
     use phymes_core::{SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
     use phymes_data::{extract_pdf, filter_pdf, load_pdf_document};
-    use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder};
+    use phymes_diagnostics::{
+        DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder,
+    };
     use phymes_event::Publication;
     use phymes_schemas::{create_chat_record_batch, open_alex, semantic_scholar};
     use phymes_streams::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
@@ -128,7 +130,11 @@ mod tests {
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_batch = create_chat_record_batch(vec!["user".to_string()], vec![open_alex_request.to_get_query()?], vec![0])?;
+        let message_batch = create_chat_record_batch(
+            vec!["user".to_string()],
+            vec![open_alex_request.to_get_query()?],
+            vec![0],
+        )?;
         let message_builder = SubjectBuilder::new()
             .with_name(messages)
             .with_record_batches(vec![message_batch])?;
@@ -313,7 +319,11 @@ mod tests {
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_batch = create_chat_record_batch(vec!["user".to_string()], vec![open_alex_request.to_get_query()?], vec![0])?;
+        let message_batch = create_chat_record_batch(
+            vec!["user".to_string()],
+            vec![open_alex_request.to_get_query()?],
+            vec![0],
+        )?;
         let message_builder = SubjectBuilder::new()
             .with_name(messages)
             .with_record_batches(vec![message_batch])?;
@@ -365,7 +375,7 @@ mod tests {
         let result = table.get_column_as_vec_str("filename");
         assert_eq!(
             result,
-            ["works?page=1&per-page=1&filter=publication_year:\"2020\""]
+            ["https://api.openalex.org//works?page=1&per-page=1&filter=publication_year:\"2020\""]
         );
         let result = table.get_column_as_vec_str("extension");
         assert_eq!(result, ["application/json"]);
@@ -427,7 +437,8 @@ mod tests {
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_batch = create_chat_record_batch(vec!["user".to_string()], vec![esearch_url], vec![0])?;
+        let message_batch =
+            create_chat_record_batch(vec!["user".to_string()], vec![esearch_url], vec![0])?;
         let message_builder = SubjectBuilder::new()
             .with_name(messages)
             .with_record_batches(vec![message_batch])?;
@@ -516,7 +527,8 @@ mod tests {
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_batch = create_chat_record_batch(vec!["user".to_string()], vec![efetch_url], vec![0])?;
+        let message_batch =
+            create_chat_record_batch(vec!["user".to_string()], vec![efetch_url], vec![0])?;
         let message_builder = SubjectBuilder::new()
             .with_name(messages)
             .with_record_batches(vec![message_batch])?;
@@ -568,7 +580,7 @@ mod tests {
         let result = table.get_column_as_vec_str("filename");
         assert_eq!(
             result,
-            ["efetch.fcgi?db=pubmed&id=37997144,37997132,37997130,37997120,37997092&retmode=xml"]
+            ["https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=37997144,37997132,37997130,37997120,37997092&retmode=xml"]
         );
         let result = table.get_column_as_vec_str("extension");
         assert_eq!(result, ["text/xml; charset=UTF-8"]);
@@ -619,7 +631,8 @@ mod tests {
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_batch = create_chat_record_batch(vec!["user".to_string()], vec![download_url], vec![0])?;
+        let message_batch =
+            create_chat_record_batch(vec!["user".to_string()], vec![download_url], vec![0])?;
         let message_builder = SubjectBuilder::new()
             .with_name(messages)
             .with_record_batches(vec![message_batch])?;
@@ -668,7 +681,7 @@ mod tests {
         let result = table.get_column_as_vec_str("metadata");
         assert_eq!(result, ["tool"]);
         let filenames = table.get_column_as_vec_str("filename");
-        assert_eq!(filenames, ["2508.18700"]);
+        assert_eq!(filenames, ["https://arxiv.org/pdf/2508.18700"]);
         let result = table.get_column_as_vec_str("extension");
         assert_eq!(result, ["application/pdf"]);
 
@@ -686,9 +699,9 @@ mod tests {
             .with_name("")
             .build()?;
         let result = table.get_column_as_vec_str("chunk_id");
-        assert_eq!(result, ["2508.18700_1", "2508.18700_2", "2508.18700_3"]);
+        assert_eq!(result, ["https://arxiv.org/pdf/2508.18700_1", "https://arxiv.org/pdf/2508.18700_2", "https://arxiv.org/pdf/2508.18700_3"]);
         let result = table.get_column_as_vec_str("document_id");
-        assert_eq!(result, ["2508.18700", "2508.18700", "2508.18700"]);
+        assert_eq!(result, ["https://arxiv.org/pdf/2508.18700", "https://arxiv.org/pdf/2508.18700", "https://arxiv.org/pdf/2508.18700"]);
         let result = table.get_column_as_vec_str("text");
         let snippet = result.first().unwrap().to_string();
         assert_eq!(

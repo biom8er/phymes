@@ -1,13 +1,16 @@
 use std::sync::Arc;
 
-use phymes_core::{BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
+    SubjectPlanBuilderTrait,
+};
 use phymes_data::{AvailableOperators, DataConfig};
+use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 #[cfg(all(not(feature = "candle"), feature = "api"))]
 use phymes_ml::AvailableOpenAIAssets;
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
-use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
-use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
+use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
 use phymes_task::TaskPlan;
 
 use crate::CustomAgentsBuilderTrait;

@@ -3,8 +3,8 @@ use std::fmt::Display;
 use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
-use phymes_message::make_random_id;
 use phymes_data::items_to_list;
+use phymes_message::make_random_id;
 use serde::{Deserialize, Serialize};
 
 /// Sample types
@@ -347,13 +347,20 @@ mod tests {
     use anyhow::Result;
     use arrow::array::{ArrayRef, Float64Array, Int64Array, RecordBatch, StringArray};
     use futures::TryStreamExt;
-    use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
-    use phymes_schemas::{AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjectsTrait, CsvFormat};
+    use phymes_core::{
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+    };
+    use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
+    use phymes_network::{
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream,
+    };
+    use phymes_schemas::{
+        AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjectsTrait, CsvFormat,
+    };
     use phymes_task::SubscriptionTrait;
-    use phymes_diagnostics::HashMap;
-    use phymes_network::{SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream};
 
     use super::*;
 

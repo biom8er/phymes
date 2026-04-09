@@ -13,23 +13,27 @@ use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use phymes_core::{
     BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait,
-    SubjectTrait,
+    SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_data::{DataConfigTrait, WorkspaceEditor};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait, create_timestamp_micros,
 };
-use phymes_message::{MessageTrait, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
+use phymes_message::{
+    MessageTrait, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_schemas::{
-    AvailableSchemaTrait, AvailableSubjects, create_bytes_fields, create_chat_record_batch, create_values_fields,
+    AvailableSchemaTrait, AvailableSubjects, create_bytes_fields, create_chat_record_batch,
+    create_values_fields,
 };
 use serde_json::Value;
 use tempfile::NamedTempFile;
 use tokio::process::Command;
 
-use crate::{CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod, external::http_client_processor::error_report};
+use crate::{
+    CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod,
+    external::http_client_processor::error_report,
+};
 
 /// The state of the command stream
 ///

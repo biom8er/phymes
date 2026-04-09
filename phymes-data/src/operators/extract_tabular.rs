@@ -7,14 +7,18 @@ use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use flate2::read::{DeflateDecoder, GzDecoder, ZlibDecoder};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
+    SubjectTrait,
+};
 use phymes_schemas::{
-    AvailableSubjects, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, JsonSchemaTrait, Tool, ToolType, open_alex, CsvFormat, DataEncoding, DataFormat, JsonFormat
+    AvailableSubjects, CsvFormat, DataEncoding, DataFormat, Function, FunctionParameters,
+    JSONSchemaDefine, JSONSchemaType, JsonFormat, JsonSchemaTrait, Tool, ToolType, open_alex,
 };
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::{ToolTrait, DataConfig, DataOperatorTrait};
+use crate::{DataConfig, DataOperatorTrait, ToolTrait};
 
 /// Extract tabular data in either CSV or JSON format from Bytes
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -228,22 +232,20 @@ pub fn extract_tabular(
                             .with_record_batches(vec![batch])?
                             .build()?
                     }
-                    Err(_err) => {
-                        match open_alex::OpenAlexResponseWorks::from_jsonl(&values_vec) {
-                            Ok(open_alex_response) => {
-                                let batch = open_alex_response.to_record_batch("extract_tabular")?;
-                                Subject::get_builder()
-                                    .with_name("OpenAlexResponseWorks")
-                                    .with_record_batches(vec![batch])?
-                                    .build()?
-                            }
-                            Err(err) => {
-                                return Err(anyhow!(
-                                    "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
-                                ));
-                            }
+                    Err(_err) => match open_alex::OpenAlexResponseWorks::from_jsonl(&values_vec) {
+                        Ok(open_alex_response) => {
+                            let batch = open_alex_response.to_record_batch("extract_tabular")?;
+                            Subject::get_builder()
+                                .with_name("OpenAlexResponseWorks")
+                                .with_record_batches(vec![batch])?
+                                .build()?
                         }
-                    }
+                        Err(err) => {
+                            return Err(anyhow!(
+                                "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
+                            ));
+                        }
+                    },
                 }
             }
             AvailableSubjects::OpenAlexResponseAuthors => {
@@ -406,12 +408,9 @@ mod tests {
         Compression,
         write::{DeflateEncoder, GzEncoder, ZlibEncoder},
     };
-    use phymes_core::{
-        BuildableTrait, BuilderTrait, Subject,
-        SubjectBuilderTrait, SubjectTrait,
-    };
-    use phymes_schemas::{create_attachments_batch, CsvFormat, DataFormat, JsonFormat};
+    use phymes_core::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
     use phymes_diagnostics::create_timestamp_micros;
+    use phymes_schemas::{CsvFormat, DataFormat, JsonFormat, create_attachments_batch};
 
     use crate::operators::extract_tabular::test_extract_tabular_data::make_scores_table;
 

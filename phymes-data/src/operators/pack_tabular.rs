@@ -7,17 +7,19 @@ use flate2::{
     Compression,
     write::{DeflateEncoder, GzEncoder, ZlibEncoder},
 };
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
-use phymes_schemas::{
-    AvailableSubjects, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
-    create_attachments_batch,
-    create_chat_record_batch, create_object_store_batch, CsvFormat, DataEncoding, DataFormat, make_extension, make_filename, 
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_diagnostics::create_timestamp_micros;
+use phymes_schemas::{
+    AvailableSubjects, CsvFormat, DataEncoding, DataFormat, Function, FunctionParameters,
+    JSONSchemaDefine, JSONSchemaType, Tool, ToolType, create_attachments_batch,
+    create_chat_record_batch, create_object_store_batch, make_extension, make_filename,
+};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::{ToolTrait, DataConfig, DataOperatorTrait};
+use crate::{DataConfig, DataOperatorTrait, ToolTrait};
 
 /// Extract tabular data in either CSV or JSON format from Bytes
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -453,9 +455,9 @@ mod tests {
         sync::Arc,
     };
 
-    use test_candle_ops::make_embeddings_record_batch_str_f32;
     use arrow::array::{ArrayRef, StringArray};
     use flate2::read::GzDecoder;
+    use test_candle_ops::make_embeddings_record_batch_str_f32;
 
     use super::*;
 

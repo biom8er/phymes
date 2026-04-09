@@ -3,11 +3,11 @@ use std::{env, fmt::Display};
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
-use phymes_schemas::{WorkspaceSubject, create_workspace_batch};
-use phymes_diagnostics::{HashMap, HashSet};
 use phymes_data::DataConfigTrait;
+use phymes_diagnostics::{HashMap, HashSet};
+use phymes_schemas::{WorkspaceSubject, create_workspace_batch};
 use serde::{Deserialize, Serialize};
 
 /// Command runners
@@ -399,7 +399,7 @@ pub enum DataIOMethod {
     /// # Notes
     /// * The schema between input and output data must be the same since JSON is used and we need to know the schema
     ///   to correctly interpret the JSON data types
-    /// 
+    ///
     /// [RecordBatch]: arrow::array::RecordBatch
     #[default]
     #[value(name = "Stdio")]
@@ -408,7 +408,7 @@ pub enum DataIOMethod {
     ///
     /// The [RecordBatch]es will be serialized as IPC and written to a named temporary file called `lhs_args.ipc`
     /// and the output will be deserialized from IPC from the same temporary file
-    /// 
+    ///
     /// [RecordBatch]: arrow::array::RecordBatch
     #[value(name = "TempFile")]
     TempFile,

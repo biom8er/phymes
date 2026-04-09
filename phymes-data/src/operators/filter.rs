@@ -14,7 +14,9 @@ use arrow::{
 };
 use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+};
 use phymes_schemas::{
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
 };
@@ -22,8 +24,7 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::{
-    ToolTrait,
-    DataComparatorOperator, DataComparatorPredicate, DataConfig, DataOperatorTrait,
+    DataComparatorOperator, DataComparatorPredicate, DataConfig, DataOperatorTrait, ToolTrait,
     operators::{
         group_by::{
             build_aggregator_column_list_nonprimitive, build_aggregator_column_list_primitive,
@@ -632,7 +633,7 @@ pub fn filter(
 mod tests {
     use arrow::datatypes::UInt32Type;
 
-    use crate::{operators::group_by::build_aggregator_column_list_primitive, device};
+    use crate::{device, operators::group_by::build_aggregator_column_list_primitive};
 
     use super::*;
 

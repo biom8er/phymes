@@ -5,20 +5,20 @@ use std::{
 };
 
 use phymes_core::{
-    BuildableTrait, BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilderTrait, SubjectTrait,
+    BuildableTrait, BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait, create_timestamp_micros,
 };
-use phymes_message::{MessageTrait,
-    SendableRecordBatchStreamMessageMap, 
-    remove_message_by_subject,
+use phymes_message::{
+    MessageTrait, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_ml::CandleChatConfig;
 use phymes_schemas::{
-    AvailableSchemaTrait, AvailableSubjects, ToolCall, DataFormat,
-    create_bytes_record_batch, create_chat_record_batch, create_route_bytes_record_batch,
+    AvailableSchemaTrait, AvailableSubjects, DataFormat, ToolCall, create_bytes_record_batch,
+    create_chat_record_batch, create_route_bytes_record_batch,
 };
 
 use anyhow::{Result, anyhow};

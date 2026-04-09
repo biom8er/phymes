@@ -3,11 +3,12 @@ use std::sync::Arc;
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectTrait, test_subject::TestSubjectSizes,
+    BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectTrait,
+    test_subject::TestSubjectSizes,
 };
 use phymes_data::{
-    AvailableOperators, DataAggregatorOperator, DataComparatorOperator,
-    DataComparatorPredicate, DataConfig, DataStreamManager,
+    AvailableOperators, DataAggregatorOperator, DataComparatorOperator, DataComparatorPredicate,
+    DataConfig, DataStreamManager,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, MetricBuilderTrait,
@@ -15,7 +16,7 @@ use phymes_diagnostics::{
 };
 use phymes_event::Publication;
 use phymes_message::{MessageBuilderTrait, SendableRecordBatchStreamMessage};
-use phymes_processor::{ProcessorTrait, CandleDataProcessor};
+use phymes_processor::{CandleDataProcessor, ProcessorTrait};
 use phymes_schemas::from_diagnostics_to_tables;
 
 fn benchmark_candle_ops_processor(c: &mut Criterion) {

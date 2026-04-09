@@ -2,16 +2,23 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use clap::ValueEnum;
 use futures::{StreamExt, TryStreamExt};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
-use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait, create_chat_record_batch,
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvTrait, Subject,
+    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+};
+use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
+use phymes_event::{AvailableSubscribeEvents, AvailableUpdateEvents, Publication, Subscription};
+use phymes_message::{
+    IPCMessageBuilder, IPCMessageMap, MessageBuilderTrait, MessageTrait, create_message_map,
+};
+use phymes_processor::{ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap};
+use phymes_schemas::{
+    AvailableSubjects, AvailableSubjectsTrait, create_chat_record_batch,
     create_session_supersteps_batch, create_session_tasks_subscribe_batch,
     create_subjects_change_log_batch, create_subjects_object_store_meta_batch,
-    from_diagnostics_to_tables};
-use phymes_event::{AvailableSubscribeEvents, AvailableUpdateEvents, Publication, Subscription};
-use phymes_message::{IPCMessageBuilder, IPCMessageMap, MessageBuilderTrait, MessageTrait, create_message_map};
-use phymes_processor::{ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap};
+    from_diagnostics_to_tables,
+};
 use phymes_task::{PublicationTrait, SubscriptionTrait, TaskMap, clear_subject};
-use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
 use std::sync::Arc;
 
 use crate::SessionContextBuilder;
@@ -913,8 +920,11 @@ impl BuildableTrait for SessionContext {
 mod tests {
     use arrow::array::Int64Array;
     use phymes_core::test_subject;
-    use phymes_schemas::{AvailableSchemaTrait, create_session_tasks_subscribe_aggregate_batch, create_session_tasks_subscribe_publish_batch};
     use phymes_message::IPCMessage;
+    use phymes_schemas::{
+        AvailableSchemaTrait, create_session_tasks_subscribe_aggregate_batch,
+        create_session_tasks_subscribe_publish_batch,
+    };
     use phymes_task::{Task, test_task};
 
     use super::*;

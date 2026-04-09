@@ -1,14 +1,19 @@
 use std::sync::Arc;
 
 use arrow::datatypes::DataType;
-use phymes_core::{BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
+    SubjectPlanBuilderTrait,
+};
 use phymes_data::{
-    AvailableOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator,
+    AvailableJinja2Templates, AvailableOperators, DataAggregatorOperator, DataCastOperator,
     DataColumnOperator, DataConfig,
 };
-use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat, DiagnosticsVisualizations};
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
+use phymes_schemas::{
+    AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat, DiagnosticsVisualizations,
+};
 use phymes_task::TaskPlan;
 use serde_json::json;
 
@@ -1818,7 +1823,10 @@ mod tests {
     use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
     use phymes_task::{SubscriptionTrait, test_task};
 
-    use crate::{SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream, test_session_context_builder};
+    use crate::{
+        SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream,
+        test_session_context_builder,
+    };
 
     use super::*;
 

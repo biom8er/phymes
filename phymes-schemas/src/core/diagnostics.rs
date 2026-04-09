@@ -9,9 +9,7 @@ use phymes_core::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait};
 use phymes_diagnostics::{Diagnostics, DiagnosticsType, JSONObjectTrait};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    AvailableSchemaTrait, AvailableSubjects, 
-};
+use crate::{AvailableSchemaTrait, AvailableSubjects};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub enum DiagnosticsVisualizations {

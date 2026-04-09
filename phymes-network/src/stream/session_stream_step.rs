@@ -1,23 +1,29 @@
 use anyhow::{Result, anyhow};
 use futures::{FutureExt, TryStreamExt};
 use phymes_core::{BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
-use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait, create_session_tasks_run_log_batch};
-use phymes_event::{Publication, Subscription};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap, Span,
     SpanBuilder, TraceBuilderTrait, TraceRecord, create_timestamp_micros,
 };
+use phymes_event::{Publication, Subscription};
 use phymes_message::{
-    IPCMessage, IPCMessageBuilder, IPCMessageMap, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap,
-    create_error_message_map, create_error_message_map_stream, create_message_map
+    IPCMessage, IPCMessageBuilder, IPCMessageMap, MessageBuilderTrait, MessageTrait,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap,
+    create_error_message_map, create_error_message_map_stream, create_message_map,
 };
 use phymes_processor::ProcessorSubjectsMap;
+use phymes_schemas::{
+    AvailableSubjects, AvailableSubjectsTrait, create_session_tasks_run_log_batch,
+};
 use phymes_task::{SubscriptionTrait, TaskTrait};
 use std::sync::Arc;
 use tokio::task::JoinSet;
 use tracing::{Level, event};
 
-use crate::{SessionContext, plans::{NextSuperstepSession, NextTaskSession}};
+use crate::{
+    SessionContext,
+    plans::{NextSuperstepSession, NextTaskSession},
+};
 
 /// Traits for running a static or dynamic [SessionStream] step
 ///
@@ -787,11 +793,20 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, test_session_context_builder};
-    use phymes_core::{BuildableTrait, ObjectStorageBackend, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectPlan, SubjectPlanBuilderTrait, make_store};
-    use phymes_schemas::AvailableSubjects;
+    use crate::{
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait,
+        test_session_context_builder,
+    };
+    use phymes_core::{
+        BuildableTrait, ObjectStorageBackend, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
+        SubjectPlan, SubjectPlanBuilderTrait, make_store,
+    };
     use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
-    use phymes_processor::{ProcessorBuilder, ProcessorPlanBuilder, test_processor::{ProcessorError, ProcessorMock}};
+    use phymes_processor::{
+        ProcessorBuilder, ProcessorPlanBuilder,
+        test_processor::{ProcessorError, ProcessorMock},
+    };
+    use phymes_schemas::AvailableSubjects;
     use phymes_task::{TaskPlan, test_task};
 
     #[tokio::test]

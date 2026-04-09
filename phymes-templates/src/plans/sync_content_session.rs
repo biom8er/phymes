@@ -217,11 +217,10 @@ impl<'a> SyncContentSession<'a> {
         let remote_object_store_backend = self.remote_object_store_backend.to_string();
         let remote_object_store_bucket = self.remote_object_store_bucket.unwrap_or_default();
         let remote_object_store_config = if let Some(config) = self.remote_object_store_config {
-            serde_json::to_string(config).unwrap().replace('"', "'").replace('"', "'")
+            serde_json::to_string(config).unwrap().replace('"', "'")
         } else {
             "{}".to_string()
         };
-        // Utf8 backend_config "{remote_object_store_config}"
         format!(
             r#"erDiagram
     {remote_object_store_name}_meta_s["{remote_object_store_name}_meta_s"] {{
@@ -394,14 +393,22 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, make_store, test_subject};
-    use phymes_schemas::{AvailableSubjects, create_bytes_record_batch, create_object_store_meta_batch};
+    use phymes_core::{
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
+        SubjectBuilder, SubjectBuilderTrait, SubjectTrait, make_store, test_subject,
+    };
+    use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
+    use phymes_network::{
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream,
+    };
+    use phymes_schemas::{
+        AvailableSubjects, create_bytes_record_batch, create_object_store_meta_batch,
+    };
     use phymes_streams::{ObjectStoreConfig, ObjectStoreOptsType};
     use phymes_task::{PublicationTrait, SubscriptionTrait};
-    use phymes_diagnostics::HashMap;
-    use phymes_network::{SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream};
     #[cfg(not(target_family = "wasm"))]
     use tempfile::TempDir;
 

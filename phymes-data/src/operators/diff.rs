@@ -6,19 +6,19 @@ use arrow::{
     datatypes::{Schema, SchemaRef},
 };
 use candle_core::Device;
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+};
 use phymes_schemas::{
-    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType
+    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tracing::instrument;
 
 use crate::{
-    DataJoinOperator, DiffType, PatchOperator, ToolTrait,
-    compute_diff,
-    DataConfig, DataOperatorTrait,
-    operators::join::join,
+    DataConfig, DataJoinOperator, DataOperatorTrait, DiffType, PatchOperator, ToolTrait,
+    compute_diff, operators::join::join,
 };
 
 /// Inject a table into a string template

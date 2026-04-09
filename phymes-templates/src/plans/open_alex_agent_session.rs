@@ -18,7 +18,8 @@ impl Default for OpenAlexAgentSession<'_> {
 impl<'a> OpenAlexAgentSession<'a> {
     pub fn as_mermaid_flowchart(&self) -> String {
         let session_context_name = self.session_context_name;
-        format!(r#"flowchart TD
+        format!(
+            r#"flowchart TD
     {session_context_name}_r-rt@{{shape: subproc, label: {session_context_name}_r}}
 	%% ------------------------------------------------------------------------------
 	%% OpenAlex download from AWS
@@ -208,7 +209,8 @@ impl<'a> OpenAlexAgentSession<'a> {
     %% 1. ExtractPDFSession
     %% 2. EmbedTextSession (where query = Ontology term)
     %% 3. RetrieveTextSession
-	%% ------------------------------------------------------------------------------"#)
+	%% ------------------------------------------------------------------------------"#
+        )
     }
     pub fn as_mermaid_erdiagram(&self) -> String {
         let bucket = "openalex";
@@ -223,7 +225,8 @@ impl<'a> OpenAlexAgentSession<'a> {
         );
         let backend_config = serde_json::to_string(&config).unwrap().replace('"', "'");
         // List-UInt8 bytes
-        format!(r#"erDiagram
+        format!(
+            r#"erDiagram
     list_open_alex_aws_bucket_s["list_open_alex_aws_bucket_s"] {{
         Utf8 location
         Utf8 bucket
@@ -447,7 +450,8 @@ impl<'a> OpenAlexAgentSession<'a> {
         List-UInt8 bytes
         Utf8 metadata
         Int64 timestamp
-    }}"#)
+    }}"#
+        )
     }
 }
 
@@ -457,22 +461,30 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+    use phymes_core::{
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+    };
     use phymes_diagnostics::HashMap;
-    use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, create_object_store_meta_batch};
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
+    use phymes_network::{
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream,
+    };
+    use phymes_schemas::{
+        AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait,
+        create_object_store_meta_batch,
+    };
     use phymes_streams::ChatBuilderTraitExt;
     use phymes_task::SubscriptionTrait;
-    use phymes_network::{SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream};
 
-    use crate::{EmbedTextSession, ExtractPDFSession, RetrieveTextSession};
     use super::*;
+    use crate::{EmbedTextSession, ExtractPDFSession, RetrieveTextSession};
 
     #[ignore = "In progress... Some issues with embeddings and retrieval."]
     #[tokio::test(flavor = "current_thread")]
     async fn test_open_alex_agent_session() -> Result<()> {
-        // Extract PDF session        
+        // Extract PDF session
         let extract_pdf_session = ExtractPDFSession::default();
         let extract_pdf_session_builder = SessionContextBuilder::from_mermaid_flowchart(
             extract_pdf_session.as_mermaid_flowchart(),
@@ -517,7 +529,11 @@ mod tests {
             &open_alex_agent_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_subjects_from_mermaid_erdiagram(&open_alex_agent_session.as_mermaid_erdiagram(), false, true)?
+        .with_subjects_from_mermaid_erdiagram(
+            &open_alex_agent_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
         .with_name(open_alex_agent_session.session_context_name)
         .extend(extract_pdf_session_builder)?
         .extend(embed_text_session_builder)?
@@ -583,14 +599,8 @@ mod tests {
         let version = vec![String::new()];
         let size = vec![0_u32];
         let last_modified = vec![0_i64];
-        let message_batch = create_object_store_meta_batch(
-            location,
-            bucket,
-            e_tag,
-            version,
-            size,
-            last_modified,
-        )?;
+        let message_batch =
+            create_object_store_meta_batch(location, bucket, e_tag, version, size, last_modified)?;
         let message_subject = Subject::get_builder()
             .with_name(&messages)
             .with_record_batches(vec![message_batch])?
@@ -607,7 +617,7 @@ mod tests {
                 .with_message(message_subject.to_ipc_stream()?)
                 .build()?,
         );
-       
+
         let _ = session_ctx_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
@@ -722,8 +732,14 @@ mod tests {
         assert_eq!(column.first().unwrap(), &0);
         assert_eq!(column.last().unwrap(), &0);
         let column = subject.get_column_as_vec_str("landing_page_url");
-        assert_eq!(column.first().unwrap(), &"https://doi.org/10.1016/j.str.2014.09.012");
-        assert_eq!(column.last().unwrap(), &"http://dx.doi.org/10.2307/jj.2430693");
+        assert_eq!(
+            column.first().unwrap(),
+            &"https://doi.org/10.1016/j.str.2014.09.012"
+        );
+        assert_eq!(
+            column.last().unwrap(),
+            &"http://dx.doi.org/10.2307/jj.2430693"
+        );
         let column = subject.get_column_as_vec_str("pdf_url");
         assert_eq!(column.first().unwrap(), &"");
         assert_eq!(column.last().unwrap(), &"");
@@ -746,7 +762,7 @@ mod tests {
         .await?;
         assert!(batches.is_empty());
 
-        // Test join work topic with user defined topics       
+        // Test join work topic with user defined topics
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "join_work_topic_table_s".to_string(),
         }
@@ -771,7 +787,7 @@ mod tests {
         let column = subject.get_column_as_vec_primitive::<f32>("score")?;
         assert_eq!(column.first().unwrap(), &0.9998);
         assert_eq!(column.last().unwrap(), &0.9998);
-        
+
         // Test select open access PDF url as content
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "select_open_acces_pdf_url_s".to_string(),
@@ -795,15 +811,21 @@ mod tests {
         assert_eq!(column.first().unwrap(), &0.9998);
         assert_eq!(column.last().unwrap(), &0.9688);
         let column = subject.get_column_as_vec_str("content");
-        assert_eq!(column.first().unwrap(), &"http://www.jidonline.org/article/S0022202X15321485/pdf");
-        assert_eq!(column.last().unwrap(), &"https://doi.org/10.37184/jlnh.2959-1805.3.9");
+        assert_eq!(
+            column.first().unwrap(),
+            &"http://www.jidonline.org/article/S0022202X15321485/pdf"
+        );
+        assert_eq!(
+            column.last().unwrap(),
+            &"https://doi.org/10.37184/jlnh.2959-1805.3.9"
+        );
         let column = subject.get_column_as_vec_str("source_id");
         assert_eq!(column.first().unwrap(), &"https://openalex.org/S28607811");
         assert_eq!(column.last().unwrap(), &"https://openalex.org/S4387288081");
         let column = subject.get_column_as_vec_str("version");
         assert_eq!(column.first().unwrap(), &"publishedVersion");
         assert_eq!(column.last().unwrap(), &"publishedVersion");
-        
+
         // Test HTTP request of open access PDF
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
@@ -818,8 +840,14 @@ mod tests {
             .build()?;
         assert_eq!(subject.count_rows(), 6);
         let column = subject.get_column_as_vec_str("filename");
-        assert_eq!(column.first().unwrap(), &"http://www.jidonline.org/article/S0022202X15321485/pdf");
-        assert_eq!(column.last().unwrap(), &"https://doi.org/10.37184/jlnh.2959-1805.3.9");
+        assert_eq!(
+            column.first().unwrap(),
+            &"http://www.jidonline.org/article/S0022202X15321485/pdf"
+        );
+        assert_eq!(
+            column.last().unwrap(),
+            &"https://doi.org/10.37184/jlnh.2959-1805.3.9"
+        );
         let column = subject.get_column_as_vec_str("extension");
         assert_eq!(column.first().unwrap(), &"text/html; charset=UTF-8");
         assert_eq!(column.last().unwrap(), &"application/pdf");
@@ -835,13 +863,16 @@ mod tests {
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
-        assert!(column.len() > 100);        
+        assert!(column.len() > 100);
 
         // Make the query data
         let mut message_map = HashMap::<String, IPCMessage>::new();
         let chat = AvailableInterfaceSubjects::UserMessages
             .to_subject_builder(None)
-            .append_new_user_query_str("What are two XPC-causing mutations identified in Chinese patients?", "user")?
+            .append_new_user_query_str(
+                "What are two XPC-causing mutations identified in Chinese patients?",
+                "user",
+            )?
             .build()?;
         let _ = message_map.insert(
             chat.get_name().to_string(),
@@ -853,7 +884,7 @@ mod tests {
                 })
                 .with_publisher(open_alex_agent_session.session_context_name)
                 .make_name()?
-                .build()?
+                .build()?,
         );
 
         // 2. Run the session

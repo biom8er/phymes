@@ -5,17 +5,16 @@ use arrow::{
 };
 use futures::{Stream, StreamExt};
 use phymes_core::{
-    BuilderTrait, MappableTrait,
-    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait
+    BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
+use phymes_data::{DataConfig, DataConfigTrait, DataOperatorTrait, DataStreamManager, device};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, MetricBuilderTrait,
 };
 use phymes_message::{
-    MessageTrait,
-    SendableRecordBatchStreamMessageMap, remove_message_by_subject,
+    MessageTrait, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
-use phymes_data::{DataConfig, DataConfigTrait, DataOperatorTrait, DataStreamManager, device};
 use phymes_ml::{CandleTensorService, TensorStreamTrait};
 use phymes_schemas::{create_bytes_fields, create_values_fields};
 use std::{
@@ -23,7 +22,6 @@ use std::{
     sync::Arc,
     task::{Context, Poll, ready},
 };
-
 
 /// Data operator stream
 pub struct CandleDataStream {

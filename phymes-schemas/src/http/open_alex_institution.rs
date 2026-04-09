@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use phymes_core::MappableTrait;
 use crate::{
     AvailableSchemaTrait, create_schema_from_fields,
     http::{
@@ -12,6 +11,7 @@ use crate::{
     },
 };
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
+use phymes_core::MappableTrait;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -91,12 +91,8 @@ impl Institution {
                 display_name: t,
             })
             .collect::<Vec<_>>();
-        let institution_geo = self
-            .geo
-            .map(|t| t.build_institution_geo_table(&id));
-        let institution_ids = self
-            .ids
-            .map(|t| t.build_institution_ids_table(&id));
+        let institution_geo = self.geo.map(|t| t.build_institution_geo_table(&id));
+        let institution_ids = self.ids.map(|t| t.build_institution_ids_table(&id));
         let institution_associated_institution = self
             .associated_institutions
             .unwrap_or_default()

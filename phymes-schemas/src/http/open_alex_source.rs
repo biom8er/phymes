@@ -1,13 +1,11 @@
 use std::sync::Arc;
 
-use phymes_core::MappableTrait;
 use crate::{
     AvailableSchemaTrait, create_schema_from_fields,
-    http::open_alex_common::{
-        CountryCode, CountsByYear, Currency, SourceType, SummaryStats,
-    },
+    http::open_alex_common::{CountryCode, CountsByYear, Currency, SourceType, SummaryStats},
 };
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
+use phymes_core::MappableTrait;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]

@@ -14,6 +14,6 @@ pub use command_sandbox_config::{
 pub use command_sandbox_processor::CommandSandboxStream;
 pub use http_client_config::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
 #[cfg(feature = "api")]
-pub use http_client_processor::{HTTPClientRequestStream, HTTPClientRequestState};
+pub use http_client_processor::{HTTPClientRequestState, HTTPClientRequestStream};
 pub use object_store_config::{ObjectStoreConfig, ObjectStoreOptsType};
 pub use object_store_processor::ObjectStoreStream;

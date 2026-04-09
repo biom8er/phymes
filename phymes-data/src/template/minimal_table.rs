@@ -53,13 +53,13 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{
-        SubjectScript, TEMPLATE_TABLE_EXPRESSION, template::{MINIMAL_HTML_POST, MINIMAL_HTML_PRE, TEMPLATE_HEADER_EXPRESSION},
+        SubjectScript, TEMPLATE_TABLE_EXPRESSION,
+        template::{MINIMAL_HTML_POST, MINIMAL_HTML_PRE, TEMPLATE_HEADER_EXPRESSION},
     };
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
     use phymes_core::{
-        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait,
-        SubjectTrait,
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
     };
     use serde_json::{Map, Value};
 

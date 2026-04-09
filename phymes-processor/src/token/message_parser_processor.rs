@@ -1,18 +1,16 @@
 use std::sync::Arc;
 
+use crate::ProcessorTrait;
 use anyhow::{Result, anyhow};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
+use phymes_diagnostics::{DiagnosticBuilder, HashMap};
+use phymes_message::{
+    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, remove_message_by_subject,
+};
 use phymes_streams::MessageParserStream;
 use tracing::{Level, event, instrument};
-use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv,
-};
-use phymes_diagnostics::{DiagnosticBuilder, HashMap};
-use phymes_message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, 
-    remove_message_by_subject,
-};
-use crate::ProcessorTrait;
 
 /// Processor that takes an unstructured chat response
 ///   and attempts to convert to a structured output

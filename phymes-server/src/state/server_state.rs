@@ -3,13 +3,22 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectTrait};
-use phymes_schemas::{AvailableSubjects, JoinUserInboxSessionContextsMermaidDiagrams, UserSubject, create_session_mermaid_batch, create_user_inbox_batch, create_user_session_contexts_batch};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait,
+    SubjectTrait,
+};
+use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, create_message_map};
+use phymes_network::{
+    AvailableSessionPlans, SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait,
+    SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
+};
+use phymes_schemas::{
+    AvailableSubjects, JoinUserInboxSessionContextsMermaidDiagrams, UserSubject,
+    create_session_mermaid_batch, create_user_inbox_batch, create_user_session_contexts_batch,
+};
 use phymes_task::SubscriptionTrait;
-use phymes_diagnostics::HashMap;
-use phymes_network::{AvailableSessionPlans, SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream};
 
 use crate::handlers::create_session_name;
 
@@ -372,8 +381,8 @@ impl ServerState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use phymes_network::make_example_mermaid_table;
     use phymes_diagnostics::HashSet;
+    use phymes_network::make_example_mermaid_table;
 
     #[cfg(not(target_family = "wasm"))]
     use phymes_core::SubjectTrait;

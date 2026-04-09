@@ -1,7 +1,7 @@
+use crate::{TensorStreamTrait, TokenWrapper, TokenizerConfig};
 use anyhow::Result;
 use candle_core::Tensor;
 use tokenizers::Tokenizer;
-use crate::{TensorStreamTrait, TokenWrapper, TokenizerConfig};
 
 /// For services that process tokens
 pub trait TokenStreamTrait: TensorStreamTrait + Send + Sync + std::fmt::Debug {

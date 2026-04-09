@@ -39,7 +39,8 @@ impl<'a> PatchWorkspaceSession<'a> {
         } else {
             ""
         };
-        format!(r#"flowchart TD
+        format!(
+            r#"flowchart TD
 	{session_context_name}_r-rt@{{shape: subproc, label: patch_workspace_r}}
 	%% ------------------------------------------------------------------------------
 	%% Apply patch to workspace
@@ -61,7 +62,8 @@ impl<'a> PatchWorkspaceSession<'a> {
 	apply_patch_p-publish@{{shape: fork}}
 	apply_patch_p-subscribe@{{shape: diamond, label: All}}
 	apply_patch_s-subject@{{shape: doc, label: apply_patch_s}}
-	%% ------------------------------------------------------------------------------"#)
+	%% ------------------------------------------------------------------------------"#
+        )
     }
     /// Return the Mermaid.js ER diagram representation of the session
     pub fn as_mermaid_erdiagram(&self) -> String {
@@ -69,9 +71,11 @@ impl<'a> PatchWorkspaceSession<'a> {
         let patch_subject_name = self.patch_subject_name;
         let apply_patch_p = if self.is_dynamic {
             r#"
-        List-UInt8 bytes"#.to_string()
+        List-UInt8 bytes"#
+                .to_string()
         } else {
-            format!(r#"
+            format!(
+                r#"
         Utf8 lhs_name "{workspace_subject_name}"
         Utf8 rhs_name "{patch_subject_name}"
         List-Utf8 lhs_values "['content']"
@@ -82,9 +86,11 @@ impl<'a> PatchWorkspaceSession<'a> {
         Boolean cpu "false"
         Utf8 operator "Patch"
         Utf8 lhs_stream "Accumulate"
-        Utf8 rhs_stream "Accumulate""#)
+        Utf8 rhs_stream "Accumulate""#
+            )
         };
-        format!(r#"erDiagram
+        format!(
+            r#"erDiagram
     {patch_subject_name}["{patch_subject_name}"] {{
         Utf8 filename
         Utf8 diff
@@ -99,7 +105,8 @@ impl<'a> PatchWorkspaceSession<'a> {
     apply_patch_s["apply_patch_s"] {{
         Utf8 path
         Utf8 content
-    }}"#)
+    }}"#
+        )
     }
 }
 
@@ -109,14 +116,23 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
-    use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait, WorkspacePatchSubject, create_bytes_record_batch, create_workspace_batch, create_workspace_patch_batch};
-    use phymes_event::{Publication, Subscription};
-    use phymes_message::{IPCMessage, MessageBuilderTrait};
-    use phymes_task::SubscriptionTrait;
+    use phymes_core::{
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
+        SubjectTrait,
+    };
     use phymes_data::{AvailableOperators, DataConfig, DataStreamManager, PatchOperator};
     use phymes_diagnostics::HashMap;
-    use phymes_network::{SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream};
+    use phymes_event::{Publication, Subscription};
+    use phymes_message::{IPCMessage, MessageBuilderTrait};
+    use phymes_network::{
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream,
+    };
+    use phymes_schemas::{
+        AvailableSubjects, AvailableSubjectsTrait, WorkspacePatchSubject,
+        create_bytes_record_batch, create_workspace_batch, create_workspace_patch_batch,
+    };
+    use phymes_task::SubscriptionTrait;
 
     use crate::ToolCallSession;
 

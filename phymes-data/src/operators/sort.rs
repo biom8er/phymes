@@ -9,7 +9,9 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+};
 use phymes_schemas::{
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
 };
@@ -17,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
-use crate::{ToolTrait, DataConfig, DataOperatorTrait};
+use crate::{DataConfig, DataOperatorTrait, ToolTrait};
 
 /// Sort the [RecordBatch] according to the `score` column and then apply the sorting order to the rest of the record batch columns
 #[derive(Debug, Default, Serialize, Deserialize)]

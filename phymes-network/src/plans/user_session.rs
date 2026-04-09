@@ -1,12 +1,18 @@
 use anyhow::Result;
 use std::sync::Arc;
 
-use phymes_core::{BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait,
+    SubjectPlan, SubjectPlanBuilderTrait,
+};
 use phymes_data::{AvailableOperators, DataConfig, DataJoinOperator};
-use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait, create_user_batch, create_user_session_contexts_batch};
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
+use phymes_schemas::{
+    AvailableSubjects, AvailableSubjectsTrait, create_user_batch,
+    create_user_session_contexts_batch,
+};
 use phymes_task::TaskPlan;
 
 use crate::{AvailableSessionPlans, CustomAgentsBuilderTrait, make_example_mermaid_table};
@@ -357,8 +363,8 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{MappableTrait, SubjectTrait};
-    use phymes_message::IPCMessage;
     use phymes_diagnostics::HashMap;
+    use phymes_message::IPCMessage;
     use phymes_task::SubscriptionTrait;
 
     use super::*;

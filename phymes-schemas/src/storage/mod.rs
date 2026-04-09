@@ -15,11 +15,11 @@ pub(crate) use graph::{
     create_n_quads_fields, create_n_triples_fields, create_parse_owl_fields,
     create_parse_xml_fields,
 };
+pub(crate) use object_store::create_object_store_meta_fields_vec;
 pub use object_store::{
     create_object_store_batch, create_object_store_fields, create_object_store_meta_batch,
     create_object_store_meta_fields,
 };
-pub(crate) use object_store::{create_object_store_meta_fields_vec};
 pub use workspace::{
     WorkspacePatchSubject, WorkspaceSubject, create_repository_batch, create_repository_fields,
     create_repository_patch_batch, create_repository_patch_fields, create_workspace_batch,

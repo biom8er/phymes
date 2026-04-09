@@ -6,9 +6,12 @@ use arrow::{
     datatypes::{DataType, Field, Int64Type, Schema, UInt32Type},
 };
 use candle_core::Device;
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+};
 use phymes_schemas::{
-    AvailableSchemaTrait, AvailableSubjects, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType
+    AvailableSchemaTrait, AvailableSubjects, Function, FunctionParameters, JSONSchemaDefine,
+    JSONSchemaType, Tool, ToolType,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -16,17 +19,15 @@ use tracing::instrument;
 
 use crate::{
     DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate,
-    DataJoinOperator, PatchOperator, ToolTrait, apply_patch_auto,
-    DataConfig, DataOperatorTrait, 
+    DataConfig, DataJoinOperator, DataOperatorTrait, PatchOperator, ToolTrait, apply_patch_auto,
     operators::{
-        from_json_object_columns,
-            group_by::{
-                build_aggregator_column_list_nonprimitive, build_aggregator_column_list_primitive,
-            },
-            join::join,
-            select::select,
-            to_json_object_columns,
-        filter,
+        filter, from_json_object_columns,
+        group_by::{
+            build_aggregator_column_list_nonprimitive, build_aggregator_column_list_primitive,
+        },
+        join::join,
+        select::select,
+        to_json_object_columns,
     },
 };
 

@@ -10,7 +10,10 @@ use candle_core::{DType, Device, Tensor};
 use candle_transformers::generation::{LogitsProcessor, Sampling};
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 
-use crate::{CandleModelWeights, TensorStreamTrait, TokenOutputStream, TokenStreamTrait, TokenWrapper, TokenizerConfig};
+use crate::{
+    CandleModelWeights, TensorStreamTrait, TokenOutputStream, TokenStreamTrait, TokenWrapper,
+    TokenizerConfig,
+};
 
 /// The actual asset struct
 #[derive(Debug)]
@@ -328,7 +331,10 @@ mod tests {
     use candle_core::Device;
     use phymes_data::device;
 
-    use crate::{AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig, load_model_asset_path, load_tokenizer};
+    use crate::{
+        AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig, load_model_asset_path,
+        load_tokenizer,
+    };
 
     use super::*;
 

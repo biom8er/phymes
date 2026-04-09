@@ -6,7 +6,9 @@ use phymes_core::{
 };
 use phymes_data::SubjectScript;
 use phymes_diagnostics::create_timestamp_micros;
-use phymes_schemas::{create_chat_record_batch, ChatCompletionMessage, Content, MessageRole, ToolCall, Tool};
+use phymes_schemas::{
+    ChatCompletionMessage, Content, MessageRole, Tool, ToolCall, create_chat_record_batch,
+};
 use tracing::{Level, event};
 
 pub trait ChatTraitExt: Sized {
@@ -269,11 +271,8 @@ impl ChatBuilderTraitExt for SubjectBuilder {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{
-        BuilderTrait,
-        test_subject::make_test_subject_chat,
-    };
-    
+    use phymes_core::{BuilderTrait, test_subject::make_test_subject_chat};
+
     use phymes_schemas::Tool;
 
     use super::*;

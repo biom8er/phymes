@@ -29,7 +29,9 @@ pub use group_by::{GroupBy, group_by};
 pub use human_in_the_loop::HumanInTheLoop;
 pub use join::Join;
 pub use melt::Melt;
-pub use pack_tabular::{PackTabular, pack_tabular, table_and_data_format_to_record_batch, test_candle_ops};
+pub use pack_tabular::{
+    PackTabular, pack_tabular, table_and_data_format_to_record_batch, test_candle_ops,
+};
 pub use patch::Patch;
 pub use pivot::Pivot;
 pub use select::Select;

@@ -1,9 +1,9 @@
-use std::sync::Arc;
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
 use phymes_core::MappableTrait;
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use std::sync::Arc;
 
 use crate::{
     AvailableSchemaTrait, create_schema_from_fields,
@@ -442,7 +442,10 @@ impl Authorship {
             String::new()
         };
         let institution_ids = if let Some(institutions) = self.institutions {
-            institutions.into_iter().map(|i| i.id.unwrap_or_default()).collect::<Vec<_>>()
+            institutions
+                .into_iter()
+                .map(|i| i.id.unwrap_or_default())
+                .collect::<Vec<_>>()
         } else {
             Vec::new()
         };

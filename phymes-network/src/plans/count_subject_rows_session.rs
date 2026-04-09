@@ -77,14 +77,19 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
-    use phymes_schemas::{AvailableSubjects};
-    use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
-    use phymes_event::{Publication, Subscription};
+    use phymes_core::{
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+    };
     use phymes_diagnostics::HashMap;
-    use phymes_task::{test_task, SubscriptionTrait};
+    use phymes_event::{Publication, Subscription};
+    use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
+    use phymes_schemas::AvailableSubjects;
+    use phymes_task::{SubscriptionTrait, test_task};
 
-    use crate::{SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, test_session_context_builder};
+    use crate::{
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream, test_session_context_builder,
+    };
 
     use super::*;
 

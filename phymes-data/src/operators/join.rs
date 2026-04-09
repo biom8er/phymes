@@ -10,7 +10,9 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use candle_core::{DType, Device, Tensor, op::CmpOp};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+};
 use phymes_schemas::{
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
 };
@@ -19,7 +21,7 @@ use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
 use crate::{
-    DataJoinOperator, ToolTrait, DataOperatorTrait, DataConfig,
+    DataConfig, DataJoinOperator, DataOperatorTrait, ToolTrait,
     operators::{
         group_by::{
             build_aggregator_column_fixed_size_list, build_aggregator_column_list_nonprimitive,

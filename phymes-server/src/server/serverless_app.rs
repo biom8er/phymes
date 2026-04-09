@@ -88,11 +88,15 @@ mod tests {
     use bytes::Bytes;
     use futures::TryStreamExt;
     use futures_executor::block_on;
-    use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait, DataFormat, AvailableInterfaceSubjects};
-    use phymes_message::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, MessageBuilderTrait};
-    use phymes_event::Publication;
-    use phymes_streams::ChatBuilderTraitExt;
     use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, SubjectTrait};
+    use phymes_event::Publication;
+    use phymes_message::{
+        MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait,
+    };
+    use phymes_schemas::{
+        AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataFormat,
+    };
+    use phymes_streams::ChatBuilderTraitExt;
     use serde_json::{Map, Value};
 
     use crate::handlers::{basic_auth, create_session_name};

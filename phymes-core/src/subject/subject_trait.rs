@@ -13,7 +13,9 @@ use crate::{
 use anyhow::{Result, anyhow};
 use arrow::{
     array::{
-        Array, ArrayRef, BooleanArray, FixedSizeListArray, Float32Array, Float64Array, Int8Array, Int16Array, Int32Array, Int64Array, LargeStringArray, ListArray, StringArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array
+        Array, ArrayRef, BooleanArray, FixedSizeListArray, Float32Array, Float64Array, Int8Array,
+        Int16Array, Int32Array, Int64Array, LargeStringArray, ListArray, StringArray, UInt8Array,
+        UInt16Array, UInt32Array, UInt64Array,
     },
     compute::{cast, concat_batches, kernels::concat},
     csv::WriterBuilder,
@@ -462,7 +464,7 @@ pub trait SubjectTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
                     .downcast_ref::<BooleanArray>()
                     .unwrap()
                     .iter()
-                    .filter_map(|s| s)
+                    .flatten()
                     .collect::<Vec<_>>();
                 Ok(arr_vec)
             }

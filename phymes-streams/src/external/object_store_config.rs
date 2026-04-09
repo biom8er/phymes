@@ -3,8 +3,8 @@ use std::fmt::Display;
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
 use phymes_core::{MappableTrait, ObjectStorageBackend, Subject, SubjectTrait};
-use phymes_diagnostics::HashSet;
 use phymes_data::DataConfigTrait;
+use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
 /// The Object Store operation types

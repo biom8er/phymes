@@ -7,8 +7,8 @@ use std::{
 
 use anyhow::Result;
 use futures::{FutureExt, Stream};
-use phymes_message::{IPCMessage, IPCMessageMap};
 use phymes_diagnostics::HashMap;
+use phymes_message::{IPCMessage, IPCMessageMap};
 use tracing::{Level, event};
 
 use crate::{SessionContext, SessionStreamStep, SessionStreamStepTrait};
@@ -98,14 +98,18 @@ impl Stream for SessionStream {
 #[cfg(test)]
 mod tests {
     use futures::TryStreamExt;
-    use phymes_core::{BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
-    use phymes_schemas::AvailableSubjects;
-    use phymes_message::MessageTrait;
+    use phymes_core::{
+        BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+    };
     use phymes_event::{Publication, Subscription};
+    use phymes_message::MessageTrait;
+    use phymes_schemas::AvailableSubjects;
     use phymes_task::{SubscriptionTrait, test_task};
 
     use super::*;
-    use crate::{SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, test_session_context_builder};
+    use crate::{
+        SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, test_session_context_builder,
+    };
 
     #[tokio::test]
     async fn test_session_stream_replace_state_update_sequential_tasks() -> Result<()> {

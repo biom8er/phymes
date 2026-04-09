@@ -10,19 +10,22 @@ use candle_core::DType;
 use candle_transformers::generation::LogitsProcessor;
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
-use phymes_core::{BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{
+    BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject,
+    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+};
 use phymes_data::{DataConfigTrait, device};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait, create_timestamp_micros,
 };
 use phymes_message::{
-    MessageTrait,
-    SendableRecordBatchStreamMessageMap, remove_message_by_subject,
+    MessageTrait, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
-use phymes_ml::{TokenOutputStream, TokenStreamTrait, TokenWrapper, process_logits_sampler, process_prompt_chat, CandleChatConfig};
-use phymes_schemas::{
-    AvailableSchemaTrait, AvailableSubjects, Tool, create_chat_record_batch,
+use phymes_ml::{
+    CandleChatConfig, TokenOutputStream, TokenStreamTrait, TokenWrapper, process_logits_sampler,
+    process_prompt_chat,
 };
+use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects, Tool, create_chat_record_batch};
 use tracing::{Level, event, instrument};
 
 use crate::ChatTraitExt;

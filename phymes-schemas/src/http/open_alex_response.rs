@@ -1,30 +1,11 @@
-use std::io::BufRead;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use std::io::BufRead;
 
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 use crate::{
-    AvailableSchemaTrait, JsonSchemaTrait, create_route_bytes_record_batch, DataFormat,
-    open_alex::{
-        AuthorAffiliationTable, AuthorConceptTable, AuthorCountsByYearTable,
-        AuthorDisplayNameAlternativesTable, AuthorIdsTable, AuthorLastKnownInstitutionsTable,
-        AuthorSummaryStatsTable, AuthorTable, AwardAffiliationTable, AwardFundedOutputsTable,
-        AwardFunderTable, AwardInvestigatorTable, AwardTable, FunderAlternativeTitlesTable,
-        FunderCountsByYearTable, FunderIdsTable, FunderRoleTable, FunderSummaryStatsTable,
-        FunderTable, InstitutionAssociatedInstitutionTable, InstitutionConceptTable,
-        InstitutionCountsByYearTable, InstitutionDisplayNameAcronymsTable,
-        InstitutionDisplayNameAlternativesTable, InstitutionGeoTable, InstitutionIdsTable,
-        InstitutionInternationalNamesTable, InstitutionLineageTable, InstitutionRepositoryTable,
-        InstitutionRoleTable, InstitutionSummaryStatsTable, InstitutionTable,
-        PublisherAlternativeTitlesTable, PublisherCountryCodeTable, PublisherCountsByYearTable,
-        PublisherIdsTable, PublisherLineageTable, PublisherRoleTable, PublisherSummaryStatsTable,
-        PublisherTable, SourceAlternativeTitlesTable, SourceApcPriceTable, SourceConceptTable,
-        SourceCountsByYearTable, SourceIdsTable, SourceIssnTable, SourceLineageTable,
-        SourceSocietyTable, SourceSummaryStatsTable, SourceTable, TopicDomainTable,
-        TopicFieldTable, TopicIdsTable, TopicKeywordTable, TopicSubfieldTable, TopicTable,
-    },
+    AvailableSchemaTrait, DataFormat, JsonSchemaTrait, create_route_bytes_record_batch,
     http::{
         open_alex_author::Author,
         open_alex_award::Award,
@@ -43,6 +24,27 @@ use crate::{
             WorkSdgTagTable, WorkTable, WorkTopicTable,
         },
     },
+    open_alex::{
+        AuthorAffiliationTable, AuthorConceptTable, AuthorCountsByYearTable,
+        AuthorDisplayNameAlternativesTable, AuthorIdsTable, AuthorLastKnownInstitutionsTable,
+        AuthorSummaryStatsTable, AuthorTable, AwardAffiliationTable, AwardFundedOutputsTable,
+        AwardFunderTable, AwardInvestigatorTable, AwardTable, FunderAlternativeTitlesTable,
+        FunderCountsByYearTable, FunderIdsTable, FunderRoleTable, FunderSummaryStatsTable,
+        FunderTable, InstitutionAssociatedInstitutionTable, InstitutionConceptTable,
+        InstitutionCountsByYearTable, InstitutionDisplayNameAcronymsTable,
+        InstitutionDisplayNameAlternativesTable, InstitutionGeoTable, InstitutionIdsTable,
+        InstitutionInternationalNamesTable, InstitutionLineageTable, InstitutionRepositoryTable,
+        InstitutionRoleTable, InstitutionSummaryStatsTable, InstitutionTable,
+        PublisherAlternativeTitlesTable, PublisherCountryCodeTable, PublisherCountsByYearTable,
+        PublisherIdsTable, PublisherLineageTable, PublisherRoleTable, PublisherSummaryStatsTable,
+        PublisherTable, SourceAlternativeTitlesTable, SourceApcPriceTable, SourceConceptTable,
+        SourceCountsByYearTable, SourceIdsTable, SourceIssnTable, SourceLineageTable,
+        SourceSocietyTable, SourceSummaryStatsTable, SourceTable, TopicDomainTable,
+        TopicFieldTable, TopicIdsTable, TopicKeywordTable, TopicSubfieldTable, TopicTable,
+    },
+};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -55,7 +57,7 @@ impl OpenAlexResponseWorks {
     /// Parse JSONL format
     pub fn from_jsonl(bytes: &[u8]) -> Result<Self> {
         let cursor = std::io::Cursor::new(bytes);
-        let reader = std::io::BufReader::new(cursor);        
+        let reader = std::io::BufReader::new(cursor);
         let mut results = Vec::new();
         for (line_num, line) in reader.lines().enumerate() {
             let line = line?; // Read the line as a String
@@ -69,11 +71,17 @@ impl OpenAlexResponseWorks {
                     results.push(record);
                 }
                 Err(e) => {
-                    return Err(anyhow!("Error `{e}` parsing line {}: `{line}`", line_num + 1));
+                    return Err(anyhow!(
+                        "Error `{e}` parsing line {}: `{line}`",
+                        line_num + 1
+                    ));
                 }
             }
         }
-        Ok(OpenAlexResponseWorks { results, meta: None })
+        Ok(OpenAlexResponseWorks {
+            results,
+            meta: None,
+        })
     }
 }
 

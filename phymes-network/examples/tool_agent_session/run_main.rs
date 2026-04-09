@@ -6,14 +6,20 @@ extern crate accelerate_src;
 
 use anyhow::Result;
 use futures::TryStreamExt;
-use phymes_network::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait, SessionStream, ToolAgentSession};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
-use phymes_event::{Publication};
-use phymes_schemas::{AvailableInterfaceSubjects, AttachmentBuilderTraitExt, AvailableSubjectsTrait, CsvFormat};
-use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+};
 use phymes_data::test_extract_tabular_data::make_scores_table;
-use phymes_streams::ChatBuilderTraitExt;
 use phymes_diagnostics::HashMap;
+use phymes_event::Publication;
+use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
+use phymes_network::{
+    CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait, SessionStream, ToolAgentSession,
+};
+use phymes_schemas::{
+    AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjectsTrait, CsvFormat,
+};
+use phymes_streams::ChatBuilderTraitExt;
 use std::sync::Arc;
 
 pub async fn run_main() -> Result<()> {

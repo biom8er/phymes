@@ -1,8 +1,8 @@
 use anyhow::{Result, anyhow};
 use clap::Parser;
 use phymes_core::{MappableTrait, Subject, SubjectTrait};
-use phymes_diagnostics::HashSet;
 use phymes_data::DataConfigTrait;
+use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug, Serialize, Deserialize, Clone, Default)]

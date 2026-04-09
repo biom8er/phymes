@@ -17,21 +17,20 @@ use object_store::{
 };
 use parking_lot::Mutex;
 use phymes_core::{
-    BuilderTrait, ChunkedWriter,
-    MappableTrait, ObjectStorageBackend, OnChunk, RecordBatchStream, RuntimeEnv, RuntimeEnvTrait, SendableRecordBatchStream,
-    SubjectBuilder, SubjectBuilderTrait, SubjectTrait, make_store,
+    BuilderTrait, ChunkedWriter, MappableTrait, ObjectStorageBackend, OnChunk, RecordBatchStream,
+    RuntimeEnv, RuntimeEnvTrait, SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait,
+    SubjectTrait, make_store,
 };
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait, create_timestamp_micros,
 };
 use phymes_message::{
-    MessageTrait,
-    SendableRecordBatchStreamMessageMap, remove_message_by_subject,
+    MessageTrait, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_schemas::{
-    AvailableSchemaTrait, AvailableSubjects, create_bytes_fields,
-    create_object_store_batch, create_object_store_meta_batch, create_values_fields,
+    AvailableSchemaTrait, AvailableSubjects, create_bytes_fields, create_object_store_batch,
+    create_object_store_meta_batch, create_values_fields,
 };
 use serde_json::{Map, Value, json};
 
@@ -217,7 +216,9 @@ impl Stream for ObjectStoreStream {
                     self.store.replace(store);
                 } else if self.store.is_none() {
                     let bucket = self.config.as_ref().unwrap().bucket.clone();
-                    let config = if let Some(config_str) = self.config.as_ref().unwrap().backend_config.as_ref() {
+                    let config = if let Some(config_str) =
+                        self.config.as_ref().unwrap().backend_config.as_ref()
+                    {
                         let config_map = serde_json::from_str::<Map<String, Value>>(config_str)?;
                         Some(config_map)
                     } else {

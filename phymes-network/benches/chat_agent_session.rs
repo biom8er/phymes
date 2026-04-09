@@ -2,13 +2,17 @@ use std::sync::Arc;
 
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
-use phymes_network::{ChatAgentSession, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait, SessionStream};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
-use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+};
+use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
+use phymes_network::{
+    ChatAgentSession, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait, SessionStream,
+};
+use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
 use phymes_streams::ChatBuilderTraitExt;
-use phymes_diagnostics::HashMap;
 use phymes_task::SubscriptionTrait;
 
 fn benchmark_chat_agent_session(c: &mut Criterion) {

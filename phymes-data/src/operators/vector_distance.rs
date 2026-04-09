@@ -9,14 +9,16 @@ use arrow::{
     record_batch::RecordBatch,
 };
 use candle_core::{Device, Tensor};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+};
 use phymes_schemas::{
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
 };
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::{DataOperatorTrait, DataConfig, DataDistanceOperator, ToolTrait};
+use crate::{DataConfig, DataDistanceOperator, DataOperatorTrait, ToolTrait};
 
 /// Compute the relative similarity between two [RecordBatch]es where each [RecordBatch] represents a list of vector embeddings
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -557,7 +559,12 @@ pub fn normalized_dot_product(lhs: &Tensor, rhs: &Tensor) -> Result<Tensor> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{device, test_candle_ops::{make_embeddings_record_batch_str_f32, make_embeddings_record_batch_u32_f32}};
+    use crate::{
+        device,
+        test_candle_ops::{
+            make_embeddings_record_batch_str_f32, make_embeddings_record_batch_u32_f32,
+        },
+    };
 
     use super::*;
 

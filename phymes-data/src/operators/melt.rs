@@ -21,7 +21,7 @@ use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
 use crate::{
-    ToolTrait, DataConfig, DataOperatorTrait,
+    DataConfig, DataOperatorTrait, ToolTrait,
     operators::group_by::{
         build_aggregator_column_fixed_size_list, build_aggregator_column_list_nonprimitive,
         build_aggregator_column_list_primitive,

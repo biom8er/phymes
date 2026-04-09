@@ -78,7 +78,7 @@ impl ProcessorTrait for CommandSandboxProcessor {
 
 pub mod test_command_sandbox_processor {
     use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
-    
+
     use super::*;
 
     pub fn create_messages() -> Result<RecordBatch> {
@@ -96,10 +96,12 @@ mod tests {
     use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
     use futures::TryStreamExt;
     use phymes_core::{SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
-    use phymes_event::Publication;
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
+    use phymes_event::Publication;
     use phymes_schemas::create_chat_record_batch;
-    use phymes_streams::{CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod};
+    use phymes_streams::{
+        CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod,
+    };
     use std::{fs::File, io::Write};
     use tempfile::{NamedTempFile, TempDir};
 
@@ -552,7 +554,11 @@ mod tests {
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_batch = create_chat_record_batch(vec!["user".to_string()], vec!["Hello from Docker!".to_string()], vec![0])?;
+        let message_batch = create_chat_record_batch(
+            vec!["user".to_string()],
+            vec!["Hello from Docker!".to_string()],
+            vec![0],
+        )?;
         let message_builder = SubjectBuilder::new()
             .with_name(messages)
             .with_record_batches(vec![message_batch])?;
@@ -808,7 +814,11 @@ mod tests {
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_batch = create_chat_record_batch(vec!["user".to_string()], vec!["Hello from Docker!".to_string()], vec![0])?;
+        let message_batch = create_chat_record_batch(
+            vec!["user".to_string()],
+            vec!["Hello from Docker!".to_string()],
+            vec![0],
+        )?;
         let message_builder = SubjectBuilder::new()
             .with_name(messages)
             .with_record_batches(vec![message_batch])?;

@@ -8,9 +8,7 @@ use phymes_core::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait,
-};
+use crate::{AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait};
 
 /// Check that one or more of the [AvailableInterfaceSubjects] are provided in the [SessionContextBuilder]
 ///
@@ -158,8 +156,7 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AssistantScript => {
                 AvailableSubjects::Attachments.to_subject(Some(name.as_str()), batches)
             }
-            Self::UserObject
-            | Self::AssistantObject => {
+            Self::UserObject | Self::AssistantObject => {
                 AvailableSubjects::ObjectStore.to_subject(Some(name.as_str()), batches)
             }
         }
@@ -192,8 +189,7 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AssistantScript => {
                 AvailableSubjects::Attachments.to_subject_builder(Some(name.as_str()))
             }
-            Self::UserObject
-            | Self::AssistantObject => {
+            Self::UserObject | Self::AssistantObject => {
                 AvailableSubjects::ObjectStore.to_subject_builder(Some(name.as_str()))
             }
         }
@@ -229,8 +225,7 @@ impl AvailableSchemaTrait for AvailableInterfaceSubjects {
             | Self::AssistantJson
             | Self::AggregatedAttachments
             | Self::AssistantScript => AvailableSubjects::Attachments.to_schema(),
-            Self::UserObject
-            | Self::AssistantObject => AvailableSubjects::ObjectStore.to_schema(),
+            Self::UserObject | Self::AssistantObject => AvailableSubjects::ObjectStore.to_schema(),
         }
     }
 }
@@ -256,7 +251,7 @@ impl AvailableInterfaceSubjects {
             | Self::ToolMessages
             | Self::AssistantImage
             | Self::AssistantCsv
-            | Self::AssistantJson 
+            | Self::AssistantJson
             | Self::AssistantObject => true,
         }
     }

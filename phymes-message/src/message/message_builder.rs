@@ -237,8 +237,8 @@ impl MessageBuilderTrait for SendableRecordBatchStreamMessageBuilder {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{MappableTrait, SubjectTrait, test_subject};
     use crate::MessageTrait;
+    use phymes_core::{MappableTrait, SubjectTrait, test_subject};
 
     use super::*;
 

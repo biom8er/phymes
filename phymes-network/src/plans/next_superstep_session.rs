@@ -1,8 +1,8 @@
 use anyhow::Result;
 use phymes_core::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
-use phymes_schemas::{AvailableSubjects, create_session_tasks_subscribe_publish_batch};
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, IPCMessageMap, MessageBuilderTrait, create_message_map};
+use phymes_schemas::{AvailableSubjects, create_session_tasks_subscribe_publish_batch};
 
 /// A session for determining the next superstep task publications and subscriptions
 pub struct NextSuperstepSession<'a> {
@@ -141,15 +141,16 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, SubjectTrait};
-    use phymes_schemas::create_session_supersteps_batch;
+    use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
-    use phymes_diagnostics::HashMap;
+    use phymes_schemas::create_session_supersteps_batch;
     use phymes_task::SubscriptionTrait;
 
     use crate::{
         SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream, SessionStreamStepMinimal, SessionStreamStepTrait,
+        SessionContextBuilderTrait, SessionStream, SessionStreamStepMinimal,
+        SessionStreamStepTrait,
     };
 
     use super::*;

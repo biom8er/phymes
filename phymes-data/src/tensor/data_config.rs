@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
 use phymes_core::{MappableTrait, Subject, SubjectTrait};
 use phymes_diagnostics::HashSet;
-use phymes_schemas::{DataEncoding, DataFormat, AvailableSubjects};
+use phymes_schemas::{AvailableSubjects, DataEncoding, DataFormat};
 use serde::{Deserialize, Serialize};
 
 use crate::{AvailableJinja2Templates, AvailableOperators, DiffType};

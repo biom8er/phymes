@@ -8,12 +8,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Diff, ExtractXML, PackTabular, Patch, ToolTrait,
-    tensor::{DataConfig, DataOperatorTrait},
     operators::{
-        ApplyTemplate, ChunkDocuments, ExtractPDF, ExtractTabular, Filter,
-        FromTasksToParticipants, FromTracesToMessages, GroupBy, HumanInTheLoop, Join, Melt,
-        NormalizeTime, Pivot, Select, Sort, VectorDistance,
+        ApplyTemplate, ChunkDocuments, ExtractPDF, ExtractTabular, Filter, FromTasksToParticipants,
+        FromTracesToMessages, GroupBy, HumanInTheLoop, Join, Melt, NormalizeTime, Pivot, Select,
+        Sort, VectorDistance,
     },
+    tensor::{DataConfig, DataOperatorTrait},
 };
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]

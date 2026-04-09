@@ -2,8 +2,8 @@ use std::{io::Write, str::FromStr};
 
 use anyhow::Result;
 use clap::Parser;
-use phymes_network::SessionContextBuilderMermaid;
 use phymes_core::BuilderTrait;
+use phymes_network::SessionContextBuilderMermaid;
 
 #[derive(Parser, Debug, Default, Clone)]
 #[command(author, version, about, long_about = None)]

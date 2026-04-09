@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
+use crate::ProcessorTrait;
 use phymes_core::MappableTrait;
 use phymes_event::{Publication, SubscribeEventTrait, Subscription, UpdateEventTrait};
-use crate::ProcessorTrait;
 
 /// The plan for the processors
 #[derive(Debug)]

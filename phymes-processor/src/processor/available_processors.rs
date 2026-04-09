@@ -4,25 +4,34 @@ use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
 use phymes_core::{MappableTrait, ObjectStorageBackend, Subject};
-use phymes_schemas::{
-    AvailableSubjects, DataEncoding, DataFormat, WorkspacePatchSubject,
-};
 use phymes_data::{
-    AvailableJinja2Templates, AvailableOperators, DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataJoinOperator, DataStreamManager, DiffType, ToolTrait
+    AvailableJinja2Templates, AvailableOperators, DataAggregatorOperator, DataCastOperator,
+    DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig,
+    DataConfigTrait, DataDistanceOperator, DataJoinOperator, DataStreamManager, DiffType,
+    ToolTrait,
 };
-use phymes_streams::{LimitConfig, ObjectStoreConfig, ObjectStoreOptsType, ToolCallConfig};
-#[cfg(feature = "api")]
-use phymes_streams::{
-    CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod, HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType,
-};
-use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig};
 #[cfg(feature = "api")]
 use phymes_ml::AvailableOpenAIAssets;
+use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig};
+use phymes_schemas::{AvailableSubjects, DataEncoding, DataFormat, WorkspacePatchSubject};
+#[cfg(feature = "api")]
+use phymes_streams::{
+    CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod,
+    HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType,
+};
+use phymes_streams::{LimitConfig, ObjectStoreConfig, ObjectStoreOptsType, ToolCallConfig};
 use serde::{Deserialize, Serialize};
 
-use crate::{AggregatorProcessor, CandleChatProcessor, CandleDataProcessor, CandleEmbedProcessor, CoalesceProcessor, LimitProcessor, MessageParserProcessor, ObjectStoreProcessor, ProcessorBuilder, ProcessorEcho, ProcessorTrait, ToolCallProcessor, test_processor::{ProcessorError, ProcessorMock}};
+use crate::{
+    AggregatorProcessor, CandleChatProcessor, CandleDataProcessor, CandleEmbedProcessor,
+    CoalesceProcessor, LimitProcessor, MessageParserProcessor, ObjectStoreProcessor,
+    ProcessorBuilder, ProcessorEcho, ProcessorTrait, ToolCallProcessor,
+    test_processor::{ProcessorError, ProcessorMock},
+};
 #[cfg(feature = "api")]
-use crate::{OpenAIChatProcessor, OpenAIEmbedProcessor, CommandSandboxProcessor, HTTPClientRequestProcessor};
+use crate::{
+    CommandSandboxProcessor, HTTPClientRequestProcessor, OpenAIChatProcessor, OpenAIEmbedProcessor,
+};
 
 /// The available [ProcessorTrait]s
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]

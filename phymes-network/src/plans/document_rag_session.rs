@@ -1,16 +1,22 @@
 use std::sync::Arc;
 
-use phymes_core::{BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
-use phymes_data::{
-    AvailableOperators, DataCastOperator, DataColumnOperator, DataConfig,
-    DataDistanceOperator, DataJoinOperator, DataStreamManager,
+use phymes_core::{
+    BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait,
+    SubjectPlan, SubjectPlanBuilderTrait,
 };
+use phymes_data::{
+    AvailableOperators, DataCastOperator, DataColumnOperator, DataConfig, DataDistanceOperator,
+    DataJoinOperator, DataStreamManager,
+};
+use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 #[cfg(all(not(feature = "candle"), feature = "api"))]
 use phymes_ml::AvailableOpenAIAssets;
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig};
-use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
-use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat, create_schema_from_fields};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
+use phymes_schemas::{
+    AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataEncoding,
+    DataFormat, create_schema_from_fields,
+};
 use phymes_streams::LimitConfig;
 use phymes_task::TaskPlan;
 
@@ -1026,8 +1032,8 @@ mod tests {
     use phymes_core::{BuildableTrait, MappableTrait, SubjectTrait};
     use phymes_data::make_pdf_document;
     use phymes_diagnostics::HashMap;
-    use phymes_schemas::AttachmentBuilderTraitExt;
     use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
+    use phymes_schemas::AttachmentBuilderTraitExt;
     use phymes_streams::ChatBuilderTraitExt;
 
     use crate::{SessionContextBuilderAgentsTrait, SessionStream};

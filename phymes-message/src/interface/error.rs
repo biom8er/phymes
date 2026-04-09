@@ -4,8 +4,10 @@ use phymes_diagnostics::HashMap;
 use phymes_event::Publication;
 use phymes_schemas::{AvailableSubjects, create_error_subject};
 
-use crate::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder};
+use crate::{
+    IPCMessage, IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder,
+};
 
 pub fn create_error_message_map_stream(
     err: &Error,

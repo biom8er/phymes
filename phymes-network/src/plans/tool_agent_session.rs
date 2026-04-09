@@ -3,17 +3,23 @@ use std::sync::Arc;
 use anyhow::Result;
 use serde_json::json;
 
-use phymes_core::{BuildableTrait, BuilderTrait,  RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
-use phymes_data::{
-    AvailableOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
-    DataConfig, DataStreamManager, ToolTrait,
+use phymes_core::{
+    BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait,
+    SubjectPlan, SubjectPlanBuilderTrait,
 };
+use phymes_data::{
+    AvailableJinja2Templates, AvailableOperators, DataCastOperator, DataColumnOperator, DataConfig,
+    DataStreamManager, ToolTrait,
+};
+use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 #[cfg(all(not(feature = "candle"), feature = "api"))]
 use phymes_ml::AvailableOpenAIAssets;
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
-use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
-use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat, create_schema_from_fields, create_tools_record_batch};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
+use phymes_schemas::{
+    AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataEncoding,
+    DataFormat, create_schema_from_fields, create_tools_record_batch,
+};
 use phymes_task::TaskPlan;
 
 use arrow::datatypes::{DataType, Field, Fields};
@@ -833,11 +839,11 @@ mod tests {
     use std::sync::Arc;
 
     use futures::TryStreamExt;
-    use phymes_diagnostics::HashMap;
     use phymes_core::{BuildableTrait, MappableTrait, SubjectTrait};
     use phymes_data::test_extract_tabular_data::make_scores_table;
-    use phymes_schemas::{AttachmentBuilderTraitExt, CsvFormat};
+    use phymes_diagnostics::HashMap;
     use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
+    use phymes_schemas::{AttachmentBuilderTraitExt, CsvFormat};
     use phymes_streams::ChatBuilderTraitExt;
 
     use crate::{SessionContextBuilderAgentsTrait, SessionStream};

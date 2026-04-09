@@ -1,17 +1,19 @@
 /// Integration tests for chat_builder
 mod test_messages {
-    use anyhow::{anyhow, Result};
+    use crate::ProcessorTrait;
+    use anyhow::{Result, anyhow};
     use arrow::{array::RecordBatch, datatypes::SchemaRef};
     use futures::{Stream, StreamExt};
     use phymes_core::{
-        BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait
-    };
-    use phymes_message::{
-        MessageBuilderTrait, MessageTrait,
-        SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
-        SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
+        BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
+        SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
     };
     use phymes_diagnostics::{DiagnosticBuilder, HashMap, create_timestamp_micros};
+    use phymes_message::{
+        MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
+        SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+        SendableRecordBatchStreamMessageMap,
+    };
     use phymes_schemas::{Tool, create_chat_record_batch};
     use phymes_streams::ChatTraitExt;
     use std::{
@@ -19,7 +21,6 @@ mod test_messages {
         sync::Arc,
         task::{Context, Poll, ready},
     };
-    use crate::ProcessorTrait;
 
     #[allow(dead_code)]
     #[derive(Debug)]
@@ -129,8 +130,7 @@ mod test_messages {
                             .get_column_as_vec_str("tool")
                             .iter()
                             .map(|s| {
-                                let tool: Tool =
-                                    serde_json::from_str(s).unwrap();
+                                let tool: Tool = serde_json::from_str(s).unwrap();
                                 tool
                             })
                             .collect::<Vec<_>>();
@@ -201,13 +201,14 @@ mod tests {
 
     use anyhow::Result;
     use arrow::array::RecordBatch;
+    use futures::TryStreamExt;
     use phymes_core::{
-        BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, test_subject
+        BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait,
+        SubjectTrait, test_subject,
     };
+    use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap};
     use phymes_event::Publication;
     use phymes_message::{MessageBuilderTrait, SendableRecordBatchStreamMessage};
-    use futures::TryStreamExt;
-    use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap};
     use phymes_streams::ChatBuilderTraitExt;
 
     use super::*;
@@ -320,7 +321,9 @@ mod tests {
                 .with_publisher("")
                 .with_subject("tools")
                 .with_update(&Publication::None)
-                .with_message(test_subject::make_test_subject_tool("tools")?.to_record_batch_stream())
+                .with_message(
+                    test_subject::make_test_subject_tool("tools")?.to_record_batch_stream(),
+                )
                 .build()?,
         );
 

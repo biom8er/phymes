@@ -9,15 +9,19 @@ use arrow::{
     datatypes::{DataType, Field, Schema},
 };
 use futures::StreamExt;
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend,
-    RecordBatchStreamAdapter, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, RecordBatchStreamAdapter,
+    RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait,
+    SubjectTrait,
 };
-use phymes_event::Publication;
-use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects, DataEncoding, DataFormat};
-use phymes_message::{MessageBuilderTrait, SendableRecordBatchStreamMessage, make_random_id};
-use phymes_data::{AvailableOperators,  DataColumnOperator, DataConfig, DataJoinOperator, DataStreamManager};
-use phymes_streams::{CandleDataStream, ObjectStoreConfig, ObjectStoreOptsType, ObjectStoreStream};
+use phymes_data::{
+    AvailableOperators, DataColumnOperator, DataConfig, DataJoinOperator, DataStreamManager,
+};
 use phymes_diagnostics::HashMap;
+use phymes_event::Publication;
+use phymes_message::{MessageBuilderTrait, SendableRecordBatchStreamMessage, make_random_id};
+use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects, DataEncoding, DataFormat};
+use phymes_streams::{CandleDataStream, ObjectStoreConfig, ObjectStoreOptsType, ObjectStoreStream};
 
 use crate::list_subject;
 

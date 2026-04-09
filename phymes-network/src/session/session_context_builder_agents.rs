@@ -6,20 +6,28 @@ use arrow::{
     datatypes::{Schema, SchemaRef},
 };
 use clap::ValueEnum;
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait};
-use phymes_message::{IPCMessage, IPCMessageMap, MessageBuilderTrait};
-use phymes_schemas::{AvailableInterfaceSubjects, AvailableSchemaTrait, AvailableSubjects, create_bytes_fields, create_values_fields};
-use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait,
+    SubjectPlan, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait,
+};
 use phymes_data::{AvailableOperators, DataConfig, DataConfigTrait, device};
-use phymes_streams::{LimitConfig, ObjectStoreConfig, ToolCallConfig};
-#[cfg(feature = "api")]
-use phymes_streams::{CommandSandboxConfig, HTTPClientConfig};
 use phymes_diagnostics::{HashMap, HashSet};
+use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
+use phymes_message::{IPCMessage, IPCMessageMap, MessageBuilderTrait};
 use phymes_ml::{CandleChatConfig, CandleEmbedConfig};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
+use phymes_schemas::{
+    AvailableInterfaceSubjects, AvailableSchemaTrait, AvailableSubjects, create_bytes_fields,
+    create_values_fields,
+};
+#[cfg(feature = "api")]
+use phymes_streams::{CommandSandboxConfig, HTTPClientConfig};
+use phymes_streams::{LimitConfig, ObjectStoreConfig, ToolCallConfig};
 use phymes_task::{TaskMap, TaskPlan};
 
-use crate::{SessionContext, SessionContextBuilder, SessionContextBuilderMermaidTrait, SessionContextBuilderTabularTrait, SessionContextBuilderTrait,
+use crate::{
+    SessionContext, SessionContextBuilder, SessionContextBuilderMermaidTrait,
+    SessionContextBuilderTabularTrait, SessionContextBuilderTrait,
     plans::{CountSubjectRowsSession, NextSuperstepSession, NextTaskSession},
 };
 
@@ -1235,9 +1243,9 @@ pub trait CustomAgentsBuilderTrait {
 }
 
 pub mod test_session_context_builder_agents {
-    use phymes_core::{BuildableTrait, BuilderTrait, SubjectBuilderTrait,test_subject};
-    use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
+    use phymes_core::{BuildableTrait, BuilderTrait, SubjectBuilderTrait, test_subject};
     use phymes_data::{AvailableOperators, DataConfig, DataJoinOperator};
+    use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
     use phymes_task::test_task;
 
     use crate::test_session_context_builder;

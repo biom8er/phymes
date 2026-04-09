@@ -11,8 +11,8 @@ mod chat_types;
 pub use chat_types::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType};
 pub use messages::{create_chat_fields, create_chat_record_batch};
 pub use openai_chat_completion::{
-    ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolCall, ToolChoiceType,
-    ToolType, ChatCompletionMessage, Content, MessageRole
+    ChatCompletionMessage, ChatCompletionRequest, ChatCompletionResponse, Content, FinishReason,
+    MessageRole, Tool, ToolCall, ToolChoiceType, ToolType,
 };
 pub use tools::{
     create_bytes_fields, create_bytes_record_batch, create_route_bytes_fields,

@@ -8,13 +8,17 @@ use anyhow::Result;
 use futures::TryStreamExt;
 use std::sync::Arc;
 
-use phymes_network::{ChatAgentSession, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait, SessionStream};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
-use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjectsTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+};
+use phymes_diagnostics::HashMap;
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
+use phymes_network::{
+    ChatAgentSession, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait, SessionStream,
+};
+use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjectsTrait};
 use phymes_streams::ChatBuilderTraitExt;
-use phymes_diagnostics::HashMap;
 
 pub async fn run_main() -> Result<()> {
     // initialize the session

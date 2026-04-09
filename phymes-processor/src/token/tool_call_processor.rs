@@ -1,21 +1,17 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv
-};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, 
-    remove_message_by_subject,
+    SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_streams::ToolCallStream;
 use tracing::{Level, event, instrument};
 
 use crate::ProcessorTrait;
-
 
 /// Processor that parses a [ProcessorTrait] configuration subject and
 ///   creates an on-the-fly `SessionTasksSubscribePublish` subject which calls
@@ -93,7 +89,9 @@ mod tests {
     use phymes_data::DataConfig;
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
     use phymes_event::Publication;
-    use phymes_schemas::{AvailableSubjects, create_bytes_record_batch, create_session_tasks_subscribe_publish_batch};
+    use phymes_schemas::{
+        AvailableSubjects, create_bytes_record_batch, create_session_tasks_subscribe_publish_batch,
+    };
     use phymes_streams::ToolCallConfig;
 
     use super::*;

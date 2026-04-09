@@ -4,7 +4,10 @@ use clap::ValueEnum;
 use phymes_core::MappableTrait;
 use serde::{Deserialize, Serialize};
 
-use crate::{SubjectChangedSinceLastRunUpdate, SubjectExistsUpdate, SubjectHasBatchesUpdate, UpdateEventTrait};
+use crate::{
+    SubjectChangedSinceLastRunUpdate, SubjectExistsUpdate, SubjectHasBatchesUpdate,
+    UpdateEventTrait,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableUpdateEvents {

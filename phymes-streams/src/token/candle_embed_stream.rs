@@ -5,24 +5,24 @@ use std::{
 };
 
 use anyhow::{Result, anyhow};
-use arrow::{
-    datatypes::SchemaRef,
-    record_batch::RecordBatch,
-};
+use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 use candle_core::{DType, Tensor};
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_core::{
-    BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+    BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject,
+    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_data::{DataConfigTrait, device};
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait};
 use phymes_message::{
-    MessageTrait,
-    SendableRecordBatchStreamMessageMap, remove_message_by_subject,
+    MessageTrait, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
+};
+use phymes_ml::{
+    CandleEmbedConfig, TokenStreamTrait, TokenWrapper, convert_embedding_tensor_to_record_batch,
+    process_prompt_embed,
 };
 use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects};
-use phymes_ml::{CandleEmbedConfig, TokenStreamTrait, TokenWrapper, convert_embedding_tensor_to_record_batch, process_prompt_embed};
 use tracing::instrument;
 
 pub struct CandleEmbedStream {

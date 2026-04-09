@@ -3,20 +3,23 @@ use std::collections::HashMap;
 use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+};
 use phymes_schemas::{
-    AvailableSubjects, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
-    create_bytes_record_batch, create_mermaid_content_template_batch, DataEncoding, DataFormat,
+    AvailableSubjects, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine,
+    JSONSchemaType, Tool, ToolType, create_bytes_record_batch,
+    create_mermaid_content_template_batch,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tracing::instrument;
 
 use crate::{
-    AvailableJinja2Templates, ToolTrait, SubjectScript,
-    tensor::{DataConfig, DataOperatorTrait},
+    AvailableJinja2Templates, SubjectScript, ToolTrait,
     operators::table_and_data_format_to_record_batch,
     template::{TEMPLATE_HEADER_EXPRESSION, TEMPLATE_TABLE_EXPRESSION},
+    tensor::{DataConfig, DataOperatorTrait},
 };
 
 /// Inject a table into a string template

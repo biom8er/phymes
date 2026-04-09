@@ -4,9 +4,11 @@ use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use clap::ValueEnum;
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+};
 use phymes_schemas::{
-    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType, DataFormat,
+    DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
     create_parse_owl_batch, create_parse_xml_batch,
 };
 use quick_xml::{
@@ -17,7 +19,7 @@ use quick_xml::{
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::{ToolTrait, DataConfig, DataOperatorTrait, sort};
+use crate::{DataConfig, DataOperatorTrait, ToolTrait, sort};
 
 /// Extract xml tags in either XML or OWL format from Bytes
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -669,11 +671,9 @@ pub fn extract_xml(
 #[cfg(test)]
 mod tests {
     use crate::device;
-    use phymes_core::{
-        BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait,
-    };
-    use phymes_schemas::{create_attachments_batch, DataFormat};
+    use phymes_core::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
     use phymes_diagnostics::{HashSet, create_timestamp_micros};
+    use phymes_schemas::{DataFormat, create_attachments_batch};
 
     use super::*;
 

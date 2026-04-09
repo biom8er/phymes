@@ -6,17 +6,16 @@ use arrow::{
     datatypes::Schema,
 };
 use candle_core::{Device, Tensor};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+};
 use phymes_schemas::{
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
 };
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::{
-    ToolTrait, DataConfig, DataOperatorTrait,
-    operators::sort,
-};
+use crate::{DataConfig, DataOperatorTrait, ToolTrait, operators::sort};
 
 /// Compute the normalized start and end times in a [RecordBatch] and remove any gaps in time
 #[derive(Debug, Default, Serialize, Deserialize)]

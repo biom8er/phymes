@@ -4,7 +4,6 @@ use phymes_diagnostics::{TraceableTrait, Tracer};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Hash, Eq, Default)]
 pub enum Subscription {
     /// Only when the subject has been updated, copy the full table

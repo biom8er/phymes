@@ -6,20 +6,29 @@ use arrow::{
     datatypes::{Field, Schema},
 };
 use clap::ValueEnum;
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectFilePartition, SubjectFolderPartition, SubjectPlan, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait, make_store};
-use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait, create_session_mermaid_batch,
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, RuntimeEnv,
+    RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectFilePartition,
+    SubjectFolderPartition, SubjectPlan, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait,
+    make_store,
+};
+use phymes_diagnostics::{HashSet, create_timestamp_micros};
+use phymes_event::{AvailableSubscribeEvents, AvailableUpdateEvents, Publication, Subscription};
+use phymes_processor::{AvailableProcessors, ProcessorPlanBuilder};
+use phymes_schemas::{
+    AvailableSubjects, AvailableSubjectsTrait, create_session_mermaid_batch,
     create_session_processors_batch, create_session_runtime_envs_batch,
     create_session_subject_schemas_batch, create_session_tasks_batch,
     create_session_tasks_run_log_batch, create_subjects_change_log_batch,
     create_subjects_num_rows_batch, create_subjects_object_store_meta_batch, from_data_type_to_str,
-    from_str_to_data_type};
-use phymes_event::{AvailableSubscribeEvents, AvailableUpdateEvents, Publication, Subscription};
-use phymes_processor::{AvailableProcessors, ProcessorPlanBuilder};
+    from_str_to_data_type,
+};
 use phymes_task::TaskPlanBuilder;
-use phymes_diagnostics::{HashSet, create_timestamp_micros};
 use serde_json::{Map, Value};
 
-use crate::{SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait,
+use crate::{
+    SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+    SessionContextBuilderTrait,
     plans::{CountSubjectRowsSession, NextSuperstepSession, NextTaskSession},
 };
 
@@ -1389,8 +1398,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
 #[cfg(test)]
 mod tests {
-    use phymes_task::test_task;
     use crate::test_session_context_builder;
+    use phymes_task::test_task;
 
     use super::*;
 

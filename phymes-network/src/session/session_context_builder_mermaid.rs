@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait,
+    SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait,
+    SessionContextBuilderTrait,
     plans::{NextSuperstepSession, NextTaskSession},
 };
 use anyhow::{Result, anyhow};
@@ -10,14 +11,21 @@ use arrow::{
     datatypes::{Field, Schema},
 };
 use clap::ValueEnum;
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait};
-use phymes_schemas::{check_agent_subjects, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait,
+    SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait,
+};
+use phymes_data::{
+    MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE, SubjectScript,
+};
+use phymes_diagnostics::{HashMap, HashSet};
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 use phymes_message::IPCMessageMap;
-use phymes_data::{MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE, SubjectScript};
-use phymes_diagnostics::{HashMap, HashSet};
-use phymes_streams::extract_tool_calls_str;
 use phymes_processor::{AvailableProcessors, ProcessorBuilder, ProcessorPlanBuilder};
+use phymes_schemas::{
+    check_agent_subjects, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type,
+};
+use phymes_streams::extract_tool_calls_str;
 use phymes_task::TaskPlanBuilder;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;

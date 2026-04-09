@@ -45,22 +45,31 @@ impl<'a> GetContentSession<'a> {
     pub fn as_mermaid_flowchart(&self) -> String {
         let session_context_name = self.session_context_name;
         let (get_pdf_p_subgraph, get_json_p_subgraph, get_object_p_subgraph) = if self.is_dynamic {
-            (r#"
-		get_pdf_p-subject-.->|LastRecordBatch|get_pdf_p-subscribe"#, r#"
-		get_json_p-subject-.->|LastRecordBatch|get_json_p-subscribe"#, r#"
-		get_object_p-subject-.->|LastRecordBatch|get_object_p-subscribe"#)
+            (
+                r#"
+		get_pdf_p-subject-.->|LastRecordBatch|get_pdf_p-subscribe"#,
+                r#"
+		get_json_p-subject-.->|LastRecordBatch|get_json_p-subscribe"#,
+                r#"
+		get_object_p-subject-.->|LastRecordBatch|get_object_p-subscribe"#,
+            )
         } else {
             ("", "", "")
         };
         let (get_pdf_p_subject, get_json_p_subject, get_object_p_subject) = if self.is_dynamic {
-            (r#"
-	get_pdf_p-subject@{shape: doc, label: get_pdf_p}"#, r#"
-	get_json_p-subject@{shape: doc, label: get_json_p}"#, r#"
-	get_object_p-subject@{shape: doc, label: get_object_p}"#)
+            (
+                r#"
+	get_pdf_p-subject@{shape: doc, label: get_pdf_p}"#,
+                r#"
+	get_json_p-subject@{shape: doc, label: get_json_p}"#,
+                r#"
+	get_object_p-subject@{shape: doc, label: get_object_p}"#,
+            )
         } else {
             ("", "", "")
         };
-        format!(r#"flowchart TD
+        format!(
+            r#"flowchart TD
 	{session_context_name}_r-rt@{{shape: subproc, label: get_content_r}}
 	%% ------------------------------------------------------------------------------
 	%% PDF document downloading
@@ -124,15 +133,23 @@ impl<'a> GetContentSession<'a> {
 	%% - Other document downloads can be added as shown above...
 	%% - Other tool calls can be integrated based on the above template...
 	%% - A tool message needs to be generated based on the responses...
-	%% ------------------------------------------------------------------------------"#)
+	%% ------------------------------------------------------------------------------"#
+        )
     }
     /// Return the Mermaid.js ER diagram representation of the session
     pub fn as_mermaid_erdiagram(&self) -> String {
         let (get_pdf_p, get_json_p, get_object_p) = if self.is_dynamic {
-            (r#"
-        List-UInt8 bytes"#.to_string(), r#"
-        List-UInt8 bytes"#.to_string(), r#"
-        List-UInt8 bytes"#.to_string())
+            (
+                r#"
+        List-UInt8 bytes"#
+                    .to_string(),
+                r#"
+        List-UInt8 bytes"#
+                    .to_string(),
+                r#"
+        List-UInt8 bytes"#
+                    .to_string(),
+            )
         } else {
             let pdf_request_schema = self.pdf_request_schema.to_string();
             let pdf_base_url = self.pdf_base_url;
@@ -145,28 +162,38 @@ impl<'a> GetContentSession<'a> {
             } else {
                 "{}".to_string()
             };
-            (format!(r#"
+            (
+                format!(
+                    r#"
         UInt32 timeout "15"
         Utf8 request_type "Get"
         Utf8 subject_name "http_client_request_pdf_s"
         Utf8 user_agent_type "rust-openalex-client/2.0"
         Utf8 request_schema "{pdf_request_schema}"
-        Utf8 base_url "{pdf_base_url}""#), format!(r#"
+        Utf8 base_url "{pdf_base_url}""#
+                ),
+                format!(
+                    r#"
         UInt32 timeout "15"
         Utf8 request_type "Get"
         Utf8 subject_name "http_client_request_json_s"
         Utf8 user_agent_type "rust-openalex-client/2.0"
         Utf8 request_schema "{json_request_schema}"
-        Utf8 base_url "{json_base_url}""#), format!(r#"
+        Utf8 base_url "{json_base_url}""#
+                ),
+                format!(
+                    r#"
         UInt32 timeout "15"
         Utf8 ops_type "Get"
         Utf8 backend "{object_store_backend}"
         Utf8 bucket "{object_store_bucket}"
         Utf8 backend_config "{object_store_config}"
         Utf8 subject_name "object_store_request_object_s""#
-            ))
+                ),
+            )
         };
-        format!(r#"erDiagram
+        format!(
+            r#"erDiagram
     http_client_request_pdf_s["http_client_request_pdf_s"] {{
         Utf8 role
         Utf8 content
@@ -208,7 +235,8 @@ impl<'a> GetContentSession<'a> {
         List-UInt8 bytes
         Utf8 metadata
         Int64 timestamp
-    }}"#)
+    }}"#
+        )
     }
 }
 
@@ -218,14 +246,24 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
-    use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, create_bytes_record_batch};
+    use phymes_core::{
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
+        SubjectTrait,
+    };
+    use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
-    use phymes_streams::{ChatBuilderTraitExt, HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
+    use phymes_network::{
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream,
+    };
+    use phymes_schemas::{
+        AvailableInterfaceSubjects, AvailableSubjects, create_bytes_record_batch,
+    };
+    use phymes_streams::{
+        ChatBuilderTraitExt, HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType,
+    };
     use phymes_task::SubscriptionTrait;
-    use phymes_diagnostics::HashMap;
-    use phymes_network::{SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream};
 
     use crate::ToolCallSession;
 
@@ -683,7 +721,6 @@ mod tests {
         Ok(())
     }
 
-    
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_content_session_static_w_subjects() -> Result<()> {
         // Initialize the session

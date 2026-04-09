@@ -11,13 +11,13 @@ use lopdf::{
 
 use phymes_core::MappableTrait;
 use phymes_schemas::{
-    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType
+    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use tracing::{Level, event, instrument};
 
-use crate::{ToolTrait, DataConfig, DataOperatorTrait};
+use crate::{DataConfig, DataOperatorTrait, ToolTrait};
 
 /// Chunk documents by splitting a StringArray column in a [RecordBatch] into multiple rows based on a defined criteria
 #[derive(Debug, Default, Serialize, Deserialize)]

@@ -331,15 +331,24 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait};
-    use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, create_tools_record_batch};
-    use phymes_event::{Publication, Subscription};
-    use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
-    use phymes_task::SubscriptionTrait;
-    use phymes_streams::ChatBuilderTraitExt;
+    use phymes_core::{
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
+        SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait,
+    };
     use phymes_data::{AvailableOperators, ToolTrait};
     use phymes_diagnostics::HashMap;
-    use phymes_network::{SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream};
+    use phymes_event::{Publication, Subscription};
+    use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
+    use phymes_network::{
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream,
+    };
+    use phymes_schemas::{
+        AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait,
+        create_tools_record_batch,
+    };
+    use phymes_streams::ChatBuilderTraitExt;
+    use phymes_task::SubscriptionTrait;
 
     use super::*;
 
@@ -547,17 +556,11 @@ mod tests {
 
         // Add the target tool subjects to the session for testing
         let mut subjects = session_ctx_builder.subjects.take().unwrap();
-        let tool = AvailableSubjects::Bytes.to_subject(
-            Some(AvailableOperators::Sort.to_string().as_str()),
-            None,
-        )?;
+        let tool = AvailableSubjects::Bytes
+            .to_subject(Some(AvailableOperators::Sort.to_string().as_str()), None)?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
         let tool = AvailableSubjects::Bytes.to_subject(
-            Some(
-                AvailableOperators::HumanInTheLoop
-                    .to_string()
-                    .as_str(),
-            ),
+            Some(AvailableOperators::HumanInTheLoop.to_string().as_str()),
             None,
         )?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
@@ -567,9 +570,7 @@ mod tests {
             // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
             .add_session_interface(Some(&[
                 AvailableOperators::Sort.to_string().as_str(),
-                AvailableOperators::HumanInTheLoop
-                    .to_string()
-                    .as_str(),
+                AvailableOperators::HumanInTheLoop.to_string().as_str(),
             ]))?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(session_ctx);
@@ -771,17 +772,11 @@ mod tests {
 
         // Add the target tool subjects to the session for testing
         let mut subjects = session_ctx_builder.subjects.take().unwrap();
-        let tool = AvailableSubjects::Bytes.to_subject(
-            Some(AvailableOperators::Sort.to_string().as_str()),
-            None,
-        )?;
+        let tool = AvailableSubjects::Bytes
+            .to_subject(Some(AvailableOperators::Sort.to_string().as_str()), None)?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
         let tool = AvailableSubjects::Bytes.to_subject(
-            Some(
-                AvailableOperators::HumanInTheLoop
-                    .to_string()
-                    .as_str(),
-            ),
+            Some(AvailableOperators::HumanInTheLoop.to_string().as_str()),
             None,
         )?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
@@ -790,9 +785,7 @@ mod tests {
             // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
             .add_session_interface(Some(&[
                 AvailableOperators::Sort.to_string().as_str(),
-                AvailableOperators::HumanInTheLoop
-                    .to_string()
-                    .as_str(),
+                AvailableOperators::HumanInTheLoop.to_string().as_str(),
             ]))?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(session_ctx);
@@ -1031,17 +1024,11 @@ mod tests {
 
         // Add the target tool subjects to the session for testing
         let mut subjects = session_ctx_builder.subjects.take().unwrap();
-        let tool = AvailableSubjects::Bytes.to_subject(
-            Some(AvailableOperators::Sort.to_string().as_str()),
-            None,
-        )?;
+        let tool = AvailableSubjects::Bytes
+            .to_subject(Some(AvailableOperators::Sort.to_string().as_str()), None)?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
         let tool = AvailableSubjects::Bytes.to_subject(
-            Some(
-                AvailableOperators::HumanInTheLoop
-                    .to_string()
-                    .as_str(),
-            ),
+            Some(AvailableOperators::HumanInTheLoop.to_string().as_str()),
             None,
         )?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
@@ -1050,9 +1037,7 @@ mod tests {
             // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
             .add_session_interface(Some(&[
                 AvailableOperators::Sort.to_string().as_str(),
-                AvailableOperators::HumanInTheLoop
-                    .to_string()
-                    .as_str(),
+                AvailableOperators::HumanInTheLoop.to_string().as_str(),
             ]))?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(session_ctx);

@@ -5,23 +5,18 @@ use std::{
 };
 
 use anyhow::{Result, anyhow};
-use arrow::{
-    array::RecordBatch,
-    datatypes::SchemaRef,
-};
+use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{Stream, StreamExt};
-use phymes_core::{BuilderTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait,
-};
-use phymes_message::{
-    MessageTrait,
-    SendableRecordBatchStreamMessageMap,
+use phymes_core::{
+    BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject,
+    SubjectBuilder, SubjectBuilderTrait,
 };
 use phymes_data::{DataConfig, DataConfigTrait, DataOperatorTrait, device};
-use phymes_ml::{CandleTensorService, TensorStreamTrait};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, MetricBuilderTrait,
 };
+use phymes_message::{MessageTrait, SendableRecordBatchStreamMessageMap};
+use phymes_ml::{CandleTensorService, TensorStreamTrait};
 use tracing::instrument;
 
 #[allow(dead_code)]

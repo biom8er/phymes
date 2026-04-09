@@ -1,14 +1,12 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv,
-};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
-    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
-    SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
-    remove_message_by_subject,
+    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_streams::ObjectStoreStream;
 
@@ -78,8 +76,13 @@ impl ProcessorTrait for ObjectStoreProcessor {
 mod tests {
     use super::*;
     use futures::TryStreamExt;
-    use phymes_core::{ObjectStorageBackend, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, test_subject};
-    use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder};
+    use phymes_core::{
+        ObjectStorageBackend, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+        test_subject,
+    };
+    use phymes_diagnostics::{
+        DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder,
+    };
     use phymes_event::Publication;
 
     use phymes_schemas::{create_object_store_batch, create_object_store_meta_batch};

@@ -3,10 +3,10 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use arrow::record_batch::RecordBatch;
 use phymes_core::{BuildableTrait, MappableTrait, RuntimeEnv};
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
 use phymes_event::Subscription;
 use phymes_message::{SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap};
 use phymes_processor::{ProcessorSubjectsMap, ProcessorTrait};
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
 use tracing::{Level, event};
 
 use crate::{TaskBuilder, build_and_publish_to_stream, subscribe_to_subject, update_publisher};
@@ -143,7 +143,8 @@ impl TaskTrait for Task {
             };
 
             // Run the processor
-            let message_builder = processor.process(message_sub, trace_builder.as_ref(), runtime_env.clone())?;
+            let message_builder =
+                processor.process(message_sub, trace_builder.as_ref(), runtime_env.clone())?;
 
             // Build and trace the processor published messages
             let message_pub = build_and_publish_to_stream(
@@ -177,12 +178,17 @@ impl TaskTrait for Task {
 pub mod test_task {
     use super::*;
     use crate::TaskBuilderTrait;
-    use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait, test_subject};
+    use arrow::array::{ArrayRef, BooleanArray, StringArray};
+    use phymes_core::{
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilder,
+        SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait, test_subject,
+    };
+    use phymes_diagnostics::HashMap;
     use phymes_event::Publication;
     use phymes_message::{IPCMessage, IPCMessageBuilder, IPCMessageMap, MessageBuilderTrait};
-    use phymes_processor::{ProcessorBuilder, ProcessorSubjects, ProcessorSubjectsBuilder, test_processor};
-    use arrow::array::{ArrayRef, BooleanArray, StringArray};
-    use phymes_diagnostics::HashMap;
+    use phymes_processor::{
+        ProcessorBuilder, ProcessorSubjects, ProcessorSubjectsBuilder, test_processor,
+    };
     use std::sync::Arc;
 
     pub fn make_config_tables(config_name: &str) -> Result<Subject> {
@@ -464,10 +470,12 @@ mod tests {
 
     use super::*;
     use futures::TryStreamExt;
-    use phymes_core::{BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlanTrait, SubjectTrait};
+    use phymes_core::{
+        BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlanTrait, SubjectTrait,
+    };
+    use phymes_diagnostics::{Diagnostics, SpanBuilder};
     use phymes_event::Publication;
     use phymes_message::MessageTrait;
-    use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     /// A compilation test to ensure that the `Task::get_name()` method can
     /// be called from a trait object.

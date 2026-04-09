@@ -14,7 +14,7 @@ pub trait JsonSchemaTrait {
 }
 
 /// Materialize the [Schema] for the object
-/// 
+///
 /// [Schema]: arrow::datatypes::Schema
 pub trait AvailableSchemaTrait {
     fn to_schema(&self) -> SchemaRef;

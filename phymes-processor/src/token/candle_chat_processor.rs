@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
-use phymes_ml::CandleChatConfig;
 use anyhow::{Result, anyhow};
 use parking_lot::Mutex;
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilder,
+    SubjectBuilderTrait, SubjectTrait,
+};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_event::Publication;
 use phymes_message::{
@@ -11,6 +13,7 @@ use phymes_message::{
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
+use phymes_ml::CandleChatConfig;
 use phymes_ml::TokenStreamTrait;
 use phymes_streams::CandleChatStream;
 use tracing::{Level, event, instrument};

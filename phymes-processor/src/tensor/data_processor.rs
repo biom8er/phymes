@@ -89,7 +89,9 @@ mod tests {
     use arrow::array::{Float32Array, StringArray};
     use futures::TryStreamExt;
     use phymes_core::{Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
-    use phymes_data::{AvailableOperators, DataConfig, DataDistanceOperator, DataStreamManager, test_candle_ops};
+    use phymes_data::{
+        AvailableOperators, DataConfig, DataDistanceOperator, DataStreamManager, test_candle_ops,
+    };
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
     use phymes_event::Publication;
 

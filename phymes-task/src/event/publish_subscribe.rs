@@ -2,9 +2,13 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
-use phymes_event::{Publication, Subscription};
-use phymes_message::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, remove_message_by_subject};
 use phymes_diagnostics::HashMap;
+use phymes_event::{Publication, Subscription};
+use phymes_message::{
+    MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
+    remove_message_by_subject,
+};
 
 use crate::SubscriptionTrait;
 

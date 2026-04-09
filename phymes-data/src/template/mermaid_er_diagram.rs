@@ -34,10 +34,7 @@ pub static MERMAID_ER_DIAGRAM_INPUT: &str = r#"{
 mod tests {
     use std::sync::Arc;
 
-    use crate::{
-        SubjectScript, TEMPLATE_TABLE_EXPRESSION,
-        MERMAID_HTML_POST, MERMAID_HTML_PRE
-    };
+    use crate::{MERMAID_HTML_POST, MERMAID_HTML_PRE, SubjectScript, TEMPLATE_TABLE_EXPRESSION};
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use phymes_core::{

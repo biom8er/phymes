@@ -9,7 +9,8 @@ use std::{
 use anyhow::{Result, anyhow};
 use arrow::{
     array::{
-        ArrayRef, ArrowPrimitiveType, BooleanArray, FixedSizeListArray, Float32Array, Float64Array, Int64Array, ListArray, PrimitiveBuilder, RecordBatch, StringArray, UInt8Array, UInt32Array
+        ArrayRef, ArrowPrimitiveType, BooleanArray, FixedSizeListArray, Float32Array, Float64Array,
+        Int64Array, ListArray, PrimitiveBuilder, RecordBatch, StringArray, UInt8Array, UInt32Array,
     },
     compute::{
         cast,
@@ -27,16 +28,19 @@ use arrow::{
 };
 use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast, WrappingShl, WrappingShr};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
-use phymes_schemas::{
-    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType, from_str_to_data_type,
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_diagnostics::HashSet;
+use phymes_schemas::{
+    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
+    from_str_to_data_type,
+};
 use serde_json::json;
 use tracing::instrument;
 
 use crate::{
-    DataColumnOperator, ToolTrait, SubjectScript, DataCastOperator, DataConfig, DataOperatorTrait,
+    DataCastOperator, DataColumnOperator, DataConfig, DataOperatorTrait, SubjectScript, ToolTrait,
     operators::group_by::{
         build_aggregator_column_fixed_size_list, build_aggregator_column_list_nonprimitive,
         build_aggregator_column_list_primitive,
@@ -2400,14 +2404,14 @@ pub fn select(
                         .map(|s| s.len() as u32)
                         .collect::<Vec<_>>();
                     Arc::new(UInt32Array::from(agg_values))
-                },
+                }
                 _ => {
                     return Err(anyhow!(
                         "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
                         column_operators.get(index).unwrap()
                     ));
                 }
-            }
+            },
             DataColumnOperator::BroadcastCount => {
                 let num_rows = lhs_table.count_rows();
                 let agg_vec = (0..num_rows).map(|v| v as u32).collect::<Vec<_>>();

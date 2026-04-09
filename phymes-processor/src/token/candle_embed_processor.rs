@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use parking_lot::Mutex;
-use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, 
-};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -93,7 +91,6 @@ impl TokenStreamTraitExt for CandleEmbedProcessor {
         &self.token_service
     }
 }
-
 
 #[cfg(test)]
 mod tests {

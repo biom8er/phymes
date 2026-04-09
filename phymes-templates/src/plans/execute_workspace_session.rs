@@ -1,7 +1,7 @@
-use anyhow::{Result, anyhow};
-use phymes_streams::CommandSandboxEnvironments;
-use phymes_schemas::AvailableInterfaceSubjects;
 use crate::plans::tool_call_session::ToolSessionTrait;
+use anyhow::{Result, anyhow};
+use phymes_schemas::AvailableInterfaceSubjects;
+use phymes_streams::CommandSandboxEnvironments;
 
 /// A session for executing code workspaces
 ///
@@ -254,13 +254,19 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait};
+    use phymes_core::{
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
+        SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait,
+    };
+    use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
+    use phymes_network::{
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream,
+    };
     use phymes_processor::test_command_sandbox_processor;
     use phymes_task::SubscriptionTrait;
-    use phymes_diagnostics::HashMap;
-    use phymes_network::{SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream};
 
     use super::*;
 

@@ -16,17 +16,18 @@ use arrow::{
 };
 use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+};
+use phymes_diagnostics::HashSet;
 use phymes_schemas::{
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
 };
-use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::{
-    ToolTrait, DataAggregatorOperator, DataConfig, DataOperatorTrait,
-    operators::sort::sort,
+    DataAggregatorOperator, DataConfig, DataOperatorTrait, ToolTrait, operators::sort::sort,
 };
 
 /// Group the [RecordBatch] according to the `lhs_values` columns and aggregate using a specified aggregation operator over specified columns

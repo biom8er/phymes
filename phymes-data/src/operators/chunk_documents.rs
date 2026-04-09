@@ -6,7 +6,9 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use candle_core::Device;
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+};
 use phymes_schemas::{
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
 };
@@ -14,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
-use crate::{ToolTrait, DataConfig, DataOperatorTrait};
+use crate::{DataConfig, DataOperatorTrait, ToolTrait};
 
 /// Chunk documents by splitting a StringArray column in a [RecordBatch] into multiple rows based on a defined criteria
 #[derive(Debug, Default, Serialize, Deserialize)]

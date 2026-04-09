@@ -2,17 +2,18 @@ use anyhow::{Result, anyhow};
 use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 use futures::{FutureExt, Stream, StreamExt};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject,
-    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+    BuildableTrait, BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait};
-use phymes_message::{MessageTrait,SendableRecordBatchStreamMessageMap, remove_message_by_subject,
-};
-use phymes_schemas::{
-    AvailableSchemaTrait, AvailableSubjects, EmbeddingRequest, EmbeddingResponse, EncodingFormat, 
+use phymes_message::{
+    MessageTrait, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_ml::{CandleEmbedConfig, convert_embedding_vector_to_record_batch};
+use phymes_schemas::{
+    AvailableSchemaTrait, AvailableSubjects, EmbeddingRequest, EmbeddingResponse, EncodingFormat,
+};
 use reqwest::{Client, header::CONTENT_TYPE};
 use std::{
     pin::Pin,

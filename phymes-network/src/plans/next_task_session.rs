@@ -1,9 +1,9 @@
 use anyhow::Result;
 use phymes_core::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
-use phymes_schemas::{AvailableSubjects, create_session_tasks_subscribe_publish_batch};
-use phymes_event::Publication;
 use phymes_diagnostics::HashMap;
+use phymes_event::Publication;
 use phymes_message::{IPCMessage, IPCMessageMap, MessageBuilderTrait, create_message_map};
+use phymes_schemas::{AvailableSubjects, create_session_tasks_subscribe_publish_batch};
 
 /// A session for determining the next superstep task publications and subscriptions
 pub struct NextTaskSession<'a> {
@@ -889,15 +889,20 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, SubjectTrait};
-    use phymes_schemas::AvailableSubjects;
+    use phymes_core::{
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait,
+        SubjectTrait,
+    };
+    use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
-    use phymes_diagnostics::HashMap;
-    use phymes_task::{test_task, SubscriptionTrait};
+    use phymes_schemas::AvailableSubjects;
+    use phymes_task::{SubscriptionTrait, test_task};
 
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, test_session_context_builder
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait,
+        test_session_context_builder,
     };
 
     use super::*;

@@ -1,13 +1,19 @@
 use anyhow::Result;
 use arrow::datatypes::Schema;
 use futures::{StreamExt, TryStreamExt};
-use phymes_core::{BuildableTrait, BuilderTrait, ObjectStorageBackend, RecordBatchStreamAdapter, RuntimeEnv, SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
-use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects, DataEncoding, DataFormat};
-use phymes_message::{MessageBuilderTrait, SendableRecordBatchStreamMessage};
-use phymes_event::{Publication, Subscription};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, ObjectStorageBackend, RecordBatchStreamAdapter, RuntimeEnv,
+    SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+};
 use phymes_data::{AvailableOperators, DataConfig, DataStreamManager};
-use phymes_streams::{CandleDataStream, LimitConfig, LimitStream, ObjectStoreConfig, ObjectStoreOptsType, ObjectStoreStream};
 use phymes_diagnostics::HashMap;
+use phymes_event::{Publication, Subscription};
+use phymes_message::{MessageBuilderTrait, SendableRecordBatchStreamMessage};
+use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects, DataEncoding, DataFormat};
+use phymes_streams::{
+    CandleDataStream, LimitConfig, LimitStream, ObjectStoreConfig, ObjectStoreOptsType,
+    ObjectStoreStream,
+};
 use std::sync::Arc;
 
 use crate::clear_subject;

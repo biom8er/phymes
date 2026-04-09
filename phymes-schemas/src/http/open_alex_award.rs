@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use phymes_core::MappableTrait;
 use crate::{
     AvailableSchemaTrait, create_schema_from_fields,
     http::{
@@ -9,6 +8,7 @@ use crate::{
     },
 };
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
+use phymes_core::MappableTrait;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]

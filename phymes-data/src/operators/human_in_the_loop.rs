@@ -1,14 +1,16 @@
 use arrow::record_batch::RecordBatch;
 use phymes_diagnostics::create_timestamp_micros;
 
-use crate::{ToolTrait, DataConfig, DataOperatorTrait};
+use crate::{DataConfig, DataOperatorTrait, ToolTrait};
 
 use anyhow::Result;
 use candle_core::Device;
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+};
 use phymes_schemas::{
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
-    create_chat_record_batch
+    create_chat_record_batch,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
