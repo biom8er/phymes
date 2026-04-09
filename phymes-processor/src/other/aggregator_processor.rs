@@ -2,7 +2,7 @@ use std::{pin::Pin, sync::Arc};
 
 use anyhow::{Result, anyhow};
 use arrow::datatypes::Fields;
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv};
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -104,7 +104,7 @@ impl ProcessorTrait for AggregatorProcessor {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{
+    use phymes_subject::{
         SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
         test_subject::{make_test_subject, make_test_subject_chat},
     };

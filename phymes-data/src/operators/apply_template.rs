@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_schemas::{
@@ -264,7 +264,7 @@ pub fn apply_template(
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::test_subject::make_test_subject_chat;
+    use phymes_subject::test_subject::make_test_subject_chat;
 
     use crate::{device, template::test_minimal_html};
 

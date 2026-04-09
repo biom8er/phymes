@@ -13,7 +13,7 @@ use axum::{
 use anyhow::Result;
 use bytes::Bytes;
 use futures::TryStreamExt;
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
     SubjectTrait,
 };

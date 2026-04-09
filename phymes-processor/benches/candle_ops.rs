@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectTrait,
     test_subject::TestSubjectSizes,
 };

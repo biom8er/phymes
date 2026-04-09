@@ -9,7 +9,7 @@ use lopdf::{
     dictionary,
 };
 
-use phymes_core::MappableTrait;
+use phymes_subject::MappableTrait;
 use phymes_schemas::{
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
 };
@@ -384,7 +384,7 @@ pub fn make_pdf_document(contents: &[&str]) -> Document {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+    use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 
     use super::*;
 

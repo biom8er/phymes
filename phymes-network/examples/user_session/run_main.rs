@@ -9,7 +9,7 @@ use futures::TryStreamExt;
 use phymes_diagnostics::HashMap;
 use std::sync::Arc;
 
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
     SubjectTrait,
 };

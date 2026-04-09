@@ -69,7 +69,7 @@ pub fn items_to_list(items: &[&str]) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use phymes_core::{SubjectTrait, test_subject::make_test_subject_chat};
+    use phymes_subject::{SubjectTrait, test_subject::make_test_subject_chat};
 
     #[test]
     fn test_items_to_list() -> Result<()> {

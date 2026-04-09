@@ -8,7 +8,7 @@ async fn main() -> Result<()> {
     use bytes::Bytes;
     use futures::TryStreamExt;
     // use futures_executor::block_on;
-    use phymes_core::{
+    use phymes_subject::{
         BuildableTrait, BuilderTrait, ObjectStorageBackend, RuntimeEnv, RuntimeEnvBuilderTrait,
         make_store,
     };

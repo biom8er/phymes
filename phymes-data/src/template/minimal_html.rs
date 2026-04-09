@@ -136,7 +136,7 @@ pub mod test_minimal_html {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use phymes_core::{
+    use phymes_subject::{
         BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
     };
     use serde_json::Map;

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use phymes_core::MappableTrait;
+use phymes_subject::MappableTrait;
 use serde::{Deserialize, Serialize};
 
 use crate::{

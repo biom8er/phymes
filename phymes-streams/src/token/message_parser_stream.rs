@@ -4,7 +4,7 @@ use std::{
     task::{Context, Poll, ready},
 };
 
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
     Subject, SubjectBuilderTrait, SubjectTrait,
 };

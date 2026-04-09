@@ -6,7 +6,7 @@ use arrow::{
     datatypes::{Schema, SchemaRef},
 };
 use clap::ValueEnum;
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait,
     SubjectPlan, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait,
 };
@@ -55,7 +55,7 @@ pub trait SessionContextBuilderAgentsTrait {
     /// 1. Check for consistency between the `lhs_name` and `rhs_name` in any [DataConfig]s and the subscriptions of the [ProcessorTrait]s
     /// 2. Check for consistency between the `lhs_pk`, `rhs_pk`, `lhs_fk`, `rhs_fk`, `lhs_values`, and `rhs_values` in any [DataConfig]s and the subscriptions of the [ProcessorTrait]s
     ///
-    /// [ProcessorTrait]: phymes_core::ProcessorTrait
+    /// [ProcessorTrait]: phymes_subject::ProcessorTrait
     fn check_data_config_subjects(&self) -> Result<()>;
 
     /// Check that all processor configs can be built
@@ -71,7 +71,7 @@ pub trait SessionContextBuilderAgentsTrait {
 
     /// Check that all [ProcessorTrait]s subscribe to a subject of the same name
     ///
-    /// [ProcessorTrait]: phymes_core::ProcessorTrait
+    /// [ProcessorTrait]: phymes_subject::ProcessorTrait
     fn check_processor_config_subjects(&self) -> Result<()>;
 
     /// Add processor subjects to the state with defaults
@@ -1243,7 +1243,7 @@ pub trait CustomAgentsBuilderTrait {
 }
 
 pub mod test_session_context_builder_agents {
-    use phymes_core::{BuildableTrait, BuilderTrait, SubjectBuilderTrait, test_subject};
+    use phymes_subject::{BuildableTrait, BuilderTrait, SubjectBuilderTrait, test_subject};
     use phymes_data::{AvailableOperators, DataConfig, DataJoinOperator};
     use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
     use phymes_task::test_task;
@@ -1384,7 +1384,7 @@ pub mod test_session_context_builder_agents {
 #[cfg(test)]
 mod tests {
     use crate::test_session_context_builder;
-    use phymes_core::{BuildableTrait, BuilderTrait, SubjectBuilderTrait};
+    use phymes_subject::{BuildableTrait, BuilderTrait, SubjectBuilderTrait};
     use phymes_data::{AvailableOperators, DataConfig, DataJoinOperator, DataStreamManager};
     use phymes_task::{TaskTrait, test_task};
 

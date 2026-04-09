@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow};
 use clap::Parser;
-use phymes_core::{MappableTrait, Subject, SubjectTrait};
+use phymes_subject::{MappableTrait, Subject, SubjectTrait};
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};

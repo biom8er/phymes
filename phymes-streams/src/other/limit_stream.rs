@@ -6,7 +6,7 @@ use anyhow::Result;
 use arrow::datatypes::SchemaRef;
 use arrow::record_batch::RecordBatch;
 use futures::stream::{Stream, StreamExt};
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
     Subject, SubjectBuilderTrait,
 };
@@ -208,7 +208,7 @@ mod tests {
     use arrow::datatypes::{DataType, Field, Schema};
     use arrow::record_batch::RecordBatchOptions;
     use futures::{Stream, TryStreamExt};
-    use phymes_core::{SubjectBuilder, SubjectTrait};
+    use phymes_subject::{SubjectBuilder, SubjectTrait};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     /// Return a RecordBatch with a single Int32 array with values (0..sz) in a field named "i"

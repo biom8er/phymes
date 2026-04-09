@@ -9,7 +9,7 @@ use axum::{
 
 // General imports
 use anyhow::Result;
-use phymes_core::{BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+use phymes_subject::{BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
 use phymes_message::{MessageTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait};
 use phymes_schemas::{
     AvailableSchemaTrait, AvailableSubjects, CsvFormat, DataFormat,

@@ -3,7 +3,7 @@ use std::{fmt::Display, sync::Arc};
 use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
-use phymes_core::{MappableTrait, ObjectStorageBackend, Subject};
+use phymes_subject::{MappableTrait, ObjectStorageBackend, Subject};
 use phymes_data::{
     AvailableJinja2Templates, AvailableOperators, DataAggregatorOperator, DataCastOperator,
     DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig,

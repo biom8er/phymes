@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use clap::ValueEnum;
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_schemas::{
@@ -671,7 +671,7 @@ pub fn extract_xml(
 #[cfg(test)]
 mod tests {
     use crate::device;
-    use phymes_core::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+    use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
     use phymes_diagnostics::{HashSet, create_timestamp_micros};
     use phymes_schemas::{DataFormat, create_attachments_batch};
 

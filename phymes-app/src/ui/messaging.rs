@@ -1,7 +1,7 @@
 // Dioxus imports
 use dioxus::prelude::*;
 
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_diagnostics::{convert_timestamp_micros_to_str, create_timestamp_micros};

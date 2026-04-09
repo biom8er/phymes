@@ -1,5 +1,5 @@
 use arrow::datatypes::SchemaRef;
-use phymes_core::MappableTrait;
+use phymes_subject::MappableTrait;
 use phymes_diagnostics::HashMap;
 use std::fmt::Debug;
 
@@ -286,7 +286,7 @@ impl MappableTrait for ChatContentSubscribe {
 }
 
 pub(crate) mod test_subscribe_policy {
-    use phymes_core::test_subject;
+    use phymes_subject::test_subject;
 
     use super::*;
 

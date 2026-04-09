@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use arrow::datatypes::DataType;
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
     SubjectPlanBuilderTrait,
 };
@@ -1818,7 +1818,7 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{BuildableTrait, MappableTrait, Subject, SubjectTrait};
+    use phymes_subject::{BuildableTrait, MappableTrait, Subject, SubjectTrait};
     use phymes_diagnostics::{HashMap, HashSet};
     use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
     use phymes_task::{SubscriptionTrait, test_task};

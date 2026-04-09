@@ -1,8 +1,8 @@
 # PHYMES: Parallel HYpergraph MEssaging Streams
 
 [![CI Status](https://github.com/biom8er/phymes/actions/workflows/phymes.yml/badge.svg)](https://github.com/biom8er/phymes/actions/workflows/main.yml)
-[![Latest version](https://img.shields.io/crates/v/phymes-core.svg)](https://crates.io/crates/phymes-core)
-[![Documentation](https://docs.rs/phymes-core/badge.svg)](https://docs.rs/phymes-core)
+[![Latest version](https://img.shields.io/crates/v/phymes-subject.svg)](https://crates.io/crates/phymes-subject)
+[![Documentation](https://docs.rs/phymes-subject/badge.svg)](https://docs.rs/phymes-subject)
 [![Guide](https://github.com/biom8er/phymes/actions/workflows/docs.yml/badge.svg)](https://biom8er.github.io/phymes/)
 [![License](https://img.shields.io/github/license/base-org/node?color=blue)](https://github.com/biom8er/phymes/blob/main/LICENSE-MIT)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/biom8er/phymes/blob/main/LICENSE-APACHE)
@@ -151,12 +151,12 @@ The phymes application is available for desktop (Linux, Windows, MacOS) and mobi
 
 ## Repository
 
-The [`phymes-core`], [`phymes-ml`], [`phymes-data`], [`phymes-network`], [`phymes-server`], [`phymes-app`] crates form a full-stack application that can run Agentic AI workflows, (Hyper-)Graph algorithms, and/or Simulate complex real world networks at scale using a web, desktop, or mobile interface.
+The [`phymes-subject`], [`phymes-ml`], [`phymes-data`], [`phymes-network`], [`phymes-server`], [`phymes-app`] crates form a full-stack application that can run Agentic AI workflows, (Hyper-)Graph algorithms, and/or Simulate complex real world networks at scale using a web, desktop, or mobile interface.
 
 | Crate | Description | Latest API Docs | README |
 | ----- | ----------- | --------------- | ------ |
 | [`phymes-diagnostics`] | Diagnostic tools for debugging and optimizing | [docs.rs](https://docs.rs/phymes-diagnostics/latest) | [README](phymes-diagnostics/README.md) |
-| [`phymes-core`] | Core hypergraph messaging functionality | [docs.rs](https://docs.rs/phymes-core/latest) | [README](phymes-core/README.md) |
+| [`phymes-subject`] | Core hypergraph messaging functionality | [docs.rs](https://docs.rs/phymes-subject/latest) | [README](phymes-subject/README.md) |
 | [`phymes-ml`] | Support for machine learning (ML) and generative artificial intelligence (AI) | [docs.rs](https://docs.rs/phymes-ml/latest) | [README](phymes-ml/README.md) |
 | [`phymes-data`] | Support for GPU accelerated data wrangling | [docs.rs](https://docs.rs/phymes-data/latest) | [README](phymes-data/README.md) |
 | [`phymes-network`] | Support for building Agentic AI hypergraph messaging applications | [docs.rs](https://docs.rs/phymes-network/latest) | [README](phymes-network/README.md) |
@@ -164,7 +164,7 @@ The [`phymes-core`], [`phymes-ml`], [`phymes-data`], [`phymes-network`], [`phyme
 | [`phymes-app`] | Frontend UI for dynamically interacting with the Agentic AI hypergraph messaging services  | [docs.rs](https://docs.rs/phymes-app/latest) | [README](phymes-app/README.md) |
 
 [`phymes-diagnostics`]: https://crates.io/crates/phymes-diagnostics
-[`phymes-core`]: https://crates.io/crates/phymes-core
+[`phymes-subject`]: https://crates.io/crates/phymes-subject
 [`phymes-ml`]: https://crates.io/crates/phymes-ml
 [`phymes-data`]: https://crates.io/crates/phymes-data
 [`phymes-network`]: https://crates.io/crates/phymes-network

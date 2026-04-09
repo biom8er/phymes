@@ -10,16 +10,16 @@ documentation = "https://docs.rs/phymes-schemas"
 
 [features]
 default = ["wsl"]
-wasip2 = ["phymes-diagnostics/wasip2", "phymes-core/wasip2"]
-wsl = ["phymes-diagnostics/wsl", "phymes-core/wsl"]
+wasip2 = ["phymes-diagnostics/wasip2", "phymes-subject/wasip2"]
+wsl = ["phymes-diagnostics/wsl", "phymes-subject/wsl"]
 hf_hub = []
-api = ["phymes-core/api"]
+api = ["phymes-subject/api"]
 gpu = []
 candle = []
 
 [dependencies]
 phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
-phymes-core = { path = "../phymes-core", default-features = false, optional = true }
+phymes-subject = { path = "../phymes-subject", default-features = false, optional = true }
 arrow = { version = "58.0.0", default-features = false, features = ["csv", "json", "ipc", "prettyprint"] }
 anyhow = { version = "1", default-features = false }
 clap = { version = "4.2.4", features = ["derive"] }

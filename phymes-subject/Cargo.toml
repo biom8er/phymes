@@ -1,12 +1,12 @@
 [package]
-name = "phymes-core"
+name = "phymes-subject"
 version = "0.3.0"
 edition = "2024"
 authors = ["Douglas McCloskey"]
-description = "The core subject-based message passing algorithm of PHYMES"
+description = "The subjects of PHYMES"
 license = "MIT AND Apache-2.0"
 repository = "https://github.com/biom8er/phymes"
-documentation = "https://docs.rs/phymes-core"
+documentation = "https://docs.rs/phymes-subject"
 
 [features]
 default = ["wsl"]

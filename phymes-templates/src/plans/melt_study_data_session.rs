@@ -347,7 +347,7 @@ mod tests {
     use anyhow::Result;
     use arrow::array::{ArrayRef, Float64Array, Int64Array, RecordBatch, StringArray};
     use futures::TryStreamExt;
-    use phymes_core::{
+    use phymes_subject::{
         BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
     };
     use phymes_diagnostics::HashMap;

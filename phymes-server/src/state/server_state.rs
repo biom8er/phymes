@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait,
     SubjectTrait,
 };
@@ -385,7 +385,7 @@ mod tests {
     use phymes_network::make_example_mermaid_table;
 
     #[cfg(not(target_family = "wasm"))]
-    use phymes_core::SubjectTrait;
+    use phymes_subject::SubjectTrait;
 
     #[tokio::test]
     async fn test_server_state_update_user_session_contexts() -> Result<()> {

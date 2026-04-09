@@ -8,7 +8,7 @@ use anyhow::Result;
 use futures::TryStreamExt;
 use std::sync::Arc;
 
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_data::make_pdf_document;

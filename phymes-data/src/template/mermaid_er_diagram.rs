@@ -37,7 +37,7 @@ mod tests {
     use crate::{MERMAID_HTML_POST, MERMAID_HTML_PRE, SubjectScript, TEMPLATE_TABLE_EXPRESSION};
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
-    use phymes_core::{
+    use phymes_subject::{
         BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
     };
     use serde_json::{Map, Value};

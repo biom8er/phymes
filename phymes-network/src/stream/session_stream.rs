@@ -98,7 +98,7 @@ impl Stream for SessionStream {
 #[cfg(test)]
 mod tests {
     use futures::TryStreamExt;
-    use phymes_core::{
+    use phymes_subject::{
         BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
     };
     use phymes_event::{Publication, Subscription};

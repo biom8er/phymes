@@ -42,7 +42,7 @@ mod tests {
     };
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
-    use phymes_core::{
+    use phymes_subject::{
         BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
     };
     use serde_json::{Map, Value};

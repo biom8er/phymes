@@ -6,7 +6,7 @@ extern crate accelerate_src;
 
 use anyhow::Result;
 use clap::Parser;
-use phymes_core::SubjectTrait;
+use phymes_subject::SubjectTrait;
 use phymes_ml::CandleChatConfig;
 use phymes_processor::bench_chat_processor::bench_chat_processor;
 

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::sync::Arc;
 
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait,
     SubjectPlan, SubjectPlanBuilderTrait,
 };
@@ -310,7 +310,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 #[allow(dead_code)]
 pub(crate) mod user_session_inner {
     use anyhow::Result;
-    use phymes_core::{BuildableTrait, MappableTrait, SubjectTrait};
+    use phymes_subject::{BuildableTrait, MappableTrait, SubjectTrait};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_schemas::create_user_inbox_batch;
 
@@ -362,7 +362,7 @@ pub(crate) mod user_session_inner {
 mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{MappableTrait, SubjectTrait};
+    use phymes_subject::{MappableTrait, SubjectTrait};
     use phymes_diagnostics::HashMap;
     use phymes_message::IPCMessage;
     use phymes_task::SubscriptionTrait;

@@ -295,7 +295,7 @@ PHYMES can be also be built on Windows and MacOS. However, we have omitted the s
 This is a standard cargo project with workspaces. To build the different workspaces, you need to have `rust` and `cargo` and you will need to specify workspaces using the using the `-p`, `--project` flag:
 
 ```bash
-cargo build -p phymes-core
+cargo build -p phymes-subject
 ```
 
 CPU, GPU, and WASM-specific compilation features are gated behind feature flags `wsl`, `gpu`, and `wasip2` respectively. The use of embedded Candle or OpenAI API token services are gated behind the feature flag `candle` and `api`, which enables the use of Candle or OpenAI API token services. Enabling `candle` will force the application to use embedded Candle models even if `api` is enabled. The use of HuggingFace models from the HuggingFace Hub API are gated behind the feature flag `hf_hub`.
@@ -340,7 +340,7 @@ Mixing and matching features that are compilation target specific and compilatio
 You can also use rust's official docker image:
 
 ```bash
-docker run --rm -v ${pwd}:/phymes -it rust /bin/bash -c "cd /phymes && rustup component add rustfmt && cargo build -p phymes-core"
+docker run --rm -v ${pwd}:/phymes -it rust /bin/bash -c "cd /phymes && rustup component add rustfmt && cargo build -p phymes-subject"
 ```
 
 From here on, this is a pure Rust project and `cargo` can be used to run tests, benchmarks, docs and examples as usual.
@@ -409,22 +409,22 @@ Run tests using the Rust standard `cargo test` command:
 # run all unit and integration tests with default features
 cargo test
 
-# run tests for the phymes-core crate with all features enabled
-cargo test -p phymes-core --all-features
+# run tests for the phymes-subject crate with all features enabled
+cargo test -p phymes-subject --all-features
 
-# run a specific test for the phymes-core crate with the wsl feature enabled
+# run a specific test for the phymes-subject crate with the wsl feature enabled
 # and printing to the console
-cargo test test_session_update_state -p phymes-core --features wsl -- --no-capture
+cargo test test_session_update_state -p phymes-subject --features wsl -- --no-capture
 
 # run the doc tests
 cargo test --doc
 ```
 
-You can find up-to-date information on the current CI tests in [.github/workflows](https://github.com/biom8er/phymes/tree/main/.github/workflows). The phymes-server, phymes-core, and phymes-network crates have unit tests. Please note that many of the tests in the phymes-ml and phymes-agent crates do not run on the CPU due to the amount of time that it takes to run them. To run all tests in the phymes-ml and phymes-network crates, either enable GPU acceleration with Candle using `--features wsl,gpu,candle` feature flag, or with OpenAI API local/remote token services using `--feature wsl,api` or `--feature wsl,gpu,api` feature flags depending upon GPU availability.
+You can find up-to-date information on the current CI tests in [.github/workflows](https://github.com/biom8er/phymes/tree/main/.github/workflows). The phymes-server, phymes-subject, and phymes-network crates have unit tests. Please note that many of the tests in the phymes-ml and phymes-agent crates do not run on the CPU due to the amount of time that it takes to run them. To run all tests in the phymes-ml and phymes-network crates, either enable GPU acceleration with Candle using `--features wsl,gpu,candle` feature flag, or with OpenAI API local/remote token services using `--feature wsl,api` or `--feature wsl,gpu,api` feature flags depending upon GPU availability.
 
 ```bash
-# run tests for the phymes-core crate
-cargo test --package phymes-core --features wsl --release
+# run tests for the phymes-subject crate
+cargo test --package phymes-subject --features wsl --release
 
 # run tests for the phymes-data crate with GPU acceleration
 cargo test --package phymes-data --features wsl,gpu --release
@@ -452,12 +452,12 @@ cargo test --package phymes-server --features wsl --release
 The tests can also be ran for WASM components. However, the WASM debug output is essentially useless, so it is recommend to debug the tests natively before testing on WASM
 
 ```bash
-# build tests for the phymes-core crate
-cargo test --package phymes-core --target wasm32-wasip2 --no-default-features --features wasip2 --no-run
+# build tests for the phymes-subject crate
+cargo test --package phymes-subject --target wasm32-wasip2 --no-default-features --features wasip2 --no-run
 
-# build tests for the phymes-core crate using wasmtime
+# build tests for the phymes-subject crate using wasmtime
 # be sure to replace the -26200b790e92721b with your systems unique hash
-wasmtime run target/wasm32-wasip2/debug/deps/phymes-core-26200b790e92721b.wasm
+wasmtime run target/wasm32-wasip2/debug/deps/phymes-subject-26200b790e92721b.wasm
 
 # run tests for the phymes-data crate
 cargo test --package phymes-data --target wasm32-wasip2 --no-default-features --features wasip2,candle --no-run
@@ -490,11 +490,11 @@ wasmtime --dir=$HOME/.cache --env=HOME=$HOME target/wasm32-wasip2/debug/deps/phy
 
 #### Running the examples
 
-Run examples using the Rust standard `cargo run` command. A few simple examples are provided for the phymes-core and phymes-network crates to provide new users a starting point for building application using the crates
+Run examples using the Rust standard `cargo run` command. A few simple examples are provided for the phymes-subject and phymes-network crates to provide new users a starting point for building application using the crates
 
 ```bash
-# run examples for the phymes-core crate
-cargo run --package phymes-core --features wsl --release --example addrows
+# run examples for the phymes-subject crate
+cargo run --package phymes-subject --features wsl --release --example addrows
 
 # run examples for the phymes-ml and phymes-network crates with GPU acceleration with Candle assets
 cargo run --package phymes-ml --features wsl,gpu,candle --release --example chat -- --candle-asset SmoLM2-135M-chat
@@ -508,10 +508,10 @@ cargo run --package phymes-network --no-default-features --features wsl,api --re
 The examples can also be ran using WASM. However, all assets needed to run the example need to be provided locally unlike native where we can rely on the HuggingFace API to download and cache models for us. The following bash script can be used to build the examples in wasm and run the examples using wasmtime:
 
 ```bash
-# build examples for the phymes-core crate
-cargo build --package phymes-core --target wasm32-wasip2 --no-default-features --features wasip2 --release --example addrows
+# build examples for the phymes-subject crate
+cargo build --package phymes-subject --target wasm32-wasip2 --no-default-features --features wasip2 --release --example addrows
 
-# run the examples for the phymes-core crate
+# run the examples for the phymes-subject crate
 wasmtime run target/wasm32-wasip2/release/examples/addrows.wasm
 
 # build the chat example for the phymes-ml crate
@@ -565,7 +565,7 @@ We use `doc` for API documentation hosted on crates.io and [mdBook](https://gith
 Run the following to create the API documentation using `doc`:
 
 ```bash
-cargo doc --document-private-items --no-deps -p phymes-core
+cargo doc --document-private-items --no-deps -p phymes-subject
 cargo doc --document-private-items --no-deps -p phymes-ml
 cargo doc --document-private-items --no-deps -p phymes-data
 cargo doc --document-private-items --no-deps -p phymes-network
@@ -624,7 +624,7 @@ Third, Run the actions-runner. Now, when you open a PR, the CI will run locally 
 
 ### Deployment on Web, Desktop, and Mobile
 
-The `phymes-core`, `phymes-network`, `phymes-server`, `phymes-app` crates form a full-stack application that can run Agentic AI workflows, Graph algorithms, or Simulate networks at scale using a web, desktop, or mobile interface. Both the frontend and server need to be built in `--release` mode for improved performance and security.
+The `phymes-subject`, `phymes-network`, `phymes-server`, `phymes-app` crates form a full-stack application that can run Agentic AI workflows, Graph algorithms, or Simulate networks at scale using a web, desktop, or mobile interface. Both the frontend and server need to be built in `--release` mode for improved performance and security.
 
 #### Web
 
@@ -751,7 +751,7 @@ Before running the `phymes-server`, setup the environmental variables as needed 
 
 ### Debugging the PHYMES deployment
 
-We recommend debugging the application using two terminals: one for `phymes-app` and another for `phymes-server`. Dioxus provides a great development loop for front-end application development with nifty hot-reloading features, but requires it's own dedicated terminal to run. Tokio provides an industry grade server along with nifty security features. During development (specifically, debug mode), the server permissions are relaxed to enable iterative debugging of the application. The `phymes-core`, `phymes-ml`, `phymes-data`, `phymes-network`, and `phymes-server` all use the Tracing crates for tracing and logging functionality. The packages and verbosity of console logging can be specified on the command line using the `RUST_LOG` environmental variable.
+We recommend debugging the application using two terminals: one for `phymes-app` and another for `phymes-server`. Dioxus provides a great development loop for front-end application development with nifty hot-reloading features, but requires it's own dedicated terminal to run. Tokio provides an industry grade server along with nifty security features. During development (specifically, debug mode), the server permissions are relaxed to enable iterative debugging of the application. The `phymes-subject`, `phymes-ml`, `phymes-data`, `phymes-network`, and `phymes-server` all use the Tracing crates for tracing and logging functionality. The packages and verbosity of console logging can be specified on the command line using the `RUST_LOG` environmental variable.
 
 In the first terminal:
 
@@ -768,8 +768,8 @@ cargo run -p phymes-server --features wsl,gpu,candle
 # only INFO level logs
 RUST_LOG=phymes_server=INFO cargo run -p phymes-server --features wsl,gpu,candle
 
-# DEBUG and INFO level logs for phymes-server, phymes-core, and phymes-ml with BACKTRACE level 1
-RUST_BACKTRACE=1 RUST_LOG=phymes_server=DEBUG,INFO,ERROR,phymes_data=DEBUG,INFO,ERROR,phymes_core=DEBUG,INFO,ERROR,phymes_ml=DEBUG,INFO,ERROR cargo run -p phymes-server --features wsl,gpu,candle,hf_hub
+# DEBUG and INFO level logs for phymes-server, phymes-subject, and phymes-ml with BACKTRACE level 1
+RUST_BACKTRACE=1 RUST_LOG=phymes_server=DEBUG,INFO,ERROR,phymes_data=DEBUG,INFO,ERROR,phymes_subject=DEBUG,INFO,ERROR,phymes_ml=DEBUG,INFO,ERROR cargo run -p phymes-server --features wsl,gpu,candle,hf_hub
 ```
 
 <!--- ANCHOR_END: deploying --->

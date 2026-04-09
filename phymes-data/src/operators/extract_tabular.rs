@@ -7,7 +7,7 @@ use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use flate2::read::{DeflateDecoder, GzDecoder, ZlibDecoder};
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
     SubjectTrait,
 };
@@ -386,7 +386,7 @@ pub mod test_extract_tabular_data {
     use std::sync::Arc;
 
     use arrow::array::{ArrayRef, Float32Array, StringArray};
-    use phymes_core::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait};
+    use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait};
 
     pub fn make_scores_table() -> Result<Subject> {
         let lhs_ids: ArrayRef = Arc::new(StringArray::from(vec!["a", "b", "c"]));
@@ -408,7 +408,7 @@ mod tests {
         Compression,
         write::{DeflateEncoder, GzEncoder, ZlibEncoder},
     };
-    use phymes_core::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+    use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
     use phymes_diagnostics::create_timestamp_micros;
     use phymes_schemas::{CsvFormat, DataFormat, JsonFormat, create_attachments_batch};
 

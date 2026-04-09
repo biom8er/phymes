@@ -4,7 +4,7 @@ use std::sync::Arc;
 use dioxus::prelude::*;
 use futures::StreamExt;
 #[cfg(feature = "serverless")]
-use phymes_core::{
+use phymes_subject::{
     make_store, BuildableTrait, BuilderTrait, ObjectStorageBackend, RuntimeEnv,
     RuntimeEnvBuilderTrait,
 };

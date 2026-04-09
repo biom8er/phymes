@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -75,7 +75,7 @@ impl ProcessorTrait for HTTPClientRequestProcessor {
 mod tests {
     use super::*;
     use futures::TryStreamExt;
-    use phymes_core::{SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+    use phymes_subject::{SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
     use phymes_data::{extract_pdf, filter_pdf, load_pdf_document};
     use phymes_diagnostics::{
         DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder,

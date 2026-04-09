@@ -1,5 +1,5 @@
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use phymes_core::MappableTrait;
+use phymes_subject::MappableTrait;
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};

@@ -3,7 +3,7 @@ use std::fmt::Display;
 use anyhow::Result;
 use arrow::array::RecordBatch;
 use clap::ValueEnum;
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, Subject, SubjectBuilder, SubjectPlan, SubjectPlanBuilderTrait,
 };
 use serde::{Deserialize, Serialize};

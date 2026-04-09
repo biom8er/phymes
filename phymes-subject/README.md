@@ -1,6 +1,6 @@
 # PHYMES: Parallel HYpergraph MEssaging Streams
 
-Core crate
+Subject crate
 
 <!--- ANCHOR: synopsis --->
 

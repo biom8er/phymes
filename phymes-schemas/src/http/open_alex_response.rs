@@ -43,7 +43,7 @@ use crate::{
         TopicFieldTable, TopicIdsTable, TopicKeywordTable, TopicSubfieldTable, TopicTable,
     },
 };
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
 use phymes_message::{
@@ -140,7 +140,7 @@ pub fn update_publisher(
 mod tests {
     use crate::{PublicationTrait, test_task};
     use futures::TryStreamExt;
-    use phymes_core::{SubjectPlanTrait, SubjectTrait, test_subject};
+    use phymes_subject::{SubjectPlanTrait, SubjectTrait, test_subject};
     use phymes_message::SendableRecordBatchStreamMessageBuilder;
 
     use super::*;

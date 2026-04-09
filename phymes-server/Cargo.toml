@@ -15,7 +15,7 @@ no_std = [
     "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "tokio/time",
     # Axum serverless extras
     "dep:futures-executor", "dep:tower-service"]
-wasip2 =  ["no_std", "phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-streams/wasip2", "phymes-data/wasip2", "phymes-schemas/wasip2", "phymes-message/wasip2", "phymes-event/wasip2", "phymes-ml/wasip2", "phymes-task/wasip2", "phymes-processor/wasip2", "phymes-network/wasip2"]    
+wasip2 =  ["no_std", "phymes-diagnostics/wasip2", "phymes-subject/wasip2", "phymes-streams/wasip2", "phymes-data/wasip2", "phymes-schemas/wasip2", "phymes-message/wasip2", "phymes-event/wasip2", "phymes-ml/wasip2", "phymes-task/wasip2", "phymes-processor/wasip2", "phymes-network/wasip2"]    
 std = [
     "tokio/full", "dep:reqwest",
     # Axum defaults
@@ -30,8 +30,8 @@ std = [
     "tower-http/limit",
     "tracing-subscriber/env-filter",
     ]
-wsl = ["std", "phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-streams/wsl", "phymes-data/wsl", "phymes-schemas/wsl", "phymes-message/wsl", "phymes-event/wsl", "phymes-ml/wsl", "phymes-task/wsl", "phymes-processor/wsl", "phymes-network/wsl"]
-api = ["phymes-core/api", "phymes-streams/api", "phymes-data/api", "phymes-message/api", "phymes-event/api", "phymes-ml/api", "phymes-task/api", "phymes-processor/api", "phymes-network/api"]
+wsl = ["std", "phymes-diagnostics/wsl", "phymes-subject/wsl", "phymes-streams/wsl", "phymes-data/wsl", "phymes-schemas/wsl", "phymes-message/wsl", "phymes-event/wsl", "phymes-ml/wsl", "phymes-task/wsl", "phymes-processor/wsl", "phymes-network/wsl"]
+api = ["phymes-subject/api", "phymes-streams/api", "phymes-data/api", "phymes-message/api", "phymes-event/api", "phymes-ml/api", "phymes-task/api", "phymes-processor/api", "phymes-network/api"]
 hf_hub = ["phymes-processor/hf_hub", "phymes-streams/hf_hub", "phymes-task/hf_hub", "phymes-ml/hf_hub"]
 gpu = ["phymes-processor/gpu", "phymes-task/gpu", "phymes-streams/gpu", "phymes-data/gpu", "phymes-ml/gpu", "phymes-network/gpu"]
 candle = ["phymes-streams/candle", "phymes-processor/candle", "phymes-task/candle", "phymes-data/candle", "phymes-ml/candle", "phymes-network/candle"]
@@ -40,7 +40,7 @@ mkl = ["phymes-streams/mkl", "phymes-processor/mkl", "phymes-task/mkl", "phymes-
 mkl-dynamic = ["phymes-streams/mkl-dynamic", "phymes-processor/mkl-dynamic", "phymes-task/mkl-dynamic", "phymes-network/mkl-dynamic"]
 
 [dependencies]
-phymes-core = { path = "../phymes-core", default-features = false, optional = true }
+phymes-subject = { path = "../phymes-subject", default-features = false, optional = true }
 phymes-data = { path = "../phymes-data", default-features = false, optional = true }
 phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
 phymes-schemas = { path = "../phymes-schemas", default-features = false, optional = true }

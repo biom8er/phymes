@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -76,7 +76,7 @@ impl ProcessorTrait for ObjectStoreProcessor {
 mod tests {
     use super::*;
     use futures::TryStreamExt;
-    use phymes_core::{
+    use phymes_subject::{
         ObjectStorageBackend, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
         test_subject,
     };

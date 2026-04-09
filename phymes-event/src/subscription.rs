@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow};
-use phymes_core::MappableTrait;
+use phymes_subject::MappableTrait;
 use phymes_diagnostics::{TraceableTrait, Tracer};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;

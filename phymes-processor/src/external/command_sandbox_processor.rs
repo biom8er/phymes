@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -95,7 +95,7 @@ pub mod test_command_sandbox_processor {
 mod tests {
     use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
     use futures::TryStreamExt;
-    use phymes_core::{SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+    use phymes_subject::{SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
     use phymes_event::Publication;
     use phymes_schemas::create_chat_record_batch;

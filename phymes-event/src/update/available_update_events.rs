@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use clap::ValueEnum;
-use phymes_core::MappableTrait;
+use phymes_subject::MappableTrait;
 use serde::{Deserialize, Serialize};
 
 use crate::{

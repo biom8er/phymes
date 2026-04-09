@@ -14,7 +14,7 @@ on:
       - .github/**
       - phymes-book/**
       - phymes-app/**
-      - phymes-core/**
+      - phymes-subject/**
       - phymes-ml/**
       - phymes-data/**
       - phymes-network/**
@@ -82,7 +82,7 @@ jobs:
       - name: Run cargo doc
         run: |
           cargo doc --document-private-items --no-deps -p phymes-diagnostics
-          cargo doc --document-private-items --no-deps -p phymes-core
+          cargo doc --document-private-items --no-deps -p phymes-subject
           cargo doc --document-private-items --no-deps -p phymes-ml
           cargo doc --document-private-items --no-deps -p phymes-data
           cargo doc --document-private-items --no-deps -p phymes-network

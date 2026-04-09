@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -90,7 +90,7 @@ impl ProcessorTrait for OpenAIChatProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use phymes_core::{ChatBuilderTraitExt, Publication, SubjectBuilder};
+    use phymes_subject::{ChatBuilderTraitExt, Publication, SubjectBuilder};
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
 
     use crate::AvailableOpenAIAssets;

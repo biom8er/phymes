@@ -11,7 +11,7 @@ use crate::{
     },
 };
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use phymes_core::MappableTrait;
+use phymes_subject::MappableTrait;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]

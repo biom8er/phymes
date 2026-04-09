@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use arrow::record_batch::RecordBatch;
-use phymes_core::{BuildableTrait, MappableTrait, RuntimeEnv};
+use phymes_subject::{BuildableTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
 use phymes_event::Subscription;
 use phymes_message::{SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap};
@@ -15,7 +15,7 @@ use crate::{TaskBuilder, build_and_publish_to_stream, subscribe_to_subject, upda
 ///   more operators over [`RecordBatch`]s often originating from
 ///   structs implementing the [`SubjectTrait`].
 ///
-/// [`SubjectTrait`]: phymes_core::SubjectTrait
+/// [`SubjectTrait`]: phymes_subject::SubjectTrait
 ///
 /// The trait allows for the schema of the data to change (e.g. after joins),
 ///   but the logic must be implemented by the user
@@ -179,7 +179,7 @@ pub mod test_task {
     use super::*;
     use crate::TaskBuilderTrait;
     use arrow::array::{ArrayRef, BooleanArray, StringArray};
-    use phymes_core::{
+    use phymes_subject::{
         BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilder,
         SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait, test_subject,
     };
@@ -470,7 +470,7 @@ mod tests {
 
     use super::*;
     use futures::TryStreamExt;
-    use phymes_core::{
+    use phymes_subject::{
         BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlanTrait, SubjectTrait,
     };
     use phymes_diagnostics::{Diagnostics, SpanBuilder};

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use phymes_core::BuilderTrait;
+use phymes_subject::BuilderTrait;
 use phymes_processor::ProcessorTrait;
 
 use crate::Task;

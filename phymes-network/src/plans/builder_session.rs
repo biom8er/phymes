@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectPlan,
     SubjectPlanBuilderTrait,
 };

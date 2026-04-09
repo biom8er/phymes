@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow};
-use phymes_core::{MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream};
+use phymes_subject::{MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream};
 use phymes_diagnostics::DiagnosticBuilder;
 use phymes_message::{
     SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
@@ -97,8 +97,8 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     /// # use arrow::array::RecordBatch;
     /// # use arrow::datatypes::SchemaRef;
     /// # use anyhow::Result;
-    /// # use phymes_core::SendableRecordBatchStream;
-    /// # use phymes_core::RecordBatchStreamAdapter;
+    /// # use phymes_subject::SendableRecordBatchStream;
+    /// # use phymes_subject::RecordBatchStreamAdapter;
     ///
     /// struct MyProcessor {
     ///     batch: RecordBatch,
@@ -124,8 +124,8 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     /// # use arrow::array::RecordBatch;
     /// # use arrow::datatypes::SchemaRef;
     /// # use anyhow::Result;
-    /// # use phymes_core::SendableRecordBatchStream;
-    /// # use phymes_core::RecordBatchStreamAdapter;
+    /// # use phymes_subject::SendableRecordBatchStream;
+    /// # use phymes_subject::RecordBatchStreamAdapter;
     ///
     /// struct MyProcessor {
     ///     schema: SchemaRef,
@@ -157,8 +157,8 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     /// # use arrow::datatypes::SchemaRef;
     /// # use futures::TryStreamExt;
     /// # use anyhow::Result;
-    /// # use phymes_core::SendableRecordBatchStream;
-    /// # use phymes_core::RecordBatchStreamAdapter;
+    /// # use phymes_subject::SendableRecordBatchStream;
+    /// # use phymes_subject::RecordBatchStreamAdapter;
     ///
     /// struct MyProcessor {
     ///     schema: SchemaRef,
@@ -195,7 +195,7 @@ pub mod test_processor {
 
     use arrow::{array::RecordBatch, compute::concat_batches, datatypes::SchemaRef};
     use futures::{Stream, StreamExt};
-    use phymes_core::{BuildableTrait, BuilderTrait, test_subject::make_test_record_batch};
+    use phymes_subject::{BuildableTrait, BuilderTrait, test_subject::make_test_record_batch};
     use phymes_diagnostics::{DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
     use phymes_message::{
         MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -385,7 +385,7 @@ pub mod test_processor {
 mod tests {
     use super::*;
     use anyhow::Result;
-    use phymes_core::{
+    use phymes_subject::{
         BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait,
         SubjectTrait, test_subject::make_test_subject,
     };

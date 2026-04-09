@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
-use phymes_core::{MappableTrait, Subject, SubjectTrait};
+use phymes_subject::{MappableTrait, Subject, SubjectTrait};
 use phymes_diagnostics::HashSet;
 use phymes_schemas::{AvailableSubjects, DataEncoding, DataFormat};
 use serde::{Deserialize, Serialize};

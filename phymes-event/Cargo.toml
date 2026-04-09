@@ -10,15 +10,15 @@ documentation = "https://docs.rs/phymes-event"
 
 [features]
 default = ["wsl"]
-wasip2 = ["phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-schemas/wasip2"]
-wsl = ["phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-schemas/wsl"]
+wasip2 = ["phymes-diagnostics/wasip2", "phymes-subject/wasip2", "phymes-schemas/wasip2"]
+wsl = ["phymes-diagnostics/wsl", "phymes-subject/wsl", "phymes-schemas/wsl"]
 hf_hub = []
-api = ["phymes-core/api"]
+api = ["phymes-subject/api"]
 gpu = []
 candle = []
 
 [dependencies]
-phymes-core = { path = "../phymes-core", default-features = false, optional = true }
+phymes-subject = { path = "../phymes-subject", default-features = false, optional = true }
 phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
 phymes-schemas = { path = "../phymes-schemas", default-features = false, optional = true }
 arrow = { version = "58.0.0", default-features = false, features = ["csv", "json", "ipc", "prettyprint"] }

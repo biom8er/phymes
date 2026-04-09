@@ -10,7 +10,7 @@ use axum::{
 // Streaming imports
 use bytes::Bytes;
 use futures::prelude::*;
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
     SubjectTrait,
 };

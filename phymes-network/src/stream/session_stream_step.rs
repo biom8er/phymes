@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow};
 use futures::{FutureExt, TryStreamExt};
-use phymes_core::{BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+use phymes_subject::{BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap, Span,
     SpanBuilder, TraceBuilderTrait, TraceRecord, create_timestamp_micros,
@@ -797,7 +797,7 @@ mod tests {
         SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait,
         test_session_context_builder,
     };
-    use phymes_core::{
+    use phymes_subject::{
         BuildableTrait, ObjectStorageBackend, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
         SubjectPlan, SubjectPlanBuilderTrait, make_store,
     };

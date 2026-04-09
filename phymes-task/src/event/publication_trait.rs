@@ -9,7 +9,7 @@ use arrow::{
     datatypes::{DataType, Field, Schema},
 };
 use futures::StreamExt;
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, RecordBatchStreamAdapter,
     RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait,
     SubjectTrait,
@@ -616,7 +616,7 @@ mod tests {
     use arrow::datatypes::Schema;
 
     use futures::TryStreamExt;
-    use phymes_core::test_subject;
+    use phymes_subject::test_subject;
     use phymes_event::Subscription;
     use phymes_schemas::create_bytes_record_batch;
 

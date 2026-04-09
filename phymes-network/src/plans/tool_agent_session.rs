@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use serde_json::json;
 
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait,
     SubjectPlan, SubjectPlanBuilderTrait,
 };
@@ -839,7 +839,7 @@ mod tests {
     use std::sync::Arc;
 
     use futures::TryStreamExt;
-    use phymes_core::{BuildableTrait, MappableTrait, SubjectTrait};
+    use phymes_subject::{BuildableTrait, MappableTrait, SubjectTrait};
     use phymes_data::test_extract_tabular_data::make_scores_table;
     use phymes_diagnostics::HashMap;
     use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};

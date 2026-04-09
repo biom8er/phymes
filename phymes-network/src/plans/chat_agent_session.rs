@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
     SubjectPlanBuilderTrait,
 };
@@ -314,7 +314,7 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{BuildableTrait, MappableTrait, SubjectTrait};
+    use phymes_subject::{BuildableTrait, MappableTrait, SubjectTrait};
     use phymes_diagnostics::HashMap;
     use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
     use phymes_streams::ChatBuilderTraitExt;

@@ -6,7 +6,7 @@ use arrow::{
     datatypes::{DataType, Field, Int64Type, Schema, UInt32Type},
 };
 use candle_core::Device;
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_schemas::{

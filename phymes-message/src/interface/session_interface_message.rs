@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 
 use crate::{MessageBuilderTrait, MessageTrait};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait};
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait};
 use phymes_event::Publication;
 use phymes_schemas::DataFormat;
 

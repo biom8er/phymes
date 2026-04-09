@@ -2,7 +2,7 @@ use std::{io::Write, str::FromStr};
 
 use anyhow::Result;
 use clap::Parser;
-use phymes_core::BuilderTrait;
+use phymes_subject::BuilderTrait;
 use phymes_network::SessionContextBuilderMermaid;
 
 #[derive(Parser, Debug, Default, Clone)]

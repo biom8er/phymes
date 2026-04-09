@@ -1,4 +1,4 @@
-use phymes_core::ObjectStorageBackend;
+use phymes_subject::ObjectStorageBackend;
 use serde_json::{Map, Value};
 
 /// A session to sync local object storage with remote object storage
@@ -393,7 +393,7 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{
+    use phymes_subject::{
         BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
         SubjectBuilder, SubjectBuilderTrait, SubjectTrait, make_store, test_subject,
     };

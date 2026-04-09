@@ -1,5 +1,5 @@
 use anyhow::{Error, Result};
-use phymes_core::{BuilderTrait, MappableTrait, SubjectTrait};
+use phymes_subject::{BuilderTrait, MappableTrait, SubjectTrait};
 use phymes_diagnostics::HashMap;
 use phymes_event::Publication;
 use phymes_schemas::{AvailableSubjects, create_error_subject};

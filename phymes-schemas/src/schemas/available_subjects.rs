@@ -38,7 +38,7 @@ use crate::{
         create_parse_xml_fields,
     },
 };
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
     SubjectPlanBuilderTrait,
 };

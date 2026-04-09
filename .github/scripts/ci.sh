@@ -39,7 +39,7 @@ echo "Compilation checks for Linux targets."
 echo "-----------------------------------------------"
 cargo check --all-targets
 cargo check -p phymes-diagnostics --all-targets --no-default-features --features wsl
-cargo check -p phymes-core --all-targets --no-default-features --features wsl
+cargo check -p phymes-subject --all-targets --no-default-features --features wsl
 cargo check -p phymes-data --all-targets --no-default-features --features wsl
 cargo check -p phymes-ml --all-targets --no-default-features --features wsl
 cargo check -p phymes-ml --all-targets --no-default-features --features wsl,hf_hub,candle
@@ -59,7 +59,7 @@ cargo fmt --all -- --check
 # echo "Tests and examples for api features for Linux targets."
 # echo "-----------------------------------------------"
 # cargo test --no-default-features --features wsl,api -p phymes-diagnostics --all-targets
-# cargo test --no-default-features --features wsl,api -p phymes-core --all-targets
+# cargo test --no-default-features --features wsl,api -p phymes-subject --all-targets
 # cargo test --no-default-features --features wsl,api -p phymes-data --all-targets
 # cargo test --no-default-features --features wsl,api -p phymes-ml --all-targets
 # cargo test --no-default-features --features wsl,api -p phymes-network --all-targets
@@ -70,9 +70,9 @@ echo "-----------------------------------------------"
 cargo check -p phymes-diagnostics --features wasip2 --no-default-features --target wasm32-unknown-unknown
 cargo test -p phymes-diagnostics --features wasip2 --no-default-features --target wasm32-wasip2 --no-run --release
 for file in target/wasm32-wasip2/release/deps/phymes_diagnostics-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
-cargo check -p phymes-core --features wasip2 --no-default-features --target wasm32-unknown-unknown
-cargo test -p phymes-core --features wasip2 --no-default-features --target wasm32-wasip2 --no-run --release
-for file in target/wasm32-wasip2/release/deps/phymes_core-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
+cargo check -p phymes-subject --features wasip2 --no-default-features --target wasm32-unknown-unknown
+cargo test -p phymes-subject --features wasip2 --no-default-features --target wasm32-wasip2 --no-run --release
+for file in target/wasm32-wasip2/release/deps/phymes_subject-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
 cargo check -p phymes-data --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
 cargo test -p phymes-data --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
 for file in target/wasm32-wasip2/release/deps/phymes_data-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
@@ -100,7 +100,7 @@ echo "-----------------------------------------------"
 mdbook test phymes-book
 mdbook build phymes-book
 cargo doc --document-private-items --no-deps -p phymes-diagnostics
-cargo doc --document-private-items --no-deps -p phymes-core
+cargo doc --document-private-items --no-deps -p phymes-subject
 cargo doc --document-private-items --no-deps -p phymes-ml
 cargo doc --document-private-items --no-deps -p phymes-data
 cargo doc --document-private-items --no-deps -p phymes-network

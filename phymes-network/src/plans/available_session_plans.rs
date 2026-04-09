@@ -2,7 +2,7 @@ use std::{fmt::Display, sync::Arc};
 
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
-use phymes_core::{BuilderTrait, RuntimeEnv};
+use phymes_subject::{BuilderTrait, RuntimeEnv};
 use phymes_message::IPCMessageMap;
 use serde::{Deserialize, Serialize};
 

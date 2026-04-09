@@ -1,7 +1,7 @@
 use anyhow::Result;
 use arrow::datatypes::Schema;
 use futures::{StreamExt, TryStreamExt};
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, ObjectStorageBackend, RecordBatchStreamAdapter, RuntimeEnv,
     SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
@@ -287,7 +287,7 @@ impl SubscriptionTrait for Subscription {
 #[cfg(test)]
 mod tests {
     use futures::TryStreamExt;
-    use phymes_core::{Subject, test_subject};
+    use phymes_subject::{Subject, test_subject};
 
     use crate::PublicationTrait;
 

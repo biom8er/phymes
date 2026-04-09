@@ -10,9 +10,9 @@ documentation = "https://docs.rs/phymes-processor"
 
 [features]
 default = ["wsl", "candle"]
-api = ["phymes-core/api", "phymes-data/api", "phymes-message/api", "phymes-event/api", "phymes-streams/api", "phymes-ml/api", "dep:urlencoding", "object_store/aws", "object_store/gcp", "object_store/azure", "object_store/http"]
-wasip2 = ["phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-data/wasip2", "phymes-message/wasip2", "phymes-event/wasip2", "phymes-streams/wasip2", "phymes-ml/wasip2", "phymes-schemas/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "dep:object_store"]
-wsl = ["phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-data/wsl", "phymes-message/wsl", "phymes-event/wsl", "phymes-streams/wsl", "phymes-schemas/wsl", "phymes-ml/wsl", "tokio/full", "dep:tempfile", "dep:object_store"]
+api = ["phymes-subject/api", "phymes-data/api", "phymes-message/api", "phymes-event/api", "phymes-streams/api", "phymes-ml/api", "dep:urlencoding", "object_store/aws", "object_store/gcp", "object_store/azure", "object_store/http"]
+wasip2 = ["phymes-diagnostics/wasip2", "phymes-subject/wasip2", "phymes-data/wasip2", "phymes-message/wasip2", "phymes-event/wasip2", "phymes-streams/wasip2", "phymes-ml/wasip2", "phymes-schemas/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "dep:object_store"]
+wsl = ["phymes-diagnostics/wsl", "phymes-subject/wsl", "phymes-data/wsl", "phymes-message/wsl", "phymes-event/wsl", "phymes-streams/wsl", "phymes-schemas/wsl", "phymes-ml/wsl", "tokio/full", "dep:tempfile", "dep:object_store"]
 hf_hub = ["phymes-streams/hf_hub", "phymes-ml/hf_hub"]
 gpu = ["phymes-data/gpu", "phymes-streams/gpu", "phymes-ml/gpu"]
 candle = ["phymes-streams/candle", "phymes-ml/candle"] # force use of candle models when api is available
@@ -21,7 +21,7 @@ mkl = ["phymes-streams/mkl"]
 mkl-dynamic = ["phymes-streams/mkl-dynamic"]
 
 [dependencies]
-phymes-core = { path = "../phymes-core", default-features = false, optional = true }
+phymes-subject = { path = "../phymes-subject", default-features = false, optional = true }
 phymes-data = { path = "../phymes-data", default-features = false, optional = true }
 phymes-ml = { path = "../phymes-ml", default-features = false, optional = true }
 phymes-schemas = { path = "../phymes-schemas", default-features = false, optional = true }

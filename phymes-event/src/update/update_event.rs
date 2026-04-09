@@ -1,4 +1,4 @@
-use phymes_core::MappableTrait;
+use phymes_subject::MappableTrait;
 use phymes_diagnostics::HashMap;
 use std::fmt::Debug;
 

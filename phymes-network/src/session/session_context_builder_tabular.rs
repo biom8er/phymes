@@ -6,7 +6,7 @@ use arrow::{
     datatypes::{Field, Schema},
 };
 use clap::ValueEnum;
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, RuntimeEnv,
     RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectFilePartition,
     SubjectFolderPartition, SubjectPlan, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait,

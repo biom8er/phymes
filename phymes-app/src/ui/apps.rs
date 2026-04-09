@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_event::Publication;

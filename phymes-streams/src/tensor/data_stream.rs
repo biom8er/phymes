@@ -4,7 +4,7 @@ use arrow::{
     record_batch::RecordBatch,
 };
 use futures::{Stream, StreamExt};
-use phymes_core::{
+use phymes_subject::{
     BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
     SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };

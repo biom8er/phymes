@@ -4,7 +4,7 @@ mod test_messages {
     use anyhow::{Result, anyhow};
     use arrow::{array::RecordBatch, datatypes::SchemaRef};
     use futures::{Stream, StreamExt};
-    use phymes_core::{
+    use phymes_subject::{
         BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
         SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
     };
@@ -202,7 +202,7 @@ mod tests {
     use anyhow::Result;
     use arrow::array::RecordBatch;
     use futures::TryStreamExt;
-    use phymes_core::{
+    use phymes_subject::{
         BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait,
         SubjectTrait, test_subject,
     };

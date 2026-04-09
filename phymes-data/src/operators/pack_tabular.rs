@@ -7,7 +7,7 @@ use flate2::{
     Compression,
     write::{DeflateEncoder, GzEncoder, ZlibEncoder},
 };
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_diagnostics::create_timestamp_micros;

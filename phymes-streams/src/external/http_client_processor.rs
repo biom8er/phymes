@@ -11,7 +11,7 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use bytes::Bytes;
 use futures::{FutureExt, Stream, StreamExt};
-use phymes_core::{
+use phymes_subject::{
     BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
     SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };

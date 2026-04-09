@@ -16,7 +16,7 @@ use object_store::{
     PutPayload, PutResult, WriteMultipart, path::Path,
 };
 use parking_lot::Mutex;
-use phymes_core::{
+use phymes_subject::{
     BuilderTrait, ChunkedWriter, MappableTrait, ObjectStorageBackend, OnChunk, RecordBatchStream,
     RuntimeEnv, RuntimeEnvTrait, SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait,
     SubjectTrait, make_store,

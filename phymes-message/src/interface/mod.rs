@@ -2,7 +2,7 @@ mod error;
 mod session_interface_message;
 
 pub use error::{create_error_message_map, create_error_message_map_stream};
-use phymes_core::MappableTrait;
+use phymes_subject::MappableTrait;
 use phymes_diagnostics::HashMap;
 pub use session_interface_message::{
     SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,

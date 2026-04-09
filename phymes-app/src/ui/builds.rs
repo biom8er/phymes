@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-use phymes_core::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_event::Publication;
 use phymes_message::{

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use arrow::array::RecordBatch;
 use candle_core::Device;
-use phymes_core::MappableTrait;
+use phymes_subject::MappableTrait;
 use std::fmt::Debug;
 
 use crate::DataConfig;

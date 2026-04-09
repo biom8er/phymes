@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::ValueEnum;
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStream, SubjectBuilder,
     SubjectBuilderTrait, SubjectTrait,
 };
@@ -253,7 +253,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{SubjectBuilder, SubjectTrait, test_subject};
+    use phymes_subject::{SubjectBuilder, SubjectTrait, test_subject};
     use phymes_diagnostics::HashMap;
     use phymes_schemas::create_route_bytes_record_batch;
 

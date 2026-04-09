@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use axum::{Router, response::Response};
 use http::Request;
-use phymes_core::RuntimeEnv;
+use phymes_subject::RuntimeEnv;
 use tower_service::Service;
 
 // From lib
@@ -88,7 +88,7 @@ mod tests {
     use bytes::Bytes;
     use futures::TryStreamExt;
     use futures_executor::block_on;
-    use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, SubjectTrait};
+    use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, SubjectTrait};
     use phymes_event::Publication;
     use phymes_message::{
         MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait,

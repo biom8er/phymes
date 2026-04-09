@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use arrow::datatypes::SchemaRef;
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
     SubjectPlan, SubjectPlanTrait, SubjectTrait,
 };
@@ -29,13 +29,13 @@ pub trait SessionContextBuilderTrait: BuilderTrait {
     fn check_tasks(&self) -> Result<()>;
     /// Check that all [ProcessorTrait]s defined in the [TaskPlan] are accounted for
     ///
-    /// [ProcessorTrait]: phymes_core::ProcessorTrait
+    /// [ProcessorTrait]: phymes_subject::ProcessorTrait
     fn check_processors(&self) -> Result<()>;
     /// Check the [RuntimeEnv]
     fn check_runtime_env(&self) -> Result<()>;
     /// Check that all subject [Subject]s defined in the subjects and subscribed to by the [ProcessorTrait]s are accounted for
     ///
-    /// [ProcessorTrait]: phymes_core::ProcessorTrait
+    /// [ProcessorTrait]: phymes_subject::ProcessorTrait
     fn check_subjects(&self) -> Result<()>;
 }
 
@@ -465,7 +465,7 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 
 /// Mock objects and functions for session context builer testing
 pub mod test_session_context_builder {
-    use phymes_core::{ObjectStorageBackend, SubjectPlanBuilderTrait, make_store};
+    use phymes_subject::{ObjectStorageBackend, SubjectPlanBuilderTrait, make_store};
     use phymes_event::AvailableSubscribeEvents;
     use phymes_processor::{AvailableProcessors, ProcessorPlanBuilder};
     use phymes_task::test_task;
@@ -707,7 +707,7 @@ pub mod test_session_context_builder {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::SubjectPlanBuilderTrait;
+    use phymes_subject::SubjectPlanBuilderTrait;
     use phymes_event::{AvailableSubscribeEvents, Subscription};
     use phymes_processor::{AvailableProcessors, ProcessorPlanBuilder};
     use phymes_task::test_task;

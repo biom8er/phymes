@@ -1,14 +1,14 @@
 [workspace]
 members = [
-    "phymes-ml",
     "phymes-app",
-    "phymes-core",
     "phymes-data",
     "phymes-event",
     "phymes-message",
+    "phymes-ml",
     "phymes-network",
     "phymes-processor",
     "phymes-schemas",
+    "phymes-subject",
     "phymes-server",
     "phymes-streams",
     "phymes-task",

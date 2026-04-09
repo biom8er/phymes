@@ -1,7 +1,7 @@
 // Dioxus imports
 use dioxus::prelude::*;
 
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_diagnostics::convert_timestamp_micros_to_str;
@@ -201,7 +201,7 @@ pub fn attachments_interface_view() -> Element {
                 let bytes = bytes.into_iter().flatten().collect::<Vec<_>>();
                 match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
-                        use phymes_core::SubjectTrait;
+                        use phymes_subject::SubjectTrait;
 
                         let table = builder.with_name("").build().unwrap();
                         let combined = table

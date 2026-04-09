@@ -5,7 +5,7 @@ use arrow::{
     array::{ArrayRef, RecordBatch, StringArray},
     datatypes::{DataType, Field, Fields},
 };
-use phymes_core::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait};
+use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait};
 use phymes_diagnostics::{Diagnostics, DiagnosticsType, JSONObjectTrait};
 use serde::{Deserialize, Serialize};
 

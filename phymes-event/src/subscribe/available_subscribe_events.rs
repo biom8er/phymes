@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
-use phymes_core::MappableTrait;
+use phymes_subject::MappableTrait;
 use serde::{Deserialize, Serialize};
 
 use crate::subscribe::{

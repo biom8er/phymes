@@ -9,7 +9,7 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use candle_core::Device;
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
 };

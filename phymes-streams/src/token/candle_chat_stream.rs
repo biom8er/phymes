@@ -10,7 +10,7 @@ use candle_core::DType;
 use candle_transformers::generation::LogitsProcessor;
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
-use phymes_core::{
+use phymes_subject::{
     BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject,
     SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };

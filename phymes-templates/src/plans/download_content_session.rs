@@ -1,4 +1,4 @@
-use phymes_core::ObjectStorageBackend;
+use phymes_subject::ObjectStorageBackend;
 use phymes_streams::HTTPClientRequestSchemas;
 use serde_json::{Map, Value};
 
@@ -246,7 +246,7 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{
+    use phymes_subject::{
         BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
         SubjectTrait,
     };

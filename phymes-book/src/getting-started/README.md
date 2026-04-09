@@ -4,7 +4,7 @@ This user guide will cover how to install the full-stack phymes application, dev
 
 ```mermaid
 flowchart TD
-	phymes-core-->phymes-data
+	phymes-subject-->phymes-data
 	phymes-data-->phymes-ml
 	phymes-ml-->phymes-server
 	phymes-server-->phymes-app

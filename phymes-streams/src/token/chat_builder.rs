@@ -1,7 +1,7 @@
 use anyhow::Result;
 use arrow::array::{Int64Array, StringArray};
 use futures::StreamExt;
-use phymes_core::{
+use phymes_subject::{
     RecordBatchReceiverStream, SendableRecordBatchStream, Subject, SubjectBuilder, SubjectTrait,
 };
 use phymes_data::SubjectScript;
@@ -271,7 +271,7 @@ impl ChatBuilderTraitExt for SubjectBuilder {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{BuilderTrait, test_subject::make_test_subject_chat};
+    use phymes_subject::{BuilderTrait, test_subject::make_test_subject_chat};
 
     use phymes_schemas::Tool;
 

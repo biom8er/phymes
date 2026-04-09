@@ -7,9 +7,9 @@ use axum::{
     middleware,
     routing::{get_service, post},
 };
-use phymes_core::RuntimeEnv;
+use phymes_subject::RuntimeEnv;
 #[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
-use phymes_core::{BuildableTrait, BuilderTrait, RuntimeEnvBuilderTrait, make_store};
+use phymes_subject::{BuildableTrait, BuilderTrait, RuntimeEnvBuilderTrait, make_store};
 #[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},

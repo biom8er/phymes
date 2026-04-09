@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow};
-use phymes_core::{BuilderTrait, SendableRecordBatchStream};
+use phymes_subject::{BuilderTrait, SendableRecordBatchStream};
 use phymes_event::Publication;
 
 use crate::{IPCMessage, SendableRecordBatchStreamMessage};
@@ -238,7 +238,7 @@ impl MessageBuilderTrait for SendableRecordBatchStreamMessageBuilder {
 #[cfg(test)]
 mod tests {
     use crate::MessageTrait;
-    use phymes_core::{MappableTrait, SubjectTrait, test_subject};
+    use phymes_subject::{MappableTrait, SubjectTrait, test_subject};
 
     use super::*;
 

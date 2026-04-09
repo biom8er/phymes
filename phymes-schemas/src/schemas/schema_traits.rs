@@ -6,7 +6,7 @@
 use anyhow::Result;
 use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 
-use phymes_core::{Subject, SubjectBuilder, SubjectPlan};
+use phymes_subject::{Subject, SubjectBuilder, SubjectPlan};
 
 /// Convert a possible nested Json-like structure into a single [RecordBatch]
 pub trait JsonSchemaTrait {

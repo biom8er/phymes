@@ -9,7 +9,7 @@ use arrow::{
     record_batch::RecordBatch,
 };
 use candle_core::{Device, Tensor};
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_schemas::{

@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use clap::ValueEnum;
 use futures::{StreamExt, TryStreamExt};
-use phymes_core::{
+use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvTrait, Subject,
     SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
@@ -28,7 +28,7 @@ use crate::SessionContextBuilder;
 ///
 /// [TaskPlan]: crate::TaskPlan
 /// [Task]: crate::TaskTrait
-/// [Message]: phymes_core::MessageTrait
+/// [Message]: phymes_subject::MessageTrait
 #[derive(Debug, Clone, Default)]
 pub struct SessionContext {
     /// A unique UUID that identifies the session
@@ -919,7 +919,7 @@ impl BuildableTrait for SessionContext {
 #[cfg(test)]
 mod tests {
     use arrow::array::Int64Array;
-    use phymes_core::test_subject;
+    use phymes_subject::test_subject;
     use phymes_message::IPCMessage;
     use phymes_schemas::{
         AvailableSchemaTrait, create_session_tasks_subscribe_aggregate_batch,

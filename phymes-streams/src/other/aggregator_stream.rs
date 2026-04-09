@@ -7,7 +7,7 @@ use std::{
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{Stream, StreamExt};
-use phymes_core::{
+use phymes_subject::{
     BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject,
     SubjectBuilder, SubjectBuilderTrait,
 };

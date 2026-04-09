@@ -3,7 +3,7 @@ use std::{fmt::Display, sync::Arc};
 use anyhow::Result;
 use arrow::array::{ArrayRef, RecordBatch, StringArray};
 use clap::ValueEnum;
-use phymes_core::{BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait};
+use phymes_subject::{BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -243,7 +243,7 @@ pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Opt
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::SubjectTrait;
+    use phymes_subject::SubjectTrait;
 
     use super::*;
 

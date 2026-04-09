@@ -9,7 +9,7 @@ use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 use candle_core::{DType, Tensor};
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
-use phymes_core::{
+use phymes_subject::{
     BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject,
     SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };

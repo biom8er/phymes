@@ -1,5 +1,5 @@
 use anyhow::Result;
-use phymes_core::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, IPCMessageMap, MessageBuilderTrait, create_message_map};
 use phymes_schemas::{AvailableSubjects, create_session_tasks_subscribe_publish_batch};
@@ -140,7 +140,7 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, SubjectTrait};
+    use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, SubjectTrait};
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};

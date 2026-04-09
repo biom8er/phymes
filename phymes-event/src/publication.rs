@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use anyhow::{Result, anyhow};
-use phymes_core::MappableTrait;
+use phymes_subject::MappableTrait;
 use phymes_schemas::DataFormat;
 use serde::{Deserialize, Serialize};
 

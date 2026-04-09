@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -88,7 +88,7 @@ impl ProcessorTrait for CandleDataProcessor {
 mod tests {
     use arrow::array::{Float32Array, StringArray};
     use futures::TryStreamExt;
-    use phymes_core::{Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+    use phymes_subject::{Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
     use phymes_data::{
         AvailableOperators, DataConfig, DataDistanceOperator, DataStreamManager, test_candle_ops,
     };

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -90,7 +90,7 @@ impl ProcessorTrait for LimitProcessor {
 mod tests {
 
     use super::*;
-    use phymes_core::{SubjectBuilder, SubjectBuilderTrait, SubjectTrait, test_subject};
+    use phymes_subject::{SubjectBuilder, SubjectBuilderTrait, SubjectTrait, test_subject};
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
     use phymes_event::Publication;
     use phymes_streams::LimitConfig;
