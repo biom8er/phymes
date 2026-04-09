@@ -20,10 +20,10 @@ pub struct Serverless {
 
 impl Serverless {
     pub async fn new(
-        user_session_context_name: Option<&str>,
+        user_network_name: Option<&str>,
         runtime_env: &Arc<RuntimeEnv>,
     ) -> Result<Self> {
-        let router = AppBuilder::new(user_session_context_name, runtime_env)
+        let router = AppBuilder::new(user_network_name, runtime_env)
             .await?
             .build();
         Ok(Self { router })

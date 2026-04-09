@@ -1,13 +1,13 @@
 /// Count the number of rows for each subject
 pub struct CountSubjectRowsSession<'a> {
     /// Session
-    pub session_context_name: &'a str,
+    pub network_name: &'a str,
 }
 
 impl Default for CountSubjectRowsSession<'_> {
     fn default() -> Self {
         CountSubjectRowsSession {
-            session_context_name: "count_subject_rows_session",
+            network_name: "count_subject_rows_session",
         }
     }
 }
@@ -87,8 +87,8 @@ mod tests {
     use phymes_task::{SubscriptionTrait, test_task};
 
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream, test_session_context_builder,
+        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilderTrait, SessionStream, test_network_builder,
     };
 
     use super::*;
@@ -97,24 +97,24 @@ mod tests {
     async fn test_count_subject_rows_session() -> Result<()> {
         // Initialize the session
         let subjects_session = CountSubjectRowsSession::default();
-        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
+        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             subjects_session.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(subjects_session.as_mermaid_erdiagram(), false, true)?
-        .with_name(subjects_session.session_context_name)
+        .with_name(subjects_session.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Make the test session data
         let message_map = {
             // Make the test sequential session
-            let (session_context, session_messages) =
-                test_session_context_builder::make_test_session_context_builder_sequential(
+            let (network, session_messages) =
+                test_network_builder::make_test_network_builder_sequential(
                     "session_1",
                     2,
                 )?
@@ -125,8 +125,8 @@ mod tests {
                 .build_with_tables()?;
 
             // Mimic a session run for 1 steps
-            let session_ctx_arc = Arc::new(session_context);
-            let _ = session_ctx_arc
+            let network_arc = Arc::new(network);
+            let _ = network_arc
                 .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
                 .await;
             let messages = test_task::make_test_input_message(
@@ -139,14 +139,14 @@ mod tests {
                 },
                 true,
             )?;
-            let session_stream = SessionStream::new(messages, Arc::clone(&session_ctx_arc));
+            let session_stream = SessionStream::new(messages, Arc::clone(&network_arc));
             let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
             // Extract out the subjects for the test
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -162,17 +162,17 @@ mod tests {
                 .with_update(&Publication::Extend {
                     subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
                 })
-                .with_publisher(subjects_session.session_context_name)
+                .with_publisher(subjects_session.network_name)
                 .make_name()?
                 .build()?;
             create_message_map(vec![subjects_change_log_message])
         };
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
 
         // Run the session
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
@@ -181,7 +181,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;

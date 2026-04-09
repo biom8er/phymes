@@ -9,7 +9,7 @@ use crate::plans::tool_call_session::ToolSessionTrait;
 /// - Any limits to the row counts should be taken care of prior
 pub struct ToolResponseSession<'a> {
     /// Session
-    pub session_context_name: &'a str,
+    pub network_name: &'a str,
     /// Subjects to listen for
     pub subject_names: &'a [&'a str],
 }
@@ -17,7 +17,7 @@ pub struct ToolResponseSession<'a> {
 impl Default for ToolResponseSession<'_> {
     fn default() -> Self {
         ToolResponseSession {
-            session_context_name: "tool_response_session",
+            network_name: "tool_response_session",
             subject_names: &["Bytes"],
         }
     }
@@ -118,8 +118,8 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream,
+        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilderTrait, SessionStream,
     };
     use phymes_schemas::{
         AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait,
@@ -135,7 +135,7 @@ mod tests {
         let tool_response_session = ToolResponseSession::default();
         dbg!(&tool_response_session.as_mermaid_flowchart());
         dbg!(&tool_response_session.as_mermaid_erdiagram());
-        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
+        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             &tool_response_session.as_mermaid_flowchart(),
             false,
         )?
@@ -144,13 +144,13 @@ mod tests {
             false,
             true,
         )?
-        .with_name(tool_response_session.session_context_name)
+        .with_name(tool_response_session.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_supersteps()?
         .add_next_tasks()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Replace the Bytes to trigger the session
         let message_map = {
@@ -161,18 +161,18 @@ mod tests {
                 .with_update(&Publication::Replace {
                     subject_name: table.get_name().to_string(),
                 })
-                .with_publisher(tool_response_session.session_context_name)
+                .with_publisher(tool_response_session.network_name)
                 .with_message(table.to_ipc_stream()?)
                 .make_name()?
                 .build()?;
             create_message_map(vec![session_tasks_message])
         };
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
 
         // Run the session
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
@@ -182,7 +182,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;

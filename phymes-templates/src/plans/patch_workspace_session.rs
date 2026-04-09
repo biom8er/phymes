@@ -1,7 +1,7 @@
 /// A session for patching code workspaces from tool calls
 pub struct PatchWorkspaceSession<'a> {
     /// Session
-    pub session_context_name: &'a str,
+    pub network_name: &'a str,
     /// Dynamic pipeline (e.g., tool call) or static pipeline
     pub is_dynamic: bool,
     /// Workspace subject name
@@ -13,7 +13,7 @@ pub struct PatchWorkspaceSession<'a> {
 impl<'a> Default for PatchWorkspaceSession<'a> {
     fn default() -> Self {
         Self {
-            session_context_name: "patch_workspace_session",
+            network_name: "patch_workspace_session",
             is_dynamic: false,
             workspace_subject_name: "Workspace",
             patch_subject_name: "WorkspacePatch",
@@ -24,7 +24,7 @@ impl<'a> Default for PatchWorkspaceSession<'a> {
 impl<'a> PatchWorkspaceSession<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
-        let session_context_name = self.session_context_name;
+        let network_name = self.network_name;
         let workspace_subject_name = self.workspace_subject_name;
         let patch_subject_name = self.patch_subject_name;
         let apply_patch_p_subgraph = if self.is_dynamic {
@@ -41,7 +41,7 @@ impl<'a> PatchWorkspaceSession<'a> {
         };
         format!(
             r#"flowchart TD
-	{session_context_name}_r-rt@{{shape: subproc, label: patch_workspace_r}}
+	{network_name}_r-rt@{{shape: subproc, label: patch_workspace_r}}
 	%% ------------------------------------------------------------------------------
 	%% Apply patch to workspace
     %% - We listen for updates both on the config `apply_patch_p` subject
@@ -55,7 +55,7 @@ impl<'a> PatchWorkspaceSession<'a> {
 		apply_patch_p-processor-->apply_patch_p-publish
 		apply_patch_p-publish-->|Extend|apply_patch_s-subject
 	end
-	{session_context_name}_r-rt-->apply_patch_t
+	{network_name}_r-rt-->apply_patch_t
 	{workspace_subject_name}-subject@{{shape: doc, label: {workspace_subject_name}}}
 	{patch_subject_name}-subject@{{shape: doc, label: {patch_subject_name}}}{apply_patch_p_subject}
 	apply_patch_p-processor@{{shape: rect, label: Patch}}
@@ -125,8 +125,8 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream,
+        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilderTrait, SessionStream,
     };
     use phymes_schemas::{
         AvailableSubjects, AvailableSubjectsTrait, WorkspacePatchSubject,
@@ -145,7 +145,7 @@ mod tests {
             is_dynamic: true,
             ..Default::default()
         };
-        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
+        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             &patch_workspace_session.as_mermaid_flowchart(),
             false,
         )?
@@ -154,13 +154,13 @@ mod tests {
             false,
             true,
         )?
-        .with_name(patch_workspace_session.session_context_name)
+        .with_name(patch_workspace_session.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
@@ -203,7 +203,7 @@ pub use todo::Todo"#,
                 table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(table.get_name())
-                    .with_publisher(patch_workspace_session.session_context_name)
+                    .with_publisher(patch_workspace_session.network_name)
                     .with_subject(table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: table.get_name().to_string(),
@@ -240,7 +240,7 @@ pub use todo::Todo"#,
                 table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(table.get_name())
-                    .with_publisher(patch_workspace_session.session_context_name)
+                    .with_publisher(patch_workspace_session.network_name)
                     .with_subject(table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: table.get_name().to_string(),
@@ -274,7 +274,7 @@ pub use todo::Todo"#,
                 apply_patch_config_table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(apply_patch_config_table.get_name())
-                    .with_publisher(patch_workspace_session.session_context_name)
+                    .with_publisher(patch_workspace_session.network_name)
                     .with_subject(apply_patch_config_table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: apply_patch_config_table.get_name().to_string(),
@@ -285,10 +285,10 @@ pub use todo::Todo"#,
         }
 
         // Run the session
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
@@ -297,7 +297,7 @@ pub use todo::Todo"#,
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "apply_patch_s".to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -334,7 +334,7 @@ pub use todo::Todo"#,
     async fn test_patch_workspace_session_dynamic_wo_subjects() -> Result<()> {
         // View task session
         let tool_call_session = ToolCallSession::new("tool_call_session", &["apply_patch_p"]);
-        let tool_call_session_builder = SessionContextBuilder::from_mermaid_flowchart(
+        let tool_call_session_builder = NetworkBuilder::from_mermaid_flowchart(
             &tool_call_session.as_mermaid_flowchart(),
             false,
         )?
@@ -343,14 +343,14 @@ pub use todo::Todo"#,
             false,
             true,
         )?
-        .with_name(tool_call_session.session_context_name);
+        .with_name(tool_call_session.network_name);
 
         // Initialize the session
         let patch_workspace_session = PatchWorkspaceSession {
             is_dynamic: true,
             ..Default::default()
         };
-        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
+        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             &patch_workspace_session.as_mermaid_flowchart(),
             false,
         )?
@@ -359,14 +359,14 @@ pub use todo::Todo"#,
             false,
             true,
         )?
-        .with_name(patch_workspace_session.session_context_name)
+        .with_name(patch_workspace_session.network_name)
         .with_diagnostics(true)
         .extend(tool_call_session_builder)?
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
@@ -409,7 +409,7 @@ pub use todo::Todo"#,
                 table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(table.get_name())
-                    .with_publisher(patch_workspace_session.session_context_name)
+                    .with_publisher(patch_workspace_session.network_name)
                     .with_subject(table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: table.get_name().to_string(),
@@ -480,7 +480,7 @@ pub use todo::Todo"#,
                 apply_patch_config_table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(apply_patch_config_table.get_name())
-                    .with_publisher(patch_workspace_session.session_context_name)
+                    .with_publisher(patch_workspace_session.network_name)
                     .with_subject(apply_patch_config_table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: apply_patch_config_table.get_name().to_string(),
@@ -491,10 +491,10 @@ pub use todo::Todo"#,
         }
 
         // Run the session
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
@@ -503,7 +503,7 @@ pub use todo::Todo"#,
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "apply_patch_s".to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -540,7 +540,7 @@ pub use todo::Todo"#,
     async fn test_patch_workspace_session_static() -> Result<()> {
         // Initialize the session
         let patch_workspace_session = PatchWorkspaceSession::default();
-        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
+        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             &patch_workspace_session.as_mermaid_flowchart(),
             false,
         )?
@@ -549,13 +549,13 @@ pub use todo::Todo"#,
             false,
             true,
         )?
-        .with_name(patch_workspace_session.session_context_name)
+        .with_name(patch_workspace_session.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
@@ -598,7 +598,7 @@ pub use todo::Todo"#,
                 table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(table.get_name())
-                    .with_publisher(patch_workspace_session.session_context_name)
+                    .with_publisher(patch_workspace_session.network_name)
                     .with_subject(table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: table.get_name().to_string(),
@@ -635,7 +635,7 @@ pub use todo::Todo"#,
                 table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(table.get_name())
-                    .with_publisher(patch_workspace_session.session_context_name)
+                    .with_publisher(patch_workspace_session.network_name)
                     .with_subject(table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: table.get_name().to_string(),
@@ -646,10 +646,10 @@ pub use todo::Todo"#,
         }
 
         // Run the session
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
@@ -658,7 +658,7 @@ pub use todo::Todo"#,
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "apply_patch_s".to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;

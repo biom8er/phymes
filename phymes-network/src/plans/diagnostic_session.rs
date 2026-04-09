@@ -90,13 +90,13 @@ pub struct DiagnosticSession<'a> {
     pub events_runtime_env_name: &'a str,
 
     /// Session
-    pub session_context_name: &'a str,
+    pub network_name: &'a str,
 }
 
 impl<'a> DiagnosticSession<'a> {
-    pub fn new_with_session_name(session_context_name: &'a str) -> Self {
+    pub fn new_with_session_name(network_name: &'a str) -> Self {
         DiagnosticSession {
-            session_context_name,
+            network_name,
             ..Default::default()
         }
     }
@@ -105,7 +105,7 @@ impl<'a> DiagnosticSession<'a> {
 impl Default for DiagnosticSession<'_> {
     fn default() -> Self {
         DiagnosticSession {
-            session_context_name: "diagnostic_session",
+            network_name: "diagnostic_session",
 
             // Metrics analytics
             metrics_pivot_task_name: "metrics_pivot_t",
@@ -806,7 +806,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
     fn make_runtime_env(&self) -> Option<Arc<RuntimeEnv>> {
         Some(
             RuntimeEnv::get_builder()
-                .with_name(self.session_context_name)
+                .with_name(self.network_name)
                 .build_arc()
                 .unwrap(),
         )
@@ -1824,8 +1824,8 @@ mod tests {
     use phymes_task::{SubscriptionTrait, test_task};
 
     use crate::{
-        SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream,
-        test_session_context_builder,
+        NetworkBuilderAgentsTrait, NetworkBuilderTrait, SessionStream,
+        test_network_builder,
     };
 
     use super::*;
@@ -1833,8 +1833,8 @@ mod tests {
     /// Make the test data for the diagnostic session
     async fn make_test_data(name: &str) -> Result<HashMap<String, IPCMessage>> {
         // Make the test sequential session
-        let (session_context, session_messages) =
-            test_session_context_builder::make_test_session_context_builder_sequential(
+        let (network, session_messages) =
+            test_network_builder::make_test_network_builder_sequential(
                 "session_1",
                 2,
             )?
@@ -1845,8 +1845,8 @@ mod tests {
             .build_with_tables()?;
 
         // Mimic a session run for 1 steps
-        let session_ctx_arc = Arc::new(session_context);
-        let _ = session_ctx_arc
+        let network_arc = Arc::new(network);
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
         let messages = test_task::make_test_input_message(
@@ -1859,14 +1859,14 @@ mod tests {
             },
             true,
         )?;
-        let session_stream = SessionStream::new(messages, Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(messages, Arc::clone(&network_arc));
         let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         // Extract the subjects
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionMetrics.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -1888,7 +1888,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionTraces.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -1910,7 +1910,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionEvents.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -1932,7 +1932,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionTasks.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -1954,7 +1954,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionErrors.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -1998,9 +1998,9 @@ mod tests {
     async fn test_diagnostic_session() -> Result<()> {
         // initialize the session
         let diagnostic_session = DiagnosticSession::default();
-        let (session_ctx, session_messages) = diagnostic_session
+        let (network, session_messages) = diagnostic_session
             .build()
-            .with_name(diagnostic_session.session_context_name)
+            .with_name(diagnostic_session.network_name)
             .with_diagnostics(true) // Debugging
             .add_session_interface(Some(&[
                 DiagnosticsVisualizations::MetricProcessorTracesGantt
@@ -2021,16 +2021,16 @@ mod tests {
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Make diagnostic data and session tasks data
-        let message_map = make_test_data(diagnostic_session.session_context_name).await?;
-        let _ = session_ctx_arc
+        let message_map = make_test_data(diagnostic_session.network_name).await?;
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
 
         // Run
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         // Check the response
@@ -2050,7 +2050,7 @@ mod tests {
             // DiagnosticsVisualizations::ErrorKanban.to_string(),
         ]
         .into_iter()
-        .map(|s| format!("from_{}_on_{s}", diagnostic_session.session_context_name))
+        .map(|s| format!("from_{}_on_{s}", diagnostic_session.network_name))
         .collect::<HashSet<_>>();
         assert_eq!(keys_set, expected);
 
@@ -2060,7 +2060,7 @@ mod tests {
             .flat_map(|map| {
                 map.into_iter()
                     .filter_map(|(k, v)| {
-                        if k.contains(diagnostic_session.session_context_name) {
+                        if k.contains(diagnostic_session.network_name) {
                             let subject_name = v.get_subject().to_string();
                             Some((
                                 k,
@@ -2081,7 +2081,7 @@ mod tests {
             .get(
                 format!(
                     "from_{}_on_{}",
-                    diagnostic_session.session_context_name,
+                    diagnostic_session.network_name,
                     DiagnosticsVisualizations::MetricProcessorTracesGantt
                 )
                 .as_str(),
@@ -2104,7 +2104,7 @@ mod tests {
             .get(
                 format!(
                     "from_{}_on_{}",
-                    diagnostic_session.session_context_name,
+                    diagnostic_session.network_name,
                     DiagnosticsVisualizations::MetricElapsedComputeGantt
                 )
                 .as_str(),
@@ -2127,7 +2127,7 @@ mod tests {
             .get(
                 format!(
                     "from_{}_on_{}",
-                    diagnostic_session.session_context_name,
+                    diagnostic_session.network_name,
                     DiagnosticsVisualizations::MetricOutputRowsGantt
                 )
                 .as_str(),
@@ -2150,7 +2150,7 @@ mod tests {
             .get(
                 format!(
                     "from_{}_on_{}",
-                    diagnostic_session.session_context_name,
+                    diagnostic_session.network_name,
                     DiagnosticsVisualizations::TraceSequenceDiagram
                 )
                 .as_str(),
@@ -2173,7 +2173,7 @@ mod tests {
             .get(
                 format!(
                     "from_{}_on_{}",
-                    diagnostic_session.session_context_name,
+                    diagnostic_session.network_name,
                     DiagnosticsVisualizations::EventKanban
                 )
                 .as_str(),
@@ -2197,7 +2197,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -2225,7 +2225,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -2253,7 +2253,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: DiagnosticsVisualizations::MetricOutputRowsGantt.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -2281,7 +2281,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: DiagnosticsVisualizations::TraceSequenceDiagram.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -2309,7 +2309,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: DiagnosticsVisualizations::EventKanban.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;

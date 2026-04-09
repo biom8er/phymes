@@ -134,9 +134,9 @@ pub async fn authorize(
     };
 
     // Retrieve user from the database
-    let (user_info, user_session_contexts) =
+    let (user_info, user_networks) =
         match state.get_user_by_email(&token_data.claims.email).await {
-            Ok((user_info, user_session_contexts)) => (user_info, user_session_contexts),
+            Ok((user_info, user_networks)) => (user_info, user_networks),
             Err(err) => {
                 return Err(
                     JsonError::new(err.to_string()).to_response(StatusCode::INTERNAL_SERVER_ERROR)
@@ -147,7 +147,7 @@ pub async fn authorize(
         return Err(JsonError::new("You are not an authorized user".to_string())
             .to_response(StatusCode::UNAUTHORIZED));
     }
-    if user_session_contexts.is_empty() {
+    if user_networks.is_empty() {
         return Err(JsonError::new(
             "Failed to find session plans for user {token_data.claims.email}".to_string(),
         )
@@ -155,7 +155,7 @@ pub async fn authorize(
     }
 
     req.extensions_mut()
-        .insert((token_data.claims.email.to_owned(), user_session_contexts));
+        .insert((token_data.claims.email.to_owned(), user_networks));
     Ok(next.run(req).await)
 }
 
@@ -166,8 +166,8 @@ pub async fn sign_in(
     State((state, _)): State<(UserState, ServerState)>,
 ) -> impl IntoResponse {
     // Retrieve user from the database
-    let (user_info, user_session_contexts) = match state.get_user_by_email(creds.username()).await {
-        Ok((user_info, user_session_contexts)) => (user_info, user_session_contexts),
+    let (user_info, user_networks) = match state.get_user_by_email(creds.username()).await {
+        Ok((user_info, user_networks)) => (user_info, user_networks),
         Err(err) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -183,7 +183,7 @@ pub async fn sign_in(
             Json(json!({"error": "Unauthorized"})),
         );
     }
-    if user_session_contexts.is_empty() {
+    if user_networks.is_empty() {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({"error": "Failed to find session plans for user {creds.username()}"})),
@@ -217,9 +217,9 @@ pub async fn sign_in(
     };
 
     // Return the sign-in confirmation
-    let session_plans = user_session_contexts
+    let session_plans = user_networks
         .iter()
-        .map(|ctx| ctx.session_context_name.to_string())
+        .map(|ctx| ctx.network_name.to_string())
         .collect::<Vec<_>>();
     (
         StatusCode::OK,

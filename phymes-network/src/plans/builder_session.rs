@@ -11,7 +11,7 @@ use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder}
 use phymes_schemas::{AvailableSubjects, create_session_mermaid_batch};
 use phymes_task::TaskPlan;
 
-use crate::{AvailableSessionPlans, CustomAgentsBuilderTrait, SessionContextBuilderMermaidTrait};
+use crate::{AvailableSessionPlans, CustomAgentsBuilderTrait, NetworkBuilderMermaidTrait};
 
 /// Example Mermaid diagrams for chat, doc, and tool agent sessions
 pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Subject> {
@@ -22,19 +22,19 @@ pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Sub
     };
 
     // Initialize with chat, doc, and tool agent session diagrams
-    let mut session_context_names = Vec::new();
+    let mut network_names = Vec::new();
     let mut flowchart_diagram = Vec::new();
     let mut er_diagram = Vec::new();
     let mut timestamp = Vec::new();
-    for session_context_name in available_session_plans {
-        let builder = AvailableSessionPlans::get_session_context_builder_by_name(
-            &session_context_name,
-            &session_context_name,
+    for network_name in available_session_plans {
+        let builder = AvailableSessionPlans::get_network_builder_by_name(
+            &network_name,
+            &network_name,
         )?
-        .with_name(&session_context_name);
+        .with_name(&network_name);
         flowchart_diagram.push(builder.to_mermaid_flowchart(false, false)?);
         er_diagram.push(builder.to_mermaid_erdiagram(false, true)?);
-        session_context_names.push(session_context_name);
+        network_names.push(network_name);
         timestamp.push(create_timestamp_micros());
     }
 
@@ -45,7 +45,7 @@ pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Sub
         AvailableSubjects::SessionMermaid.to_string()
     };
     let batch = create_session_mermaid_batch(
-        session_context_names,
+        network_names,
         flowchart_diagram,
         er_diagram,
         timestamp,
@@ -59,21 +59,21 @@ pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Sub
 /// Session for building new sessions via Mermaid diagrams
 pub struct BuilderSession<'a> {
     /// Session and state
-    pub session_context_name: &'a str,
+    pub network_name: &'a str,
 }
 
 impl Default for BuilderSession<'_> {
     fn default() -> Self {
         BuilderSession {
-            session_context_name: "session_context_1",
+            network_name: "network_1",
         }
     }
 }
 
 impl<'a> BuilderSession<'a> {
-    pub fn new_with_session_name(session_context_name: &'a str) -> Self {
+    pub fn new_with_session_name(network_name: &'a str) -> Self {
         BuilderSession {
-            session_context_name,
+            network_name,
         }
     }
 }
@@ -81,8 +81,8 @@ impl<'a> BuilderSession<'a> {
 impl CustomAgentsBuilderTrait for BuilderSession<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![TaskPlan {
-            task_name: self.session_context_name.to_string(),
-            processor_names: vec![self.session_context_name.to_string()],
+            task_name: self.network_name.to_string(),
+            processor_names: vec![self.network_name.to_string()],
         }];
 
         Some(tasks)
@@ -93,7 +93,7 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
         let processors = vec![
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::ProcessorEcho.build_arc(self.session_context_name),
+                    AvailableProcessors::ProcessorEcho.build_arc(self.network_name),
                 )
                 .with_publications(&[Publication::Extend {
                     subject_name: AvailableSubjects::BuilderMermaid.to_string(),
@@ -131,7 +131,7 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
 mod tests {
     use anyhow::Result;
 
-    use crate::SessionContextBuilderAgentsTrait;
+    use crate::NetworkBuilderAgentsTrait;
 
     use super::*;
 
@@ -139,9 +139,9 @@ mod tests {
     async fn test_builder_agent_session() -> Result<()> {
         // initialize the session
         let builder_agent_session = BuilderSession::default();
-        let _session_ctx = builder_agent_session
+        let _network = builder_agent_session
             .build()
-            .with_name(builder_agent_session.session_context_name)
+            .with_name(builder_agent_session.network_name)
             .build_with_tables()?;
 
         Ok(())

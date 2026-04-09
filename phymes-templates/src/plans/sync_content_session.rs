@@ -9,7 +9,7 @@ use serde_json::{Map, Value};
 ///   to sync remote with local to achieve bidirectional syncing
 pub struct SyncContentSession<'a> {
     /// Session
-    pub session_context_name: &'a str,
+    pub network_name: &'a str,
     /// Local object store
     pub local_object_store_name: &'a str,
     pub local_object_store_backend: ObjectStorageBackend,
@@ -25,7 +25,7 @@ pub struct SyncContentSession<'a> {
 impl<'a> Default for SyncContentSession<'a> {
     fn default() -> Self {
         Self {
-            session_context_name: "sync_content_session",
+            network_name: "sync_content_session",
             local_object_store_name: "local_object_store_name",
             local_object_store_backend: ObjectStorageBackend::default(),
             local_object_store_bucket: None,
@@ -41,12 +41,12 @@ impl<'a> Default for SyncContentSession<'a> {
 impl<'a> SyncContentSession<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
-        let session_context_name = self.session_context_name;
+        let network_name = self.network_name;
         let local_object_store_name = self.local_object_store_name;
         let remote_object_store_name = self.remote_object_store_name;
         format!(
             r#"flowchart TD
-	{session_context_name}_r-rt@{{shape: subproc, label: {session_context_name}_r}}
+	{network_name}_r-rt@{{shape: subproc, label: {network_name}_r}}
 	%% ------------------------------------------------------------------------------
 	%% Object store list remote locations
 	%% ------------------------------------------------------------------------------
@@ -57,7 +57,7 @@ impl<'a> SyncContentSession<'a> {
 		list_{remote_object_store_name}_p-processor-->list_{remote_object_store_name}_p-publish
 		list_{remote_object_store_name}_p-publish-->|Replace|list_{remote_object_store_name}_s-subject
 	end
-	{session_context_name}_r-rt-->list_{remote_object_store_name}_t
+	{network_name}_r-rt-->list_{remote_object_store_name}_t
 	{remote_object_store_name}_meta_s-subject@{{shape: doc, label: {remote_object_store_name}_meta_s}}
 	list_{remote_object_store_name}_p-subject@{{shape: doc, label: list_{remote_object_store_name}_p}}
 	list_{remote_object_store_name}_p-processor@{{shape: rect, label: ObjectStoreProcessor}}
@@ -74,7 +74,7 @@ impl<'a> SyncContentSession<'a> {
 		diff_{remote_object_store_name}_p-processor-->diff_{remote_object_store_name}_p-publish
 		diff_{remote_object_store_name}_p-publish-->|Replace|diff_{remote_object_store_name}_s-subject
 	end
-	{session_context_name}_r-rt-->diff_{remote_object_store_name}_t
+	{network_name}_r-rt-->diff_{remote_object_store_name}_t
 	{local_object_store_name}_meta_s-subject@{{shape: doc, label: {local_object_store_name}_meta_s}}
 	diff_{remote_object_store_name}_p-processor@{{shape: rect, label: Diff}}
 	diff_{remote_object_store_name}_p-publish@{{shape: fork}}
@@ -106,7 +106,7 @@ impl<'a> SyncContentSession<'a> {
 		get_{remote_object_store_name}_p-processor-->get_{remote_object_store_name}_p-publish
 		get_{remote_object_store_name}_p-publish-->|Replace|get_{remote_object_store_name}_s-subject
 	end
-	{session_context_name}_r-rt-->get_{remote_object_store_name}_t
+	{network_name}_r-rt-->get_{remote_object_store_name}_t
 	cmp_create_update_{remote_object_store_name}_p-processor@{{shape: rect, label: Select}}
 	cmp_create_update_{remote_object_store_name}_p-publish@{{shape: fork}}
 	cmp_create_update_{remote_object_store_name}_p-subscribe@{{shape: diamond, label: All}}
@@ -134,7 +134,7 @@ impl<'a> SyncContentSession<'a> {
 		put_{local_object_store_name}_p-processor-->put_{local_object_store_name}_p-publish
 		put_{local_object_store_name}_p-publish-->|Replace|put_{local_object_store_name}_s-subject
 	end
-	{session_context_name}_r-rt-->put_{local_object_store_name}_t
+	{network_name}_r-rt-->put_{local_object_store_name}_t
 	put_{local_object_store_name}_p-processor@{{shape: rect, label: ObjectStoreProcessor}}
 	put_{local_object_store_name}_p-publish@{{shape: fork}}
 	put_{local_object_store_name}_p-subscribe@{{shape: diamond, label: All}}
@@ -164,7 +164,7 @@ impl<'a> SyncContentSession<'a> {
 		delete_{local_object_store_name}_p-processor-->delete_{local_object_store_name}_p-publish
 		delete_{local_object_store_name}_p-publish-->|Replace|delete_{local_object_store_name}_s-subject
 	end
-	{session_context_name}_r-rt-->delete_{local_object_store_name}_t
+	{network_name}_r-rt-->delete_{local_object_store_name}_t
 	cmp_delete_{local_object_store_name}_p-processor@{{shape: rect, label: Select}}
 	cmp_delete_{local_object_store_name}_p-publish@{{shape: fork}}
 	cmp_delete_{local_object_store_name}_p-subscribe@{{shape: diamond, label: All}}
@@ -192,7 +192,7 @@ impl<'a> SyncContentSession<'a> {
 		patch_{local_object_store_name}_p-processor-->patch_{local_object_store_name}_p-publish
 		patch_{local_object_store_name}_p-publish-->|Replace|{local_object_store_name}_meta_s-subject
 	end
-	{session_context_name}_r-rt-->patch_{local_object_store_name}_t
+	{network_name}_r-rt-->patch_{local_object_store_name}_t
 	patch_{local_object_store_name}_p-processor@{{shape: rect, label: Patch}}
 	patch_{local_object_store_name}_p-publish@{{shape: fork}}
 	patch_{local_object_store_name}_p-subscribe@{{shape: diamond, label: All}}
@@ -401,8 +401,8 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream,
+        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilderTrait, SessionStream,
     };
     use phymes_schemas::{
         AvailableSubjects, create_bytes_record_batch, create_object_store_meta_batch,
@@ -433,7 +433,7 @@ mod tests {
 
         // Initialize the session
         let sync_content_session = SyncContentSession {
-            session_context_name: "sync_content_session",
+            network_name: "sync_content_session",
             local_object_store_name,
             local_object_store_backend: local_object_store_backend.clone(),
             local_object_store_bucket: Some(local_object_store_bucket.to_str().unwrap()),
@@ -442,7 +442,7 @@ mod tests {
             remote_object_store_bucket: Some(remote_object_store_bucket.to_str().unwrap()),
             ..Default::default()
         };
-        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
+        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             &sync_content_session.as_mermaid_flowchart(),
             false,
         )?
@@ -451,13 +451,13 @@ mod tests {
             false,
             true,
         )?
-        .with_name(sync_content_session.session_context_name)
+        .with_name(sync_content_session.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
@@ -502,7 +502,7 @@ mod tests {
                 messages.to_string(),
                 IPCMessage::get_builder()
                     .with_name(&messages)
-                    .with_publisher(sync_content_session.session_context_name)
+                    .with_publisher(sync_content_session.network_name)
                     .with_subject(&messages)
                     .with_update(&Publication::Replace {
                         subject_name: messages.to_string(),
@@ -564,7 +564,7 @@ mod tests {
                 config_table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(config_table.get_name())
-                    .with_publisher(sync_content_session.session_context_name)
+                    .with_publisher(sync_content_session.network_name)
                     .with_subject(config_table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: config_table.get_name().to_string(),
@@ -594,7 +594,7 @@ mod tests {
                 messages.to_string(),
                 IPCMessage::get_builder()
                     .with_name(&messages)
-                    .with_publisher(sync_content_session.session_context_name)
+                    .with_publisher(sync_content_session.network_name)
                     .with_subject(&messages)
                     .with_update(&Publication::Replace {
                         subject_name: messages.to_string(),
@@ -605,16 +605,16 @@ mod tests {
         }
 
         // Run the session
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionErrors.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -632,7 +632,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionTraces.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -654,7 +654,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: format!("list_{remote_object_store_name}_s"),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -699,7 +699,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: format!("diff_{remote_object_store_name}_s"),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -739,7 +739,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: format!("{local_object_store_name}_meta_s"),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -784,7 +784,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: format!("delete_{local_object_store_name}_s"),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -822,7 +822,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: format!("put_{local_object_store_name}_s"),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -886,7 +886,7 @@ mod tests {
         let tool_call_subject = format!("list_{remote_object_store_name}_p");
         let tool_call_subjects = [tool_call_subject.as_str()];
         let tool_call_session = ToolCallSession::new("tool_call_session", &tool_call_subjects);
-        let tool_call_session_builder = SessionContextBuilder::from_mermaid_flowchart(
+        let tool_call_session_builder = NetworkBuilder::from_mermaid_flowchart(
             &tool_call_session.as_mermaid_flowchart(),
             false,
         )?
@@ -895,11 +895,11 @@ mod tests {
             false,
             true,
         )?
-        .with_name(tool_call_session.session_context_name);
+        .with_name(tool_call_session.network_name);
 
         // Initialize the session
         let sync_content_session = SyncContentSession {
-            session_context_name: "sync_content_session",
+            network_name: "sync_content_session",
             local_object_store_name,
             local_object_store_backend: local_object_store_backend.clone(),
             local_object_store_bucket: Some(local_object_store_bucket.to_str().unwrap()),
@@ -908,7 +908,7 @@ mod tests {
             remote_object_store_bucket: Some(remote_object_store_bucket.to_str().unwrap()),
             ..Default::default()
         };
-        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
+        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             &sync_content_session.as_mermaid_flowchart(),
             false,
         )?
@@ -917,14 +917,14 @@ mod tests {
             false,
             true,
         )?
-        .with_name(sync_content_session.session_context_name)
+        .with_name(sync_content_session.network_name)
         .with_diagnostics(true)
         .extend(tool_call_session_builder)?
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
@@ -969,7 +969,7 @@ mod tests {
                 messages.to_string(),
                 IPCMessage::get_builder()
                     .with_name(&messages)
-                    .with_publisher(sync_content_session.session_context_name)
+                    .with_publisher(sync_content_session.network_name)
                     .with_subject(&messages)
                     .with_update(&Publication::Replace {
                         subject_name: messages.to_string(),
@@ -1030,7 +1030,7 @@ mod tests {
                 config_table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(config_table.get_name())
-                    .with_publisher(sync_content_session.session_context_name)
+                    .with_publisher(sync_content_session.network_name)
                     .with_subject(config_table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: config_table.get_name().to_string(),
@@ -1041,17 +1041,17 @@ mod tests {
         }
 
         // Run the session
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableSubjects::SessionErrors.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -1069,7 +1069,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableSubjects::SessionMetrics.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -1092,7 +1092,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: format!("list_{remote_object_store_name}_s"),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -1137,7 +1137,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: format!("diff_{remote_object_store_name}_s"),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -1177,7 +1177,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: format!("{local_object_store_name}_meta_s"),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -1222,7 +1222,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: format!("delete_{local_object_store_name}_s"),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -1260,7 +1260,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: format!("put_{local_object_store_name}_s"),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;

@@ -19,7 +19,7 @@ use phymes_streams::CommandSandboxEnvironments;
 ///   3. TempFile -> `subject_name` and no `cli_args`
 pub struct ExecuteWorkspaceSession<'a> {
     /// Session
-    pub session_context_name: &'a str,
+    pub network_name: &'a str,
     /// The Temp directory for reading/writing workspace files
     pub workspace_dir: Option<String>,
     /// Input subject name
@@ -36,10 +36,10 @@ pub struct ExecuteWorkspaceSession<'a> {
 impl<'a> Default for ExecuteWorkspaceSession<'a> {
     fn default() -> Self {
         // Initialize with reasonable default names
-        let session_context_name = "execute_workspace_session";
+        let network_name = "execute_workspace_session";
         let subject_name_o = AvailableInterfaceSubjects::AssistantCsv.to_string();
         Self {
-            session_context_name,
+            network_name,
             workspace_dir: Self::workspace_dir(None),
             subject_name_i: None,
             subject_name_o,
@@ -61,14 +61,14 @@ impl<'a> ToolSessionTrait<'a> for ExecuteWorkspaceSession<'a> {
 
 impl<'a> ExecuteWorkspaceSession<'a> {
     pub fn new(
-        session_context_name: &'a str,
+        network_name: &'a str,
         workspace_dir: Option<&str>,
         subject_name_i: Option<&str>,
         subject_name_o: &str,
         command_sandbox_environment: &CommandSandboxEnvironments,
     ) -> Self {
         Self {
-            session_context_name,
+            network_name,
             workspace_dir: Self::workspace_dir(workspace_dir),
             subject_name_i: subject_name_i.map(|s| s.to_string()),
             subject_name_o: subject_name_o.to_string(),
@@ -78,7 +78,7 @@ impl<'a> ExecuteWorkspaceSession<'a> {
 
     /// Workspace directory logic
     fn workspace_dir(workspace_dir: Option<&str>) -> Option<String> {
-        let session_context_name = "execute_workspace_session";
+        let network_name = "execute_workspace_session";
         if cfg!(feature = "api") {
             #[cfg(feature = "api")]
             if let Some(workspace_dir) = workspace_dir {
@@ -86,7 +86,7 @@ impl<'a> ExecuteWorkspaceSession<'a> {
                 let _ = std::fs::create_dir(workspace_dir);
                 Some(workspace_dir.to_string())
             } else {
-                let project_dir = std::env::temp_dir().join(session_context_name);
+                let project_dir = std::env::temp_dir().join(network_name);
                 let _ = std::fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
                 let _ = std::fs::create_dir(&project_dir);
                 Some(project_dir.as_path().to_str().unwrap().to_string())
@@ -262,8 +262,8 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream,
+        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilderTrait, SessionStream,
     };
     use phymes_processor::test_command_sandbox_processor;
     use phymes_task::SubscriptionTrait;
@@ -285,7 +285,7 @@ mod tests {
             subject_name_o,
             &CommandSandboxEnvironments::Rust,
         );
-        let mut session_ctx_builder = SessionContextBuilder::from_mermaid_flowchart(
+        let mut network_builder = NetworkBuilder::from_mermaid_flowchart(
             &execute_workspace_session.as_mermaid_flowchart(),
             false,
         )?
@@ -294,7 +294,7 @@ mod tests {
             false,
             true,
         )?
-        .with_name(execute_workspace_session.session_context_name)
+        .with_name(execute_workspace_session.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
@@ -307,7 +307,7 @@ mod tests {
             workspace_name.to_string(),
             IPCMessage::get_builder()
                 .with_name(workspace_name)
-                .with_publisher(execute_workspace_session.session_context_name)
+                .with_publisher(execute_workspace_session.network_name)
                 .with_subject(workspace_name)
                 .with_update(&Publication::Replace {
                     subject_name: workspace_name.to_string(),
@@ -326,7 +326,7 @@ mod tests {
             message_table.get_name().to_string(),
             IPCMessage::get_builder()
                 .with_name(message_table.get_name())
-                .with_publisher(execute_workspace_session.session_context_name)
+                .with_publisher(execute_workspace_session.network_name)
                 .with_subject(message_table.get_name())
                 .with_update(&Publication::Replace {
                     subject_name: message_table.get_name().to_string(),
@@ -336,7 +336,7 @@ mod tests {
         );
 
         // Update place holder subjects
-        let mut subjects = session_ctx_builder
+        let mut subjects = network_builder
             .subjects
             .take()
             .unwrap()
@@ -356,16 +356,16 @@ mod tests {
             .build()?;
         subjects.push(SubjectPlan::get_builder().with_subject(subject).build()?);
 
-        let (session_ctx, session_messages) = session_ctx_builder
+        let (network, session_messages) = network_builder
             .with_subjects(subjects)
             .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
-        let _ = session_ctx_arc
+        let network_arc = Arc::new(network);
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
 
         // Run the session
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
@@ -374,7 +374,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: subject_name_o.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -405,7 +405,7 @@ mod tests {
             subject_name_o,
             &CommandSandboxEnvironments::Python,
         );
-        let mut session_ctx_builder = SessionContextBuilder::from_mermaid_flowchart(
+        let mut network_builder = NetworkBuilder::from_mermaid_flowchart(
             &execute_workspace_session.as_mermaid_flowchart(),
             false,
         )?
@@ -414,7 +414,7 @@ mod tests {
             false,
             true,
         )?
-        .with_name(execute_workspace_session.session_context_name)
+        .with_name(execute_workspace_session.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
@@ -427,7 +427,7 @@ mod tests {
             workspace_name.to_string(),
             IPCMessage::get_builder()
                 .with_name(workspace_name)
-                .with_publisher(execute_workspace_session.session_context_name)
+                .with_publisher(execute_workspace_session.network_name)
                 .with_subject(workspace_name)
                 .with_update(&Publication::Replace {
                     subject_name: workspace_name.to_string(),
@@ -446,7 +446,7 @@ mod tests {
             message_table.get_name().to_string(),
             IPCMessage::get_builder()
                 .with_name(message_table.get_name())
-                .with_publisher(execute_workspace_session.session_context_name)
+                .with_publisher(execute_workspace_session.network_name)
                 .with_subject(message_table.get_name())
                 .with_update(&Publication::Replace {
                     subject_name: message_table.get_name().to_string(),
@@ -456,7 +456,7 @@ mod tests {
         );
 
         // Update place holder subjects
-        let mut subjects = session_ctx_builder
+        let mut subjects = network_builder
             .subjects
             .take()
             .unwrap()
@@ -476,16 +476,16 @@ mod tests {
             .build()?;
         subjects.push(SubjectPlan::get_builder().with_subject(subject).build()?);
 
-        let (session_ctx, session_messages) = session_ctx_builder
+        let (network, session_messages) = network_builder
             .with_subjects(subjects)
             .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
-        let _ = session_ctx_arc
+        let network_arc = Arc::new(network);
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
 
         // Run the session
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
@@ -494,7 +494,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: subject_name_o.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;

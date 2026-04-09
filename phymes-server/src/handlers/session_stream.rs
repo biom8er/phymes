@@ -22,7 +22,7 @@ use phymes_message::{
 use phymes_network::SessionStream;
 use phymes_schemas::{
     AvailableInterfaceSubjects, AvailableSchemaTrait, DataFormat,
-    JoinUserInboxSessionContextsMermaidDiagrams,
+    JoinUserInboxNetworksMermaidDiagrams,
 };
 
 // General imports
@@ -39,9 +39,9 @@ use crate::{
 /// Chat inference endpoint
 #[axum::debug_handler]
 pub async fn session_stream(
-    Extension((current_user, user_session_contexts)): Extension<(
+    Extension((current_user, user_networks)): Extension<(
         String,
-        Vec<JoinUserInboxSessionContextsMermaidDiagrams>,
+        Vec<JoinUserInboxNetworksMermaidDiagrams>,
     )>,
     State((users, mut state)): State<(UserState, ServerState)>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
@@ -64,7 +64,7 @@ pub async fn session_stream(
             {
                 // Initialize the user session contexts
                 let _session_names = match state
-                    .make_session_contexts(&user_session_contexts, true, users.users.runtime_env())
+                    .make_networks(&user_networks, true, users.users.runtime_env())
                     .await
                 {
                     Ok(session_names) => session_names,
@@ -75,8 +75,8 @@ pub async fn session_stream(
                 };
             }
 
-            let session_ctx_arc = match state
-                .session_contexts
+            let network_arc = match state
+                .networks
                 .try_write()
                 .unwrap()
                 .get(payload.get_session_name())
@@ -126,7 +126,7 @@ pub async fn session_stream(
             // Make the session stream
             // DM: we assume only a single message per request
             let message_map = create_message_map(vec![message]);
-            let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+            let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
 
             // Run and update the session and convert the output to the user specified format
             // Note: that we cannot write state updates to disk for
@@ -175,7 +175,7 @@ pub async fn session_stream(
                     let response = Bytes::from(serde_json::to_string(&response).unwrap());
 
                     // Update the row counts
-                    let _ = session_ctx_arc.update_subject_num_rows().await;
+                    let _ = network_arc.update_subject_num_rows().await;
 
                     // Send the stream
                     Body::from(response).into_response()
@@ -233,7 +233,7 @@ pub async fn session_stream(
                         .unwrap();
 
                     // Update the row counts
-                    let _ = session_ctx_arc.update_subject_num_rows().await;
+                    let _ = network_arc.update_subject_num_rows().await;
 
                     // Send the stream
                     Body::from(response).into_response()

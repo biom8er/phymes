@@ -2,8 +2,8 @@ use crate::{
     AvailableSchemaTrait, AvailableSubjectsTrait,
     chat::{create_route_bytes_fields, create_tools_fields, create_values_fields},
     core::{
-        create_events_fields, create_join_user_inbox_session_contexts_fields,
-        create_join_user_inbox_session_contexts_mermaid_diagrams_fields,
+        create_events_fields, create_join_user_inbox_networks_fields,
+        create_join_user_inbox_networks_mermaid_diagrams_fields,
         create_mermaid_content_template_fields, create_mermaid_er_diagram_entities_template_fields,
         create_mermaid_er_diagram_relations_template_fields,
         create_mermaid_flowchart_links_template_fields,
@@ -23,7 +23,7 @@ use crate::{
         create_session_tasks_subscribe_publish_fields, create_subjects_change_log_fields,
         create_subjects_num_rows_fields, create_subjects_object_store_meta_fields,
         create_traces_fields, create_user_fields, create_user_inbox_fields,
-        create_user_session_contexts_fields,
+        create_user_networks_fields,
     },
     create_bytes_fields, create_chat_fields, create_repository_fields,
     create_repository_patch_fields, create_workspace_fields, create_workspace_patch_fields,
@@ -100,14 +100,14 @@ pub enum AvailableSubjects {
     RepositoryPatch,
     #[value(name = "User")]
     User,
-    #[value(name = "UserSessionContexts")]
-    UserSessionContexts,
+    #[value(name = "UserNetworks")]
+    UserNetworks,
     #[value(name = "UserInbox")]
     UserInbox,
-    #[value(name = "JoinUserInboxSessionContexts")]
-    JoinUserInboxSessionContexts,
-    #[value(name = "JoinUserInboxSessionContextsMermaid")]
-    JoinUserInboxSessionContextsMermaid,
+    #[value(name = "JoinUserInboxNetworks")]
+    JoinUserInboxNetworks,
+    #[value(name = "JoinUserInboxNetworksMermaid")]
+    JoinUserInboxNetworksMermaid,
     #[value(name = "SessionMermaid")]
     SessionMermaid,
     #[value(name = "BuilderMermaid")]
@@ -239,13 +239,13 @@ impl Display for AvailableSubjects {
             AvailableSubjects::WorkspacePatch => write!(f, "WorkspacePatch"),
             AvailableSubjects::RepositoryPatch => write!(f, "RepositoryPatch"),
             AvailableSubjects::User => write!(f, "User"),
-            AvailableSubjects::UserSessionContexts => write!(f, "UserSessionContexts"),
+            AvailableSubjects::UserNetworks => write!(f, "UserNetworks"),
             AvailableSubjects::UserInbox => write!(f, "UserInbox"),
-            AvailableSubjects::JoinUserInboxSessionContexts => {
-                write!(f, "JoinUserInboxSessionContexts")
+            AvailableSubjects::JoinUserInboxNetworks => {
+                write!(f, "JoinUserInboxNetworks")
             }
-            AvailableSubjects::JoinUserInboxSessionContextsMermaid => {
-                write!(f, "JoinUserInboxSessionContextsMermaid")
+            AvailableSubjects::JoinUserInboxNetworksMermaid => {
+                write!(f, "JoinUserInboxNetworksMermaid")
             }
             AvailableSubjects::SessionMermaid => write!(f, "SessionMermaid"),
             AvailableSubjects::BuilderMermaid => write!(f, "BuilderMermaid"),
@@ -392,15 +392,15 @@ impl AvailableSchemaTrait for AvailableSubjects {
                 create_schema_from_fields(&create_repository_patch_fields)
             }
             AvailableSubjects::User => create_schema_from_fields(&create_user_fields),
-            AvailableSubjects::UserSessionContexts => {
-                create_schema_from_fields(&create_user_session_contexts_fields)
+            AvailableSubjects::UserNetworks => {
+                create_schema_from_fields(&create_user_networks_fields)
             }
             AvailableSubjects::UserInbox => create_schema_from_fields(&create_user_inbox_fields),
-            AvailableSubjects::JoinUserInboxSessionContexts => {
-                create_schema_from_fields(&create_join_user_inbox_session_contexts_fields)
+            AvailableSubjects::JoinUserInboxNetworks => {
+                create_schema_from_fields(&create_join_user_inbox_networks_fields)
             }
-            AvailableSubjects::JoinUserInboxSessionContextsMermaid => create_schema_from_fields(
-                &create_join_user_inbox_session_contexts_mermaid_diagrams_fields,
+            AvailableSubjects::JoinUserInboxNetworksMermaid => create_schema_from_fields(
+                &create_join_user_inbox_networks_mermaid_diagrams_fields,
             ),
             AvailableSubjects::SessionMermaid => {
                 create_schema_from_fields(&create_session_mermaid_fields)

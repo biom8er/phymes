@@ -28,7 +28,7 @@ pub struct ChatAgentSession<'a> {
     pub message_aggregator_processor_2_name: &'a str,
     pub message_aggregator_runtime_env_name: &'a str,
     /// Session and state
-    pub session_context_name: &'a str,
+    pub network_name: &'a str,
     /// Other parameters
     pub chat_api_url: Option<&'a str>,
 }
@@ -44,16 +44,16 @@ impl Default for ChatAgentSession<'_> {
             message_aggregator_runtime_env_name: "message_aggregator_runtime_env_1",
             chat_processor_name: "chat_processor_1",
             chat_runtime_env_name: "chat_rt_1",
-            session_context_name: "session_context_1",
+            network_name: "network_1",
             chat_api_url: None,
         }
     }
 }
 
 impl<'a> ChatAgentSession<'a> {
-    pub fn new_with_session_name(session_context_name: &'a str) -> Self {
+    pub fn new_with_session_name(network_name: &'a str) -> Self {
         ChatAgentSession {
-            session_context_name,
+            network_name,
             ..Default::default()
         }
     }
@@ -319,7 +319,7 @@ mod tests {
     use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
     use phymes_streams::ChatBuilderTraitExt;
 
-    use crate::{SessionContextBuilderAgentsTrait, SessionStream};
+    use crate::{NetworkBuilderAgentsTrait, SessionStream};
 
     use super::*;
 
@@ -327,14 +327,14 @@ mod tests {
     async fn test_chat_agent_session() -> Result<()> {
         // initialize the session
         let chat_agent_session = ChatAgentSession::default();
-        let (session_ctx, session_messages) = chat_agent_session
+        let (network, session_messages) = chat_agent_session
             .build()
-            .with_name(chat_agent_session.session_context_name)
+            .with_name(chat_agent_session.network_name)
             .add_session_interface(None)?
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Skip actually running the session as it takes too long on the CPU
         if cfg!(any(
@@ -356,15 +356,15 @@ mod tests {
                 .with_update(&Publication::Extend {
                     subject_name: chat.get_name().to_string(),
                 })
-                .with_publisher(chat_agent_session.session_context_name)
+                .with_publisher(chat_agent_session.network_name)
                 .make_name()?
                 .build()?;
             let incoming_message_map = create_message_map(vec![message]);
-            let _ = session_ctx_arc
+            let _ = network_arc
                 .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
                 .await;
             let session_stream =
-                SessionStream::new(incoming_message_map, Arc::clone(&session_ctx_arc));
+                SessionStream::new(incoming_message_map, Arc::clone(&network_arc));
             let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
 
@@ -374,7 +374,7 @@ mod tests {
                 .filter_map(|map| {
                     map.remove(&format!(
                         "from_{}_on_{}",
-                        chat_agent_session.session_context_name,
+                        chat_agent_session.network_name,
                         AvailableInterfaceSubjects::AssistantMessages
                     ))
                     .map(|v| v.get_message_own())
@@ -421,12 +421,12 @@ mod tests {
                 .with_update(&Publication::Extend {
                     subject_name: chat.get_name().to_string(),
                 })
-                .with_publisher(chat_agent_session.session_context_name)
+                .with_publisher(chat_agent_session.network_name)
                 .make_name()?
                 .build()?;
             let incoming_message_map = create_message_map(vec![message]);
             let session_stream =
-                SessionStream::new(incoming_message_map, Arc::clone(&session_ctx_arc));
+                SessionStream::new(incoming_message_map, Arc::clone(&network_arc));
             let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
 
@@ -436,7 +436,7 @@ mod tests {
                 .filter_map(|map| {
                     map.remove(&format!(
                         "from_{}_on_{}",
-                        chat_agent_session.session_context_name,
+                        chat_agent_session.network_name,
                         AvailableInterfaceSubjects::AssistantMessages
                     ))
                     .map(|v| v.get_message_own())

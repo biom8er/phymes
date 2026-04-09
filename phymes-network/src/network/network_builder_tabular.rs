@@ -27,19 +27,19 @@ use phymes_task::TaskPlanBuilder;
 use serde_json::{Map, Value};
 
 use crate::{
-    SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-    SessionContextBuilderTrait,
+    NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+    NetworkBuilderTrait,
     plans::{CountSubjectRowsSession, NextSuperstepSession, NextTaskSession},
 };
 
-/// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from tabular format
-pub trait SessionContextBuilderTabularTrait {
+/// Trait extension for [NetworkBuilderTrait] to enable exporting to and importing from tabular format
+pub trait NetworkBuilderTabularTrait {
     /// Convert the session into tables
     ///
     /// # Notes
     ///
     /// * All subjects that are a part of the subjects are included
-    /// * Additional meta tables describing the SessionContext schema are included
+    /// * Additional meta tables describing the Network schema are included
     /// * Mermaid_js scripts are also included
     ///
     /// # Arguments
@@ -52,7 +52,7 @@ pub trait SessionContextBuilderTabularTrait {
     ///
     /// # Returns
     ///
-    /// * `Vec<SubjectPlan>` with the SessionContext in tabular format and Optional with the subject data
+    /// * `Vec<SubjectPlan>` with the Network in tabular format and Optional with the subject data
     fn to_subject_plans(
         &self,
         include_mermaid: bool,
@@ -103,17 +103,17 @@ pub trait SessionContextBuilderTabularTrait {
     ///
     /// # Notes
     ///
-    /// * Minimally, the meta subject describing the [SessionContext] schema must be included
+    /// * Minimally, the meta subject describing the [Network] schema must be included
     /// * Optionally, the subject will be populated with data if the subjects data are included
     /// * Mermaid_js scripts are ignored
     ///
     /// # Arguments
     ///
-    /// * `subject_plans` - List of [SubjectPlan]s describing the [SessionContext] schema with
+    /// * `subject_plans` - List of [SubjectPlan]s describing the [Network] schema with
     ///   optional subject tables with the actual data
     /// * `subjects` - Optionally the subject data. If none the subject tables will be initialized.
     ///
-    /// [SessionContext]: crate::SessionContext
+    /// [Network]: crate::Network
     fn from_subject_plans(
         subject_plans: &[&SubjectPlan],
         subjects: Option<Vec<SubjectPlan>>,
@@ -145,7 +145,7 @@ pub trait SessionContextBuilderTabularTrait {
     fn subjects_to_exclude(&self) -> Result<HashSet<String>>;
 }
 
-impl SessionContextBuilderTabularTrait for SessionContextBuilder {
+impl NetworkBuilderTabularTrait for NetworkBuilder {
     fn to_subject_plans(
         &self,
         include_mermaid: bool,
@@ -245,7 +245,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 continue;
             } else {
                 return Err(anyhow!(
-                    "Unrecognized subject {} found when creating SessionContextBuilder",
+                    "Unrecognized subject {} found when creating NetworkBuilder",
                     subject_plan.get_name()
                 ));
             }
@@ -557,12 +557,12 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
     fn get_mermaid_js_as_subject_plan(&self) -> Result<SubjectPlan> {
         let flowchart_diagram = self.to_mermaid_flowchart(false, false)?;
         let er_diagram = self.to_mermaid_erdiagram(false, true)?;
-        let session_context_name = self.name.as_ref().unwrap().to_string();
+        let network_name = self.name.as_ref().unwrap().to_string();
         let timestamp = create_timestamp_micros();
 
         // create the record batch
         let batch = create_session_mermaid_batch(
-            vec![session_context_name],
+            vec![network_name],
             vec![flowchart_diagram],
             vec![er_diagram],
             vec![timestamp],
@@ -1173,8 +1173,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // Exclude subjects from `NextTaskSession`
         let next_task_session = NextTaskSession::default();
         let tables_publish_subscribe = if let Some(session_name) = self.name.as_ref() {
-            if session_name != next_task_session.session_context_name {
-                SessionContextBuilder::from_mermaid_flowchart(
+            if session_name != next_task_session.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
                     next_task_session.as_mermaid_flowchart(),
                     false,
                 )?
@@ -1183,7 +1183,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                     false,
                     false,
                 )?
-                .with_name(next_task_session.session_context_name)
+                .with_name(next_task_session.network_name)
                 .add_processor_subjects()?
                 .subjects
                 .unwrap()
@@ -1200,12 +1200,12 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // Exclude subjects from `NextSuperstepSession`
         let next_superstep = NextSuperstepSession::default();
         let tables_next_superstep = if let Some(session_name) = self.name.as_ref() {
-            if session_name != next_superstep.session_context_name {
-                SessionContextBuilder::from_mermaid_flowchart(
+            if session_name != next_superstep.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
                     next_superstep.as_mermaid_flowchart(),
                     false,
                 )?
-                .with_name(next_superstep.session_context_name)
+                .with_name(next_superstep.network_name)
                 .add_processor_subjects()?
                 .subjects
                 .unwrap()
@@ -1222,8 +1222,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // Exclude subjects from `SubjectsNumRowsSession`
         let subjects_session = CountSubjectRowsSession::default();
         let tables_subjects = if let Some(session_name) = self.name.as_ref() {
-            if session_name != subjects_session.session_context_name {
-                SessionContextBuilder::from_mermaid_flowchart(
+            if session_name != subjects_session.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
                     subjects_session.as_mermaid_flowchart(),
                     false,
                 )?
@@ -1232,7 +1232,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                     false,
                     false,
                 )?
-                .with_name(subjects_session.session_context_name)
+                .with_name(subjects_session.network_name)
                 .add_processor_subjects()?
                 .subjects
                 .unwrap()
@@ -1259,8 +1259,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // Exclude subjects from `NextTaskSession`
         let next_task_session = NextTaskSession::default();
         let tasks_publish_subscribe = if let Some(session_name) = self.name.as_ref() {
-            if session_name != next_task_session.session_context_name {
-                SessionContextBuilder::from_mermaid_flowchart(
+            if session_name != next_task_session.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
                     next_task_session.as_mermaid_flowchart(),
                     false,
                 )?
@@ -1279,8 +1279,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // Exclude subjects from `NextSuperstepSession`
         let next_superstep = NextSuperstepSession::default();
         let tasks_next_superstep = if let Some(session_name) = self.name.as_ref() {
-            if session_name != next_superstep.session_context_name {
-                SessionContextBuilder::from_mermaid_flowchart(
+            if session_name != next_superstep.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
                     next_superstep.as_mermaid_flowchart(),
                     false,
                 )?
@@ -1299,8 +1299,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // Exclude subjects from `SubjectsNumRowsSession`
         let subjects_session = CountSubjectRowsSession::default();
         let tasks_subjects = if let Some(session_name) = self.name.as_ref() {
-            if session_name != subjects_session.session_context_name {
-                SessionContextBuilder::from_mermaid_flowchart(
+            if session_name != subjects_session.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
                     subjects_session.as_mermaid_flowchart(),
                     false,
                 )?
@@ -1329,8 +1329,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // Exclude subjects from `NextTaskSession`
         let next_task_session = NextTaskSession::default();
         let processors_task_session = if let Some(session_name) = self.name.as_ref() {
-            if session_name != next_task_session.session_context_name {
-                SessionContextBuilder::from_mermaid_flowchart(
+            if session_name != next_task_session.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
                     next_task_session.as_mermaid_flowchart(),
                     false,
                 )?
@@ -1349,8 +1349,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // Exclude subjects from `NextSuperstepSession`
         let next_superstep = NextSuperstepSession::default();
         let processors_next_superstep = if let Some(session_name) = self.name.as_ref() {
-            if session_name != next_superstep.session_context_name {
-                SessionContextBuilder::from_mermaid_flowchart(
+            if session_name != next_superstep.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
                     next_superstep.as_mermaid_flowchart(),
                     false,
                 )?
@@ -1369,8 +1369,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // Exclude subjects from `SubjectsNumRowsSession`
         let subjects_session = CountSubjectRowsSession::default();
         let processors_subjects = if let Some(session_name) = self.name.as_ref() {
-            if session_name != subjects_session.session_context_name {
-                SessionContextBuilder::from_mermaid_flowchart(
+            if session_name != subjects_session.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
                     subjects_session.as_mermaid_flowchart(),
                     false,
                 )?
@@ -1398,7 +1398,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_session_context_builder;
+    use crate::test_network_builder;
     use phymes_task::test_task;
 
     use super::*;
@@ -1419,7 +1419,7 @@ mod tests {
 
         // Make the builder
         let builder =
-            test_session_context_builder::make_test_session_context_builder_parallel_processors()
+            test_network_builder::make_test_network_builder_parallel_processors()
                 .with_name("")
                 .with_runtime_env(runtime_env)
                 .with_subjects(subject_plans);
@@ -1487,7 +1487,7 @@ mod tests {
 
         // Test from tables
         let tables_test =
-            SessionContextBuilder::from_subject_plans(&tables.iter().collect::<Vec<_>>(), None)?
+            NetworkBuilder::from_subject_plans(&tables.iter().collect::<Vec<_>>(), None)?
                 .with_name("")
                 .to_subject_plans(true, true, true, true, true)?;
 
@@ -1501,12 +1501,12 @@ mod tests {
                 .first()
                 .unwrap()
                 .subject()
-                .get_column_as_vec_str("session_context_name"),
+                .get_column_as_vec_str("network_name"),
             tables
                 .first()
                 .unwrap()
                 .subject()
-                .get_column_as_vec_str("session_context_name")
+                .get_column_as_vec_str("network_name")
         );
         assert_eq!(
             tables_test

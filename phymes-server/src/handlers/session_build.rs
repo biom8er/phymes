@@ -13,7 +13,7 @@ use phymes_subject::{BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectT
 use phymes_message::{MessageTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait};
 use phymes_schemas::{
     AvailableSchemaTrait, AvailableSubjects, CsvFormat, DataFormat,
-    JoinUserInboxSessionContextsMermaidDiagrams,
+    JoinUserInboxNetworksMermaidDiagrams,
 };
 
 // Library imports
@@ -23,9 +23,9 @@ use crate::state::{ServerState, UserState};
 /// Put state input
 #[axum::debug_handler]
 pub async fn session_build(
-    Extension((current_user, user_session_contexts)): Extension<(
+    Extension((current_user, user_networks)): Extension<(
         String,
-        Vec<JoinUserInboxSessionContextsMermaidDiagrams>,
+        Vec<JoinUserInboxNetworksMermaidDiagrams>,
     )>,
     State((users, mut state)): State<(UserState, ServerState)>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
@@ -48,7 +48,7 @@ pub async fn session_build(
             {
                 // Initialize the user session contexts
                 let _session_names = match state
-                    .make_session_contexts(&user_session_contexts, true, users.users.runtime_env())
+                    .make_networks(&user_networks, true, users.users.runtime_env())
                     .await
                 {
                     Ok(session_names) => session_names,
@@ -115,8 +115,8 @@ pub async fn session_build(
             };
 
             // Extract out the columns
-            let session_context_name = table
-                .get_column_as_vec_nonprimitive::<String>("session_context_name")
+            let network_name = table
+                .get_column_as_vec_nonprimitive::<String>("network_name")
                 .unwrap();
             let flowchart_diagram = table
                 .get_column_as_vec_nonprimitive::<String>("flowchart_diagram")
@@ -127,25 +127,25 @@ pub async fn session_build(
             let timestamp = table
                 .get_column_as_vec_primitive::<i64>("timestamp")
                 .unwrap();
-            let combined = session_context_name
+            let combined = network_name
                 .into_iter()
                 .zip(flowchart_diagram.into_iter())
                 .zip(er_diagram.into_iter())
                 .zip(timestamp.into_iter())
                 .map(
-                    |(((a, b), c), d)| JoinUserInboxSessionContextsMermaidDiagrams {
+                    |(((a, b), c), d)| JoinUserInboxNetworksMermaidDiagrams {
                         email: current_user.to_owned(),
-                        session_context_name: a,
+                        network_name: a,
                         flowchart_diagram: b,
                         er_diagram: c,
                         timestamp: d,
                     },
                 )
-                .collect::<Vec<JoinUserInboxSessionContextsMermaidDiagrams>>();
+                .collect::<Vec<JoinUserInboxNetworksMermaidDiagrams>>();
 
             // Add the new mermaid diagrams to the user session contexts
             let _session_names = match state
-                .make_session_contexts(&combined, true, users.users.runtime_env())
+                .make_networks(&combined, true, users.users.runtime_env())
                 .await
             {
                 Ok(session_names) => session_names,
@@ -157,10 +157,10 @@ pub async fn session_build(
 
             // Update the users state with the new sessions
             users
-                .update_user_session_contexts(
+                .update_user_networks(
                     current_user.as_str(),
                     &table
-                        .get_column_as_vec_nonprimitive::<String>("session_context_name")
+                        .get_column_as_vec_nonprimitive::<String>("network_name")
                         .unwrap(),
                     &table
                         .get_column_as_vec_nonprimitive::<String>("flowchart_diagram")

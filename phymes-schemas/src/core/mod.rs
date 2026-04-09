@@ -53,11 +53,11 @@ pub(crate) use subjects::{
     create_subjects_object_store_meta_fields,
 };
 pub use user::{
-    JoinUserInboxSessionContextsMermaidDiagrams, UserSubject, create_user_batch,
-    create_user_inbox_batch, create_user_session_contexts_batch,
+    JoinUserInboxNetworksMermaidDiagrams, UserSubject, create_user_batch,
+    create_user_inbox_batch, create_user_networks_batch,
 };
 pub(crate) use user::{
-    create_join_user_inbox_session_contexts_fields,
-    create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields,
-    create_user_inbox_fields, create_user_session_contexts_fields,
+    create_join_user_inbox_networks_fields,
+    create_join_user_inbox_networks_mermaid_diagrams_fields, create_user_fields,
+    create_user_inbox_fields, create_user_networks_fields,
 };

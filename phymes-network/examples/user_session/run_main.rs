@@ -16,7 +16,7 @@ use phymes_subject::{
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
 use phymes_network::{
-    CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait, SessionStream, UserSession,
+    CustomAgentsBuilderTrait, NetworkBuilderAgentsTrait, SessionStream, UserSession,
 };
 use phymes_schemas::{
     AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjectsTrait,
@@ -26,13 +26,13 @@ use phymes_schemas::{
 pub async fn run_main() -> Result<()> {
     // initialize the session
     let user_agent_session = UserSession::default();
-    let (session_ctx, session_messages) = user_agent_session
+    let (network, session_messages) = user_agent_session
         .build()
-        .with_name(user_agent_session.session_context_name)
+        .with_name(user_agent_session.network_name)
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-    let session_ctx_arc = Arc::new(session_ctx);
+    let network_arc = Arc::new(network);
 
     // Make the tabular data
     let batch = create_user_inbox_batch(vec!["contact@biom8er.com".to_string()])?;
@@ -53,15 +53,15 @@ pub async fn run_main() -> Result<()> {
         .with_update(&Publication::Replace {
             subject_name: blob.get_name().to_string(),
         })
-        .with_publisher(user_agent_session.session_context_name)
+        .with_publisher(user_agent_session.network_name)
         .make_name()?
         .build()?;
     let message_map = create_message_map(vec![blob_message]);
-    let _ = session_ctx_arc
+    let _ = network_arc
         .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
         .await;
 
-    let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+    let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
     let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
     let attachment_data = response
@@ -69,7 +69,7 @@ pub async fn run_main() -> Result<()> {
         .map(|mut r| {
             r.remove(&format!(
                 "from_{}_on_{}",
-                user_agent_session.session_context_name,
+                user_agent_session.network_name,
                 AvailableInterfaceSubjects::AssistantJson
             ))
         })

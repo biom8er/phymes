@@ -3,7 +3,7 @@ use std::{io::Write, str::FromStr};
 use anyhow::Result;
 use clap::Parser;
 use phymes_subject::BuilderTrait;
-use phymes_network::SessionContextBuilderMermaid;
+use phymes_network::NetworkBuilderMermaid;
 
 #[derive(Parser, Debug, Default, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -94,7 +94,7 @@ impl MermaidBuildConfig {
     }
 }
 
-/// Generates the Mermaid.js Flowchart and ERDiagram representations of the [SessionContextBuilderMermaid]
+/// Generates the Mermaid.js Flowchart and ERDiagram representations of the [NetworkBuilderMermaid]
 pub fn run_main() -> Result<()> {
     // CLI arguments
     let config = MermaidBuildConfig::parse();
@@ -104,7 +104,7 @@ pub fn run_main() -> Result<()> {
     let erdiagram = config.read_erdiagram()?;
 
     // Try to build from mermaid
-    let _builder = SessionContextBuilderMermaid::new()
+    let _builder = NetworkBuilderMermaid::new()
         .with_name("Mermaid_CLI")
         .with_flowchart(&flowchart)
         .with_erdiagram(&erdiagram)

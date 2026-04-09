@@ -2,7 +2,7 @@
 
 ### Session
 
-Manifestation of particular task hypergraph that a user can publish subjects to and stream subscribed subjects from. The `SessionContext` maintains the metrics, tasks, state, and runtime (discussed below). The `SessionStream` manages the subscribing and publishing of subjects by tasks by iteratively running a "super step" via `SessionStreamStep` which invokes tasks for which all of their subscribed subjects have been updated and then updates the subjects with the published results of each ran task.
+Manifestation of particular task hypergraph that a user can publish subjects to and stream subscribed subjects from. The `Network` maintains the metrics, tasks, state, and runtime (discussed below). The `SessionStream` manages the subscribing and publishing of subjects by tasks by iteratively running a "super step" via `SessionStreamStep` which invokes tasks for which all of their subscribed subjects have been updated and then updates the subjects with the published results of each ran task.
 
 ### State
 

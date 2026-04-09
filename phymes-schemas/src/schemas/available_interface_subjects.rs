@@ -10,9 +10,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait};
 
-/// Check that one or more of the [AvailableInterfaceSubjects] are provided in the [SessionContextBuilder]
+/// Check that one or more of the [AvailableInterfaceSubjects] are provided in the [NetworkBuilder]
 ///
-/// [SessionContextBuilder]: crate::SessionContextBuilder
+/// [NetworkBuilder]: crate::NetworkBuilder
 pub fn check_agent_subjects(subjects: &[String]) -> Result<()> {
     let mut has_messaging_publish = false;
     let mut has_message_subscribe = false;

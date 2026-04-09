@@ -7,13 +7,13 @@ use phymes_schemas::{AvailableSubjects, create_session_tasks_subscribe_publish_b
 /// A session for determining the next superstep task publications and subscriptions
 pub struct NextSuperstepSession<'a> {
     /// Session
-    pub session_context_name: &'a str,
+    pub network_name: &'a str,
 }
 
 impl Default for NextSuperstepSession<'_> {
     fn default() -> Self {
         NextSuperstepSession {
-            session_context_name: "next_superstep_session",
+            network_name: "next_superstep_session",
         }
     }
 }
@@ -53,7 +53,7 @@ impl<'a> NextSuperstepSession<'a> {
             .collect::<Vec<_>>();
         let session_names = task_names
             .iter()
-            .map(|_| self.session_context_name.to_string())
+            .map(|_| self.network_name.to_string())
             .collect::<Vec<_>>();
 
         let batch = create_session_tasks_subscribe_publish_batch(
@@ -84,7 +84,7 @@ impl<'a> NextSuperstepSession<'a> {
             .with_update(&Publication::Replace {
                 subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
             })
-            .with_publisher(self.session_context_name)
+            .with_publisher(self.network_name)
             .make_name()?
             .build()?;
         let messages_1 = create_message_map(vec![tasks_publish_subscribe_message]);
@@ -148,8 +148,8 @@ mod tests {
     use phymes_task::SubscriptionTrait;
 
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream, SessionStreamStepMinimal,
+        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilderTrait, SessionStream, SessionStreamStepMinimal,
         SessionStreamStepTrait,
     };
 
@@ -159,7 +159,7 @@ mod tests {
     async fn test_next_superstep_session() -> Result<()> {
         // Initialize the session
         let next_superstep_session = NextSuperstepSession::default();
-        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
+        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             next_superstep_session.as_mermaid_flowchart(),
             false,
         )?
@@ -168,12 +168,12 @@ mod tests {
             false,
             true,
         )?
-        .with_name(next_superstep_session.session_context_name)
+        .with_name(next_superstep_session.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Session Tasks
         let mut next_superstep_messages = next_superstep_session
@@ -183,12 +183,12 @@ mod tests {
             .collect::<Vec<_>>();
 
         // Run the session
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
         let session_stream = SessionStream::new(
             next_superstep_messages.pop().unwrap(),
-            Arc::clone(&session_ctx_arc),
+            Arc::clone(&network_arc),
         );
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
@@ -198,7 +198,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionSuperstepMax.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -228,7 +228,7 @@ mod tests {
             .with_update(&Publication::Replace {
                 subject_name: AvailableSubjects::SessionSupersteps.to_string(),
             })
-            .with_publisher(next_superstep_session.session_context_name)
+            .with_publisher(next_superstep_session.network_name)
             .make_name()?
             .build()?;
         let mut message_map = create_message_map(vec![superstep_message]);
@@ -241,14 +241,14 @@ mod tests {
             .collect::<Vec<_>>();
         message_map.extend(next_superstep_messages.pop().unwrap());
         let _response =
-            SessionStreamStepMinimal::run_superstep(Arc::clone(&session_ctx_arc), message_map)
+            SessionStreamStepMinimal::run_superstep(Arc::clone(&network_arc), message_map)
                 .await?;
 
         // Test supserstep 1
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionSuperstepMax.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;

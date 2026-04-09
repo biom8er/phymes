@@ -72,7 +72,7 @@ pub struct DocumentRAGSession<'a> {
     pub top_k_summary_processor_name: &'a str,
     pub vector_search_runtime_env_name: &'a str,
     /// Session and state
-    pub session_context_name: &'a str,
+    pub network_name: &'a str,
     pub state_documents_table_name: &'a str,
     pub state_doc_embed_table_name: &'a str,
     pub state_q_embed_table_name: &'a str,
@@ -119,7 +119,7 @@ impl Default for DocumentRAGSession<'_> {
             top_k_limit_processor_name: "top_k_limit_processor_1",
             top_k_summary_processor_name: "top_k_summary_processor_1",
             vector_search_runtime_env_name: "vs_rt_1",
-            session_context_name: "session_context_1",
+            network_name: "network_1",
             state_documents_table_name: "documents",
             state_doc_embed_table_name: "doc_embeddings",
             state_q_embed_table_name: "q_embeddings",
@@ -135,9 +135,9 @@ impl Default for DocumentRAGSession<'_> {
 }
 
 impl<'a> DocumentRAGSession<'a> {
-    pub fn new_with_session_name(session_context_name: &'a str) -> Self {
+    pub fn new_with_session_name(network_name: &'a str) -> Self {
         DocumentRAGSession {
-            session_context_name,
+            network_name,
             ..Default::default()
         }
     }
@@ -566,7 +566,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
     fn make_runtime_env(&self) -> Option<Arc<RuntimeEnv>> {
         Some(
             RuntimeEnv::get_builder()
-                .with_name(self.session_context_name)
+                .with_name(self.network_name)
                 .build_arc()
                 .unwrap(),
         )
@@ -1036,7 +1036,7 @@ mod tests {
     use phymes_schemas::AttachmentBuilderTraitExt;
     use phymes_streams::ChatBuilderTraitExt;
 
-    use crate::{SessionContextBuilderAgentsTrait, SessionStream};
+    use crate::{NetworkBuilderAgentsTrait, SessionStream};
 
     use super::*;
 
@@ -1048,14 +1048,14 @@ mod tests {
             doc_rag_session.chat_api_url = Some("http://0.0.0.0:8000/v1");
             doc_rag_session.embed_api_url = Some("http://0.0.0.0:8001/v1");
         }
-        let (session_ctx, session_messages) = doc_rag_session
+        let (network, session_messages) = doc_rag_session
             .build()
-            .with_name(doc_rag_session.session_context_name)
+            .with_name(doc_rag_session.network_name)
             .add_session_interface(None)?
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Create the document message
         let document_texts = &[
@@ -1079,7 +1079,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: chat.get_name().to_string(),
             })
-            .with_publisher(doc_rag_session.session_context_name)
+            .with_publisher(doc_rag_session.network_name)
             .make_name()?
             .build()?;
         let blob = AvailableInterfaceSubjects::UserPdf
@@ -1092,7 +1092,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: blob.get_name().to_string(),
             })
-            .with_publisher(doc_rag_session.session_context_name)
+            .with_publisher(doc_rag_session.network_name)
             .make_name()?
             .build()?;
 
@@ -1106,15 +1106,15 @@ mod tests {
             // ----- Query #1 -----
             // Embed the documents
             let message_map = create_message_map(vec![blob_message]);
-            let _ = session_ctx_arc
+            let _ = network_arc
                 .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
                 .await;
-            let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+            let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
             let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
             // Embed the query and invoke a response
             let message_map = create_message_map(vec![chat_message]);
-            let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+            let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
             let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
 
@@ -1124,7 +1124,7 @@ mod tests {
                 .filter_map(|map| {
                     map.remove(&format!(
                         "from_{}_on_{}",
-                        doc_rag_session.session_context_name,
+                        doc_rag_session.network_name,
                         AvailableInterfaceSubjects::AssistantMessages
                     ))
                     .map(|v| v.get_message_own())

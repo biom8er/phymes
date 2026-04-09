@@ -11,7 +11,7 @@ use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
 use phymes_schemas::{
     AvailableSubjects, AvailableSubjectsTrait, create_user_batch,
-    create_user_session_contexts_batch,
+    create_user_networks_batch,
 };
 use phymes_task::TaskPlan;
 
@@ -28,13 +28,13 @@ use crate::{AvailableSessionPlans, CustomAgentsBuilderTrait, make_example_mermai
 /// 3. Registering new users
 pub struct UserSession<'a> {
     /// Filter session contexts by email subtask
-    pub filter_session_contexts_by_email_runtime_env_name: &'a str,
-    pub filter_session_contexts_by_email_task_name: &'a str,
-    pub filter_session_contexts_by_email_processor_name: &'a str,
+    pub filter_networks_by_email_runtime_env_name: &'a str,
+    pub filter_networks_by_email_task_name: &'a str,
+    pub filter_networks_by_email_processor_name: &'a str,
     /// Join session contexts by email subtask
-    pub join_session_contexts_with_mermaid_diagrams_runtime_env_name: &'a str,
-    pub join_session_contexts_with_mermaid_diagrams_task_name: &'a str,
-    pub join_session_contexts_with_mermaid_diagrams_processor_name: &'a str,
+    pub join_networks_with_mermaid_diagrams_runtime_env_name: &'a str,
+    pub join_networks_with_mermaid_diagrams_task_name: &'a str,
+    pub join_networks_with_mermaid_diagrams_processor_name: &'a str,
 
     /// Filter user info by email subtask
     pub filter_user_info_by_email_runtime_env_name: &'a str,
@@ -43,19 +43,19 @@ pub struct UserSession<'a> {
     pub filter_user_info_by_email_table_name: &'a str,
 
     /// Session
-    pub session_context_name: &'a str,
+    pub network_name: &'a str,
 }
 
 impl Default for UserSession<'_> {
     fn default() -> Self {
         UserSession {
-            session_context_name: "user_session",
-            filter_session_contexts_by_email_runtime_env_name: "filter_session_contexts_by_email_runtime_env_name",
-            filter_session_contexts_by_email_task_name: "filter_session_contexts_by_email_task_name",
-            filter_session_contexts_by_email_processor_name: "filter_session_contexts_by_email_processor_name",
-            join_session_contexts_with_mermaid_diagrams_runtime_env_name: "join_session_contexts_with_mermaid_diagrams_runtime_env_name",
-            join_session_contexts_with_mermaid_diagrams_task_name: "join_session_contexts_with_mermaid_diagrams_task_name",
-            join_session_contexts_with_mermaid_diagrams_processor_name: "join_session_contexts_with_mermaid_diagrams_processor_name",
+            network_name: "user_session",
+            filter_networks_by_email_runtime_env_name: "filter_networks_by_email_runtime_env_name",
+            filter_networks_by_email_task_name: "filter_networks_by_email_task_name",
+            filter_networks_by_email_processor_name: "filter_networks_by_email_processor_name",
+            join_networks_with_mermaid_diagrams_runtime_env_name: "join_networks_with_mermaid_diagrams_runtime_env_name",
+            join_networks_with_mermaid_diagrams_task_name: "join_networks_with_mermaid_diagrams_task_name",
+            join_networks_with_mermaid_diagrams_processor_name: "join_networks_with_mermaid_diagrams_processor_name",
             filter_user_info_by_email_runtime_env_name: "filter_user_info_by_email_runtime_env_name",
             filter_user_info_by_email_task_name: "filter_user_info_by_email_task_name",
             filter_user_info_by_email_processor_name: "filter_user_info_by_email_processor_name",
@@ -65,9 +65,9 @@ impl Default for UserSession<'_> {
 }
 
 impl<'a> UserSession<'a> {
-    pub fn new_with_session_name(session_context_name: &'a str) -> Self {
+    pub fn new_with_session_name(network_name: &'a str) -> Self {
         UserSession {
-            session_context_name,
+            network_name,
             ..Default::default()
         }
     }
@@ -86,16 +86,16 @@ impl<'a> UserSession<'a> {
             .build()
     }
 
-    pub fn make_user_session_context_table(&self) -> Result<Subject> {
+    pub fn make_user_network_table(&self) -> Result<Subject> {
         let mut email = Vec::new();
-        let mut session_context_name = Vec::new();
+        let mut network_name = Vec::new();
         for name in AvailableSessionPlans::get_all_session_plan_names() {
             email.push("contact@biom8er.com".to_string());
-            session_context_name.push(name);
+            network_name.push(name);
         }
-        let batch = create_user_session_contexts_batch(email, session_context_name)?;
+        let batch = create_user_networks_batch(email, network_name)?;
         SubjectBuilder::new()
-            .with_name(AvailableSubjects::UserSessionContexts.to_string().as_str())
+            .with_name(AvailableSubjects::UserNetworks.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
     }
@@ -105,18 +105,18 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![
             TaskPlan {
-                task_name: self.filter_session_contexts_by_email_task_name.to_string(),
+                task_name: self.filter_networks_by_email_task_name.to_string(),
                 processor_names: vec![
-                    self.filter_session_contexts_by_email_processor_name
+                    self.filter_networks_by_email_processor_name
                         .to_string(),
                 ],
             },
             TaskPlan {
                 task_name: self
-                    .join_session_contexts_with_mermaid_diagrams_task_name
+                    .join_networks_with_mermaid_diagrams_task_name
                     .to_string(),
                 processor_names: vec![
-                    self.join_session_contexts_with_mermaid_diagrams_processor_name
+                    self.join_networks_with_mermaid_diagrams_processor_name
                         .to_string(),
                 ],
             },
@@ -135,22 +135,22 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
             ProcessorPlanBuilder::default()
                 .with_processor(
                     AvailableProcessors::Join
-                        .build_arc(self.filter_session_contexts_by_email_processor_name),
+                        .build_arc(self.filter_networks_by_email_processor_name),
                 )
                 .with_publications(&[Publication::Replace {
-                    subject_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string(),
+                    subject_name: AvailableSubjects::JoinUserInboxNetworks.to_string(),
                 }])
                 .with_subscriptions(&[
                     Subscription::AlwaysLastRecordBatch {
                         subject_name: self
-                            .filter_session_contexts_by_email_processor_name
+                            .filter_networks_by_email_processor_name
                             .to_string(),
                     },
                     Subscription::OnUpdateAllRecordBatches {
                         subject_name: AvailableSubjects::UserInbox.to_string(),
                     },
                     Subscription::AlwaysAllRecordBatches {
-                        subject_name: AvailableSubjects::UserSessionContexts.to_string(),
+                        subject_name: AvailableSubjects::UserNetworks.to_string(),
                     },
                 ])
                 .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
@@ -159,20 +159,20 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
             ProcessorPlanBuilder::default()
                 .with_processor(
                     AvailableProcessors::Join
-                        .build_arc(self.join_session_contexts_with_mermaid_diagrams_processor_name),
+                        .build_arc(self.join_networks_with_mermaid_diagrams_processor_name),
                 )
                 .with_publications(&[Publication::Replace {
-                    subject_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid
+                    subject_name: AvailableSubjects::JoinUserInboxNetworksMermaid
                         .to_string(),
                 }])
                 .with_subscriptions(&[
                     Subscription::AlwaysLastRecordBatch {
                         subject_name: self
-                            .join_session_contexts_with_mermaid_diagrams_processor_name
+                            .join_networks_with_mermaid_diagrams_processor_name
                             .to_string(),
                     },
                     Subscription::OnUpdateAllRecordBatches {
-                        subject_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string(),
+                        subject_name: AvailableSubjects::JoinUserInboxNetworks.to_string(),
                     },
                     Subscription::AlwaysAllRecordBatches {
                         subject_name: AvailableSubjects::BuilderMermaid.to_string(),
@@ -211,7 +211,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
     fn make_runtime_env(&self) -> Option<Arc<RuntimeEnv>> {
         Some(
             RuntimeEnv::get_builder()
-                .with_name(self.session_context_name)
+                .with_name(self.network_name)
                 .build_arc()
                 .unwrap(),
         )
@@ -240,61 +240,61 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
             .unwrap();
 
         // Configs for filter
-        let filter_user_session_context_data_config = DataConfig {
+        let filter_user_network_data_config = DataConfig {
             operator: AvailableOperators::Join,
             lhs_name: Some(AvailableSubjects::UserInbox.to_string()),
             lhs_pk: Some("email".to_string()),
             lhs_fk: Some("email".to_string()),
-            rhs_name: Some(AvailableSubjects::UserSessionContexts.to_string()),
+            rhs_name: Some(AvailableSubjects::UserNetworks.to_string()),
             rhs_pk: Some("email".to_string()),
             rhs_fk: Some("email".to_string()),
             join_operators: Some(DataJoinOperator::Inner),
             ..Default::default()
         };
-        let filter_user_session_context_data_config_json =
-            serde_json::to_vec(&filter_user_session_context_data_config).unwrap();
-        let filter_user_session_context_data_state = SubjectBuilder::new()
-            .with_name(self.filter_session_contexts_by_email_processor_name)
-            .with_json(&filter_user_session_context_data_config_json.clone(), 1)
+        let filter_user_network_data_config_json =
+            serde_json::to_vec(&filter_user_network_data_config).unwrap();
+        let filter_user_network_data_state = SubjectBuilder::new()
+            .with_name(self.filter_networks_by_email_processor_name)
+            .with_json(&filter_user_network_data_config_json.clone(), 1)
             .unwrap()
             .build()
             .unwrap();
 
         // Configs for join
-        let join_user_session_context_data_config = DataConfig {
+        let join_user_network_data_config = DataConfig {
             operator: AvailableOperators::Join,
-            lhs_name: Some(AvailableSubjects::JoinUserInboxSessionContexts.to_string()),
+            lhs_name: Some(AvailableSubjects::JoinUserInboxNetworks.to_string()),
             lhs_pk: Some("email".to_string()),
-            lhs_fk: Some("session_context_name".to_string()),
+            lhs_fk: Some("network_name".to_string()),
             rhs_name: Some(AvailableSubjects::BuilderMermaid.to_string()),
-            rhs_pk: Some("session_context_name".to_string()),
-            rhs_fk: Some("session_context_name".to_string()),
+            rhs_pk: Some("network_name".to_string()),
+            rhs_fk: Some("network_name".to_string()),
             join_operators: Some(DataJoinOperator::Inner),
             ..Default::default()
         };
-        let join_user_session_context_data_config_json =
-            serde_json::to_vec(&join_user_session_context_data_config).unwrap();
-        let join_user_session_context_data_state = SubjectBuilder::new()
-            .with_name(self.join_session_contexts_with_mermaid_diagrams_processor_name)
-            .with_json(&join_user_session_context_data_config_json.clone(), 1)
+        let join_user_network_data_config_json =
+            serde_json::to_vec(&join_user_network_data_config).unwrap();
+        let join_user_network_data_state = SubjectBuilder::new()
+            .with_name(self.join_networks_with_mermaid_diagrams_processor_name)
+            .with_json(&join_user_network_data_config_json.clone(), 1)
             .unwrap()
             .build()
             .unwrap();
 
         let subjects = vec![
             filter_user_info_data_state,
-            filter_user_session_context_data_state,
-            join_user_session_context_data_state,
+            filter_user_network_data_state,
+            join_user_network_data_state,
             self.make_user_table().unwrap(),
-            self.make_user_session_context_table().unwrap(),
+            self.make_user_network_table().unwrap(),
             AvailableSubjects::User
                 .to_subject(Some(self.filter_user_info_by_email_table_name), None)
                 .unwrap(),
             AvailableSubjects::UserInbox.to_subject(None, None).unwrap(),
-            AvailableSubjects::JoinUserInboxSessionContexts
+            AvailableSubjects::JoinUserInboxNetworks
                 .to_subject(None, None)
                 .unwrap(),
-            AvailableSubjects::JoinUserInboxSessionContextsMermaid
+            AvailableSubjects::JoinUserInboxNetworksMermaid
                 .to_subject(None, None)
                 .unwrap(),
             make_example_mermaid_table(false, true).unwrap(),
@@ -315,22 +315,22 @@ pub(crate) mod user_session_inner {
     use phymes_schemas::create_user_inbox_batch;
 
     use crate::{
-        SessionContext, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream,
+        Network, NetworkBuilderAgentsTrait, NetworkBuilderTrait, SessionStream,
     };
 
     use super::*;
 
-    pub async fn user_session() -> Result<(Arc<SessionContext>, SessionStream)> {
+    pub async fn user_session() -> Result<(Arc<Network>, SessionStream)> {
         // initialize the session
         let user_agent_session = UserSession::default();
-        let (session_ctx, session_messages) = user_agent_session
+        let (network, session_messages) = user_agent_session
             .build()
-            .with_name(user_agent_session.session_context_name)
+            .with_name(user_agent_session.network_name)
             .with_diagnostics(true)
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Make the user inbox message
         let batch = create_user_inbox_batch(vec!["contact@biom8er.com".to_string()])?;
@@ -344,17 +344,17 @@ pub(crate) mod user_session_inner {
             .with_update(&Publication::Replace {
                 subject_name: table.get_name().to_string(),
             })
-            .with_publisher(user_agent_session.session_context_name)
+            .with_publisher(user_agent_session.network_name)
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![message]);
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
 
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
 
-        Ok((session_ctx_arc, session_stream))
+        Ok((network_arc, session_stream))
     }
 }
 
@@ -371,7 +371,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_user_session() -> Result<()> {
-        let (session_ctx_arc, session_stream) = user_session_inner::user_session().await?;
+        let (network_arc, session_stream) = user_session_inner::user_session().await?;
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
         assert!(response.is_empty());
 
@@ -379,7 +379,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::User.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -402,15 +402,15 @@ mod tests {
 
         // Check the Join subject
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string(),
+            subject_name: AvailableSubjects::JoinUserInboxNetworksMermaid.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
         let subject = Subject::get_builder()
             .with_name(
-                AvailableSubjects::JoinUserInboxSessionContextsMermaid
+                AvailableSubjects::JoinUserInboxNetworksMermaid
                     .to_string()
                     .as_str(),
             )
@@ -426,7 +426,7 @@ mod tests {
                 "contact@biom8er.com"
             ]
         );
-        let column = subject.get_column_as_vec_str("session_context_name");
+        let column = subject.get_column_as_vec_str("network_name");
         assert_eq!(column, ["Builder", "Chat", "DocChat", "ToolChat"]);
         let column = subject.get_column_as_vec_str("er_diagram");
         for c in column {

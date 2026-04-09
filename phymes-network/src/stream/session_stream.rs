@@ -11,11 +11,11 @@ use phymes_diagnostics::HashMap;
 use phymes_message::{IPCMessage, IPCMessageMap};
 use tracing::{Level, event};
 
-use crate::{SessionContext, SessionStreamStep, SessionStreamStepTrait};
+use crate::{Network, SessionStreamStep, SessionStreamStepTrait};
 
 pub struct SessionStream {
     /// The session context
-    session_context: Arc<SessionContext>,
+    network: Arc<Network>,
     /// The next superstep
     #[allow(clippy::type_complexity)]
     next_step: Option<Pin<Box<dyn Future<Output = Result<Option<IPCMessageMap>>> + Send>>>,
@@ -27,19 +27,19 @@ pub struct SessionStream {
 
 impl SessionStream {
     /// New [SessionStream]
-    pub fn new(messages: IPCMessageMap, session_context: Arc<SessionContext>) -> Self {
-        let max_steps = session_context.get_max_steps();
+    pub fn new(messages: IPCMessageMap, network: Arc<Network>) -> Self {
+        let max_steps = network.get_max_steps();
         let step = 0;
         #[allow(clippy::type_complexity)]
         let next_step: Option<
             Pin<Box<dyn Future<Output = Result<Option<IPCMessageMap>>> + Send>>,
         > = Some(Box::pin(SessionStreamStep::run_superstep(
-            Arc::clone(&session_context),
+            Arc::clone(&network),
             messages,
         )));
 
         Self {
-            session_context,
+            network,
             next_step,
             max_steps,
             step,
@@ -69,7 +69,7 @@ impl Stream for SessionStream {
 
             // Prepare the next superstep
             self.next_step = Some(Box::pin(SessionStreamStep::run_superstep(
-                Arc::clone(&self.session_context),
+                Arc::clone(&self.network),
                 HashMap::<String, IPCMessage>::new(),
             )));
             self.step += 1;
@@ -108,14 +108,14 @@ mod tests {
 
     use super::*;
     use crate::{
-        SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, test_session_context_builder,
+        NetworkBuilderAgentsTrait, NetworkBuilderTrait, test_network_builder,
     };
 
     #[tokio::test]
     async fn test_session_stream_replace_state_update_sequential_tasks() -> Result<()> {
         // Build the session
-        let (session_context, session_messages) =
-            test_session_context_builder::make_test_session_context_builder_sequential(
+        let (network, session_messages) =
+            test_network_builder::make_test_network_builder_sequential(
                 "session_1",
                 2,
             )?
@@ -124,8 +124,8 @@ mod tests {
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_context);
-        let _ = session_ctx_arc
+        let network_arc = Arc::new(network);
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
         let messages = test_task::make_test_input_message(
@@ -138,7 +138,7 @@ mod tests {
             },
             true,
         )?;
-        let session_stream = SessionStream::new(messages, Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(messages, Arc::clone(&network_arc));
         let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         // Check the response
@@ -194,11 +194,11 @@ mod tests {
         let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 7); // DM, Check!(): changed from 4
 
-        // check the session and session_context
+        // check the session and network
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_1".to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -209,7 +209,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionTasksRunLog.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -217,7 +217,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -225,7 +225,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -233,7 +233,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionMetrics.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -241,7 +241,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionErrors.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -249,7 +249,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionSupersteps.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
         .unwrap()
         .try_collect()
         .await?;

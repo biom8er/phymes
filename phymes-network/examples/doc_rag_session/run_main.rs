@@ -16,7 +16,7 @@ use phymes_diagnostics::HashMap;
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
 use phymes_network::{
-    CustomAgentsBuilderTrait, DocumentRAGSession, SessionContextBuilderAgentsTrait, SessionStream,
+    CustomAgentsBuilderTrait, DocumentRAGSession, NetworkBuilderAgentsTrait, SessionStream,
 };
 use phymes_schemas::{
     AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjectsTrait,
@@ -30,14 +30,14 @@ pub async fn run_main() -> Result<()> {
         doc_rag_session.chat_api_url = Some("http://0.0.0.0:8000/v1");
         doc_rag_session.embed_api_url = Some("http://0.0.0.0:8001/v1");
     }
-    let (session_ctx, session_messages) = doc_rag_session
+    let (network, session_messages) = doc_rag_session
         .build()
-        .with_name(doc_rag_session.session_context_name)
+        .with_name(doc_rag_session.network_name)
         .add_session_interface(None)?
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-    let session_ctx_arc = Arc::new(session_ctx);
+    let network_arc = Arc::new(network);
 
     // Create the document message
     let document_texts = &[
@@ -61,7 +61,7 @@ pub async fn run_main() -> Result<()> {
         .with_update(&Publication::Extend {
             subject_name: chat.get_name().to_string(),
         })
-        .with_publisher(doc_rag_session.session_context_name)
+        .with_publisher(doc_rag_session.network_name)
         .make_name()?
         .build()?;
     let blob = AvailableInterfaceSubjects::UserPdf
@@ -74,22 +74,22 @@ pub async fn run_main() -> Result<()> {
         .with_update(&Publication::Extend {
             subject_name: blob.get_name().to_string(),
         })
-        .with_publisher(doc_rag_session.session_context_name)
+        .with_publisher(doc_rag_session.network_name)
         .make_name()?
         .build()?;
 
     // ----- Query #1 -----
     // Embed the documents
     let message_map = create_message_map(vec![blob_message]);
-    let _ = session_ctx_arc
+    let _ = network_arc
         .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
         .await;
-    let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+    let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
     let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
     // Embed the query and invoke a response
     let message_map = create_message_map(vec![chat_message]);
-    let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+    let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
     let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
     // Update the chat history with the response
@@ -98,7 +98,7 @@ pub async fn run_main() -> Result<()> {
         .filter_map(|map| {
             map.remove(&format!(
                 "from_{}_on_{}",
-                doc_rag_session.session_context_name,
+                doc_rag_session.network_name,
                 AvailableInterfaceSubjects::AssistantMessages
             ))
             .map(|v| v.get_message_own())

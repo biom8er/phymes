@@ -4,23 +4,23 @@ use serde_json::{Map, Value};
 /// OpenAlex agent
 pub struct OpenAlexAgentSession<'a> {
     /// Session
-    pub session_context_name: &'a str,
+    pub network_name: &'a str,
 }
 
 impl Default for OpenAlexAgentSession<'_> {
     fn default() -> Self {
         OpenAlexAgentSession {
-            session_context_name: "open_alex_agent_session",
+            network_name: "open_alex_agent_session",
         }
     }
 }
 
 impl<'a> OpenAlexAgentSession<'a> {
     pub fn as_mermaid_flowchart(&self) -> String {
-        let session_context_name = self.session_context_name;
+        let network_name = self.network_name;
         format!(
             r#"flowchart TD
-    {session_context_name}_r-rt@{{shape: subproc, label: {session_context_name}_r}}
+    {network_name}_r-rt@{{shape: subproc, label: {network_name}_r}}
 	%% ------------------------------------------------------------------------------
 	%% OpenAlex download from AWS
     %% 1. Read from the AWS bucket
@@ -32,7 +32,7 @@ impl<'a> OpenAlexAgentSession<'a> {
 		get_open_alex_aws_bucket_p-processor-->get_open_alex_aws_bucket_p-publish
 		get_open_alex_aws_bucket_p-publish-->|Replace|get_open_alex_aws_bucket_s-subject
 	end
-	{session_context_name}_r-rt-->get_open_alex_aws_bucket_t
+	{network_name}_r-rt-->get_open_alex_aws_bucket_t
 	list_open_alex_aws_bucket_s-subject@{{shape: doc, label: list_open_alex_aws_bucket_s}}
 	get_open_alex_aws_bucket_p-subscribe@{{shape: diamond, label: All}}
 	get_open_alex_aws_bucket_p-processor@{{shape: rect, label: ObjectStoreProcessor}}
@@ -67,7 +67,7 @@ impl<'a> OpenAlexAgentSession<'a> {
 		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkReferencedWorksTable-subject
 		extract_open_alex_aws_bucket_p-publish-->|Replace|WorkRelatedWorksTable-subject
 	end
-	{session_context_name}_r-rt-->extract_open_alex_aws_bucket_t
+	{network_name}_r-rt-->extract_open_alex_aws_bucket_t
 	extract_open_alex_aws_bucket_p-subscribe@{{shape: diamond, label: All}}
 	extract_open_alex_aws_bucket_p-processor@{{shape: rect, label: ExtractTabular}}
 	extract_open_alex_aws_bucket_p-publish@{{shape: fork}}
@@ -118,7 +118,7 @@ impl<'a> OpenAlexAgentSession<'a> {
 		join_work_topic_table_p-processor-->join_work_topic_table_p-publish
 		join_work_topic_table_p-publish-->|Replace|join_work_topic_table_s-subject
 	end
-	{session_context_name}_r-rt-->filter_work_topic_table_t
+	{network_name}_r-rt-->filter_work_topic_table_t
 	cmp_work_topic_table_p-subscribe@{{shape: diamond, label: All}}
 	cmp_work_topic_table_p-processor@{{shape: rect, label: Select}}
 	cmp_work_topic_table_p-publish@{{shape: fork}}
@@ -165,7 +165,7 @@ impl<'a> OpenAlexAgentSession<'a> {
 		select_open_acces_pdf_url_p-processor-->select_open_acces_pdf_url_p-publish
 		select_open_acces_pdf_url_p-publish-->|Replace|select_open_acces_pdf_url_s-subject
 	end
-	{session_context_name}_r-rt-->select_open_access_pdf_url_t
+	{network_name}_r-rt-->select_open_access_pdf_url_t
 	cmp_work_location_table_p-subscribe@{{shape: diamond, label: All}}
 	cmp_work_location_table_p-processor@{{shape: rect, label: Select}}
 	cmp_work_location_table_p-publish@{{shape: fork}}
@@ -199,7 +199,7 @@ impl<'a> OpenAlexAgentSession<'a> {
 		download_open_access_pdf_p-processor-->download_open_access_pdf_p-publish
 		download_open_access_pdf_p-publish-->|Extend|UserPdf-subject
 	end
-	{session_context_name}_r-rt-->download_open_access_pdf_t
+	{network_name}_r-rt-->download_open_access_pdf_t
 	download_open_access_pdf_p-processor@{{shape: rect, label: HTTPClientRequestProcessor}}
 	download_open_access_pdf_p-publish@{{shape: fork}}
 	download_open_access_pdf_p-subscribe@{{shape: diamond, label: All}}
@@ -468,8 +468,8 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream,
+        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilderTrait, SessionStream,
     };
     use phymes_schemas::{
         AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait,
@@ -486,7 +486,7 @@ mod tests {
     async fn test_open_alex_agent_session() -> Result<()> {
         // Extract PDF session
         let extract_pdf_session = ExtractPDFSession::default();
-        let extract_pdf_session_builder = SessionContextBuilder::from_mermaid_flowchart(
+        let extract_pdf_session_builder = NetworkBuilder::from_mermaid_flowchart(
             extract_pdf_session.as_mermaid_flowchart(),
             false,
         )?
@@ -495,11 +495,11 @@ mod tests {
             false,
             true,
         )?
-        .with_name(extract_pdf_session.session_context_name);
+        .with_name(extract_pdf_session.network_name);
 
         // Embed text session
         let embed_text_session = EmbedTextSession::default();
-        let embed_text_session_builder = SessionContextBuilder::from_mermaid_flowchart(
+        let embed_text_session_builder = NetworkBuilder::from_mermaid_flowchart(
             &embed_text_session.as_mermaid_flowchart(),
             false,
         )?
@@ -508,11 +508,11 @@ mod tests {
             false,
             true,
         )?
-        .with_name(embed_text_session.session_context_name);
+        .with_name(embed_text_session.network_name);
 
         // Retrieve text session
         let retrieve_text_session = RetrieveTextSession::default();
-        let retrieve_text_builder = SessionContextBuilder::from_mermaid_flowchart(
+        let retrieve_text_builder = NetworkBuilder::from_mermaid_flowchart(
             retrieve_text_session.as_mermaid_flowchart(),
             false,
         )?
@@ -521,11 +521,11 @@ mod tests {
             false,
             true,
         )?
-        .with_name(retrieve_text_session.session_context_name);
+        .with_name(retrieve_text_session.network_name);
 
         // Initialize the session
         let open_alex_agent_session = OpenAlexAgentSession::default();
-        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
+        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             &open_alex_agent_session.as_mermaid_flowchart(),
             false,
         )?
@@ -534,7 +534,7 @@ mod tests {
             false,
             true,
         )?
-        .with_name(open_alex_agent_session.session_context_name)
+        .with_name(open_alex_agent_session.network_name)
         .extend(extract_pdf_session_builder)?
         .extend(embed_text_session_builder)?
         .extend(retrieve_text_builder)?
@@ -543,7 +543,7 @@ mod tests {
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Make the test session data
         let mut message_map = HashMap::<String, IPCMessage>::new();
@@ -581,7 +581,7 @@ mod tests {
         //     config_table.get_name().to_string(),
         //     IPCMessage::get_builder()
         //         .with_name(config_table.get_name())
-        //         .with_publisher(open_alex_agent_session.session_context_name)
+        //         .with_publisher(open_alex_agent_session.network_name)
         //         .with_subject(config_table.get_name())
         //         .with_update(&Publication::Replace {
         //             subject_name: config_table.get_name().to_string(),
@@ -609,7 +609,7 @@ mod tests {
             messages.to_string(),
             IPCMessage::get_builder()
                 .with_name(&messages)
-                .with_publisher(open_alex_agent_session.session_context_name)
+                .with_publisher(open_alex_agent_session.network_name)
                 .with_subject(&messages)
                 .with_update(&Publication::Replace {
                     subject_name: messages.to_string(),
@@ -618,18 +618,18 @@ mod tests {
                 .build()?,
         );
 
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
 
         // 1. Run the session
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionErrors.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -647,7 +647,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionEvents.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -669,7 +669,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "WorkTable".to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -685,7 +685,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "WorkTopicTable".to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -710,7 +710,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "WorkLocationTable".to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -756,7 +756,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "extract_open_alex_aws_bucket_s".to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -766,7 +766,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "join_work_topic_table_s".to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -792,7 +792,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "select_open_acces_pdf_url_s".to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -830,7 +830,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -882,19 +882,19 @@ mod tests {
                 .with_update(&Publication::Extend {
                     subject_name: chat.get_name().to_string(),
                 })
-                .with_publisher(open_alex_agent_session.session_context_name)
+                .with_publisher(open_alex_agent_session.network_name)
                 .make_name()?
                 .build()?,
         );
 
         // 2. Run the session
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionErrors.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -912,7 +912,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionEvents.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -930,7 +930,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionMetrics.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -952,7 +952,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::EmbeddingScores.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -976,7 +976,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;

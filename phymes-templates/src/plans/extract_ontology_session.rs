@@ -5,13 +5,13 @@
 /// * Does not consider pre-filtering by ontology before vector search
 pub struct ExtractOntologySession<'a> {
     /// Session
-    pub session_context_name: &'a str,
+    pub network_name: &'a str,
 }
 
 impl<'a> Default for ExtractOntologySession<'a> {
     fn default() -> Self {
         Self {
-            session_context_name: "extract_ontology_session",
+            network_name: "extract_ontology_session",
         }
     }
 }
@@ -1865,8 +1865,8 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStreamStep, SessionStreamStepTrait,
+        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilderTrait, SessionStreamStep, SessionStreamStepTrait,
     };
     use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, create_attachments_batch};
     use phymes_task::SubscriptionTrait;
@@ -1877,7 +1877,7 @@ mod tests {
     async fn test_extract_ontology_session() -> Result<()> {
         // Initialize the session
         let extract_onto_session = ExtractOntologySession::default();
-        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
+        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             extract_onto_session.as_mermaid_flowchart(),
             false,
         )?
@@ -1886,13 +1886,13 @@ mod tests {
             false,
             true,
         )?
-        .with_name(extract_onto_session.session_context_name)
+        .with_name(extract_onto_session.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Test owl file
         let owl = r#"<?xml version="1.0"?>
@@ -1993,16 +1993,16 @@ mod tests {
             .with_update(&Publication::Replace {
                 subject_name: AvailableInterfaceSubjects::UserScript.to_string(),
             })
-            .with_publisher(extract_onto_session.session_context_name)
+            .with_publisher(extract_onto_session.network_name)
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![owl_message]);
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
 
         // Run the first superstep
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map)
+        let response = SessionStreamStep::run_superstep(Arc::clone(&network_arc), message_map)
             .await?
             .unwrap();
 
@@ -2013,7 +2013,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableSubjects::ParseOwl.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2068,7 +2068,7 @@ mod tests {
 
         // Run the second superstep
         let response = SessionStreamStep::run_superstep(
-            Arc::clone(&session_ctx_arc),
+            Arc::clone(&network_arc),
             HashMap::<String, IPCMessage>::new(),
         )
         .await?
@@ -2081,7 +2081,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_ontology_entity_s".to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2135,7 +2135,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_annotation_property_entity_s".to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2192,7 +2192,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_datatype_property_entity_s".to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2200,7 +2200,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_class_entity_s".to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2257,7 +2257,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_object_property_entity_s".to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2314,7 +2314,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_named_individual_entity_s".to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2353,7 +2353,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_axiom_entity_s".to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2362,7 +2362,7 @@ mod tests {
 
         // Run the third superstep
         let response = SessionStreamStep::run_superstep(
-            Arc::clone(&session_ctx_arc),
+            Arc::clone(&network_arc),
             HashMap::<String, IPCMessage>::new(),
         )
         .await?
@@ -2375,7 +2375,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "pivot_annotation_property_entity_s".to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2407,7 +2407,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "pivot_class_entity_s".to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2433,7 +2433,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "pivot_object_property_entity_s".to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2468,7 +2468,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "pivot_named_individual_entity_s".to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2492,7 +2492,7 @@ mod tests {
 
         // Run the fourth superstep
         let response = SessionStreamStep::run_superstep(
-            Arc::clone(&session_ctx_arc),
+            Arc::clone(&network_arc),
             HashMap::<String, IPCMessage>::new(),
         )
         .await?
@@ -2505,7 +2505,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_annotation_property_pivot_s".to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2535,7 +2535,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "merge_object_property_class_named_individual_pivot_s".to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2558,7 +2558,7 @@ mod tests {
 
         // Run the fifth superstep
         let response = SessionStreamStep::run_superstep(
-            Arc::clone(&session_ctx_arc),
+            Arc::clone(&network_arc),
             HashMap::<String, IPCMessage>::new(),
         )
         .await?
@@ -2571,7 +2571,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_predicates_object_property_entity_s".to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2607,7 +2607,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_predicates_class_entity_s".to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2644,7 +2644,7 @@ mod tests {
 
         // Run the sixth superstep
         let response = SessionStreamStep::run_superstep(
-            Arc::clone(&session_ctx_arc),
+            Arc::clone(&network_arc),
             HashMap::<String, IPCMessage>::new(),
         )
         .await?
@@ -2657,7 +2657,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_resource_class_entity_s".to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2665,7 +2665,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_resource_object_property_entity_s".to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2702,7 +2702,7 @@ mod tests {
 
         // Run the seventh superstep
         let response = SessionStreamStep::run_superstep(
-            Arc::clone(&session_ctx_arc),
+            Arc::clone(&network_arc),
             HashMap::<String, IPCMessage>::new(),
         )
         .await?
@@ -2715,7 +2715,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_objects_class_entity_s".to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2751,7 +2751,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_objects_object_property_entity_s".to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2788,7 +2788,7 @@ mod tests {
 
         // Run the eigth superstep
         let response = SessionStreamStep::run_superstep(
-            Arc::clone(&session_ctx_arc),
+            Arc::clone(&network_arc),
             HashMap::<String, IPCMessage>::new(),
         )
         .await?
@@ -2801,7 +2801,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableSubjects::Documents.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;

@@ -7,8 +7,8 @@ use phymes_message::{
     MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait,
 };
 use phymes_network::{
-    AvailableSessionPlans, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-    SessionContextBuilderMermaidTrait,
+    AvailableSessionPlans, NetworkBuilder, NetworkBuilderAgentsTrait,
+    NetworkBuilderMermaidTrait,
 };
 use phymes_schemas::{create_session_mermaid_batch, AvailableSubjects, DataFormat};
 use phymes_server::create_session_name;
@@ -45,7 +45,7 @@ pub fn builds_dropdown_view(
     mut active_session_name: Signal<String>,
     mut active_flowchart_diagram: Signal<String>,
     mut active_er_diagram: Signal<String>,
-    mut mermaid_session_context_names: Signal<Vec<String>>,
+    mut mermaid_network_names: Signal<Vec<String>>,
     mut mermaid_flowchart_diagrams: Signal<Vec<String>>,
     mut mermaid_er_diagrams: Signal<Vec<String>>,
     mut mermaid_timestamps: Signal<Vec<i64>>,
@@ -62,7 +62,7 @@ pub fn builds_dropdown_view(
 
     let subjects_vec = use_memo(move || {
         get_non_duplicated_sorted_subjects(
-            &mermaid_session_context_names
+            &mermaid_network_names
                 .read()
                 .iter()
                 .map(|s| s.as_str())
@@ -138,7 +138,7 @@ pub fn builds_dropdown_view(
                             let active_session = format!("{}-copy", active_session_name.read());
 
                             // Copy the diagrams
-                            mermaid_session_context_names.push(active_session.clone());
+                            mermaid_network_names.push(active_session.clone());
                             mermaid_flowchart_diagrams.push(active_flowchart_diagram.read().to_string());
                             mermaid_er_diagrams.push(active_er_diagram.read().to_string());
                             mermaid_timestamps.push(create_timestamp_micros());
@@ -155,9 +155,9 @@ pub fn builds_dropdown_view(
                         class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         onclick: move |_evt| async move {
                             // Change the name of all active session diagrams
-                            let (session_context_names, flowchart_diagrams, er_diagrams, timestamps) = filter_in_mermaid_diagrams_by_session_name(
+                            let (network_names, flowchart_diagrams, er_diagrams, timestamps) = filter_in_mermaid_diagrams_by_session_name(
                                 &active_session_name(),
-                                &mermaid_session_context_names
+                                &mermaid_network_names
                                     .read()
                                     .iter()
                                     .map(|s| s.as_str())
@@ -173,13 +173,13 @@ pub fn builds_dropdown_view(
                                     .map(|s| s.as_str())
                                     .collect::<Vec<_>>(),
                                 &mermaid_timestamps());
-                            let session_context_names = session_context_names.into_iter().map(|s| format!("__deleted__{s}")).collect::<Vec<_>>();
-                            let batch_deleted = create_session_mermaid_batch(session_context_names, flowchart_diagrams, er_diagrams, timestamps).unwrap();
+                            let network_names = network_names.into_iter().map(|s| format!("__deleted__{s}")).collect::<Vec<_>>();
+                            let batch_deleted = create_session_mermaid_batch(network_names, flowchart_diagrams, er_diagrams, timestamps).unwrap();
 
                             // Filter out the active session
-                            let (session_context_names, flowchart_diagrams, er_diagrams, timestamps) = filter_out_mermaid_diagrams_by_session_name(
+                            let (network_names, flowchart_diagrams, er_diagrams, timestamps) = filter_out_mermaid_diagrams_by_session_name(
                                 &active_session_name(),
-                                &mermaid_session_context_names
+                                &mermaid_network_names
                                     .read()
                                     .iter()
                                     .map(|s| s.as_str())
@@ -195,8 +195,8 @@ pub fn builds_dropdown_view(
                                     .map(|s| s.as_str())
                                     .collect::<Vec<_>>(),
                                 &mermaid_timestamps());
-                            let active_session = session_context_names.first().unwrap().to_string();
-                            let batch = create_session_mermaid_batch(session_context_names, flowchart_diagrams, er_diagrams, timestamps).unwrap();
+                            let active_session = network_names.first().unwrap().to_string();
+                            let batch = create_session_mermaid_batch(network_names, flowchart_diagrams, er_diagrams, timestamps).unwrap();
 
                             // Update the mermaid state with the active diagram
                             let route = "/app/v1/put_state";
@@ -290,7 +290,7 @@ pub fn builds_dropdown_view(
                             build_errors.set(String::new());
 
                             // Check if the current session can be built
-                            let mut builder = match SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), false) {
+                            let mut builder = match NetworkBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), false) {
                                 Ok(builder) => builder,
                                 Err(err) => {
                                     build_errors.write().push_str(format!("{err:?}").as_str());
@@ -491,7 +491,7 @@ pub fn builds_dropdown_view(
                         class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         onclick: move |_| async move {
                             // Generate defaults if possible
-                            match SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), false) {
+                            match NetworkBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), false) {
                                 // Read in what information is available and update the rest
                                 Ok(builder) => {
                                     let builder = if active_er_diagram().is_empty() {
@@ -500,7 +500,7 @@ pub fn builds_dropdown_view(
                                         builder
                                     } else {
                                         // Revert
-                                        SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), false).unwrap()
+                                        NetworkBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), false).unwrap()
                                     };
                                     match builder.with_name(&active_session_name()).add_processor_subjects() {
                                         // Include the last row of data during the prototyping stage

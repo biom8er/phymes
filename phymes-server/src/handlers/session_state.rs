@@ -23,7 +23,7 @@ use phymes_message::{
     SessionInterfaceMessageTrait, create_message_map,
 };
 use phymes_network::{SessionStreamStep, SessionStreamStepTrait};
-use phymes_schemas::{CsvFormat, DataFormat, JoinUserInboxSessionContextsMermaidDiagrams};
+use phymes_schemas::{CsvFormat, DataFormat, JoinUserInboxNetworksMermaidDiagrams};
 use phymes_task::SubscriptionTrait;
 
 // Library imports
@@ -33,9 +33,9 @@ use crate::state::{ServerState, UserState};
 /// Put state input
 #[axum::debug_handler]
 pub async fn session_put_state(
-    Extension((current_user, user_session_contexts)): Extension<(
+    Extension((current_user, user_networks)): Extension<(
         String,
-        Vec<JoinUserInboxSessionContextsMermaidDiagrams>,
+        Vec<JoinUserInboxNetworksMermaidDiagrams>,
     )>,
     State((users, mut state)): State<(UserState, ServerState)>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
@@ -58,7 +58,7 @@ pub async fn session_put_state(
             {
                 // Initialize the user session contexts
                 let _session_names = match state
-                    .make_session_contexts(&user_session_contexts, true, users.users.runtime_env())
+                    .make_networks(&user_networks, true, users.users.runtime_env())
                     .await
                 {
                     Ok(session_names) => session_names,
@@ -69,8 +69,8 @@ pub async fn session_put_state(
                 };
             }
 
-            let session_ctx_arc = match state
-                .session_contexts
+            let network_arc = match state
+                .networks
                 .try_write()
                 .unwrap()
                 .get(payload.get_session_name())
@@ -83,7 +83,7 @@ pub async fn session_put_state(
             };
 
             // Extract the payload as bytes
-            let schema = if let Some(schema) = session_ctx_arc.subjects().get(payload.get_subject())
+            let schema = if let Some(schema) = network_arc.subjects().get(payload.get_subject())
             {
                 schema.clone()
             } else {
@@ -161,9 +161,9 @@ pub async fn session_put_state(
             let messages = create_message_map(vec![message]);
 
             // Update the session state with the new message
-            let _step = SessionStreamStep::current_superstep(&session_ctx_arc).await;
+            let _step = SessionStreamStep::current_superstep(&network_arc).await;
             if let Err(e) = SessionStreamStep::update_subjects_and_changelog_from_messages(
-                &session_ctx_arc,
+                &network_arc,
                 messages,
                 0,
             )
@@ -210,9 +210,9 @@ pub async fn session_put_state(
 /// Get state endpoint
 #[axum::debug_handler]
 pub async fn session_get_state(
-    Extension((current_user, user_session_contexts)): Extension<(
+    Extension((current_user, user_networks)): Extension<(
         String,
-        Vec<JoinUserInboxSessionContextsMermaidDiagrams>,
+        Vec<JoinUserInboxNetworksMermaidDiagrams>,
     )>,
     State((users, mut state)): State<(UserState, ServerState)>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
@@ -235,7 +235,7 @@ pub async fn session_get_state(
             {
                 // Initialize the user session contexts
                 let _session_names = match state
-                    .make_session_contexts(&user_session_contexts, true, users.users.runtime_env())
+                    .make_networks(&user_networks, true, users.users.runtime_env())
                     .await
                 {
                     Ok(session_names) => session_names,
@@ -246,12 +246,12 @@ pub async fn session_get_state(
                 };
             }
 
-            let session_ctx_arc = match state
-                .session_contexts
+            let network_arc = match state
+                .networks
                 .write()
                 .get(payload.get_session_name())
             {
-                Some(session_ctx_arc) => session_ctx_arc.clone(),
+                Some(network_arc) => network_arc.clone(),
                 None => {
                     return JsonError::new("Failed to get the session stream state".to_string())
                         .to_response(StatusCode::INTERNAL_SERVER_ERROR);
@@ -259,13 +259,13 @@ pub async fn session_get_state(
             };
 
             // Update the row counts just in case...
-            let _ = session_ctx_arc.update_subject_num_rows().await;
+            let _ = network_arc.update_subject_num_rows().await;
 
             // Read the subject
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: payload.get_subject().to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())
             .unwrap()
             .unwrap()
             .try_collect()

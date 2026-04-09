@@ -12,9 +12,9 @@ use phymes_message::{IPCMessage, IPCMessageMap, MessageBuilderTrait};
 use phymes_processor::ProcessorPlan;
 use phymes_task::{Task, TaskBuilderTrait, TaskMap, TaskPlan};
 
-use crate::SessionContext;
+use crate::Network;
 
-pub trait SessionContextBuilderTrait: BuilderTrait {
+pub trait NetworkBuilderTrait: BuilderTrait {
     /// The [ProcessorPlan]s to include in the session
     fn with_processors(self, processors: Vec<ProcessorPlan>) -> Self;
     /// The [SubjectPlan]s with optional initial subject [Subject]s to launch the session with
@@ -40,7 +40,7 @@ pub trait SessionContextBuilderTrait: BuilderTrait {
 }
 
 #[derive(Default, Debug, PartialEq)]
-pub struct SessionContextBuilder {
+pub struct NetworkBuilder {
     pub name: Option<String>,
     pub processors: Option<Vec<ProcessorPlan>>,
     pub subjects: Option<Vec<SubjectPlan>>,
@@ -49,7 +49,7 @@ pub struct SessionContextBuilder {
     pub diagnostics: Option<bool>,
 }
 
-type SessionContextInput = (
+type NetworkInput = (
     String,
     TaskMap,
     HashMap<String, SchemaRef>,
@@ -58,7 +58,7 @@ type SessionContextInput = (
     bool,
 );
 
-impl SessionContextBuilder {
+impl NetworkBuilder {
     // Get a list of subscriptions and publications for a specific task
     pub fn get_sub_pub_for_task(&self, task_name: &str) -> (Vec<&Subscription>, Vec<&Publication>) {
         // Get the processor name
@@ -156,8 +156,8 @@ impl SessionContextBuilder {
             .collect::<Vec<_>>()
     }
 
-    /// Build the [SessionContext] members
-    pub fn build_inner(mut self) -> Result<SessionContextInput> {
+    /// Build the [Network] members
+    pub fn build_inner(mut self) -> Result<NetworkInput> {
         let runtime_env = if let Some(rt) = self.runtime_env.take() {
             rt
         } else {
@@ -221,7 +221,7 @@ impl SessionContextBuilder {
     }
 
     /// Extend a session with another
-    pub fn extend(mut self, other: SessionContextBuilder) -> Result<Self> {
+    pub fn extend(mut self, other: NetworkBuilder) -> Result<Self> {
         // Extend the state
         let other_state = if let Some(state) = self.subjects.as_ref() {
             if let Some(other) = other.subjects {
@@ -313,8 +313,8 @@ impl SessionContextBuilder {
     }
 }
 
-impl BuilderTrait for SessionContextBuilder {
-    type T = (SessionContext, Option<IPCMessageMap>);
+impl BuilderTrait for NetworkBuilder {
+    type T = (Network, Option<IPCMessageMap>);
     fn new() -> Self {
         Self {
             name: None,
@@ -358,12 +358,12 @@ impl BuilderTrait for SessionContextBuilder {
             .collect();
 
         // ready to build the session
-        let session_context = SessionContext::new(name, tasks, schemas, runtime_env, diagnostics);
-        Ok((session_context, Some(messages?)))
+        let network = Network::new(name, tasks, schemas, runtime_env, diagnostics);
+        Ok((network, Some(messages?)))
     }
 }
 
-impl SessionContextBuilderTrait for SessionContextBuilder {
+impl NetworkBuilderTrait for NetworkBuilder {
     fn with_processors(mut self, processors: Vec<ProcessorPlan>) -> Self {
         self.processors = Some(processors);
         self
@@ -464,7 +464,7 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 }
 
 /// Mock objects and functions for session context builer testing
-pub mod test_session_context_builder {
+pub mod test_network_builder {
     use phymes_subject::{ObjectStorageBackend, SubjectPlanBuilderTrait, make_store};
     use phymes_event::AvailableSubscribeEvents;
     use phymes_processor::{AvailableProcessors, ProcessorPlanBuilder};
@@ -473,7 +473,7 @@ pub mod test_session_context_builder {
     use super::*;
 
     /// Tasks subscribe and publish to state_1, state_2, and state_3
-    pub fn make_test_session_context_builder_parallel_tasks() -> Vec<TaskPlan> {
+    pub fn make_test_network_builder_parallel_tasks() -> Vec<TaskPlan> {
         vec![
             TaskPlan {
                 task_name: "task_1".to_string(),
@@ -491,7 +491,7 @@ pub mod test_session_context_builder {
     }
 
     /// Tasks subscribe and publish to state_1
-    pub fn make_test_session_context_builder_sequential_tasks() -> Vec<TaskPlan> {
+    pub fn make_test_network_builder_sequential_tasks() -> Vec<TaskPlan> {
         vec![TaskPlan {
             task_name: "task_1".to_string(),
             processor_names: vec![
@@ -503,7 +503,7 @@ pub mod test_session_context_builder {
     }
 
     /// Tasks and processors subscribe and publish to state_1, state_2, and state_3
-    pub fn make_test_session_context_builder_parallel_processors() -> SessionContextBuilder {
+    pub fn make_test_network_builder_parallel_processors() -> NetworkBuilder {
         let processor_plans = vec![
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_1"))
@@ -556,13 +556,13 @@ pub mod test_session_context_builder {
         ];
 
         // Build the session
-        SessionContextBuilder::new()
-            .with_tasks(make_test_session_context_builder_parallel_tasks())
+        NetworkBuilder::new()
+            .with_tasks(make_test_network_builder_parallel_tasks())
             .with_processors(processor_plans)
     }
 
     /// Tasks and processors subscribe and publish to state_1
-    pub fn make_test_session_context_builder_sequential_processors() -> SessionContextBuilder {
+    pub fn make_test_network_builder_sequential_processors() -> NetworkBuilder {
         let processor_plans = vec![
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_1"))
@@ -615,15 +615,15 @@ pub mod test_session_context_builder {
         ];
 
         // Build the session
-        SessionContextBuilder::new()
-            .with_tasks(make_test_session_context_builder_sequential_tasks())
+        NetworkBuilder::new()
+            .with_tasks(make_test_network_builder_sequential_tasks())
             .with_processors(processor_plans)
     }
 
-    pub fn make_test_session_context_builder_parallel(
+    pub fn make_test_network_builder_parallel(
         name: &str,
         max_iter: usize,
-    ) -> Result<SessionContextBuilder> {
+    ) -> Result<NetworkBuilder> {
         let mut tables = test_task::make_subject_tables("state_1", "processor_1")?;
         tables.extend(test_task::make_subject_tables("state_2", "processor_2")?);
         tables.extend(test_task::make_subject_tables("state_3", "processor_3")?);
@@ -638,7 +638,7 @@ pub mod test_session_context_builder {
             .with_max_steps(max_iter)
             .with_object_store(store)
             .build_arc()?;
-        let builder = make_test_session_context_builder_parallel_processors()
+        let builder = make_test_network_builder_parallel_processors()
             .with_name(name)
             .with_runtime_env(rt)
             .with_subjects(subject_plans);
@@ -646,10 +646,10 @@ pub mod test_session_context_builder {
         Ok(builder)
     }
 
-    pub fn make_test_session_context_builder_parallel_empty(
+    pub fn make_test_network_builder_parallel_empty(
         name: &str,
         max_iter: usize,
-    ) -> Result<SessionContextBuilder> {
+    ) -> Result<NetworkBuilder> {
         let mut subjects = test_task::make_subject_tables_empty("state_1", "processor_1")?;
         subjects.extend(test_task::make_subject_tables_empty(
             "state_2",
@@ -670,7 +670,7 @@ pub mod test_session_context_builder {
             .with_max_steps(max_iter)
             .with_object_store(store)
             .build_arc()?;
-        let builder = make_test_session_context_builder_parallel_processors()
+        let builder = make_test_network_builder_parallel_processors()
             .with_name(name)
             .with_runtime_env(rt)
             .with_subjects(subject_plans);
@@ -678,10 +678,10 @@ pub mod test_session_context_builder {
         Ok(builder)
     }
 
-    pub fn make_test_session_context_builder_sequential(
+    pub fn make_test_network_builder_sequential(
         name: &str,
         max_iter: usize,
-    ) -> Result<SessionContextBuilder> {
+    ) -> Result<NetworkBuilder> {
         let mut subjects = test_task::make_subject_tables("state_1", "processor_1")?;
         subjects.push(test_task::make_config_tables("processor_2")?);
         subjects.push(test_task::make_config_tables("processor_3")?);
@@ -696,7 +696,7 @@ pub mod test_session_context_builder {
             .with_max_steps(max_iter)
             .with_object_store(store)
             .build_arc()?;
-        let builder = make_test_session_context_builder_sequential_processors()
+        let builder = make_test_network_builder_sequential_processors()
             .with_name(name)
             .with_runtime_env(rt)
             .with_subjects(subject_plans);
@@ -715,9 +715,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_session_context_builder_get_task_sub_pub_with_input() {
+    fn test_network_builder_get_task_sub_pub_with_input() {
         let plan =
-            test_session_context_builder::make_test_session_context_builder_parallel_processors();
+            test_network_builder::make_test_network_builder_parallel_processors();
         let (subscriptions, publications) = plan.get_sub_pub_for_task("task_1");
         assert!(
             subscriptions.contains(&&Subscription::AlwaysAllRecordBatches {
@@ -735,9 +735,9 @@ mod tests {
     }
 
     #[test]
-    fn test_session_context_builder_get_processor_names() {
+    fn test_network_builder_get_processor_names() {
         let plan =
-            test_session_context_builder::make_test_session_context_builder_parallel_processors();
+            test_network_builder::make_test_network_builder_parallel_processors();
         let names = plan.get_processor_names_from_tasks();
         assert!(names.contains("processor_1"));
         assert!(names.contains("processor_2"));
@@ -745,9 +745,9 @@ mod tests {
     }
 
     #[test]
-    fn test_session_context_builder_get_subject_names() {
+    fn test_network_builder_get_subject_names() {
         let plan =
-            test_session_context_builder::make_test_session_context_builder_parallel_processors();
+            test_network_builder::make_test_network_builder_parallel_processors();
         let names = plan.get_subject_names_from_processors();
         assert!(names.contains("state_1"));
         assert!(names.contains("state_2"));
@@ -758,28 +758,28 @@ mod tests {
     }
 
     #[test]
-    fn test_session_context_builder_get_processor_names_for_task() {
+    fn test_network_builder_get_processor_names_for_task() {
         let plan =
-            test_session_context_builder::make_test_session_context_builder_parallel_processors();
+            test_network_builder::make_test_network_builder_parallel_processors();
         let names = plan.get_processor_names_for_task("task_1");
         assert_eq!(names, vec!["processor_1".to_string()]);
     }
 
     #[test]
-    fn test_session_context_builder_extend_duplicate() -> Result<()> {
-        let plan = test_session_context_builder::make_test_session_context_builder_parallel(
+    fn test_network_builder_extend_duplicate() -> Result<()> {
+        let plan = test_network_builder::make_test_network_builder_parallel(
             "session_1",
             25,
         )?;
         let plan = plan.extend(
-            test_session_context_builder::make_test_session_context_builder_parallel(
+            test_network_builder::make_test_network_builder_parallel(
                 "session_1",
                 25,
             )?,
         )?;
         assert_eq!(
             plan,
-            test_session_context_builder::make_test_session_context_builder_parallel(
+            test_network_builder::make_test_network_builder_parallel(
                 "session_1",
                 25
             )?
@@ -789,7 +789,7 @@ mod tests {
     }
 
     #[test]
-    fn test_session_context_builder_extend_other() -> Result<()> {
+    fn test_network_builder_extend_other() -> Result<()> {
         let task_plans = vec![TaskPlan {
             task_name: "task_4".to_string(),
             processor_names: vec!["processor_4".to_string()],
@@ -815,14 +815,14 @@ mod tests {
             let plan = SubjectPlan::get_builder().with_subject(table).build()?;
             subject_plans.push(plan);
         }
-        let other_plan = SessionContextBuilder::new()
+        let other_plan = NetworkBuilder::new()
             .with_tasks(task_plans)
             .with_processors(processor_plans)
             .with_name("other")
             .with_runtime_env(test_task::make_runtime_env("rt_4")?)
             .with_subjects(subject_plans)
             .with_diagnostics(false);
-        let plan = test_session_context_builder::make_test_session_context_builder_parallel(
+        let plan = test_network_builder::make_test_network_builder_parallel(
             "session_1",
             25,
         )?
@@ -873,9 +873,9 @@ mod tests {
     }
 
     #[test]
-    fn test_session_context_builder_build_success() -> Result<()> {
+    fn test_network_builder_build_success() -> Result<()> {
         let (session, messages) =
-            test_session_context_builder::make_test_session_context_builder_parallel(
+            test_network_builder::make_test_network_builder_parallel(
                 "session_1",
                 25,
             )?
@@ -906,8 +906,8 @@ mod tests {
     }
 
     #[test]
-    fn test_session_context_builder_build_fail_missing_name() -> Result<()> {
-        let result = SessionContextBuilder::new().build();
+    fn test_network_builder_build_fail_missing_name() -> Result<()> {
+        let result = NetworkBuilder::new().build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -919,8 +919,8 @@ mod tests {
     }
 
     #[test]
-    fn test_session_context_builder_build_fail_missing_plan() -> Result<()> {
-        let result = SessionContextBuilder::new().with_name("session_1").build();
+    fn test_network_builder_build_fail_missing_plan() -> Result<()> {
+        let result = NetworkBuilder::new().with_name("session_1").build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -932,12 +932,12 @@ mod tests {
     }
 
     #[test]
-    fn test_session_context_builder_build_fail_missing_processor() -> Result<()> {
+    fn test_network_builder_build_fail_missing_processor() -> Result<()> {
         // No tasks
-        let result = SessionContextBuilder::new()
+        let result = NetworkBuilder::new()
             .with_name("session_1")
             .with_tasks(
-                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+                test_network_builder::make_test_network_builder_parallel_tasks(),
             )
             .build();
         match result {
@@ -963,10 +963,10 @@ mod tests {
                 .with_subscribe_policy(AvailableSubscribeEvents::default().build())
                 .build()?,
         ];
-        let result = SessionContextBuilder::new()
+        let result = NetworkBuilder::new()
             .with_name("session_1")
             .with_tasks(
-                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+                test_network_builder::make_test_network_builder_parallel_tasks(),
             )
             .with_processors(processors)
             .build();
@@ -1005,10 +1005,10 @@ mod tests {
                 .with_subscribe_policy(AvailableSubscribeEvents::default().build())
                 .build()?,
         ];
-        let result = SessionContextBuilder::new()
+        let result = NetworkBuilder::new()
             .with_name("session_1")
             .with_tasks(
-                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+                test_network_builder::make_test_network_builder_parallel_tasks(),
             )
             .with_processors(processors)
             .build();
@@ -1023,10 +1023,10 @@ mod tests {
     }
 
     #[test]
-    fn test_session_context_builder_build_fail_missing_runtime_env() -> Result<()> {
+    fn test_network_builder_build_fail_missing_runtime_env() -> Result<()> {
         // No runtime env
         let result =
-            test_session_context_builder::make_test_session_context_builder_parallel_processors()
+            test_network_builder::make_test_network_builder_parallel_processors()
                 .with_name("session_1")
                 .build();
         match result {
@@ -1039,7 +1039,7 @@ mod tests {
 
         // Missing runtime env
         let result =
-            test_session_context_builder::make_test_session_context_builder_parallel_processors()
+            test_network_builder::make_test_network_builder_parallel_processors()
                 .with_name("session_1")
                 .build();
         match result {
@@ -1054,10 +1054,10 @@ mod tests {
     }
 
     #[test]
-    fn test_session_context_builder_build_fail_missing_state() -> Result<()> {
+    fn test_network_builder_build_fail_missing_state() -> Result<()> {
         // No state
         let result =
-            test_session_context_builder::make_test_session_context_builder_parallel_processors()
+            test_network_builder::make_test_network_builder_parallel_processors()
                 .with_name("session_1")
                 .with_runtime_env(test_task::make_runtime_env("rt_1")?)
                 .build();
@@ -1078,7 +1078,7 @@ mod tests {
         }
 
         let result =
-            test_session_context_builder::make_test_session_context_builder_parallel_processors()
+            test_network_builder::make_test_network_builder_parallel_processors()
                 .with_name("session_1")
                 .with_runtime_env(test_task::make_runtime_env("rt_1")?)
                 .with_subjects(subject_plans)
@@ -1101,7 +1101,7 @@ mod tests {
             subject_plans.push(plan);
         }
         let result =
-            test_session_context_builder::make_test_session_context_builder_parallel_processors()
+            test_network_builder::make_test_network_builder_parallel_processors()
                 .with_name("session_1")
                 .with_runtime_env(test_task::make_runtime_env("rt_1")?)
                 .with_subjects(subject_plans)

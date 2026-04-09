@@ -21,16 +21,16 @@ use phymes_schemas::{
 use phymes_task::{PublicationTrait, SubscriptionTrait, TaskMap, clear_subject};
 use std::sync::Arc;
 
-use crate::SessionContextBuilder;
+use crate::NetworkBuilder;
 
-/// The [SessionContext] creates a (dynamic) execution graph based on a [TaskPlan]
+/// The [Network] creates a (dynamic) execution graph based on a [TaskPlan]
 ///   and manages the running of individual [Task]s and the [Message]s passed between them.
 ///
 /// [TaskPlan]: crate::TaskPlan
 /// [Task]: crate::TaskTrait
 /// [Message]: phymes_subject::MessageTrait
 #[derive(Debug, Clone, Default)]
-pub struct SessionContext {
+pub struct Network {
     /// A unique UUID that identifies the session
     pub(crate) name: String,
     /// The list of available tasks that can be run during the session
@@ -43,14 +43,14 @@ pub struct SessionContext {
     pub(crate) diagnostics: bool,
 }
 
-impl SessionContext {
+impl Network {
     pub fn new(
         name: String,
         tasks: TaskMap,
         subjects: HashMap<String, SchemaRef>,
         runtime_env: Arc<RuntimeEnv>,
         diagnostics: bool,
-    ) -> SessionContext {
+    ) -> Network {
         Self {
             name,
             tasks,
@@ -900,14 +900,14 @@ impl SessionContext {
     }
 }
 
-impl MappableTrait for SessionContext {
+impl MappableTrait for Network {
     fn get_name(&self) -> &str {
         &self.name
     }
 }
 
-impl BuildableTrait for SessionContext {
-    type T = SessionContextBuilder;
+impl BuildableTrait for Network {
+    type T = NetworkBuilder;
     fn get_builder() -> Self::T
     where
         Self: Sized,
@@ -928,12 +928,12 @@ mod tests {
     use phymes_task::{Task, test_task};
 
     use super::*;
-    use crate::test_session_context_builder;
+    use crate::test_network_builder;
 
     #[test]
     fn test_session_get_subject_name_by_schema() -> Result<()> {
-        let (session_context, _messages) =
-            test_session_context_builder::make_test_session_context_builder_parallel(
+        let (network, _messages) =
+            test_network_builder::make_test_network_builder_parallel(
                 "session_1",
                 25,
             )?
@@ -941,12 +941,12 @@ mod tests {
 
         // table should be found
         let schema = test_subject::make_test_subject_schema(8)?;
-        let name = session_context.get_subject_name_by_schema(&schema).unwrap();
+        let name = network.get_subject_name_by_schema(&schema).unwrap();
         assert_eq!(name, "state_1");
 
         // table should not be found
         let schema = test_subject::make_test_subject_schema(2)?;
-        let name = session_context.get_subject_name_by_schema(&schema);
+        let name = network.get_subject_name_by_schema(&schema);
         assert!(name.is_none());
         Ok(())
     }
@@ -954,17 +954,17 @@ mod tests {
     #[ignore = "refactoring `update_subject_num_rows` to work with object store."]
     #[tokio::test]
     async fn test_session_update_subject_num_rows_subject() -> Result<()> {
-        let (session_context, _messages) =
-            test_session_context_builder::make_test_session_context_builder_parallel(
+        let (network, _messages) =
+            test_network_builder::make_test_network_builder_parallel(
                 "session_1",
                 25,
             )?
             .build()?;
-        session_context.update_subject_num_rows().await?;
+        network.update_subject_num_rows().await?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
         }
-        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "session_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1009,8 +1009,8 @@ mod tests {
     #[tokio::test]
     async fn test_session_update_subjects_from_messages() -> Result<()> {
         // Case 1: no state update
-        let (session_context, _messages) =
-            test_session_context_builder::make_test_session_context_builder_parallel(
+        let (network, _messages) =
+            test_network_builder::make_test_network_builder_parallel(
                 "session_1",
                 25,
             )?
@@ -1023,7 +1023,7 @@ mod tests {
             &Publication::None,
             true,
         )?;
-        let (changelog, meta, errors) = session_context
+        let (changelog, meta, errors) = network
             .update_subjects_from_messages(input, 0)
             .await;
 
@@ -1036,7 +1036,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_1".to_string(),
         }
-        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "session_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1044,7 +1044,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_2".to_string(),
         }
-        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "session_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1052,7 +1052,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_3".to_string(),
         }
-        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "session_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1069,7 +1069,7 @@ mod tests {
             },
             true,
         )?;
-        let (changelog, meta, errors) = session_context
+        let (changelog, meta, errors) = network
             .update_subjects_from_messages(input, 0)
             .await;
         assert!(errors.is_none());
@@ -1151,7 +1151,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_1".to_string(),
         }
-        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "session_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1160,7 +1160,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_2".to_string(),
         }
-        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "session_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1168,7 +1168,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_3".to_string(),
         }
-        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "session_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1185,7 +1185,7 @@ mod tests {
             },
             false,
         )?;
-        let (changelog, meta, errors) = session_context
+        let (changelog, meta, errors) = network
             .update_subjects_from_messages(input, 0)
             .await;
         assert!(changelog.is_none());
@@ -1205,7 +1205,7 @@ mod tests {
         );
         let mut input = HashMap::<String, IPCMessage>::new();
         input.insert(message.get_name().to_string(), message);
-        let (changelog, meta, errors) = session_context
+        let (changelog, meta, errors) = network
             .update_subjects_from_messages(input, 0)
             .await;
         assert!(changelog.is_none());
@@ -1335,7 +1335,7 @@ mod tests {
         .await?;
 
         // Make the session context
-        let session_context = SessionContext::new(
+        let network = Network::new(
             "session_1".to_string(),
             HashMap::<String, Arc<Task>>::new(),
             schemas,
@@ -1344,11 +1344,11 @@ mod tests {
         );
 
         // Run and check the updated state
-        session_context.tasks_subscribe().await?;
+        network.tasks_subscribe().await?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "SessionTasksSubscribe".to_string(),
         }
-        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "session_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1554,7 +1554,7 @@ mod tests {
         .await?;
 
         // Make the session context
-        let session_context = SessionContext::new(
+        let network = Network::new(
             "session_1".to_string(),
             HashMap::<String, Arc<Task>>::new(),
             schemas,
@@ -1563,11 +1563,11 @@ mod tests {
         );
 
         // Run and check the updated state
-        session_context.tasks_subscribe().await?;
+        network.tasks_subscribe().await?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "SessionTasksSubscribe".to_string(),
         }
-        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "session_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1694,7 +1694,7 @@ mod tests {
         .await?;
 
         // Make the session context
-        let session_context = SessionContext::new(
+        let network = Network::new(
             "session_1".to_string(),
             HashMap::<String, Arc<Task>>::new(),
             schemas,
@@ -1703,11 +1703,11 @@ mod tests {
         );
 
         // Run and check the updated state
-        session_context.tasks_subscribe().await?;
+        network.tasks_subscribe().await?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "SessionTasksSubscribe".to_string(),
         }
-        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "session_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1858,7 +1858,7 @@ mod tests {
         .await?;
 
         // Make the session context
-        let session_context = SessionContext::new(
+        let network = Network::new(
             "session_1".to_string(),
             HashMap::<String, Arc<Task>>::new(),
             schemas,
@@ -1867,7 +1867,7 @@ mod tests {
         );
 
         // Run and check the updated state
-        let tasks = session_context.tasks_subscribe_publish().await?;
+        let tasks = network.tasks_subscribe_publish().await?;
         let mut expected_tasks =
             HashMap::<(String, String), HashMap<String, ProcessorSubjects>>::new();
         let mut processor_subjects_map = HashMap::<String, ProcessorSubjects>::new();

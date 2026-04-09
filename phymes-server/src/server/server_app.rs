@@ -46,11 +46,11 @@ pub struct AppBuilder {
 
 impl AppBuilder {
     pub async fn new(
-        user_session_context_name: Option<&str>,
+        user_network_name: Option<&str>,
         runtime_env: &Arc<RuntimeEnv>,
     ) -> Result<Self> {
         // Application state
-        let user_state = UserState::new(user_session_context_name, runtime_env).await?;
+        let user_state = UserState::new(user_network_name, runtime_env).await?;
         let server_state = ServerState::new();
 
         // Router

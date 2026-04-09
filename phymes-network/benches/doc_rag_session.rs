@@ -10,7 +10,7 @@ use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
 use phymes_network::{
-    CustomAgentsBuilderTrait, DocumentRAGSession, SessionContextBuilderAgentsTrait, SessionStream,
+    CustomAgentsBuilderTrait, DocumentRAGSession, NetworkBuilderAgentsTrait, SessionStream,
 };
 use phymes_schemas::{
     AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjects,
@@ -102,7 +102,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 let top_k_limit_processor_name = format!("top_k_limit_processor_1_{tag}_{iter}");
                 let top_k_summary_processor_name =
                     format!("top_k_summary_processor_1_{tag}_{iter}");
-                let session_context_name = format!("session_1_{tag}_{iter}");
+                let network_name = format!("session_1_{tag}_{iter}");
 
                 let mut config = DocumentRAGSession {
                     chat_task_name: &chat_task_name,
@@ -128,7 +128,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     top_k_select_processor_name: &top_k_select_processor_name,
                     top_k_limit_processor_name: &top_k_limit_processor_name,
                     top_k_summary_processor_name: &top_k_summary_processor_name,
-                    session_context_name: &session_context_name,
+                    network_name: &network_name,
                     chat_api_url: None,
                     embed_api_url: None,
                     ..Default::default()
@@ -139,9 +139,9 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 }
 
                 // Create the session stream state
-                let (session_ctx, session_messages) = config
+                let (network, session_messages) = config
                     .build()
-                    .with_name(session_context_name.as_str())
+                    .with_name(network_name.as_str())
                     .add_session_interface(None)
                     .unwrap()
                     .add_next_tasks()
@@ -150,7 +150,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     .unwrap()
                     .build_with_tables()
                     .unwrap();
-                let session_ctx_arc = Arc::new(session_ctx);
+                let network_arc = Arc::new(network);
                 let sample_id = format!("{id}_{iter}");
 
                 // Run the benchmark for the chat agent session with metrics
@@ -169,15 +169,15 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                         .with_update(&Publication::Extend {
                             subject_name: blob.get_name().to_string(),
                         })
-                        .with_publisher(session_context_name.as_str())
+                        .with_publisher(network_name.as_str())
                         .make_name()?
                         .build()?;
                     let message_map = create_message_map(vec![blob_message]);
-                    let _ = session_ctx_arc
+                    let _ = network_arc
                         .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
                         .await;
                     let session_stream =
-                        SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+                        SessionStream::new(message_map, Arc::clone(&network_arc));
                     session_stream
                         .try_collect::<Vec<HashMap<String, IPCMessage>>>()
                         .await
@@ -193,12 +193,12 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                         .with_update(&Publication::Extend {
                             subject_name: chat.get_name().to_string(),
                         })
-                        .with_publisher(session_context_name.as_str())
+                        .with_publisher(network_name.as_str())
                         .make_name()?
                         .build()?;
                     let message_map = create_message_map(vec![chat_message]);
                     let session_stream =
-                        SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+                        SessionStream::new(message_map, Arc::clone(&network_arc));
                     session_stream
                         .try_collect::<Vec<HashMap<String, IPCMessage>>>()
                         .await
@@ -209,7 +209,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     Subscription::AlwaysAllRecordBatches {
                         subject_name: AvailableSubjects::MetricPivot.to_string(),
                     }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
+                    .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())
                     .unwrap()
                     .unwrap()
                     .try_collect()

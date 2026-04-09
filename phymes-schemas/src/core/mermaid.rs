@@ -8,12 +8,12 @@ use arrow::{
 use serde::{Deserialize, Serialize};
 
 pub(crate) fn create_session_mermaid_fields() -> Fields {
-    let session_context_name = Field::new("session_context_name", DataType::Utf8, false);
+    let network_name = Field::new("network_name", DataType::Utf8, false);
     let flowchart_diagram = Field::new("flowchart_diagram", DataType::Utf8, false);
     let er_diagram = Field::new("er_diagram", DataType::Utf8, false);
     let timestamp = Field::new("timestamp", DataType::Int64, false);
     Fields::from(vec![
-        session_context_name,
+        network_name,
         flowchart_diagram,
         er_diagram,
         timestamp,
@@ -22,24 +22,24 @@ pub(crate) fn create_session_mermaid_fields() -> Fields {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct SessionMermaidSubject {
-    pub session_context_name: String,
+    pub network_name: String,
     pub flowchart_diagram: String,
     pub er_diagram: String,
     pub timestamp: i64,
 }
 
 pub fn create_session_mermaid_batch(
-    session_context_name: Vec<String>,
+    network_name: Vec<String>,
     flowchart_diagram: Vec<String>,
     er_diagram: Vec<String>,
     timestamp: Vec<i64>,
 ) -> Result<RecordBatch> {
-    let session_context_name: ArrayRef = Arc::new(StringArray::from(session_context_name));
+    let network_name: ArrayRef = Arc::new(StringArray::from(network_name));
     let flowchart_diagram: ArrayRef = Arc::new(StringArray::from(flowchart_diagram));
     let er_diagram: ArrayRef = Arc::new(StringArray::from(er_diagram));
     let timestamp: ArrayRef = Arc::new(Int64Array::from(timestamp));
     let batch = RecordBatch::try_from_iter(vec![
-        ("session_context_name", session_context_name),
+        ("network_name", network_name),
         ("flowchart_diagram", flowchart_diagram),
         ("er_diagram", er_diagram),
         ("timestamp", timestamp),

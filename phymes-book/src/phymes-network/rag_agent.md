@@ -106,14 +106,14 @@ flowchart TD
 		top_k_processor_1-processor-->top_k_processor_1-publish
 		top_k_processor_1-publish--Replace-->top_k-subject
 	end
-	subgraph session_context_1
-		assistant_messages-subject-.LastRecordBatch.->session_context_1-subscribe
-		session_context_1-subscribe-->session_context_1-processor
-		session_context_1-processor-->session_context_1-publish
-		session_context_1-publish--Extend-->user_messages-subject
-		session_context_1-publish--Extend-->documents-subject
-		session_context_1-publish--Extend-->queries-subject
-		session_context_1-publish--Extend-->assistant_messages-subject
+	subgraph network_1
+		assistant_messages-subject-.LastRecordBatch.->network_1-subscribe
+		network_1-subscribe-->network_1-processor
+		network_1-processor-->network_1-publish
+		network_1-publish--Extend-->user_messages-subject
+		network_1-publish--Extend-->documents-subject
+		network_1-publish--Extend-->queries-subject
+		network_1-publish--Extend-->assistant_messages-subject
 	end
 	vs_rt_1-rt-->message_aggregator_task_1
 	vs_rt_1-rt-->message_aggregator_task_2
@@ -121,7 +121,7 @@ flowchart TD
 	embed_documents_rt_1-rt-->embed_documents_task_1
 	embed_query_rt_1-rt-->embed_query_task_1
 	vs_rt_1-rt-->vs_task_1
-	rt_default-rt-->session_context_1
+	rt_default-rt-->network_1
 	message_aggregator_1-processor@{shape: rect, label: AggregatorProcessor}
 	message_aggregator_2-processor@{shape: rect, label: AggregatorProcessor}
 	chat_processor_1-processor@{shape: rect, label: CandleChatProcessor}
@@ -133,7 +133,7 @@ flowchart TD
 	chunk_documents_processor_2-processor@{shape: rect, label: CandleDataProcessor}
 	join_scores_chunks_processor_1-processor@{shape: rect, label: CandleDataProcessor}
 	top_k_processor_1-processor@{shape: rect, label: PackTabular}
-	session_context_1-processor@{shape: rect, label: ArrowProcessorEcho}
+	network_1-processor@{shape: rect, label: ArrowProcessorEcho}
 	chat_rt_1-rt@{shape: subproc, label: chat_rt_1}
 	embed_documents_rt_1-rt@{shape: subproc, label: embed_documents_rt_1}
 	embed_query_rt_1-rt@{shape: subproc, label: embed_query_rt_1}
@@ -171,7 +171,7 @@ flowchart TD
 	message_aggregator_1-publish@{shape: fork}
 	message_aggregator_2-publish@{shape: fork}
 	rel_sim_processor_1-publish@{shape: fork}
-	session_context_1-publish@{shape: fork}
+	network_1-publish@{shape: fork}
 	sort_scores_processor_1-publish@{shape: fork}
 	top_k_processor_1-publish@{shape: fork}
 	chat_processor_1-subscribe@{shape: diamond, label: All}
@@ -183,7 +183,7 @@ flowchart TD
 	message_aggregator_1-subscribe@{shape: diamond, label: All}
 	message_aggregator_2-subscribe@{shape: diamond, label: All}
 	rel_sim_processor_1-subscribe@{shape: diamond, label: All}
-	session_context_1-subscribe@{shape: diamond, label: All}
+	network_1-subscribe@{shape: diamond, label: All}
 	sort_scores_processor_1-subscribe@{shape: diamond, label: All}
 	top_k_processor_1-subscribe@{shape: diamond, label: All}
 ```

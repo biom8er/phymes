@@ -5,13 +5,13 @@
 /// * Does not yet include image and table extraction
 pub struct ExtractPDFSession<'a> {
     /// Session
-    pub session_context_name: &'a str,
+    pub network_name: &'a str,
 }
 
 impl<'a> Default for ExtractPDFSession<'a> {
     fn default() -> Self {
         Self {
-            session_context_name: "extract_pdf_session",
+            network_name: "extract_pdf_session",
         }
     }
 }
@@ -99,8 +99,8 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStreamStep, SessionStreamStepTrait,
+        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilderTrait, SessionStreamStep, SessionStreamStepTrait,
     };
     use phymes_schemas::{
         AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjects,
@@ -114,7 +114,7 @@ mod tests {
     async fn test_extract_pdf_session() -> Result<()> {
         // Initialize the session
         let extract_pdf_session = ExtractPDFSession::default();
-        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
+        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             extract_pdf_session.as_mermaid_flowchart(),
             false,
         )?
@@ -123,13 +123,13 @@ mod tests {
             false,
             true,
         )?
-        .with_name(extract_pdf_session.session_context_name)
+        .with_name(extract_pdf_session.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Create the document message
         let document_texts = &[
@@ -153,16 +153,16 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: blob.get_name().to_string(),
             })
-            .with_publisher(extract_pdf_session.session_context_name)
+            .with_publisher(extract_pdf_session.network_name)
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![blob_message]);
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
 
         // Run the first superstep
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map)
+        let response = SessionStreamStep::run_superstep(Arc::clone(&network_arc), message_map)
             .await?
             .unwrap();
 
@@ -173,7 +173,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableSubjects::Documents.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;

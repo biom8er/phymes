@@ -20,12 +20,12 @@ use phymes_message::{
     SessionInterfaceMessageTrait, create_message_map,
 };
 use phymes_network::{
-    CustomAgentsBuilderTrait, DiagnosticSession, SessionContextBuilderAgentsTrait,
-    SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait,
+    CustomAgentsBuilderTrait, DiagnosticSession, NetworkBuilderAgentsTrait,
+    NetworkBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait,
 };
 use phymes_schemas::{
     AvailableInterfaceSubjects, AvailableSubjects, DataFormat, DiagnosticsVisualizations,
-    JoinUserInboxSessionContextsMermaidDiagrams,
+    JoinUserInboxNetworksMermaidDiagrams,
 };
 
 // General imports
@@ -43,9 +43,9 @@ use crate::{
 /// Chat inference endpoint
 #[axum::debug_handler]
 pub async fn session_diagnostics(
-    Extension((current_user, user_session_contexts)): Extension<(
+    Extension((current_user, user_networks)): Extension<(
         String,
-        Vec<JoinUserInboxSessionContextsMermaidDiagrams>,
+        Vec<JoinUserInboxNetworksMermaidDiagrams>,
     )>,
     State((users, mut state)): State<(UserState, ServerState)>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
@@ -68,7 +68,7 @@ pub async fn session_diagnostics(
             {
                 // Initialize the user session contexts
                 let _session_names = match state
-                    .make_session_contexts(&user_session_contexts, true, users.users.runtime_env())
+                    .make_networks(&user_networks, true, users.users.runtime_env())
                     .await
                 {
                     Ok(session_names) => session_names,
@@ -84,8 +84,8 @@ pub async fn session_diagnostics(
 
             // Get the diagnostic information from the session stream state
             let message_map = {
-                let session_ctx_arc = match state
-                    .session_contexts
+                let network_arc = match state
+                    .networks
                     .try_write()
                     .unwrap()
                     .get(payload.get_session_name())
@@ -106,7 +106,7 @@ pub async fn session_diagnostics(
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableSubjects::SessionMetrics.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())
                 .unwrap()
                 .unwrap()
                 .try_collect()
@@ -124,7 +124,7 @@ pub async fn session_diagnostics(
                     .with_update(&Publication::Replace {
                         subject_name: AvailableSubjects::AnalyticsMetrics.to_string(),
                     })
-                    .with_publisher(diagnostic_session.session_context_name)
+                    .with_publisher(diagnostic_session.network_name)
                     .make_name()
                     .unwrap()
                     .build()
@@ -132,7 +132,7 @@ pub async fn session_diagnostics(
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableSubjects::SessionTraces.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())
                 .unwrap()
                 .unwrap()
                 .try_collect()
@@ -150,7 +150,7 @@ pub async fn session_diagnostics(
                     .with_update(&Publication::Replace {
                         subject_name: AvailableSubjects::AnalyticsTraces.to_string(),
                     })
-                    .with_publisher(diagnostic_session.session_context_name)
+                    .with_publisher(diagnostic_session.network_name)
                     .make_name()
                     .unwrap()
                     .build()
@@ -158,7 +158,7 @@ pub async fn session_diagnostics(
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableSubjects::SessionEvents.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())
                 .unwrap()
                 .unwrap()
                 .try_collect()
@@ -176,7 +176,7 @@ pub async fn session_diagnostics(
                     .with_update(&Publication::Replace {
                         subject_name: AvailableSubjects::AnalyticsEvents.to_string(),
                     })
-                    .with_publisher(diagnostic_session.session_context_name)
+                    .with_publisher(diagnostic_session.network_name)
                     .make_name()
                     .unwrap()
                     .build()
@@ -184,7 +184,7 @@ pub async fn session_diagnostics(
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableSubjects::SessionTasks.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())
                 .unwrap()
                 .unwrap()
                 .try_collect()
@@ -202,7 +202,7 @@ pub async fn session_diagnostics(
                     .with_update(&Publication::Replace {
                         subject_name: AvailableSubjects::AnalyticsTasks.to_string(),
                     })
-                    .with_publisher(diagnostic_session.session_context_name)
+                    .with_publisher(diagnostic_session.network_name)
                     .make_name()
                     .unwrap()
                     .build()
@@ -210,7 +210,7 @@ pub async fn session_diagnostics(
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableSubjects::SessionErrors.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())
                 .unwrap()
                 .unwrap()
                 .try_collect()
@@ -229,7 +229,7 @@ pub async fn session_diagnostics(
                         .with_update(&Publication::Replace {
                             subject_name: AvailableSubjects::AnalyticsErrors.to_string(),
                         })
-                        .with_publisher(diagnostic_session.session_context_name)
+                        .with_publisher(diagnostic_session.network_name)
                         .make_name()
                         .unwrap()
                         .build()
@@ -253,9 +253,9 @@ pub async fn session_diagnostics(
             };
 
             // Make the diagnostics session stream
-            let (session_ctx, session_messages) = diagnostic_session
+            let (network, session_messages) = diagnostic_session
                 .build()
-                .with_name(diagnostic_session.session_context_name)
+                .with_name(diagnostic_session.network_name)
                 .with_diagnostics(true) // Debugging
                 .add_session_interface(Some(&[
                     DiagnosticsVisualizations::MetricProcessorTracesGantt
@@ -280,15 +280,15 @@ pub async fn session_diagnostics(
                 .unwrap()
                 .build_with_tables()
                 .unwrap();
-            let session_ctx_arc = Arc::new(session_ctx);
+            let network_arc = Arc::new(network);
             SessionStreamStep::update_subjects_and_changelog_from_messages(
-                &session_ctx_arc,
+                &network_arc,
                 session_messages.unwrap_or_default(),
                 0,
             )
             .await
             .unwrap();
-            let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+            let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
 
             // Run and update the session and convert the output to the user specified format
             match (&payload.get_format(), payload.get_stream()) {
@@ -298,7 +298,7 @@ pub async fn session_diagnostics(
                         f.into_iter()
                             .filter(|(_k, v)| {
                                 v.get_name()
-                                    .contains(diagnostic_session.session_context_name)
+                                    .contains(diagnostic_session.network_name)
                             })
                             .flat_map(|(_k, v)| {
                                 let name = v.get_name().to_string();
@@ -325,7 +325,7 @@ pub async fn session_diagnostics(
                         .flatten()
                         .filter(|(_k, v)| {
                             v.get_name()
-                                .contains(diagnostic_session.session_context_name)
+                                .contains(diagnostic_session.network_name)
                         })
                         .flat_map(|(_k, v)| {
                             let name = v.get_name().to_string();
@@ -349,7 +349,7 @@ pub async fn session_diagnostics(
                         f.into_iter()
                             .filter(|(_k, v)| {
                                 v.get_name()
-                                    .contains(diagnostic_session.session_context_name)
+                                    .contains(diagnostic_session.network_name)
                             })
                             .flat_map(|(_k, v)| v.get_message_own())
                             .collect::<Vec<_>>()
@@ -369,7 +369,7 @@ pub async fn session_diagnostics(
                         .flat_map(|map| {
                             map.into_iter()
                                 .filter_map(|(k, v)| {
-                                    if k.contains(diagnostic_session.session_context_name) {
+                                    if k.contains(diagnostic_session.network_name) {
                                         let subject_name = v.get_subject().to_string();
                                         Some((
                                             k,

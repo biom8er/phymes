@@ -79,12 +79,12 @@ flowchart TD
 		summary_processor_2-processor-->summary_processor_2-publish
 		summary_processor_2-publish--Extend-->assistant_messages-subject
 	end
-	subgraph session_context_1
-		assistant_messages-subject-.LastRecordBatch.->session_context_1-subscribe
-		session_context_1-subscribe-->session_context_1-processor
-		session_context_1-processor-->session_context_1-publish
-		session_context_1-publish--Extend-->user_messages-subject
-		session_context_1-publish--Extend-->assistant_messages-subject
+	subgraph network_1
+		assistant_messages-subject-.LastRecordBatch.->network_1-subscribe
+		network_1-subscribe-->network_1-processor
+		network_1-processor-->network_1-publish
+		network_1-publish--Extend-->user_messages-subject
+		network_1-publish--Extend-->assistant_messages-subject
 	end
 	tool_rt_1-rt-->message_aggregator_task_1
 	message_aggregator_rt_1-rt-->message_aggregator_task_2
@@ -92,7 +92,7 @@ flowchart TD
 	chat_rt_1-rt-->message_parser_task_1
 	tool_rt_1-rt-->Sort
 	tool_rt_1-rt-->HumanInTheLoop
-	rt_default-rt-->session_context_1
+	rt_default-rt-->network_1
 	message_aggregator_processor_1-processor@{shape: rect, label: AggregatorProcessor}
 	message_aggregator_processor_2-processor@{shape: rect, label: AggregatorProcessor}
 	chat_processor_1-processor@{shape: rect, label: CandleChatProcessor}
@@ -101,7 +101,7 @@ flowchart TD
 	HumanInTheLoop-processor@{shape: rect, label: CandleDataProcessor}
 	summary_processor_1-processor@{shape: rect, label: PackTabular}
 	summary_processor_2-processor@{shape: rect, label: PackTabular}
-	session_context_1-processor@{shape: rect, label: ArrowProcessorEcho}
+	network_1-processor@{shape: rect, label: ArrowProcessorEcho}
 	chat_rt_1-rt@{shape: subproc, label: chat_rt_1}
 	message_aggregator_rt_1-rt@{shape: subproc, label: message_aggregator_rt_1}
 	rt_default-rt@{shape: subproc, label: rt_default}
@@ -128,7 +128,7 @@ flowchart TD
 	message_aggregator_processor_1-publish@{shape: fork}
 	message_aggregator_processor_2-publish@{shape: fork}
 	message_parser_processor_1-publish@{shape: fork}
-	session_context_1-publish@{shape: fork}
+	network_1-publish@{shape: fork}
 	summary_processor_1-publish@{shape: fork}
 	summary_processor_2-publish@{shape: fork}
 	HumanInTheLoop-subscribe@{shape: diamond, label: All}
@@ -137,7 +137,7 @@ flowchart TD
 	message_aggregator_processor_1-subscribe@{shape: diamond, label: ChatContentSubscribe}
 	message_aggregator_processor_2-subscribe@{shape: diamond, label: Any}
 	message_parser_processor_1-subscribe@{shape: diamond, label: All}
-	session_context_1-subscribe@{shape: diamond, label: All}
+	network_1-subscribe@{shape: diamond, label: All}
 	summary_processor_1-subscribe@{shape: diamond, label: All}
 	summary_processor_2-subscribe@{shape: diamond, label: All}
 ```

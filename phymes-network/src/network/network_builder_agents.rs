@@ -26,12 +26,12 @@ use phymes_streams::{LimitConfig, ObjectStoreConfig, ToolCallConfig};
 use phymes_task::{TaskMap, TaskPlan};
 
 use crate::{
-    SessionContext, SessionContextBuilder, SessionContextBuilderMermaidTrait,
-    SessionContextBuilderTabularTrait, SessionContextBuilderTrait,
+    Network, NetworkBuilder, NetworkBuilderMermaidTrait,
+    NetworkBuilderTabularTrait, NetworkBuilderTrait,
     plans::{CountSubjectRowsSession, NextSuperstepSession, NextTaskSession},
 };
 
-type SessionContextInput = (
+type NetworkInput = (
     String,
     TaskMap,
     HashMap<String, SchemaRef>,
@@ -40,12 +40,12 @@ type SessionContextInput = (
     bool,
 );
 
-/// Trait extension for [SessionContextBuilderTrait] to facilitate building agentic workflows
-pub trait SessionContextBuilderAgentsTrait {
-    fn build_inner_with_tables(self) -> Result<SessionContextInput>;
+/// Trait extension for [NetworkBuilderTrait] to facilitate building agentic workflows
+pub trait NetworkBuilderAgentsTrait {
+    fn build_inner_with_tables(self) -> Result<NetworkInput>;
 
-    /// Build the [SessionContext] objects along with the [SessionContext] schema tables
-    fn build_with_tables(self) -> Result<(SessionContext, Option<IPCMessageMap>)>
+    /// Build the [Network] objects along with the [Network] schema tables
+    fn build_with_tables(self) -> Result<(Network, Option<IPCMessageMap>)>
     where
         Self: Sized;
 
@@ -118,8 +118,8 @@ pub trait SessionContextBuilderAgentsTrait {
         Self: Sized;
 }
 
-impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
-    fn build_with_tables(self) -> Result<(SessionContext, Option<IPCMessageMap>)> {
+impl NetworkBuilderAgentsTrait for NetworkBuilder {
+    fn build_with_tables(self) -> Result<(Network, Option<IPCMessageMap>)> {
         // Check that we can build
         self.check_tasks()?;
         self.check_processors()?;
@@ -150,11 +150,11 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .collect();
 
         // ready to build the session
-        let session_context = SessionContext::new(name, tasks, schemas, runtime_env, diagnostics);
-        Ok((session_context, Some(messages?)))
+        let network = Network::new(name, tasks, schemas, runtime_env, diagnostics);
+        Ok((network, Some(messages?)))
     }
 
-    fn build_inner_with_tables(self) -> Result<SessionContextInput> {
+    fn build_inner_with_tables(self) -> Result<NetworkInput> {
         let tables = self.to_subject_plans(true, true, true, true, true)?;
         let (name, tasks, mut schemas, mut subjects, runtime_envs, diagnostics) =
             self.build_inner()?;
@@ -1145,12 +1145,12 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
     {
         // Initialize the subjects num rows session
         let subjects_session = CountSubjectRowsSession::default();
-        let other_builder = SessionContextBuilder::from_mermaid_flowchart(
+        let other_builder = NetworkBuilder::from_mermaid_flowchart(
             subjects_session.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(subjects_session.as_mermaid_erdiagram(), false, true)?
-        .with_name(subjects_session.session_context_name)
+        .with_name(subjects_session.network_name)
         .add_processor_subjects()?;
 
         // Extend the current session context builder
@@ -1163,7 +1163,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
     {
         // Initialize the task subscribe and publish session
         let next_task_session = NextTaskSession::default();
-        let other_builder = SessionContextBuilder::from_mermaid_flowchart(
+        let other_builder = NetworkBuilder::from_mermaid_flowchart(
             next_task_session.as_mermaid_flowchart(),
             false,
         )?
@@ -1172,7 +1172,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             false,
             true,
         )?
-        .with_name(next_task_session.session_context_name)
+        .with_name(next_task_session.network_name)
         .add_processor_subjects()?;
 
         // Extend the current session context builder
@@ -1185,7 +1185,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
     {
         // Initialize the task subscribe and publish session
         let next_superstep_session = NextSuperstepSession::default();
-        let other_builder = SessionContextBuilder::from_mermaid_flowchart(
+        let other_builder = NetworkBuilder::from_mermaid_flowchart(
             next_superstep_session.as_mermaid_flowchart(),
             false,
         )?
@@ -1194,7 +1194,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             false,
             true,
         )?
-        .with_name(next_superstep_session.session_context_name)
+        .with_name(next_superstep_session.network_name)
         .add_processor_subjects()?;
 
         // Extend the current session context builder
@@ -1202,7 +1202,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
     }
 }
 
-/// Create custom [SessionContextBuilder]
+/// Create custom [NetworkBuilder]
 ///
 /// # Notes
 ///
@@ -1224,8 +1224,8 @@ pub trait CustomAgentsBuilderTrait {
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
         None
     }
-    fn build(&self) -> SessionContextBuilder {
-        let mut builder = SessionContextBuilder::default();
+    fn build(&self) -> NetworkBuilder {
+        let mut builder = NetworkBuilder::default();
         if let Some(task_plans) = self.make_task_plans() {
             builder = builder.with_tasks(task_plans);
         }
@@ -1242,13 +1242,13 @@ pub trait CustomAgentsBuilderTrait {
     }
 }
 
-pub mod test_session_context_builder_agents {
+pub mod test_network_builder_agents {
     use phymes_subject::{BuildableTrait, BuilderTrait, SubjectBuilderTrait, test_subject};
     use phymes_data::{AvailableOperators, DataConfig, DataJoinOperator};
     use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
     use phymes_task::test_task;
 
-    use crate::test_session_context_builder;
+    use crate::test_network_builder;
 
     use super::*;
 
@@ -1340,7 +1340,7 @@ pub mod test_session_context_builder_agents {
     }
 
     #[allow(dead_code)]
-    pub fn make_test_session_builder_agents(name: &str) -> Result<SessionContextBuilder> {
+    pub fn make_test_session_builder_agents(name: &str) -> Result<NetworkBuilder> {
         let processor_plans = make_test_processors_agents()?;
         let mut subjects = make_test_state_agents()?;
 
@@ -1368,10 +1368,10 @@ pub mod test_session_context_builder_agents {
             .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
             .collect::<Vec<_>>();
 
-        let builder = SessionContextBuilder::new()
+        let builder = NetworkBuilder::new()
             .with_name(name)
             .with_tasks(
-                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+                test_network_builder::make_test_network_builder_parallel_tasks(),
             )
             .with_processors(processor_plans)
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
@@ -1383,7 +1383,7 @@ pub mod test_session_context_builder_agents {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_session_context_builder;
+    use crate::test_network_builder;
     use phymes_subject::{BuildableTrait, BuilderTrait, SubjectBuilderTrait};
     use phymes_data::{AvailableOperators, DataConfig, DataJoinOperator, DataStreamManager};
     use phymes_task::{TaskTrait, test_task};
@@ -1391,9 +1391,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_session_context_builder_agents_build_with_tables_success() -> Result<()> {
+    fn test_network_builder_agents_build_with_tables_success() -> Result<()> {
         let (session, messages) =
-            test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
+            test_network_builder_agents::make_test_session_builder_agents("session_1")?
                 .build_with_tables()?;
         assert_eq!(session.subjects().len(), 19);
         assert_eq!(session.tasks().len(), 3);
@@ -1430,9 +1430,9 @@ mod tests {
     }
 
     #[test]
-    fn test_session_context_builder_agents_build_with_tables_add_session_interface() -> Result<()> {
+    fn test_network_builder_agents_build_with_tables_add_session_interface() -> Result<()> {
         let (session, messages) =
-            test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
+            test_network_builder_agents::make_test_session_builder_agents("session_1")?
                 .add_session_interface(Some(&["state_1"]))?
                 .build_with_tables()?;
         assert_eq!(session.subjects().len(), 19);
@@ -1483,10 +1483,10 @@ mod tests {
     }
 
     #[test]
-    fn test_session_context_builder_agents_build_with_tables_missing_processor_configs_subjects()
+    fn test_network_builder_agents_build_with_tables_missing_processor_configs_subjects()
     -> Result<()> {
         // Check that missing config subscriptions can be identified
-        let mut subjects = test_session_context_builder_agents::make_test_state_agents()?;
+        let mut subjects = test_network_builder_agents::make_test_state_agents()?;
         let join_config = DataConfig {
             lhs_name: Some("state_1".to_string()),
             rhs_name: Some("state_2".to_string()),
@@ -1511,13 +1511,13 @@ mod tests {
             .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
             .collect::<Vec<_>>();
         let mut task_plans =
-            test_session_context_builder::make_test_session_context_builder_parallel_tasks();
+            test_network_builder::make_test_network_builder_parallel_tasks();
         task_plans.push(TaskPlan {
             task_name: "task_4".to_string(),
             processor_names: vec!["processor_4".to_string()],
         });
         let mut processor_plans =
-            test_session_context_builder_agents::make_test_processors_agents()?;
+            test_network_builder_agents::make_test_processors_agents()?;
         processor_plans.push(
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_4"))
@@ -1530,7 +1530,7 @@ mod tests {
                 .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()?,
         );
-        let result = SessionContextBuilder::new()
+        let result = NetworkBuilder::new()
             .with_name("session_1")
             .with_tasks(task_plans.clone())
             .with_processors(processor_plans)
@@ -1548,7 +1548,7 @@ mod tests {
 
         // Check that the default processor subjects fix the issue
         let mut processor_plans =
-            test_session_context_builder_agents::make_test_processors_agents()?;
+            test_network_builder_agents::make_test_processors_agents()?;
         processor_plans.push(
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_4"))
@@ -1561,7 +1561,7 @@ mod tests {
                 .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()?,
         );
-        let (session, messages) = SessionContextBuilder::new()
+        let (session, messages) = NetworkBuilder::new()
             .with_name("session_1")
             .with_tasks(task_plans)
             .with_processors(processor_plans)
@@ -1605,9 +1605,9 @@ mod tests {
     }
 
     #[test]
-    fn test_session_context_builder_agents_build_with_tables_missing_data_config_subjects()
+    fn test_network_builder_agents_build_with_tables_missing_data_config_subjects()
     -> Result<()> {
-        let subjects = test_session_context_builder_agents::make_test_state_agents()?;
+        let subjects = test_network_builder_agents::make_test_state_agents()?;
 
         // Test that mismatches in the lhs/rhs name are identified
         let join_config = DataConfig {
@@ -1631,11 +1631,11 @@ mod tests {
             .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
             .collect::<Vec<_>>();
 
-        let result = SessionContextBuilder::new()
+        let result = NetworkBuilder::new()
             .with_tasks(
-                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+                test_network_builder::make_test_network_builder_parallel_tasks(),
             )
-            .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
+            .with_processors(test_network_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plans)
@@ -1675,11 +1675,11 @@ mod tests {
             .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
             .collect::<Vec<_>>();
 
-        let result = SessionContextBuilder::new()
+        let result = NetworkBuilder::new()
             .with_tasks(
-                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+                test_network_builder::make_test_network_builder_parallel_tasks(),
             )
-            .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
+            .with_processors(test_network_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plans)
@@ -1720,11 +1720,11 @@ mod tests {
             .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
             .collect::<Vec<_>>();
 
-        let result = SessionContextBuilder::new()
+        let result = NetworkBuilder::new()
             .with_tasks(
-                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+                test_network_builder::make_test_network_builder_parallel_tasks(),
             )
-            .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
+            .with_processors(test_network_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plans)
@@ -1742,9 +1742,9 @@ mod tests {
     }
 
     #[test]
-    fn test_session_context_builder_agents_build_with_tables_failing_processor_config_builds()
+    fn test_network_builder_agents_build_with_tables_failing_processor_config_builds()
     -> Result<()> {
-        let subjects = test_session_context_builder_agents::make_test_state_agents()?;
+        let subjects = test_network_builder_agents::make_test_state_agents()?;
 
         // Test for mismatch between processor and config types
         let join_config = LimitConfig {
@@ -1765,11 +1765,11 @@ mod tests {
             .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
             .collect::<Vec<_>>();
 
-        let result = SessionContextBuilder::new()
+        let result = NetworkBuilder::new()
             .with_tasks(
-                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+                test_network_builder::make_test_network_builder_parallel_tasks(),
             )
-            .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
+            .with_processors(test_network_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plans)
@@ -1806,11 +1806,11 @@ mod tests {
             .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
             .collect::<Vec<_>>();
 
-        let result = SessionContextBuilder::new()
+        let result = NetworkBuilder::new()
             .with_tasks(
-                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+                test_network_builder::make_test_network_builder_parallel_tasks(),
             )
-            .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
+            .with_processors(test_network_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plans)
@@ -1847,11 +1847,11 @@ mod tests {
             .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
             .collect::<Vec<_>>();
 
-        let result = SessionContextBuilder::new()
+        let result = NetworkBuilder::new()
             .with_tasks(
-                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+                test_network_builder::make_test_network_builder_parallel_tasks(),
             )
-            .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
+            .with_processors(test_network_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plans)

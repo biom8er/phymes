@@ -4,7 +4,7 @@
 /// # Notes
 pub struct GenerateTextSession<'a> {
     /// Session
-    pub session_context_name: &'a str,
+    pub network_name: &'a str,
     /// The Asset to use for Text Generation and related parameters
     pub candle_asset: Option<String>,
     pub openai_asset: Option<String>,
@@ -76,7 +76,7 @@ impl<'a> Default for GenerateTextSession<'a> {
             "CandleChatProcessor"
         };
         Self {
-            session_context_name: "generate_text_session",
+            network_name: "generate_text_session",
             candle_asset,
             openai_asset,
             weights_config_file,
@@ -92,7 +92,7 @@ impl<'a> Default for GenerateTextSession<'a> {
 impl<'a> GenerateTextSession<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        session_context_name: &'a str,
+        network_name: &'a str,
         candle_asset: Option<String>,
         openai_asset: Option<String>,
         weights_config_file: Option<String>,
@@ -107,7 +107,7 @@ impl<'a> GenerateTextSession<'a> {
             "CandleChatProcessor"
         };
         GenerateTextSession {
-            session_context_name,
+            network_name,
             candle_asset,
             openai_asset,
             weights_config_file,
@@ -340,8 +340,8 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream,
+        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilderTrait, SessionStream,
     };
     use phymes_schemas::{
         AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait,
@@ -356,7 +356,7 @@ mod tests {
     async fn test_generate_text_session_no_tools() -> Result<()> {
         // Initialize the session
         let generate_text_session = GenerateTextSession::default();
-        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
+        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
@@ -365,13 +365,13 @@ mod tests {
             false,
             true,
         )?
-        .with_name(generate_text_session.session_context_name)
+        .with_name(generate_text_session.network_name)
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // User message
         let chat = AvailableInterfaceSubjects::UserMessages.to_subject_builder(None)
@@ -383,12 +383,12 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: chat.get_name().to_string(),
             })
-            .with_publisher(generate_text_session.session_context_name)
+            .with_publisher(generate_text_session.network_name)
             .make_name()?
             .build()?;
 
         let message_map = create_message_map(vec![chat_message]);
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
 
@@ -399,7 +399,7 @@ mod tests {
             feature = "gpu"
         )) {
             // Run the session
-            let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+            let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
             let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
             assert_eq!(response.len(), 0);
@@ -409,7 +409,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -433,7 +433,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -441,7 +441,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -470,7 +470,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: "aggregate_messages_generate_text_s".to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -493,7 +493,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: "generate_text_inference_s".to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -539,7 +539,7 @@ mod tests {
             )),
             None,
         );
-        let mut session_ctx_builder = SessionContextBuilder::from_mermaid_flowchart(
+        let mut network_builder = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
@@ -548,14 +548,14 @@ mod tests {
             false,
             true,
         )?
-        .with_name(generate_text_session.session_context_name)
+        .with_name(generate_text_session.network_name)
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
         .add_next_supersteps()?;
 
         // Add the target tool subjects to the session for testing
-        let mut subjects = session_ctx_builder.subjects.take().unwrap();
+        let mut subjects = network_builder.subjects.take().unwrap();
         let tool = AvailableSubjects::Bytes
             .to_subject(Some(AvailableOperators::Sort.to_string().as_str()), None)?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
@@ -565,7 +565,7 @@ mod tests {
         )?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
 
-        let (session_ctx, session_messages) = session_ctx_builder
+        let (network, session_messages) = network_builder
             .with_subjects(subjects)
             // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
             .add_session_interface(Some(&[
@@ -573,7 +573,7 @@ mod tests {
                 AvailableOperators::HumanInTheLoop.to_string().as_str(),
             ]))?
             .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Tools data
         let tool_ids = vec![
@@ -595,7 +595,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: table.get_name().to_string(),
             })
-            .with_publisher(generate_text_session.session_context_name)
+            .with_publisher(generate_text_session.network_name)
             .make_name()?
             .build()?;
 
@@ -609,12 +609,12 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: chat.get_name().to_string(),
             })
-            .with_publisher(generate_text_session.session_context_name)
+            .with_publisher(generate_text_session.network_name)
             .make_name()?
             .build()?;
 
         let message_map = create_message_map(vec![tool_message, chat_message]);
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
 
@@ -625,7 +625,7 @@ mod tests {
             feature = "gpu"
         )) {
             // Run the session
-            let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+            let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
             let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
             assert_eq!(response.len(), 1); // Due to session interface
@@ -635,7 +635,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -643,7 +643,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -651,7 +651,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -678,7 +678,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: "aggregate_messages_generate_text_s".to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -701,7 +701,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: "generate_text_inference_s".to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -720,7 +720,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableOperators::HumanInTheLoop.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -728,7 +728,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableOperators::Sort.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -755,7 +755,7 @@ mod tests {
     async fn test_generate_text_session_tool_response() -> Result<()> {
         // Initialize the session
         let generate_text_session = GenerateTextSession::default();
-        let mut session_ctx_builder = SessionContextBuilder::from_mermaid_flowchart(
+        let mut network_builder = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
@@ -764,14 +764,14 @@ mod tests {
             false,
             true,
         )?
-        .with_name(generate_text_session.session_context_name)
+        .with_name(generate_text_session.network_name)
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
         .add_next_supersteps()?;
 
         // Add the target tool subjects to the session for testing
-        let mut subjects = session_ctx_builder.subjects.take().unwrap();
+        let mut subjects = network_builder.subjects.take().unwrap();
         let tool = AvailableSubjects::Bytes
             .to_subject(Some(AvailableOperators::Sort.to_string().as_str()), None)?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
@@ -780,7 +780,7 @@ mod tests {
             None,
         )?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
-        let (session_ctx, session_messages) = session_ctx_builder
+        let (network, session_messages) = network_builder
             .with_subjects(subjects)
             // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
             .add_session_interface(Some(&[
@@ -788,7 +788,7 @@ mod tests {
                 AvailableOperators::HumanInTheLoop.to_string().as_str(),
             ]))?
             .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Tools data
         let tool_ids = vec![
@@ -810,7 +810,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: table.get_name().to_string(),
             })
-            .with_publisher(generate_text_session.session_context_name)
+            .with_publisher(generate_text_session.network_name)
             .make_name()?
             .build()?;
 
@@ -824,7 +824,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: chat.get_name().to_string(),
             })
-            .with_publisher(generate_text_session.session_context_name)
+            .with_publisher(generate_text_session.network_name)
             .make_name()?
             .build()?;
 
@@ -838,12 +838,12 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: tool.get_name().to_string(),
             })
-            .with_publisher(generate_text_session.session_context_name)
+            .with_publisher(generate_text_session.network_name)
             .make_name()?
             .build()?;
 
         let message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
 
@@ -854,7 +854,7 @@ mod tests {
             feature = "gpu"
         )) {
             // Run the session
-            let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+            let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
             let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
             assert_eq!(response.len(), 2);
@@ -864,7 +864,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -888,7 +888,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -917,7 +917,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: "aggregate_messages_generate_text_s".to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -945,7 +945,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: "generate_text_inference_s".to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -964,7 +964,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableOperators::Sort.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -972,7 +972,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableOperators::HumanInTheLoop.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -1007,7 +1007,7 @@ mod tests {
             )),
             None,
         );
-        let mut session_ctx_builder = SessionContextBuilder::from_mermaid_flowchart(
+        let mut network_builder = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
@@ -1016,14 +1016,14 @@ mod tests {
             false,
             true,
         )?
-        .with_name(generate_text_session.session_context_name)
+        .with_name(generate_text_session.network_name)
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
         .add_next_supersteps()?;
 
         // Add the target tool subjects to the session for testing
-        let mut subjects = session_ctx_builder.subjects.take().unwrap();
+        let mut subjects = network_builder.subjects.take().unwrap();
         let tool = AvailableSubjects::Bytes
             .to_subject(Some(AvailableOperators::Sort.to_string().as_str()), None)?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
@@ -1032,7 +1032,7 @@ mod tests {
             None,
         )?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
-        let (session_ctx, session_messages) = session_ctx_builder
+        let (network, session_messages) = network_builder
             .with_subjects(subjects)
             // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
             .add_session_interface(Some(&[
@@ -1040,7 +1040,7 @@ mod tests {
                 AvailableOperators::HumanInTheLoop.to_string().as_str(),
             ]))?
             .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Tools data
         let tool_ids = vec![
@@ -1062,7 +1062,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: table.get_name().to_string(),
             })
-            .with_publisher(generate_text_session.session_context_name)
+            .with_publisher(generate_text_session.network_name)
             .make_name()?
             .build()?;
 
@@ -1076,7 +1076,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: chat.get_name().to_string(),
             })
-            .with_publisher(generate_text_session.session_context_name)
+            .with_publisher(generate_text_session.network_name)
             .make_name()?
             .build()?;
 
@@ -1090,12 +1090,12 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: tool.get_name().to_string(),
             })
-            .with_publisher(generate_text_session.session_context_name)
+            .with_publisher(generate_text_session.network_name)
             .make_name()?
             .build()?;
 
         let message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
 
@@ -1106,7 +1106,7 @@ mod tests {
             feature = "gpu"
         )) {
             // Run the session
-            let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+            let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
             let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
             assert_eq!(response.len(), 1);
@@ -1116,7 +1116,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -1145,7 +1145,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -1174,7 +1174,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: "aggregate_messages_generate_text_s".to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -1202,7 +1202,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: "generate_text_inference_s".to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -1221,7 +1221,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableOperators::Sort.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -1229,7 +1229,7 @@ mod tests {
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableOperators::HumanInTheLoop.to_string(),
                 }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;

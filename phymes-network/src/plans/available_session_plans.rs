@@ -7,8 +7,8 @@ use phymes_message::IPCMessageMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BuilderSession, ChatAgentSession, CustomAgentsBuilderTrait, DocumentRAGSession, SessionContext,
-    SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait,
+    BuilderSession, ChatAgentSession, CustomAgentsBuilderTrait, DocumentRAGSession, Network,
+    NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderTrait,
     ToolAgentSession, UserSession,
 };
 
@@ -60,7 +60,7 @@ impl AvailableSessionPlans {
     }
 
     /// Get the session stream state
-    pub fn get_session_context_builder(&self, session_name: &str) -> SessionContextBuilder {
+    pub fn get_network_builder(&self, session_name: &str) -> NetworkBuilder {
         // Initialize the session context builder
         match self {
             Self::Chat => ChatAgentSession::new_with_session_name(session_name).build(),
@@ -72,20 +72,20 @@ impl AvailableSessionPlans {
     }
 
     /// Get the session stream state by name
-    pub fn get_session_context_builder_by_name(
+    pub fn get_network_builder_by_name(
         session_plan_name: &str,
         session_name: &str,
-    ) -> Result<SessionContextBuilder> {
+    ) -> Result<NetworkBuilder> {
         if session_plan_name == Self::Chat.to_string() {
-            Ok(Self::Chat.get_session_context_builder(session_name))
+            Ok(Self::Chat.get_network_builder(session_name))
         } else if session_plan_name == Self::DocChat.to_string() {
-            Ok(Self::DocChat.get_session_context_builder(session_name))
+            Ok(Self::DocChat.get_network_builder(session_name))
         } else if session_plan_name == Self::ToolChat.to_string() {
-            Ok(Self::ToolChat.get_session_context_builder(session_name))
+            Ok(Self::ToolChat.get_network_builder(session_name))
         } else if session_plan_name == Self::Builder.to_string() {
-            Ok(Self::Builder.get_session_context_builder(session_name))
+            Ok(Self::Builder.get_network_builder(session_name))
         } else if session_plan_name == Self::Users.to_string() {
-            Ok(Self::Users.get_session_context_builder(session_name))
+            Ok(Self::Users.get_network_builder(session_name))
         } else {
             Err(anyhow!(
                 "Plan name {session_plan_name} was not found in the available session plans."
@@ -98,10 +98,10 @@ impl AvailableSessionPlans {
         &self,
         session_name: &str,
         runtime_env: &Arc<RuntimeEnv>,
-    ) -> (Arc<SessionContext>, Option<IPCMessageMap>) {
+    ) -> (Arc<Network>, Option<IPCMessageMap>) {
         // Initialize the session
-        let builder = self.get_session_context_builder(session_name);
-        let (session_ctx, message) = builder
+        let builder = self.get_network_builder(session_name);
+        let (network, message) = builder
             .with_name(session_name)
             .with_runtime_env(Arc::clone(runtime_env))
             .with_diagnostics(true)
@@ -113,7 +113,7 @@ impl AvailableSessionPlans {
             .unwrap()
             .build_with_tables()
             .unwrap();
-        (Arc::new(session_ctx), message)
+        (Arc::new(network), message)
     }
 
     /// Get the session stream state by name
@@ -121,7 +121,7 @@ impl AvailableSessionPlans {
         session_plan_name: &str,
         session_name: &str,
         runtime_env: &Arc<RuntimeEnv>,
-    ) -> Result<(Arc<SessionContext>, Option<IPCMessageMap>)> {
+    ) -> Result<(Arc<Network>, Option<IPCMessageMap>)> {
         if session_plan_name == Self::Chat.to_string() {
             Ok(Self::Chat.get_session_stream_state(session_name, runtime_env))
         } else if session_plan_name == Self::DocChat.to_string() {

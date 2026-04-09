@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-    SessionContextBuilderTrait,
+    Network, NetworkBuilder, NetworkBuilderAgentsTrait,
+    NetworkBuilderTrait,
     plans::{NextSuperstepSession, NextTaskSession},
 };
 use anyhow::{Result, anyhow};
@@ -30,8 +30,8 @@ use phymes_task::TaskPlanBuilder;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 
-/// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from mermaid.js
-pub trait SessionContextBuilderMermaidTrait {
+/// Trait extension for [NetworkBuilderTrait] to enable exporting to and importing from mermaid.js
+pub trait NetworkBuilderMermaidTrait {
     /// Make a mermaid.js flowchart of the session
     ///
     /// # Arguments
@@ -88,7 +88,7 @@ pub trait SessionContextBuilderMermaidTrait {
         Self: Sized;
 }
 
-impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
+impl NetworkBuilderMermaidTrait for NetworkBuilder {
     fn to_mermaid_flowchart(
         &self,
         with_configs: bool,
@@ -129,7 +129,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         {
             // Exclusions from `NextTaskSession`
             let next_task_session = NextTaskSession::default();
-            let tasks_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
+            let tasks_publish_subscribe = NetworkBuilder::from_mermaid_flowchart(
                 next_task_session.as_mermaid_flowchart(),
                 false,
             )?
@@ -138,7 +138,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 false,
                 false,
             )?
-            .with_name(next_task_session.session_context_name)
+            .with_name(next_task_session.network_name)
             .add_processor_subjects()?;
             if let Some(tasks) = tasks_publish_subscribe.tasks {
                 for task in tasks {
@@ -156,7 +156,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         {
             // Exclusions from `NextSuperstepSession`
             let next_superstep_session = NextSuperstepSession::default();
-            let tasks_next_superstep = SessionContextBuilder::from_mermaid_flowchart(
+            let tasks_next_superstep = NetworkBuilder::from_mermaid_flowchart(
                 next_superstep_session.as_mermaid_flowchart(),
                 false,
             )?
@@ -165,7 +165,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 false,
                 false,
             )?
-            .with_name(next_superstep_session.session_context_name)
+            .with_name(next_superstep_session.network_name)
             .add_processor_subjects()?;
             if let Some(tasks) = tasks_next_superstep.tasks {
                 for task in tasks {
@@ -1373,15 +1373,15 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
     }
 }
 
-/// [SessionContextBuilder] specialized for Mermaid diagrams
+/// [NetworkBuilder] specialized for Mermaid diagrams
 #[derive(Default, Debug, PartialEq, Serialize, Deserialize, Clone)]
-pub struct SessionContextBuilderMermaid {
+pub struct NetworkBuilderMermaid {
     pub name: Option<String>,
     pub flowchart: Option<String>,
     pub erdiagram: Option<String>,
 }
 
-impl SessionContextBuilderMermaid {
+impl NetworkBuilderMermaid {
     pub fn with_flowchart(mut self, flowchart: &str) -> Self {
         self.flowchart = Some(flowchart.to_string());
         self
@@ -1392,8 +1392,8 @@ impl SessionContextBuilderMermaid {
     }
 }
 
-impl BuilderTrait for SessionContextBuilderMermaid {
-    type T = (SessionContext, Option<IPCMessageMap>);
+impl BuilderTrait for NetworkBuilderMermaid {
+    type T = (Network, Option<IPCMessageMap>);
     fn new() -> Self {
         Self {
             name: None,
@@ -1416,7 +1416,7 @@ impl BuilderTrait for SessionContextBuilderMermaid {
             Some(flowchart) => flowchart,
             None => {
                 return Err(anyhow!(
-                    "Please add a mermaid.js flowchart diagram before trying to build the `SessionContext`."
+                    "Please add a mermaid.js flowchart diagram before trying to build the `Network`."
                 ));
             }
         };
@@ -1424,7 +1424,7 @@ impl BuilderTrait for SessionContextBuilderMermaid {
             Some(name) => name,
             None => {
                 return Err(anyhow!(
-                    "Please provide a for the `SessionContext` before trying to build the `SessionContext`."
+                    "Please provide a for the `Network` before trying to build the `Network`."
                 ));
             }
         };
@@ -1432,13 +1432,13 @@ impl BuilderTrait for SessionContextBuilderMermaid {
             Some(erdiagram) => erdiagram,
             None => {
                 return Err(anyhow!(
-                    "Please add a mermaid.js ER diagram before trying to build the `SessionContext`."
+                    "Please add a mermaid.js ER diagram before trying to build the `Network`."
                 ));
             }
         };
 
         // Use defaults for diagnostics and max iters
-        SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+        NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_name(&name)
             .with_subjects_from_mermaid_erdiagram(&erdiagram, true, true)?
             .add_processor_subjects()?
@@ -1452,14 +1452,14 @@ impl BuilderTrait for SessionContextBuilderMermaid {
 mod tests {
     use crate::{
         ChatAgentSession, CustomAgentsBuilderTrait, DocumentRAGSession,
-        SessionContextBuilderAgentsTrait, ToolAgentSession, test_session_context_builder_agents,
+        NetworkBuilderAgentsTrait, ToolAgentSession, test_network_builder_agents,
     };
 
     use super::*;
     #[test]
     fn test_to_mermaid_flowchart() -> Result<()> {
         let builder =
-            test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
+            test_network_builder_agents::make_test_session_builder_agents("session_1")?
                 .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?
                 .add_next_tasks()?;
 
@@ -1481,7 +1481,7 @@ mod tests {
     #[test]
     fn test_to_mermaid_erdiagram() -> Result<()> {
         let builder =
-            test_session_context_builder_agents::make_test_session_builder_agents("session_1")?;
+            test_network_builder_agents::make_test_session_builder_agents("session_1")?;
 
         // Make the ER Diagram
         let mermaid_js = builder.to_mermaid_erdiagram(false, false)?;
@@ -1506,7 +1506,7 @@ mod tests {
     #[test]
     fn test_from_mermaid_parallel_with_config_and_session_no_data() -> Result<()> {
         let builder =
-            test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
+            test_network_builder_agents::make_test_session_builder_agents("session_1")?
                 .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
@@ -1514,7 +1514,7 @@ mod tests {
         let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
 
         // Remake the builder
-        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, false)?
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, false)?
             .with_subjects_from_mermaid_erdiagram(&erdiagram, false, false)?;
 
         // Test that the names match
@@ -1578,7 +1578,7 @@ mod tests {
     #[test]
     fn test_from_mermaid_parallel_with_config_and_session_with_data() -> Result<()> {
         let builder =
-            test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
+            test_network_builder_agents::make_test_session_builder_agents("session_1")?
                 .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
@@ -1586,7 +1586,7 @@ mod tests {
         let erdiagram = builder.to_mermaid_erdiagram(true, false)?;
 
         // Remake the builder
-        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, false)?
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, false)?
             .with_subjects_from_mermaid_erdiagram(&erdiagram, false, true)?;
 
         // Test that the names match
@@ -1655,7 +1655,7 @@ mod tests {
     #[test]
     fn test_from_mermaid_parallel_no_config_with_session_and_data() -> Result<()> {
         let builder =
-            test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
+            test_network_builder_agents::make_test_session_builder_agents("session_1")?
                 .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
@@ -1663,7 +1663,7 @@ mod tests {
         let erdiagram = builder.to_mermaid_erdiagram(true, false)?;
 
         // Remake the builder
-        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, false)?
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, false)?
             .with_subjects_from_mermaid_erdiagram(&erdiagram, false, true)?;
 
         // Test that the tasks match
@@ -1747,7 +1747,7 @@ mod tests {
         let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
 
         // Remake the builder
-        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?;
 
         // Test that the names match
@@ -1800,7 +1800,7 @@ mod tests {
         let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
 
         // Remake the builder
-        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?;
 
         // Test that the names match
@@ -1853,7 +1853,7 @@ mod tests {
         let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
 
         // Remake the builder
-        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?;
 
         // Test that the names match
@@ -1906,7 +1906,7 @@ mod tests {
         let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
 
         // Remake the builder
-        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?
             .with_name("session_1")
             .add_processor_subjects()?
@@ -1962,7 +1962,7 @@ mod tests {
         let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
 
         // Remake the builder
-        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?
             .with_name("session_1")
             .add_processor_subjects()?
@@ -2018,7 +2018,7 @@ mod tests {
         let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
 
         // Remake the builder
-        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?
             .with_name("session_1")
             .add_processor_subjects()?
@@ -2074,7 +2074,7 @@ mod tests {
         let erdiagram = builder.to_mermaid_erdiagram(false, true)?;
 
         // Remake the builder
-        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_subjects_from_mermaid_erdiagram(&erdiagram, true, true)?
             .with_name("session_1")
             .add_processor_subjects()?
@@ -2171,7 +2171,7 @@ mod tests {
         let erdiagram = builder.to_mermaid_erdiagram(false, true)?;
 
         // Remake the builder
-        let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_subjects_from_mermaid_erdiagram(&erdiagram, true, true)?
             .with_name("session_1")
             .add_processor_subjects()?

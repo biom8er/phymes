@@ -3,13 +3,13 @@
 /// # Notes
 pub struct RetrieveTextSession<'a> {
     /// Session
-    pub session_context_name: &'a str,
+    pub network_name: &'a str,
 }
 
 impl<'a> Default for RetrieveTextSession<'a> {
     fn default() -> Self {
         Self {
-            session_context_name: "retrieve_text_session",
+            network_name: "retrieve_text_session",
         }
     }
 }
@@ -239,8 +239,8 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream,
+        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilderTrait, SessionStream,
     };
     use phymes_schemas::{
         AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait,
@@ -254,7 +254,7 @@ mod tests {
     async fn test_retrieve_text_session() -> Result<()> {
         // Initialize the session
         let retrieve_text_session = RetrieveTextSession::default();
-        let retrieve_text_builder = SessionContextBuilder::from_mermaid_flowchart(
+        let retrieve_text_builder = NetworkBuilder::from_mermaid_flowchart(
             retrieve_text_session.as_mermaid_flowchart(),
             false,
         )?
@@ -263,13 +263,13 @@ mod tests {
             false,
             true,
         )?
-        .with_name(retrieve_text_session.session_context_name)
+        .with_name(retrieve_text_session.network_name)
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
         .add_next_supersteps()?;
-        let (session_ctx, session_messages) = retrieve_text_builder.build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let (network, session_messages) = retrieve_text_builder.build_with_tables()?;
+        let network_arc = Arc::new(network);
 
         // Document text
         let chunk_id = [
@@ -318,7 +318,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: document.get_name().to_string(),
             })
-            .with_publisher(retrieve_text_session.session_context_name)
+            .with_publisher(retrieve_text_session.network_name)
             .make_name()?
             .build()?;
 
@@ -3447,7 +3447,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: document.get_name().to_string(),
             })
-            .with_publisher(retrieve_text_session.session_context_name)
+            .with_publisher(retrieve_text_session.network_name)
             .make_name()?
             .build()?;
 
@@ -3850,7 +3850,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: query.get_name().to_string(),
             })
-            .with_publisher(retrieve_text_session.session_context_name)
+            .with_publisher(retrieve_text_session.network_name)
             .make_name()?
             .build()?;
 
@@ -3859,12 +3859,12 @@ mod tests {
             query_embeddings_message,
             document_message,
         ]);
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
 
         // Run the session
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
@@ -3873,7 +3873,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -3900,7 +3900,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::EmbeddingScores.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;

@@ -15,7 +15,7 @@ pub use chat::{
     create_values_record_batch,
 };
 pub use core::{
-    DiagnosticsVisualizations, JoinUserInboxSessionContextsMermaidDiagrams, SessionMermaidSubject,
+    DiagnosticsVisualizations, JoinUserInboxNetworksMermaidDiagrams, SessionMermaidSubject,
     UserSubject, create_error_subject, create_mermaid_content_template_batch,
     create_mermaid_sequence_diagram_participants_template_batch,
     create_metrics_mermaid_gantt_batch, create_session_mermaid_batch,
@@ -26,7 +26,7 @@ pub use core::{
     create_session_tasks_subscribe_aggregate_batch, create_session_tasks_subscribe_batch,
     create_session_tasks_subscribe_publish_batch, create_subjects_change_log_batch,
     create_subjects_num_rows_batch, create_subjects_object_store_meta_batch, create_user_batch,
-    create_user_inbox_batch, create_user_session_contexts_batch, from_diagnostics_to_tables,
+    create_user_inbox_batch, create_user_networks_batch, from_diagnostics_to_tables,
 };
 pub use data::{
     CsvFormat, DataEncoding, DataFormat, JsonFormat, from_data_type_to_str, from_str_to_data_type,

@@ -5,7 +5,7 @@ use serde_json::{Map, Value};
 /// A session for downloading PDF documents from a HTTP Request
 pub struct GetContentSession<'a> {
     /// Session
-    pub session_context_name: &'a str,
+    pub network_name: &'a str,
     /// Dynamic pipeline (e.g., tool call) or static pipeline
     pub is_dynamic: bool,
     /// Static HTTPProcessor PDF request schema
@@ -27,7 +27,7 @@ pub struct GetContentSession<'a> {
 impl<'a> Default for GetContentSession<'a> {
     fn default() -> Self {
         Self {
-            session_context_name: "get_content_session",
+            network_name: "get_content_session",
             is_dynamic: false,
             pdf_request_schema: HTTPClientRequestSchemas::Attachments,
             pdf_base_url: "",
@@ -43,7 +43,7 @@ impl<'a> Default for GetContentSession<'a> {
 impl<'a> GetContentSession<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
-        let session_context_name = self.session_context_name;
+        let network_name = self.network_name;
         let (get_pdf_p_subgraph, get_json_p_subgraph, get_object_p_subgraph) = if self.is_dynamic {
             (
                 r#"
@@ -70,7 +70,7 @@ impl<'a> GetContentSession<'a> {
         };
         format!(
             r#"flowchart TD
-	{session_context_name}_r-rt@{{shape: subproc, label: get_content_r}}
+	{network_name}_r-rt@{{shape: subproc, label: get_content_r}}
 	%% ------------------------------------------------------------------------------
 	%% PDF document downloading
     %% - We listen for updates both on the config `get_pdf_p` subject
@@ -84,7 +84,7 @@ impl<'a> GetContentSession<'a> {
 		get_pdf_p-processor-->get_pdf_p-publish
 		get_pdf_p-publish-->|Extend|UserPdf-subject
 	end
-	{session_context_name}_r-rt-->get_pdf_t
+	{network_name}_r-rt-->get_pdf_t
 	http_client_request_pdf_s-subject@{{shape: doc, label: http_client_request_pdf_s}}{get_pdf_p_subject}
 	get_pdf_p-processor@{{shape: rect, label: HTTPClientRequestProcessor}}
 	get_pdf_p-publish@{{shape: fork}}
@@ -103,7 +103,7 @@ impl<'a> GetContentSession<'a> {
 		get_json_p-processor-->get_json_p-publish
 		get_json_p-publish-->|Extend|UserJson-subject
 	end
-	{session_context_name}_r-rt-->get_json_t
+	{network_name}_r-rt-->get_json_t
 	http_client_request_json_s-subject@{{shape: doc, label: http_client_request_json_s}}{get_json_p_subject}
 	get_json_p-processor@{{shape: rect, label: HTTPClientRequestProcessor}}
 	get_json_p-publish@{{shape: fork}}
@@ -122,7 +122,7 @@ impl<'a> GetContentSession<'a> {
 		get_object_p-processor-->get_object_p-publish
 		get_object_p-publish-->|Extend|UserObject-subject
 	end
-	{session_context_name}_r-rt-->get_object_t
+	{network_name}_r-rt-->get_object_t
 	object_store_request_object_s-subject@{{shape: doc, label: object_store_request_object_s}}{get_object_p_subject}
 	get_object_p-processor@{{shape: rect, label: ObjectStoreProcessor.}}
 	get_object_p-publish@{{shape: fork}}
@@ -254,8 +254,8 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream,
+        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilderTrait, SessionStream,
     };
     use phymes_schemas::{
         AvailableInterfaceSubjects, AvailableSubjects, create_bytes_record_batch,
@@ -276,7 +276,7 @@ mod tests {
             is_dynamic: true,
             ..Default::default()
         };
-        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
+        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             &get_content_session.as_mermaid_flowchart(),
             false,
         )?
@@ -285,13 +285,13 @@ mod tests {
             false,
             true,
         )?
-        .with_name(get_content_session.session_context_name)
+        .with_name(get_content_session.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
@@ -322,7 +322,7 @@ mod tests {
                 http_client_config_table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(http_client_config_table.get_name())
-                    .with_publisher(get_content_session.session_context_name)
+                    .with_publisher(get_content_session.network_name)
                     .with_subject(http_client_config_table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: http_client_config_table.get_name().to_string(),
@@ -337,7 +337,7 @@ mod tests {
                 messages.to_string(),
                 IPCMessage::get_builder()
                     .with_name(messages)
-                    .with_publisher(get_content_session.session_context_name)
+                    .with_publisher(get_content_session.network_name)
                     .with_subject(messages)
                     .with_update(&Publication::Replace {
                         subject_name: messages.to_string(),
@@ -386,7 +386,7 @@ mod tests {
                 http_client_config_table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(http_client_config_table.get_name())
-                    .with_publisher(get_content_session.session_context_name)
+                    .with_publisher(get_content_session.network_name)
                     .with_subject(http_client_config_table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: http_client_config_table.get_name().to_string(),
@@ -401,7 +401,7 @@ mod tests {
                 messages.to_string(),
                 IPCMessage::get_builder()
                     .with_name(messages)
-                    .with_publisher(get_content_session.session_context_name)
+                    .with_publisher(get_content_session.network_name)
                     .with_subject(messages)
                     .with_update(&Publication::Replace {
                         subject_name: messages.to_string(),
@@ -412,16 +412,16 @@ mod tests {
         }
 
         // Run the session
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionErrors.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -439,7 +439,7 @@ mod tests {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SessionEvents.to_string(),
         }
-        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
@@ -462,7 +462,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -489,7 +489,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableInterfaceSubjects::UserJson.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -527,7 +527,7 @@ mod tests {
         // View task session
         let tool_call_session =
             ToolCallSession::new("tool_call_session", &["get_pdf_p", "get_json_p"]);
-        let tool_call_session_builder = SessionContextBuilder::from_mermaid_flowchart(
+        let tool_call_session_builder = NetworkBuilder::from_mermaid_flowchart(
             &tool_call_session.as_mermaid_flowchart(),
             false,
         )?
@@ -536,14 +536,14 @@ mod tests {
             false,
             true,
         )?
-        .with_name(tool_call_session.session_context_name);
+        .with_name(tool_call_session.network_name);
 
         // Initialize the session
         let get_content_session = GetContentSession {
             is_dynamic: true,
             ..Default::default()
         };
-        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
+        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             &get_content_session.as_mermaid_flowchart(),
             false,
         )?
@@ -552,14 +552,14 @@ mod tests {
             false,
             true,
         )?
-        .with_name(get_content_session.session_context_name)
+        .with_name(get_content_session.network_name)
         .with_diagnostics(true)
         .extend(tool_call_session_builder)?
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
@@ -589,7 +589,7 @@ mod tests {
                 http_client_config_table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(http_client_config_table.get_name())
-                    .with_publisher(get_content_session.session_context_name)
+                    .with_publisher(get_content_session.network_name)
                     .with_subject(http_client_config_table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: http_client_config_table.get_name().to_string(),
@@ -637,7 +637,7 @@ mod tests {
                 http_client_config_table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(http_client_config_table.get_name())
-                    .with_publisher(get_content_session.session_context_name)
+                    .with_publisher(get_content_session.network_name)
                     .with_subject(http_client_config_table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: http_client_config_table.get_name().to_string(),
@@ -648,10 +648,10 @@ mod tests {
         }
 
         // Run the session
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
@@ -661,7 +661,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -688,7 +688,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableInterfaceSubjects::UserJson.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -730,7 +730,7 @@ mod tests {
             json_base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?",
             ..Default::default()
         };
-        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
+        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             &get_content_session.as_mermaid_flowchart(),
             false,
         )?
@@ -739,13 +739,13 @@ mod tests {
             false,
             true,
         )?
-        .with_name(get_content_session.session_context_name)
+        .with_name(get_content_session.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
@@ -762,7 +762,7 @@ mod tests {
                 messages.to_string(),
                 IPCMessage::get_builder()
                     .with_name(messages)
-                    .with_publisher(get_content_session.session_context_name)
+                    .with_publisher(get_content_session.network_name)
                     .with_subject(messages)
                     .with_update(&Publication::Replace {
                         subject_name: messages.to_string(),
@@ -796,7 +796,7 @@ mod tests {
                 messages.to_string(),
                 IPCMessage::get_builder()
                     .with_name(messages)
-                    .with_publisher(get_content_session.session_context_name)
+                    .with_publisher(get_content_session.network_name)
                     .with_subject(messages)
                     .with_update(&Publication::Replace {
                         subject_name: messages.to_string(),
@@ -807,10 +807,10 @@ mod tests {
         }
 
         // Run the session
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
@@ -820,7 +820,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -847,7 +847,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableInterfaceSubjects::UserJson.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;

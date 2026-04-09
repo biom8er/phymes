@@ -66,7 +66,7 @@ pub struct ToolAgentSession<'a> {
     pub hitl_processor_name: &'a str,
     pub hitl_summary_processor_name: &'a str,
     /// Session and state
-    pub session_context_name: &'a str,
+    pub network_name: &'a str,
     pub state_tools_table_name: &'a str,
     pub state_scores_table_name: &'a str,
     pub chat_api_url: Option<&'a str>,
@@ -75,7 +75,7 @@ pub struct ToolAgentSession<'a> {
 impl Default for ToolAgentSession<'_> {
     fn default() -> Self {
         ToolAgentSession {
-            session_context_name: "session_context_1",
+            network_name: "network_1",
             chat_processor_name: "chat_processor_1",
             chat_task_name: "chat_task_1",
             chat_runtime_env_name: "chat_rt_1",
@@ -116,9 +116,9 @@ impl Default for ToolAgentSession<'_> {
 }
 
 impl<'a> ToolAgentSession<'a> {
-    pub fn new_with_session_name(session_context_name: &'a str) -> Self {
+    pub fn new_with_session_name(network_name: &'a str) -> Self {
         ToolAgentSession {
-            session_context_name,
+            network_name,
             ..Default::default()
         }
     }
@@ -508,7 +508,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
     fn make_runtime_env(&self) -> Option<Arc<RuntimeEnv>> {
         Some(
             RuntimeEnv::get_builder()
-                .with_name(self.session_context_name)
+                .with_name(self.network_name)
                 .build_arc()
                 .unwrap(),
         )
@@ -846,7 +846,7 @@ mod tests {
     use phymes_schemas::{AttachmentBuilderTraitExt, CsvFormat};
     use phymes_streams::ChatBuilderTraitExt;
 
-    use crate::{SessionContextBuilderAgentsTrait, SessionStream};
+    use crate::{NetworkBuilderAgentsTrait, SessionStream};
 
     use super::*;
 
@@ -854,14 +854,14 @@ mod tests {
     async fn test_tool_agent_session() -> Result<()> {
         // initialize the session
         let tool_agent_session = ToolAgentSession::default();
-        let (session_ctx, session_messages) = tool_agent_session
+        let (network, session_messages) = tool_agent_session
             .build()
-            .with_name(tool_agent_session.session_context_name)
+            .with_name(tool_agent_session.network_name)
             .add_session_interface(None)?
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        let network_arc = Arc::new(network);
 
         // Make the tabular data
         let csv_format = CsvFormat::default();
@@ -878,7 +878,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: chat.get_name().to_string(),
             })
-            .with_publisher(tool_agent_session.session_context_name)
+            .with_publisher(tool_agent_session.network_name)
             .make_name()?
             .build()?;
         let blob = AvailableInterfaceSubjects::UserCsv
@@ -891,11 +891,11 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: blob.get_name().to_string(),
             })
-            .with_publisher(tool_agent_session.session_context_name)
+            .with_publisher(tool_agent_session.network_name)
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![chat_message, blob_message]);
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
 
@@ -905,7 +905,7 @@ mod tests {
             all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
-            let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+            let session_stream = SessionStream::new(message_map, Arc::clone(&network_arc));
             let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
 
@@ -915,7 +915,7 @@ mod tests {
                 .filter_map(|map| {
                     map.remove(&format!(
                         "from_{}_on_{}",
-                        tool_agent_session.session_context_name,
+                        tool_agent_session.network_name,
                         AvailableInterfaceSubjects::AssistantMessages
                     ))
                     .map(|v| v.get_message_own())
@@ -937,7 +937,7 @@ mod tests {
                 .filter_map(|map| {
                     map.remove(&format!(
                         "from_{}_on_{}",
-                        tool_agent_session.session_context_name,
+                        tool_agent_session.network_name,
                         AvailableInterfaceSubjects::AssistantCsv
                     ))
                     .map(|v| v.get_message_own())
