@@ -20,7 +20,7 @@ use phymes_message::{
     SessionInterfaceMessageTrait, create_message_map,
 };
 use phymes_network::{
-    CustomAgentsBuilderTrait, DiagnosticSession, NetworkBuilderAgentsTrait,
+    CustomAgentsBuilderTrait, DiagnosticNetwork, NetworkBuilderAgentsTrait,
     NetworkBuilderTrait, NetworkStream, NetworkStreamStep, NetworkStreamStepTrait,
 };
 use phymes_schemas::{
@@ -61,7 +61,7 @@ pub async fn session_diagnostics(
 
             // Add user state if it does not exist already
             if !state
-                .user_session_names
+                .user_network_names
                 .try_read()
                 .unwrap()
                 .contains_key(&current_user)
@@ -80,7 +80,7 @@ pub async fn session_diagnostics(
             }
 
             // Initialize the diagnostics session
-            let diagnostic_session = DiagnosticSession::default();
+            let diagnostic_network = DiagnosticNetwork::default();
 
             // Get the diagnostic information from the session stream state
             let message_map = {
@@ -124,7 +124,7 @@ pub async fn session_diagnostics(
                     .with_update(&Publication::Replace {
                         subject_name: AvailableSubjects::AnalyticsMetrics.to_string(),
                     })
-                    .with_publisher(diagnostic_session.network_name)
+                    .with_publisher(diagnostic_network.network_name)
                     .make_name()
                     .unwrap()
                     .build()
@@ -150,7 +150,7 @@ pub async fn session_diagnostics(
                     .with_update(&Publication::Replace {
                         subject_name: AvailableSubjects::AnalyticsTraces.to_string(),
                     })
-                    .with_publisher(diagnostic_session.network_name)
+                    .with_publisher(diagnostic_network.network_name)
                     .make_name()
                     .unwrap()
                     .build()
@@ -176,7 +176,7 @@ pub async fn session_diagnostics(
                     .with_update(&Publication::Replace {
                         subject_name: AvailableSubjects::AnalyticsEvents.to_string(),
                     })
-                    .with_publisher(diagnostic_session.network_name)
+                    .with_publisher(diagnostic_network.network_name)
                     .make_name()
                     .unwrap()
                     .build()
@@ -202,7 +202,7 @@ pub async fn session_diagnostics(
                     .with_update(&Publication::Replace {
                         subject_name: AvailableSubjects::AnalyticsTasks.to_string(),
                     })
-                    .with_publisher(diagnostic_session.network_name)
+                    .with_publisher(diagnostic_network.network_name)
                     .make_name()
                     .unwrap()
                     .build()
@@ -229,7 +229,7 @@ pub async fn session_diagnostics(
                         .with_update(&Publication::Replace {
                             subject_name: AvailableSubjects::AnalyticsErrors.to_string(),
                         })
-                        .with_publisher(diagnostic_session.network_name)
+                        .with_publisher(diagnostic_network.network_name)
                         .make_name()
                         .unwrap()
                         .build()
@@ -253,9 +253,9 @@ pub async fn session_diagnostics(
             };
 
             // Make the diagnostics session stream
-            let (network, session_messages) = diagnostic_session
+            let (network, session_messages) = diagnostic_network
                 .build()
-                .with_name(diagnostic_session.network_name)
+                .with_name(diagnostic_network.network_name)
                 .with_diagnostics(true) // Debugging
                 .add_session_interface(Some(&[
                     DiagnosticsVisualizations::MetricProcessorTracesGantt
@@ -298,7 +298,7 @@ pub async fn session_diagnostics(
                         f.into_iter()
                             .filter(|(_k, v)| {
                                 v.get_name()
-                                    .contains(diagnostic_session.network_name)
+                                    .contains(diagnostic_network.network_name)
                             })
                             .flat_map(|(_k, v)| {
                                 let name = v.get_name().to_string();
@@ -325,7 +325,7 @@ pub async fn session_diagnostics(
                         .flatten()
                         .filter(|(_k, v)| {
                             v.get_name()
-                                .contains(diagnostic_session.network_name)
+                                .contains(diagnostic_network.network_name)
                         })
                         .flat_map(|(_k, v)| {
                             let name = v.get_name().to_string();
@@ -349,7 +349,7 @@ pub async fn session_diagnostics(
                         f.into_iter()
                             .filter(|(_k, v)| {
                                 v.get_name()
-                                    .contains(diagnostic_session.network_name)
+                                    .contains(diagnostic_network.network_name)
                             })
                             .flat_map(|(_k, v)| v.get_message_own())
                             .collect::<Vec<_>>()
@@ -369,7 +369,7 @@ pub async fn session_diagnostics(
                         .flat_map(|map| {
                             map.into_iter()
                                 .filter_map(|(k, v)| {
-                                    if k.contains(diagnostic_session.network_name) {
+                                    if k.contains(diagnostic_network.network_name) {
                                         let subject_name = v.get_subject().to_string();
                                         Some((
                                             k,

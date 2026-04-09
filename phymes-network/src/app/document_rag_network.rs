@@ -30,7 +30,7 @@ use crate::CustomAgentsBuilderTrait;
 ///
 /// * The embedding size must be specified before which is determined by the size of
 ///   the hidden layer of the embedding model
-pub struct DocumentRAGSession<'a> {
+pub struct DocumentRAGNetwork<'a> {
     /// Chat tasks
     pub chat_task_name: &'a str,
     pub chat_processor_name: &'a str,
@@ -86,7 +86,7 @@ pub struct DocumentRAGSession<'a> {
     pub embed_api_url: Option<&'a str>,
 }
 
-impl Default for DocumentRAGSession<'_> {
+impl Default for DocumentRAGNetwork<'_> {
     fn default() -> Self {
         Self {
             chat_task_name: "chat_task_1",
@@ -134,16 +134,16 @@ impl Default for DocumentRAGSession<'_> {
     }
 }
 
-impl<'a> DocumentRAGSession<'a> {
-    pub fn new_with_session_name(network_name: &'a str) -> Self {
-        DocumentRAGSession {
+impl<'a> DocumentRAGNetwork<'a> {
+    pub fn new_with_network_name(network_name: &'a str) -> Self {
+        DocumentRAGNetwork {
             network_name,
             ..Default::default()
         }
     }
 }
 
-impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
+impl CustomAgentsBuilderTrait for DocumentRAGNetwork<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         // DM: `Reqwest` connections break prematurely in `OpenAIChatProcessor`
         //  when chained or nested within other streams.
@@ -1041,16 +1041,16 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_doc_rag_session() -> Result<()> {
+    async fn test_doc_rag_network() -> Result<()> {
         // initialize the session
-        let mut doc_rag_session = DocumentRAGSession::default();
+        let mut doc_rag_network = DocumentRAGNetwork::default();
         if cfg!(not(feature = "candle")) {
-            doc_rag_session.chat_api_url = Some("http://0.0.0.0:8000/v1");
-            doc_rag_session.embed_api_url = Some("http://0.0.0.0:8001/v1");
+            doc_rag_network.chat_api_url = Some("http://0.0.0.0:8000/v1");
+            doc_rag_network.embed_api_url = Some("http://0.0.0.0:8001/v1");
         }
-        let (network, session_messages) = doc_rag_session
+        let (network, session_messages) = doc_rag_network
             .build()
-            .with_name(doc_rag_session.network_name)
+            .with_name(doc_rag_network.network_name)
             .add_session_interface(None)?
             .add_next_tasks()?
             .add_next_supersteps()?
@@ -1079,7 +1079,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: chat.get_name().to_string(),
             })
-            .with_publisher(doc_rag_session.network_name)
+            .with_publisher(doc_rag_network.network_name)
             .make_name()?
             .build()?;
         let blob = AvailableInterfaceSubjects::UserPdf
@@ -1092,7 +1092,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: blob.get_name().to_string(),
             })
-            .with_publisher(doc_rag_session.network_name)
+            .with_publisher(doc_rag_network.network_name)
             .make_name()?
             .build()?;
 
@@ -1124,7 +1124,7 @@ mod tests {
                 .filter_map(|map| {
                     map.remove(&format!(
                         "from_{}_on_{}",
-                        doc_rag_session.network_name,
+                        doc_rag_network.network_name,
                         AvailableInterfaceSubjects::AssistantMessages
                     ))
                     .map(|v| v.get_message_own())
@@ -1143,40 +1143,40 @@ mod tests {
 
             // for metric in metrics.clone_inner().iter() {
             //     if metric.value().name() == "output_rows"
-            //         && metric.span_name().as_ref().unwrap() == doc_rag_session.chat_processor_name
+            //         && metric.span_name().as_ref().unwrap() == doc_rag_network.chat_processor_name
             //     {
             //         assert!(metric.value().as_usize() >= 1);
             //     }
             //     if metric.value().name() == "output_rows"
             //         && metric.span_name().as_ref().unwrap()
-            //             == doc_rag_session.embed_documents_processor_name
+            //             == doc_rag_network.embed_documents_processor_name
             //     {
             //         assert_eq!(metric.value().as_usize(), 21);
             //     }
             //     if metric.value().name() == "output_rows"
             //         && metric.span_name().as_ref().unwrap()
-            //             == doc_rag_session.document_chunk_processor_name
+            //             == doc_rag_network.document_chunk_processor_name
             //     {
             //         assert_eq!(metric.value().as_usize(), 21);
             //     }
             //     if metric.value().name() == "output_rows"
-            //         && metric.span_name().as_ref().unwrap() == doc_rag_session.embed_query_processor_name
+            //         && metric.span_name().as_ref().unwrap() == doc_rag_network.embed_query_processor_name
             //     {
             //         assert_eq!(metric.value().as_usize(), 1);
             //     }
             //     if metric.value().name() == "output_rows"
             //         && metric.span_name().as_ref().unwrap()
-            //             == doc_rag_session.relative_similarity_processor_name
+            //             == doc_rag_network.relative_similarity_processor_name
             //     {
             //         assert_eq!(metric.value().as_usize(), 21);
             //     }
             //     if metric.value().name() == "output_rows"
-            //         && metric.span_name().as_ref().unwrap() == doc_rag_session.sort_scores_processor_name
+            //         && metric.span_name().as_ref().unwrap() == doc_rag_network.sort_scores_processor_name
             //     {
             //         assert_eq!(metric.value().as_usize(), 21);
             //     }
             //     if metric.value().name() == "output_rows"
-            //         && metric.span_name().as_ref().unwrap() == doc_rag_session.top_k_processor_name
+            //         && metric.span_name().as_ref().unwrap() == doc_rag_network.top_k_processor_name
             //     {
             //         assert_eq!(metric.value().as_usize(), 1);
             //     }

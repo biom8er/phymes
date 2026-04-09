@@ -2,7 +2,7 @@
 
 ## Synopsis
 
-This tutorial describes how the [Chat Agent Session Plan](https://github.com/biom8er/phymes/blob/main/phymes-network/src/session_plans/chat_agent_session.rs) uses the [phymes-agent](https://github.com/biom8er/phymes/blob/main/phymes-network/README.md) and [phymes-subject](https://github.com/biom8er/phymes/blob/main/phymes-subject/README.md) crates to build a simple chat agent. The `chat agent` is provided in the [examples](https://github.com/biom8er/phymes/blob/main/phymes-network/examples/chat_agent_session/main.rs).
+This tutorial describes how the [Chat Agent Session Plan](https://github.com/biom8er/phymes/blob/main/phymes-network/src/session_plans/chat_agent_network.rs) uses the [phymes-agent](https://github.com/biom8er/phymes/blob/main/phymes-network/README.md) and [phymes-subject](https://github.com/biom8er/phymes/blob/main/phymes-subject/README.md) crates to build a simple chat agent. The `chat agent` is provided in the [examples](https://github.com/biom8er/phymes/blob/main/phymes-network/examples/chat_agent_network/main.rs).
 
 ## Tutorial
 
@@ -61,4 +61,4 @@ The decision to chain multiple processors into a single task or to allocated eac
 
 ## Next steps
 
-The [Chat Agent Session Plan](https://github.com/biom8er/phymes/phymes-network/src/session_plans/chat_agent_session.rs) comes with a number of default configurations including the model, number of tokens to sample, temperature of sampling, etc. that can be modified by the user.
+The [Chat Agent Session Plan](https://github.com/biom8er/phymes/phymes-network/src/session_plans/chat_agent_network.rs) comes with a number of default configurations including the model, number of tokens to sample, temperature of sampling, etc. that can be modified by the user.

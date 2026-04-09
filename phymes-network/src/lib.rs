@@ -4,8 +4,8 @@ mod network;
 mod stream;
 
 pub use app::{
-    AvailableSessionPlans, BuilderSession, ChatAgentSession, DiagnosticSession, DocumentRAGSession,
-    ToolAgentSession, UserSession, make_example_mermaid_table,
+    AvailableNetworks, BuilderNetwork, ChatAgentNetwork, DiagnosticNetwork, DocumentRAGNetwork,
+    ToolAgentNetwork, UserNetwork, make_example_mermaid_table,
 };
 pub use network::{
     CustomAgentsBuilderTrait, Network, NetworkBuilder,

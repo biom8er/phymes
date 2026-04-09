@@ -25,9 +25,9 @@ echo "-----------------------------------------------"
 cargo check --features gpu --all-targets
 cargo test --features gpu
 cargo run --package phymes-ml --features gpu --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --messages "messages" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
-cargo run --package phymes-network --features gpu --release --example chat_agent_session
-cargo run --package phymes-network --features gpu --release --example doc_rag_session
-cargo run --package phymes-network --features gpu --release --example tool_agent_session
+cargo run --package phymes-network --features gpu --release --example chat_agent_network
+cargo run --package phymes-network --features gpu --release --example doc_rag_network
+cargo run --package phymes-network --features gpu --release --example tool_agent_network
 
 # API with Candle tests require Docker and an internet connection
 echo "Tests and examples for api and candle features for Linux targets."
@@ -84,12 +84,12 @@ wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/exa
 cargo check -p phymes-network --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
 cargo test -p phymes-network --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
 for file in target/wasm32-wasip2/release/deps/phymes_network-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
-cargo build --package phymes-network --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat_agent_session
-wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat_agent_session.wasm
-cargo build --package phymes-network --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example doc_rag_session
-wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/doc_rag_session.wasm
-cargo build --package phymes-network --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example tool_agent_session
-wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/tool_agent_session.wasm
+cargo build --package phymes-network --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat_agent_network
+wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat_agent_network.wasm
+cargo build --package phymes-network --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example doc_rag_network
+wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/doc_rag_network.wasm
+cargo build --package phymes-network --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example tool_agent_network
+wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/tool_agent_network.wasm
 cargo check -p phymes-server --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
 cargo test -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
 for file in target/wasm32-wasip2/release/deps/phymes_server-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done

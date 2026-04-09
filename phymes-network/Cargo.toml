@@ -55,9 +55,9 @@ object_store = { version = "0.13.1", optional = true }
 criterion = { version = "0.8.2", default-features = false, features = ["cargo_bench_support"] }
 
 [[bench]]
-name = "chat_agent_session"
+name = "chat_agent_network"
 harness = false
 
 [[bench]]
-name = "doc_rag_session"
+name = "doc_rag_network"
 harness = false

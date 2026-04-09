@@ -1451,8 +1451,8 @@ impl BuilderTrait for NetworkBuilderMermaid {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ChatAgentSession, CustomAgentsBuilderTrait, DocumentRAGSession,
-        NetworkBuilderAgentsTrait, ToolAgentSession, test_network_builder_agents,
+        ChatAgentNetwork, CustomAgentsBuilderTrait, DocumentRAGNetwork,
+        NetworkBuilderAgentsTrait, ToolAgentNetwork, test_network_builder_agents,
     };
 
     use super::*;
@@ -1735,9 +1735,9 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_chat_agent_session_with_configs_and_session() -> Result<()> {
+    fn test_from_mermaid_chat_agent_network_with_configs_and_session() -> Result<()> {
         // initialize the session
-        let builder = ChatAgentSession::new_with_session_name("session_1")
+        let builder = ChatAgentNetwork::new_with_network_name("session_1")
             .build()
             .with_name("session_1")
             .add_session_interface(None)?;
@@ -1788,9 +1788,9 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_doc_rag_session_with_configs_and_session() -> Result<()> {
+    fn test_from_mermaid_doc_rag_network_with_configs_and_session() -> Result<()> {
         // initialize the session
-        let builder = DocumentRAGSession::new_with_session_name("session_1")
+        let builder = DocumentRAGNetwork::new_with_network_name("session_1")
             .build()
             .with_name("session_1")
             .add_session_interface(None)?;
@@ -1841,9 +1841,9 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_tool_agent_session_with_configs_and_session() -> Result<()> {
+    fn test_from_mermaid_tool_agent_network_with_configs_and_session() -> Result<()> {
         // initialize the session
-        let builder = ToolAgentSession::new_with_session_name("session_1")
+        let builder = ToolAgentNetwork::new_with_network_name("session_1")
             .build()
             .with_name("session_1")
             .add_session_interface(None)?;
@@ -1894,9 +1894,9 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_chat_agent_session_without_configs_and_session() -> Result<()> {
+    fn test_from_mermaid_chat_agent_network_without_configs_and_session() -> Result<()> {
         // initialize the session
-        let builder = ChatAgentSession::new_with_session_name("session_1")
+        let builder = ChatAgentNetwork::new_with_network_name("session_1")
             .build()
             .with_name("session_1")
             .add_session_interface(None)?;
@@ -1950,9 +1950,9 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_doc_rag_session_without_configs_and_session() -> Result<()> {
+    fn test_from_mermaid_doc_rag_network_without_configs_and_session() -> Result<()> {
         // initialize the session
-        let builder = DocumentRAGSession::new_with_session_name("session_1")
+        let builder = DocumentRAGNetwork::new_with_network_name("session_1")
             .build()
             .with_name("session_1")
             .add_session_interface(None)?;
@@ -2006,9 +2006,9 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_tool_agent_session_without_configs_and_session() -> Result<()> {
+    fn test_from_mermaid_tool_agent_network_without_configs_and_session() -> Result<()> {
         // initialize the session
-        let builder = ToolAgentSession::new_with_session_name("session_1")
+        let builder = ToolAgentNetwork::new_with_network_name("session_1")
             .build()
             .with_name("session_1")
             .add_session_interface(None)?;
@@ -2062,9 +2062,9 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_doc_rag_session_with_data() -> Result<()> {
+    fn test_from_mermaid_doc_rag_network_with_data() -> Result<()> {
         // initialize the session
-        let builder = DocumentRAGSession::new_with_session_name("session_1")
+        let builder = DocumentRAGNetwork::new_with_network_name("session_1")
             .build()
             .with_name("session_1")
             .add_session_interface(None)?;
@@ -2159,9 +2159,9 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_tool_agent_session_with_data() -> Result<()> {
+    fn test_from_mermaid_tool_agent_network_with_data() -> Result<()> {
         // initialize the session
-        let builder = ToolAgentSession::new_with_session_name("session_1")
+        let builder = ToolAgentNetwork::new_with_network_name("session_1")
             .build()
             .with_name("session_1")
             .add_session_interface(None)?;

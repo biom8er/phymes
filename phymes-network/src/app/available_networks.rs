@@ -7,14 +7,14 @@ use phymes_message::IPCMessageMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BuilderSession, ChatAgentSession, CustomAgentsBuilderTrait, DocumentRAGSession, Network,
+    BuilderNetwork, ChatAgentNetwork, CustomAgentsBuilderTrait, DocumentRAGNetwork, Network,
     NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderTrait,
-    ToolAgentSession, UserSession,
+    ToolAgentNetwork, UserNetwork,
 };
 
 /// The available session plans
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
-pub enum AvailableSessionPlans {
+pub enum AvailableNetworks {
     #[value(name = "Chat")]
     Chat,
     #[value(name = "DocChat")]
@@ -27,7 +27,7 @@ pub enum AvailableSessionPlans {
     Users,
 }
 
-impl Display for AvailableSessionPlans {
+impl Display for AvailableNetworks {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Chat => write!(f, "Chat"),
@@ -39,7 +39,7 @@ impl Display for AvailableSessionPlans {
     }
 }
 
-impl AvailableSessionPlans {
+impl AvailableNetworks {
     /// Get all available session plans
     pub fn get_all_session_plan_names() -> Vec<String> {
         let session_plans = ["Chat", "DocChat", "ToolChat", "Builder"];
@@ -63,11 +63,11 @@ impl AvailableSessionPlans {
     pub fn get_network_builder(&self, session_name: &str) -> NetworkBuilder {
         // Initialize the session context builder
         match self {
-            Self::Chat => ChatAgentSession::new_with_session_name(session_name).build(),
-            Self::DocChat => DocumentRAGSession::new_with_session_name(session_name).build(),
-            Self::ToolChat => ToolAgentSession::new_with_session_name(session_name).build(),
-            Self::Builder => BuilderSession::new_with_session_name(session_name).build(),
-            Self::Users => UserSession::new_with_session_name(session_name).build(),
+            Self::Chat => ChatAgentNetwork::new_with_network_name(session_name).build(),
+            Self::DocChat => DocumentRAGNetwork::new_with_network_name(session_name).build(),
+            Self::ToolChat => ToolAgentNetwork::new_with_network_name(session_name).build(),
+            Self::Builder => BuilderNetwork::new_with_network_name(session_name).build(),
+            Self::Users => UserNetwork::new_with_network_name(session_name).build(),
         }
     }
 

@@ -498,11 +498,11 @@ cargo run --package phymes-subject --features wsl --release --example addrows
 
 # run examples for the phymes-ml and phymes-network crates with GPU acceleration with Candle assets
 cargo run --package phymes-ml --features wsl,gpu,candle --release --example chat -- --candle-asset SmoLM2-135M-chat
-cargo run --package phymes-network --features wsl,gpu,candle --release --example chat_agent_session
+cargo run --package phymes-network --features wsl,gpu,candle --release --example chat_agent_network
 
 # or run examples for the phymes-ml and phymes-network crates on the CPU with OpenAI API token services
 cargo run --package phymes-ml --no-default-features --features wsl,api --release --example chat -- --openai-asset Llama-3.2-1b-instruct
-cargo run --package phymes-network --no-default-features --features wsl,api --release --example chat_agent_session
+cargo run --package phymes-network --no-default-features --features wsl,api --release --example chat_agent_network
 ```
 
 The examples can also be ran using WASM. However, all assets needed to run the example need to be provided locally unlike native where we can rely on the HuggingFace API to download and cache models for us. The following bash script can be used to build the examples in wasm and run the examples using wasmtime:
@@ -520,11 +520,11 @@ cargo build --package phymes-ml --target wasm32-wasip2 --no-default-features --f
 # run the chat example for the phymes-network crate
 wasmtime --dir="$HOME/.cache/hf" --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat.wasm --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
 
-# build the chat_agent_session example for the phymes-network crate
-cargo build --package phymes-network --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat_agent_session
+# build the chat_agent_network example for the phymes-network crate
+cargo build --package phymes-network --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat_agent_network
 
-# run the chat_agent_session example for the phymes-network crate
-wasmtime --dir="$HOME/.cache/hf" --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat_agent_session.wasm
+# run the chat_agent_network example for the phymes-network crate
+wasmtime --dir="$HOME/.cache/hf" --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat_agent_network.wasm
 ```
 
 #### Clippy lints

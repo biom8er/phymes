@@ -15,7 +15,7 @@ use phymes_schemas::{
 };
 use phymes_task::TaskPlan;
 
-use crate::{AvailableSessionPlans, CustomAgentsBuilderTrait, make_example_mermaid_table};
+use crate::{AvailableNetworks, CustomAgentsBuilderTrait, make_example_mermaid_table};
 
 /// A session for all user management tasks
 ///
@@ -26,7 +26,7 @@ use crate::{AvailableSessionPlans, CustomAgentsBuilderTrait, make_example_mermai
 /// 1. Filtering the user information by email
 /// 2. Joining the user sessions with their mermaid diagrams
 /// 3. Registering new users
-pub struct UserSession<'a> {
+pub struct UserNetwork<'a> {
     /// Filter session contexts by email subtask
     pub filter_networks_by_email_runtime_env_name: &'a str,
     pub filter_networks_by_email_task_name: &'a str,
@@ -46,10 +46,10 @@ pub struct UserSession<'a> {
     pub network_name: &'a str,
 }
 
-impl Default for UserSession<'_> {
+impl Default for UserNetwork<'_> {
     fn default() -> Self {
-        UserSession {
-            network_name: "user_session",
+        UserNetwork {
+            network_name: "user_network",
             filter_networks_by_email_runtime_env_name: "filter_networks_by_email_runtime_env_name",
             filter_networks_by_email_task_name: "filter_networks_by_email_task_name",
             filter_networks_by_email_processor_name: "filter_networks_by_email_processor_name",
@@ -64,9 +64,9 @@ impl Default for UserSession<'_> {
     }
 }
 
-impl<'a> UserSession<'a> {
-    pub fn new_with_session_name(network_name: &'a str) -> Self {
-        UserSession {
+impl<'a> UserNetwork<'a> {
+    pub fn new_with_network_name(network_name: &'a str) -> Self {
+        UserNetwork {
             network_name,
             ..Default::default()
         }
@@ -89,7 +89,7 @@ impl<'a> UserSession<'a> {
     pub fn make_user_network_table(&self) -> Result<Subject> {
         let mut email = Vec::new();
         let mut network_name = Vec::new();
-        for name in AvailableSessionPlans::get_all_session_plan_names() {
+        for name in AvailableNetworks::get_all_session_plan_names() {
             email.push("contact@biom8er.com".to_string());
             network_name.push(name);
         }
@@ -101,7 +101,7 @@ impl<'a> UserSession<'a> {
     }
 }
 
-impl CustomAgentsBuilderTrait for UserSession<'_> {
+impl CustomAgentsBuilderTrait for UserNetwork<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![
             TaskPlan {
@@ -308,7 +308,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 }
 
 #[allow(dead_code)]
-pub(crate) mod user_session_inner {
+pub(crate) mod user_network_inner {
     use anyhow::Result;
     use phymes_subject::{BuildableTrait, MappableTrait, SubjectTrait};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
@@ -320,9 +320,9 @@ pub(crate) mod user_session_inner {
 
     use super::*;
 
-    pub async fn user_session() -> Result<(Arc<Network>, NetworkStream)> {
+    pub async fn user_network() -> Result<(Arc<Network>, NetworkStream)> {
         // initialize the session
-        let user_agent_session = UserSession::default();
+        let user_agent_session = UserNetwork::default();
         let (network, session_messages) = user_agent_session
             .build()
             .with_name(user_agent_session.network_name)
@@ -370,8 +370,8 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_user_session() -> Result<()> {
-        let (network_arc, network_stream) = user_session_inner::user_session().await?;
+    async fn test_user_network() -> Result<()> {
+        let (network_arc, network_stream) = user_network_inner::user_network().await?;
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
         assert!(response.is_empty());
 

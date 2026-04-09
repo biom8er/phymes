@@ -16,7 +16,7 @@ use phymes_subject::{
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
 use phymes_network::{
-    CustomAgentsBuilderTrait, NetworkBuilderAgentsTrait, NetworkStream, UserSession,
+    CustomAgentsBuilderTrait, NetworkBuilderAgentsTrait, NetworkStream, UserNetwork,
 };
 use phymes_schemas::{
     AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjectsTrait,
@@ -25,7 +25,7 @@ use phymes_schemas::{
 
 pub async fn run_main() -> Result<()> {
     // initialize the session
-    let user_agent_session = UserSession::default();
+    let user_agent_session = UserNetwork::default();
     let (network, session_messages) = user_agent_session
         .build()
         .with_name(user_agent_session.network_name)

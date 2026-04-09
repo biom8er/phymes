@@ -15,7 +15,7 @@ use phymes_task::TaskPlan;
 
 use crate::CustomAgentsBuilderTrait;
 
-pub struct ChatAgentSession<'a> {
+pub struct ChatAgentNetwork<'a> {
     /// Chat tasks
     pub chat_task_name: &'a str,
     pub chat_processor_name: &'a str,
@@ -33,9 +33,9 @@ pub struct ChatAgentSession<'a> {
     pub chat_api_url: Option<&'a str>,
 }
 
-impl Default for ChatAgentSession<'_> {
+impl Default for ChatAgentNetwork<'_> {
     fn default() -> Self {
-        ChatAgentSession {
+        ChatAgentNetwork {
             chat_task_name: "chat_task_1",
             message_aggregator_task_1_name: "message_aggregator_task_1",
             message_aggregator_processor_1_name: "message_aggregator_1",
@@ -50,16 +50,16 @@ impl Default for ChatAgentSession<'_> {
     }
 }
 
-impl<'a> ChatAgentSession<'a> {
-    pub fn new_with_session_name(network_name: &'a str) -> Self {
-        ChatAgentSession {
+impl<'a> ChatAgentNetwork<'a> {
+    pub fn new_with_network_name(network_name: &'a str) -> Self {
+        ChatAgentNetwork {
             network_name,
             ..Default::default()
         }
     }
 }
 
-impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
+impl CustomAgentsBuilderTrait for ChatAgentNetwork<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         // DM: `Reqwest` connections break prematurely in `OpenAIChatProcessor`
         //  when chained or nested within other streams.
@@ -324,12 +324,12 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_chat_agent_session() -> Result<()> {
+    async fn test_chat_agent_network() -> Result<()> {
         // initialize the session
-        let chat_agent_session = ChatAgentSession::default();
-        let (network, session_messages) = chat_agent_session
+        let chat_agent_network = ChatAgentNetwork::default();
+        let (network, session_messages) = chat_agent_network
             .build()
-            .with_name(chat_agent_session.network_name)
+            .with_name(chat_agent_network.network_name)
             .add_session_interface(None)?
             .add_next_tasks()?
             .add_next_supersteps()?
@@ -356,7 +356,7 @@ mod tests {
                 .with_update(&Publication::Extend {
                     subject_name: chat.get_name().to_string(),
                 })
-                .with_publisher(chat_agent_session.network_name)
+                .with_publisher(chat_agent_network.network_name)
                 .make_name()?
                 .build()?;
             let incoming_message_map = create_message_map(vec![message]);
@@ -374,7 +374,7 @@ mod tests {
                 .filter_map(|map| {
                     map.remove(&format!(
                         "from_{}_on_{}",
-                        chat_agent_session.network_name,
+                        chat_agent_network.network_name,
                         AvailableInterfaceSubjects::AssistantMessages
                     ))
                     .map(|v| v.get_message_own())
@@ -421,7 +421,7 @@ mod tests {
                 .with_update(&Publication::Extend {
                     subject_name: chat.get_name().to_string(),
                 })
-                .with_publisher(chat_agent_session.network_name)
+                .with_publisher(chat_agent_network.network_name)
                 .make_name()?
                 .build()?;
             let incoming_message_map = create_message_map(vec![message]);
@@ -436,7 +436,7 @@ mod tests {
                 .filter_map(|map| {
                     map.remove(&format!(
                         "from_{}_on_{}",
-                        chat_agent_session.network_name,
+                        chat_agent_network.network_name,
                         AvailableInterfaceSubjects::AssistantMessages
                     ))
                     .map(|v| v.get_message_own())

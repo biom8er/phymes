@@ -16,7 +16,7 @@ use phymes_diagnostics::HashMap;
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
 use phymes_network::{
-    CustomAgentsBuilderTrait, DocumentRAGSession, NetworkBuilderAgentsTrait, NetworkStream,
+    CustomAgentsBuilderTrait, DocumentRAGNetwork, NetworkBuilderAgentsTrait, NetworkStream,
 };
 use phymes_schemas::{
     AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjectsTrait,
@@ -25,14 +25,14 @@ use phymes_streams::ChatBuilderTraitExt;
 
 pub async fn run_main() -> Result<()> {
     // initialize the session
-    let mut doc_rag_session = DocumentRAGSession::default();
+    let mut doc_rag_network = DocumentRAGNetwork::default();
     if cfg!(not(feature = "candle")) {
-        doc_rag_session.chat_api_url = Some("http://0.0.0.0:8000/v1");
-        doc_rag_session.embed_api_url = Some("http://0.0.0.0:8001/v1");
+        doc_rag_network.chat_api_url = Some("http://0.0.0.0:8000/v1");
+        doc_rag_network.embed_api_url = Some("http://0.0.0.0:8001/v1");
     }
-    let (network, session_messages) = doc_rag_session
+    let (network, session_messages) = doc_rag_network
         .build()
-        .with_name(doc_rag_session.network_name)
+        .with_name(doc_rag_network.network_name)
         .add_session_interface(None)?
         .add_next_tasks()?
         .add_next_supersteps()?
@@ -61,7 +61,7 @@ pub async fn run_main() -> Result<()> {
         .with_update(&Publication::Extend {
             subject_name: chat.get_name().to_string(),
         })
-        .with_publisher(doc_rag_session.network_name)
+        .with_publisher(doc_rag_network.network_name)
         .make_name()?
         .build()?;
     let blob = AvailableInterfaceSubjects::UserPdf
@@ -74,7 +74,7 @@ pub async fn run_main() -> Result<()> {
         .with_update(&Publication::Extend {
             subject_name: blob.get_name().to_string(),
         })
-        .with_publisher(doc_rag_session.network_name)
+        .with_publisher(doc_rag_network.network_name)
         .make_name()?
         .build()?;
 
@@ -98,7 +98,7 @@ pub async fn run_main() -> Result<()> {
         .filter_map(|map| {
             map.remove(&format!(
                 "from_{}_on_{}",
-                doc_rag_session.network_name,
+                doc_rag_network.network_name,
                 AvailableInterfaceSubjects::AssistantMessages
             ))
             .map(|v| v.get_message_own())

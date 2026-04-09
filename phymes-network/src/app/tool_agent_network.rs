@@ -27,7 +27,7 @@ use arrow::datatypes::{DataType, Field, Fields};
 use crate::CustomAgentsBuilderTrait;
 
 /// Tool agent node with human-in-the-loop
-pub struct ToolAgentSession<'a> {
+pub struct ToolAgentNetwork<'a> {
     /// Text generation inference capabilities (i.e, the agent)
     pub chat_task_name: &'a str,
     pub chat_processor_name: &'a str, // also used as the config name
@@ -72,9 +72,9 @@ pub struct ToolAgentSession<'a> {
     pub chat_api_url: Option<&'a str>,
 }
 
-impl Default for ToolAgentSession<'_> {
+impl Default for ToolAgentNetwork<'_> {
     fn default() -> Self {
-        ToolAgentSession {
+        ToolAgentNetwork {
             network_name: "network_1",
             chat_processor_name: "chat_processor_1",
             chat_task_name: "chat_task_1",
@@ -115,9 +115,9 @@ impl Default for ToolAgentSession<'_> {
     }
 }
 
-impl<'a> ToolAgentSession<'a> {
-    pub fn new_with_session_name(network_name: &'a str) -> Self {
-        ToolAgentSession {
+impl<'a> ToolAgentNetwork<'a> {
+    pub fn new_with_network_name(network_name: &'a str) -> Self {
+        ToolAgentNetwork {
             network_name,
             ..Default::default()
         }
@@ -139,7 +139,7 @@ impl<'a> ToolAgentSession<'a> {
     }
 }
 
-impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
+impl CustomAgentsBuilderTrait for ToolAgentNetwork<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         Some(vec![
             // DM: `Reqwest` connections break prematurely in `OpenAIChatProcessor`
@@ -851,12 +851,12 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_tool_agent_session() -> Result<()> {
+    async fn test_tool_agent_network() -> Result<()> {
         // initialize the session
-        let tool_agent_session = ToolAgentSession::default();
-        let (network, session_messages) = tool_agent_session
+        let tool_agent_network = ToolAgentNetwork::default();
+        let (network, session_messages) = tool_agent_network
             .build()
-            .with_name(tool_agent_session.network_name)
+            .with_name(tool_agent_network.network_name)
             .add_session_interface(None)?
             .add_next_tasks()?
             .add_next_supersteps()?
@@ -878,7 +878,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: chat.get_name().to_string(),
             })
-            .with_publisher(tool_agent_session.network_name)
+            .with_publisher(tool_agent_network.network_name)
             .make_name()?
             .build()?;
         let blob = AvailableInterfaceSubjects::UserCsv
@@ -891,7 +891,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: blob.get_name().to_string(),
             })
-            .with_publisher(tool_agent_session.network_name)
+            .with_publisher(tool_agent_network.network_name)
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![chat_message, blob_message]);
@@ -915,7 +915,7 @@ mod tests {
                 .filter_map(|map| {
                     map.remove(&format!(
                         "from_{}_on_{}",
-                        tool_agent_session.network_name,
+                        tool_agent_network.network_name,
                         AvailableInterfaceSubjects::AssistantMessages
                     ))
                     .map(|v| v.get_message_own())
@@ -937,7 +937,7 @@ mod tests {
                 .filter_map(|map| {
                     map.remove(&format!(
                         "from_{}_on_{}",
-                        tool_agent_session.network_name,
+                        tool_agent_network.network_name,
                         AvailableInterfaceSubjects::AssistantCsv
                     ))
                     .map(|v| v.get_message_own())
@@ -965,30 +965,30 @@ mod tests {
 
             // for metric in metrics.clone_inner().iter() {
             //     if metric.value().name() == "output_rows"
-            //         && metric.span_name().as_ref().unwrap() == tool_agent_session.chat_processor_name
+            //         && metric.span_name().as_ref().unwrap() == tool_agent_network.chat_processor_name
             //     {
             //         assert!(metric.value().as_usize() > 0);
             //     }
             //     if metric.value().name() == "output_rows"
             //         && metric.span_name().as_ref().unwrap()
-            //             == tool_agent_session.message_parser_processor_name
+            //             == tool_agent_network.message_parser_processor_name
             //     {
             //         assert!(metric.value().as_usize() > 0 || metric.value().as_usize() == 1);
             //     }
             //     if metric.value().name() == "output_rows"
-            //         && metric.span_name().as_ref().unwrap() == tool_agent_session.tool_processor_name
+            //         && metric.span_name().as_ref().unwrap() == tool_agent_network.tool_processor_name
             //     {
             //         assert_eq!(metric.value().as_usize(), 3);
             //     }
             //     if metric.value().name() == "output_rows"
             //         && metric.span_name().as_ref().unwrap()
-            //             == tool_agent_session.tool_summary_processor_name
+            //             == tool_agent_network.tool_summary_processor_name
             //     {
             //         assert_eq!(metric.value().as_usize(), 1);
             //     }
             //     if metric.value().name() == "output_rows"
             //         && metric.span_name().as_ref().unwrap()
-            //             == tool_agent_session.tool_attachment_processor_name
+            //             == tool_agent_network.tool_attachment_processor_name
             //     {
             //         assert_eq!(metric.value().as_usize(), 1);
             //     }

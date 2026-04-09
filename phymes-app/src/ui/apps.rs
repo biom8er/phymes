@@ -8,7 +8,7 @@ use phymes_message::{
     MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
     SessionInterfaceMessageBuilderTrait,
 };
-use phymes_network::AvailableSessionPlans;
+use phymes_network::AvailableNetworks;
 use phymes_schemas::{AvailableSubjects, DataFormat};
 use phymes_server::create_session_name;
 
@@ -69,7 +69,7 @@ pub fn apps_interface_view() -> Element {
             // DM: this can be better optimized to prevent redundant API calls each time the active session is changed in Builder mode
             create_session_name(
                 EMAIL().as_str(),
-                AvailableSessionPlans::Builder.to_string().as_str(),
+                AvailableNetworks::Builder.to_string().as_str(),
             )
         } else {
             create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str())

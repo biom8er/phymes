@@ -11,14 +11,14 @@ use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder}
 use phymes_schemas::{AvailableSubjects, create_session_mermaid_batch};
 use phymes_task::TaskPlan;
 
-use crate::{AvailableSessionPlans, CustomAgentsBuilderTrait, NetworkBuilderMermaidTrait};
+use crate::{AvailableNetworks, CustomAgentsBuilderTrait, NetworkBuilderMermaidTrait};
 
 /// Example Mermaid diagrams for chat, doc, and tool agent sessions
 pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Subject> {
     let available_session_plans = if deployable {
-        AvailableSessionPlans::get_deployable_session_plan_names()
+        AvailableNetworks::get_deployable_session_plan_names()
     } else {
-        AvailableSessionPlans::get_all_session_plan_names()
+        AvailableNetworks::get_all_session_plan_names()
     };
 
     // Initialize with chat, doc, and tool agent session diagrams
@@ -27,7 +27,7 @@ pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Sub
     let mut er_diagram = Vec::new();
     let mut timestamp = Vec::new();
     for network_name in available_session_plans {
-        let builder = AvailableSessionPlans::get_network_builder_by_name(
+        let builder = AvailableNetworks::get_network_builder_by_name(
             &network_name,
             &network_name,
         )?
@@ -57,28 +57,28 @@ pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Sub
 }
 
 /// Session for building new sessions via Mermaid diagrams
-pub struct BuilderSession<'a> {
+pub struct BuilderNetwork<'a> {
     /// Session and state
     pub network_name: &'a str,
 }
 
-impl Default for BuilderSession<'_> {
+impl Default for BuilderNetwork<'_> {
     fn default() -> Self {
-        BuilderSession {
+        BuilderNetwork {
             network_name: "network_1",
         }
     }
 }
 
-impl<'a> BuilderSession<'a> {
-    pub fn new_with_session_name(network_name: &'a str) -> Self {
-        BuilderSession {
+impl<'a> BuilderNetwork<'a> {
+    pub fn new_with_network_name(network_name: &'a str) -> Self {
+        BuilderNetwork {
             network_name,
         }
     }
 }
 
-impl CustomAgentsBuilderTrait for BuilderSession<'_> {
+impl CustomAgentsBuilderTrait for BuilderNetwork<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![TaskPlan {
             task_name: self.network_name.to_string(),
@@ -136,12 +136,12 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_builder_agent_session() -> Result<()> {
+    async fn test_builder_network() -> Result<()> {
         // initialize the session
-        let builder_agent_session = BuilderSession::default();
-        let _network = builder_agent_session
+        let builder_network = BuilderNetwork::default();
+        let _network = builder_network
             .build()
-            .with_name(builder_agent_session.network_name)
+            .with_name(builder_network.network_name)
             .build_with_tables()?;
 
         Ok(())

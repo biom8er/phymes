@@ -11,7 +11,7 @@ use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, create_message_map};
 use phymes_network::{
-    AvailableSessionPlans, Network, NetworkBuilder, NetworkBuilderAgentsTrait,
+    AvailableNetworks, Network, NetworkBuilder, NetworkBuilderAgentsTrait,
     NetworkBuilderMermaidTrait, NetworkBuilderTrait, NetworkStream,
 };
 use phymes_schemas::{
@@ -45,7 +45,7 @@ impl UserState {
     ) -> Result<Self> {
         let session_name = user_network_name.unwrap_or("Users");
         let (network_arc, session_messages) =
-            AvailableSessionPlans::get_network_stream_state_by_name(
+            AvailableNetworks::get_network_stream_state_by_name(
                 "Users",
                 session_name,
                 runtime_env,
@@ -230,7 +230,7 @@ pub struct ServerState {
     ///   where the session name = session_name + user_name
     pub networks: Arc<RwLock<HashMap<String, Arc<Network>>>>,
     /// Cache of user session_names indexed by user_name
-    pub user_session_names: Arc<RwLock<HashMap<String, Vec<String>>>>,
+    pub user_network_names: Arc<RwLock<HashMap<String, Vec<String>>>>,
 }
 
 impl Default for ServerState {
@@ -244,7 +244,7 @@ impl ServerState {
     pub fn new() -> Self {
         Self {
             networks: Arc::new(RwLock::new(HashMap::<String, Arc<Network>>::new())),
-            user_session_names: Arc::new(RwLock::new(HashMap::<String, Vec<String>>::new())),
+            user_network_names: Arc::new(RwLock::new(HashMap::<String, Vec<String>>::new())),
         }
     }
 
@@ -285,12 +285,12 @@ impl ServerState {
                         &user_network.network_name,
                         &session_name
                     );
-                } else if AvailableSessionPlans::get_all_session_plan_names()
+                } else if AvailableNetworks::get_all_session_plan_names()
                     .contains(&user_network.network_name)
                 {
                     // Prioritize the available session plans with initialized configs and other state
                     let (network_arc, session_messages) =
-                        AvailableSessionPlans::get_network_stream_state_by_name(
+                        AvailableNetworks::get_network_stream_state_by_name(
                             &user_network.network_name,
                             &session_name,
                             runtime_env,
@@ -308,14 +308,14 @@ impl ServerState {
                         .unwrap()
                         .insert(session_name.to_string(), network_arc);
                     tracing::debug!(
-                        "Creating network {} for session_name {} from AvailableSessionPlans",
+                        "Creating network {} for session_name {} from AvailableNetworks",
                         &user_network.network_name,
                         &session_name
                     );
                 } else {
                     // Build the session stream state with tables from Mermaid
                     // and leave the upload of configs and other initial session state to another step
-                    // DM: turn agent subject tests back on after refactoring BuilderSession
+                    // DM: turn agent subject tests back on after refactoring BuilderNetwork
                     let (network, session_messages) =
                         NetworkBuilder::from_mermaid_flowchart(
                             &user_network.flowchart_diagram,
@@ -354,19 +354,19 @@ impl ServerState {
 
                 // Update the cache if it exists
                 if self
-                    .user_session_names
+                    .user_network_names
                     .try_read()
                     .unwrap()
                     .contains_key(&user_network.email)
                 {
-                    self.user_session_names
+                    self.user_network_names
                         .try_write()
                         .unwrap()
                         .get_mut(&user_network.email)
                         .unwrap()
                         .push(session_name.to_string());
                 } else {
-                    let _ = self.user_session_names.try_write().unwrap().insert(
+                    let _ = self.user_network_names.try_write().unwrap().insert(
                         user_network.email.to_string(),
                         vec![session_name.to_string()],
                     );

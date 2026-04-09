@@ -57,7 +57,7 @@ pub async fn network_stream(
 
             // Add user state if it does not exist already
             if !state
-                .user_session_names
+                .user_network_names
                 .try_read()
                 .unwrap()
                 .contains_key(&current_user)

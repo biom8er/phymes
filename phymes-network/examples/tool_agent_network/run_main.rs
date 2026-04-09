@@ -14,7 +14,7 @@ use phymes_diagnostics::HashMap;
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
 use phymes_network::{
-    CustomAgentsBuilderTrait, NetworkBuilderAgentsTrait, NetworkStream, ToolAgentSession,
+    CustomAgentsBuilderTrait, NetworkBuilderAgentsTrait, NetworkStream, ToolAgentNetwork,
 };
 use phymes_schemas::{
     AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjectsTrait, CsvFormat,
@@ -24,10 +24,10 @@ use std::sync::Arc;
 
 pub async fn run_main() -> Result<()> {
     // initialize the session
-    let tool_agent_session = ToolAgentSession::default();
-    let (network, session_messages) = tool_agent_session
+    let tool_agent_network = ToolAgentNetwork::default();
+    let (network, session_messages) = tool_agent_network
         .build()
-        .with_name(tool_agent_session.network_name)
+        .with_name(tool_agent_network.network_name)
         .add_session_interface(None)?
         .add_next_tasks()?
         .add_next_supersteps()?
@@ -49,7 +49,7 @@ pub async fn run_main() -> Result<()> {
         .with_update(&Publication::Extend {
             subject_name: chat.get_name().to_string(),
         })
-        .with_publisher(tool_agent_session.network_name)
+        .with_publisher(tool_agent_network.network_name)
         .make_name()?
         .build()?;
     let blob = AvailableInterfaceSubjects::UserCsv
@@ -62,7 +62,7 @@ pub async fn run_main() -> Result<()> {
         .with_update(&Publication::Extend {
             subject_name: blob.get_name().to_string(),
         })
-        .with_publisher(tool_agent_session.network_name)
+        .with_publisher(tool_agent_network.network_name)
         .make_name()?
         .build()?;
     let message_map = create_message_map(vec![chat_message, blob_message]);
@@ -78,7 +78,7 @@ pub async fn run_main() -> Result<()> {
         .filter_map(|map| {
             map.remove(&format!(
                 "from_{}_on_{}",
-                tool_agent_session.network_name,
+                tool_agent_network.network_name,
                 AvailableInterfaceSubjects::AssistantMessages
             ))
             .map(|v| v.get_message_own())
@@ -100,7 +100,7 @@ pub async fn run_main() -> Result<()> {
         .filter_map(|map| {
             map.remove(&format!(
                 "from_{}_on_{}",
-                tool_agent_session.network_name,
+                tool_agent_network.network_name,
                 AvailableInterfaceSubjects::AssistantCsv
             ))
             .map(|v| v.get_message_own())

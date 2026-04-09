@@ -9,13 +9,13 @@ use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
 use phymes_network::{
-    ChatAgentSession, CustomAgentsBuilderTrait, NetworkBuilderAgentsTrait, NetworkStream,
+    ChatAgentNetwork, CustomAgentsBuilderTrait, NetworkBuilderAgentsTrait, NetworkStream,
 };
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
 use phymes_streams::ChatBuilderTraitExt;
 use phymes_task::SubscriptionTrait;
 
-fn benchmark_chat_agent_session(c: &mut Criterion) {
+fn benchmark_chat_agent_network(c: &mut Criterion) {
     // Cases for different input/output lengths
     let user_content_vec = vec![
         // Case 1: Short input, Long output
@@ -66,7 +66,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     format!("message_aggregator_task_2_{tag}_{iter}");
                 let message_aggregator_processor_2_name =
                     format!("message_aggregator_processor_2_{tag}_{iter}");
-                let config = ChatAgentSession {
+                let config = ChatAgentNetwork {
                     network_name: network_name.as_str(),
                     chat_processor_name: chat_processor_name.as_str(),
                     chat_task_name: chat_task_name.as_str(),
@@ -177,7 +177,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
     let metrics_table = metrics_vec.first().unwrap().to_owned();
     let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
     let pathname = format!(
-        "{target_dir}/.cache/metrics/benchmark_chat_agent_session_{wasm}_{gpu}_{candle}.csv"
+        "{target_dir}/.cache/metrics/benchmark_chat_agent_network_{wasm}_{gpu}_{candle}.csv"
     );
     let path = std::path::Path::new(pathname.as_str());
     let prefix = path.parent().unwrap();
@@ -186,5 +186,5 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
     metrics_table.to_csv_file(&mut file, b',', true).unwrap();
 }
 
-criterion_group!(benches, benchmark_chat_agent_session);
+criterion_group!(benches, benchmark_chat_agent_network);
 criterion_main!(benches);

@@ -7,7 +7,7 @@ use phymes_message::{
     MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait,
 };
 use phymes_network::{
-    AvailableSessionPlans, NetworkBuilder, NetworkBuilderAgentsTrait,
+    AvailableNetworks, NetworkBuilder, NetworkBuilderAgentsTrait,
     NetworkBuilderMermaidTrait,
 };
 use phymes_schemas::{create_session_mermaid_batch, AvailableSubjects, DataFormat};
@@ -209,9 +209,9 @@ pub fn builds_dropdown_view(
                                 .to_ipc_stream()
                                 .unwrap();
                             let data_serialized = serde_json::to_string(&SessionInterfaceMessage::get_builder()
-                                .with_session_name(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
+                                .with_session_name(&create_session_name(EMAIL().as_str(), AvailableNetworks::Builder.to_string().as_str()))
                                 .with_format(&DataFormat::Ipc)
-                                .with_publisher(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
+                                .with_publisher(&create_session_name(EMAIL().as_str(), AvailableNetworks::Builder.to_string().as_str()))
                                 .with_update(&Publication::Replace { subject_name: AvailableSubjects::BuilderMermaid.to_string() })
                                 .with_stream(false)
                                 .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
@@ -418,9 +418,9 @@ pub fn builds_dropdown_view(
                                 .to_ipc_stream()
                                 .unwrap();
                             let data_serialized = serde_json::to_string(&SessionInterfaceMessage::get_builder()
-                                .with_session_name(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
+                                .with_session_name(&create_session_name(EMAIL().as_str(), AvailableNetworks::Builder.to_string().as_str()))
                                 .with_format(&DataFormat::Ipc)
-                                .with_publisher(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
+                                .with_publisher(&create_session_name(EMAIL().as_str(), AvailableNetworks::Builder.to_string().as_str()))
                                 .with_update(&Publication::Extend { subject_name: AvailableSubjects::BuilderMermaid.to_string() })
                                 .with_stream(false)
                                 .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())

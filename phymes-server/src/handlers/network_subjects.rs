@@ -51,7 +51,7 @@ pub async fn network_put_subjects(
 
             // Add user state if it does not exist already
             if !state
-                .user_session_names
+                .user_network_names
                 .try_read()
                 .unwrap()
                 .contains_key(&current_user)
@@ -228,7 +228,7 @@ pub async fn network_get_subjects(
 
             // Add user state if it does not exist already
             if !state
-                .user_session_names
+                .user_network_names
                 .try_read()
                 .unwrap()
                 .contains_key(&current_user)

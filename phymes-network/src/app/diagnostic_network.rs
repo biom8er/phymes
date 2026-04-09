@@ -31,7 +31,7 @@ use crate::CustomAgentsBuilderTrait;
 ///
 /// An inbox and outbox for each support task are provided
 ///   that trigger the task
-pub struct DiagnosticSession<'a> {
+pub struct DiagnosticNetwork<'a> {
     /// Metrics analytics
     pub metrics_pivot_task_name: &'a str,
     pub metrics_pivot_processor_name: &'a str,
@@ -93,19 +93,19 @@ pub struct DiagnosticSession<'a> {
     pub network_name: &'a str,
 }
 
-impl<'a> DiagnosticSession<'a> {
-    pub fn new_with_session_name(network_name: &'a str) -> Self {
-        DiagnosticSession {
+impl<'a> DiagnosticNetwork<'a> {
+    pub fn new_with_network_name(network_name: &'a str) -> Self {
+        DiagnosticNetwork {
             network_name,
             ..Default::default()
         }
     }
 }
 
-impl Default for DiagnosticSession<'_> {
+impl Default for DiagnosticNetwork<'_> {
     fn default() -> Self {
-        DiagnosticSession {
-            network_name: "diagnostic_session",
+        DiagnosticNetwork {
+            network_name: "diagnostic_network",
 
             // Metrics analytics
             metrics_pivot_task_name: "metrics_pivot_t",
@@ -167,7 +167,7 @@ impl Default for DiagnosticSession<'_> {
     }
 }
 
-impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
+impl CustomAgentsBuilderTrait for DiagnosticNetwork<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![
             TaskPlan {
@@ -1995,12 +1995,12 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_diagnostic_session() -> Result<()> {
+    async fn test_diagnostic_network() -> Result<()> {
         // initialize the session
-        let diagnostic_session = DiagnosticSession::default();
-        let (network, session_messages) = diagnostic_session
+        let diagnostic_network = DiagnosticNetwork::default();
+        let (network, session_messages) = diagnostic_network
             .build()
-            .with_name(diagnostic_session.network_name)
+            .with_name(diagnostic_network.network_name)
             .with_diagnostics(true) // Debugging
             .add_session_interface(Some(&[
                 DiagnosticsVisualizations::MetricProcessorTracesGantt
@@ -2024,7 +2024,7 @@ mod tests {
         let network_arc = Arc::new(network);
 
         // Make diagnostic data and session tasks data
-        let message_map = make_test_data(diagnostic_session.network_name).await?;
+        let message_map = make_test_data(diagnostic_network.network_name).await?;
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
@@ -2050,7 +2050,7 @@ mod tests {
             // DiagnosticsVisualizations::ErrorKanban.to_string(),
         ]
         .into_iter()
-        .map(|s| format!("from_{}_on_{s}", diagnostic_session.network_name))
+        .map(|s| format!("from_{}_on_{s}", diagnostic_network.network_name))
         .collect::<HashSet<_>>();
         assert_eq!(keys_set, expected);
 
@@ -2060,7 +2060,7 @@ mod tests {
             .flat_map(|map| {
                 map.into_iter()
                     .filter_map(|(k, v)| {
-                        if k.contains(diagnostic_session.network_name) {
+                        if k.contains(diagnostic_network.network_name) {
                             let subject_name = v.get_subject().to_string();
                             Some((
                                 k,
@@ -2081,7 +2081,7 @@ mod tests {
             .get(
                 format!(
                     "from_{}_on_{}",
-                    diagnostic_session.network_name,
+                    diagnostic_network.network_name,
                     DiagnosticsVisualizations::MetricProcessorTracesGantt
                 )
                 .as_str(),
@@ -2104,7 +2104,7 @@ mod tests {
             .get(
                 format!(
                     "from_{}_on_{}",
-                    diagnostic_session.network_name,
+                    diagnostic_network.network_name,
                     DiagnosticsVisualizations::MetricElapsedComputeGantt
                 )
                 .as_str(),
@@ -2127,7 +2127,7 @@ mod tests {
             .get(
                 format!(
                     "from_{}_on_{}",
-                    diagnostic_session.network_name,
+                    diagnostic_network.network_name,
                     DiagnosticsVisualizations::MetricOutputRowsGantt
                 )
                 .as_str(),
@@ -2150,7 +2150,7 @@ mod tests {
             .get(
                 format!(
                     "from_{}_on_{}",
-                    diagnostic_session.network_name,
+                    diagnostic_network.network_name,
                     DiagnosticsVisualizations::TraceSequenceDiagram
                 )
                 .as_str(),
@@ -2173,7 +2173,7 @@ mod tests {
             .get(
                 format!(
                     "from_{}_on_{}",
-                    diagnostic_session.network_name,
+                    diagnostic_network.network_name,
                     DiagnosticsVisualizations::EventKanban
                 )
                 .as_str(),
