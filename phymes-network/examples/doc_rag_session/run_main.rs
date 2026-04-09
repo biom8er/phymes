@@ -1,24 +1,21 @@
-// #[cfg(feature = "mkl")]
-// extern crate intel_mkl_src;
+#[cfg(feature = "mkl")]
+extern crate intel_mkl_src;
 
-// #[cfg(feature = "accelerate")]
-// extern crate accelerate_src;
+#[cfg(feature = "accelerate")]
+extern crate accelerate_src;
 
 use anyhow::Result;
 use futures::TryStreamExt;
-use phymes_data::make_pdf_document;
-use phymes_diagnostics::HashMap;
 use std::sync::Arc;
 
-use phymes_agents::{
-    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DocumentRAGSession,
-    SessionContextBuilderAgentsTrait, SessionStream, create_message_map,
-};
-use phymes_core::{
-    AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
-    ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait, Publication,
-    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
-};
+use phymes_network::{CustomAgentsBuilderTrait, DocumentRAGSession, SessionContextBuilderAgentsTrait, SessionStream};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+use phymes_schemas::{AvailableInterfaceSubjects, AttachmentBuilderTraitExt, AvailableSubjectsTrait};
+use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
+use phymes_event::Publication;
+use phymes_streams::ChatBuilderTraitExt;
+use phymes_diagnostics::HashMap;
+use phymes_data::make_pdf_document;
 
 pub async fn run_main() -> Result<()> {
     // initialize the session

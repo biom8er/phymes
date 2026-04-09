@@ -1,11 +1,11 @@
 # PHYMES: Parallel HYpergraph MEssaging Streams
 
-Session crate
+Network crate
 
 <!--- ANCHOR: synopsis --->
 
 ## Synopsis
 
-The PHYMES session crate implements the functionality to enable Agentic AI on desktop, mobile, and in the browser.
+The PHYMES network crate implements the functionality to build static and dynamic task networks such as those used in Agentic AI that run on desktop, mobile, and in the browser.
 
 <!--- ANCHOR_END: synopsis --->

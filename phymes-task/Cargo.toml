@@ -9,13 +9,16 @@ repository = "https://github.com/biom8er/phymes"
 documentation = "https://docs.rs/phymes-task"
 
 [features]
-default = ["wsl", "candle", "api"]
+default = ["wsl", "candle"]
 hf_hub = ["phymes-processor/hf_hub", "phymes-streams/hf_hub"]
-api = ["phymes-core/api", "phymes-processor/api", "phymes-data/api", "phymes-message/api", "phymes-event/api", "dep:urlencoding", "object_store/aws", "object_store/gcp", "object_store/azure", "object_store/http"]
+api = ["phymes-core/api", "phymes-streams/api", "phymes-processor/api", "phymes-data/api", "phymes-message/api", "phymes-event/api", "dep:urlencoding", "object_store/aws", "object_store/gcp", "object_store/azure", "object_store/http"]
 wasip2 = ["phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-processor/wasip2", "phymes-data/wasip2", "phymes-schemas/wasip2", "phymes-message/wasip2", "phymes-event/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "dep:object_store"]
 wsl = ["dep:tempfile", "phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-processor/wsl", "phymes-data/wsl", "phymes-schemas/wsl", "phymes-message/wsl", "phymes-event/wsl", "tokio/full", "tracing-subscriber/env-filter", "dep:object_store"]
 gpu = ["phymes-streams/gpu", "phymes-processor/gpu", "phymes-data/gpu"]
 candle = ["phymes-streams/candle", "phymes-processor/candle", "phymes-data/candle"]
+accelerate = ["phymes-streams/accelerate", "phymes-processor/accelerate"]
+mkl = ["phymes-streams/mkl", "phymes-processor/mkl"]
+mkl-dynamic = ["phymes-streams/mkl-dynamic", "phymes-processor/mkl-dynamic"]
 
 [dependencies]
 phymes-core = { path = "../phymes-core", default-features = false, optional = true }

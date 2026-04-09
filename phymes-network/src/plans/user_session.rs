@@ -1,19 +1,15 @@
 use anyhow::Result;
 use std::sync::Arc;
 
-use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait,
-    BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, Subject,
-    SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription,
-    create_user_batch, create_user_session_contexts_batch,
-};
+use phymes_core::{BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
 use phymes_data::{AvailableOperators, DataConfig, DataJoinOperator};
+use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait, create_user_batch, create_user_session_contexts_batch};
 use phymes_diagnostics::create_timestamp_micros;
+use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
+use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
+use phymes_task::TaskPlan;
 
-use crate::{
-    AvailableProcessors, AvailableSessionPlans, CustomAgentsBuilderTrait, TaskPlan,
-    make_example_mermaid_table,
-};
+use crate::{AvailableSessionPlans, CustomAgentsBuilderTrait, make_example_mermaid_table};
 
 /// A session for all user management tasks
 ///
@@ -308,14 +304,12 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 #[allow(dead_code)]
 pub(crate) mod user_session_inner {
     use anyhow::Result;
-    use phymes_core::{
-        BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait, SubjectTrait,
-        create_user_inbox_batch,
-    };
+    use phymes_core::{BuildableTrait, MappableTrait, SubjectTrait};
+    use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
+    use phymes_schemas::create_user_inbox_batch;
 
     use crate::{
-        SessionContext, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait,
-        SessionStream, create_message_map,
+        SessionContext, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream,
     };
 
     use super::*;
@@ -362,10 +356,10 @@ pub(crate) mod user_session_inner {
 mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{IPCMessage, MappableTrait, SubjectTrait};
+    use phymes_core::{MappableTrait, SubjectTrait};
+    use phymes_message::IPCMessage;
     use phymes_diagnostics::HashMap;
-
-    use crate::SubscriptionTrait;
+    use phymes_task::SubscriptionTrait;
 
     use super::*;
 

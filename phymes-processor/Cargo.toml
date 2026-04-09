@@ -9,7 +9,7 @@ repository = "https://github.com/biom8er/phymes"
 documentation = "https://docs.rs/phymes-processor"
 
 [features]
-default = ["wsl", "candle", "api"]
+default = ["wsl", "candle"]
 api = ["phymes-core/api", "phymes-data/api", "phymes-message/api", "phymes-event/api", "phymes-streams/api", "phymes-ml/api", "dep:urlencoding", "object_store/aws", "object_store/gcp", "object_store/azure", "object_store/http"]
 wasip2 = ["phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-data/wasip2", "phymes-message/wasip2", "phymes-event/wasip2", "phymes-streams/wasip2", "phymes-ml/wasip2", "phymes-schemas/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "dep:object_store"]
 wsl = ["phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-data/wsl", "phymes-message/wsl", "phymes-event/wsl", "phymes-streams/wsl", "phymes-schemas/wsl", "phymes-ml/wsl", "tokio/full", "dep:tempfile", "dep:object_store"]

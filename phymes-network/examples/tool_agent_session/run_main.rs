@@ -1,21 +1,18 @@
-// #[cfg(feature = "mkl")]
-// extern crate intel_mkl_src;
+#[cfg(feature = "mkl")]
+extern crate intel_mkl_src;
 
-// #[cfg(feature = "accelerate")]
-// extern crate accelerate_src;
+#[cfg(feature = "accelerate")]
+extern crate accelerate_src;
 
 use anyhow::Result;
 use futures::TryStreamExt;
-use phymes_agents::{
-    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait,
-    SessionStream, ToolAgentSession, create_message_map,
-};
-use phymes_core::{
-    AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
-    ChatBuilderTraitExt, CsvFormat, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait,
-    Publication, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
-};
+use phymes_network::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait, SessionStream, ToolAgentSession};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+use phymes_event::{Publication};
+use phymes_schemas::{AvailableInterfaceSubjects, AttachmentBuilderTraitExt, AvailableSubjectsTrait, CsvFormat};
+use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
 use phymes_data::test_extract_tabular_data::make_scores_table;
+use phymes_streams::ChatBuilderTraitExt;
 use phymes_diagnostics::HashMap;
 use std::sync::Arc;
 

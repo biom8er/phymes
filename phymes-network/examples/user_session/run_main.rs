@@ -1,23 +1,19 @@
-// #[cfg(feature = "mkl")]
-// extern crate intel_mkl_src;
+#[cfg(feature = "mkl")]
+extern crate intel_mkl_src;
 
-// #[cfg(feature = "accelerate")]
-// extern crate accelerate_src;
+#[cfg(feature = "accelerate")]
+extern crate accelerate_src;
 
 use anyhow::Result;
 use futures::TryStreamExt;
 use phymes_diagnostics::HashMap;
 use std::sync::Arc;
 
-use phymes_agents::{
-    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait,
-    SessionStream, UserSession, create_message_map,
-};
-use phymes_core::{
-    AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage,
-    MappableTrait, MessageBuilderTrait, MessageTrait, Publication, Subject, SubjectBuilder,
-    SubjectBuilderTrait, SubjectTrait, create_user_inbox_batch,
-};
+use phymes_network::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait, SessionStream, UserSession};
+use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+use phymes_event::Publication;
+use phymes_schemas::{AvailableInterfaceSubjects, AttachmentBuilderTraitExt, AvailableSubjectsTrait, create_user_inbox_batch};
+use phymes_message::{IPCMessage,  MessageBuilderTrait, MessageTrait, create_message_map};
 
 pub async fn run_main() -> Result<()> {
     // initialize the session

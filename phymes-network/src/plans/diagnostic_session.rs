@@ -1,19 +1,18 @@
 use std::sync::Arc;
 
 use arrow::datatypes::DataType;
-use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait,
-    BuilderTrait, DataEncoding, DataFormat, DiagnosticsVisualizations, ProcessorPlan,
-    ProcessorPlanBuilder, Publication, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait,
-    SubjectPlan, SubjectPlanBuilderTrait, Subscription,
-};
+use phymes_core::{BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
 use phymes_data::{
     AvailableOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator,
     DataColumnOperator, DataConfig,
 };
+use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat, DiagnosticsVisualizations};
+use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
+use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
+use phymes_task::TaskPlan;
 use serde_json::json;
 
-use crate::{AvailableProcessors, CustomAgentsBuilderTrait, TaskPlan};
+use crate::CustomAgentsBuilderTrait;
 
 /// A session for gathering analytics based on the session metrics
 ///
@@ -1814,16 +1813,12 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{
-        BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait, Subject,
-        SubjectTrait,
-    };
+    use phymes_core::{BuildableTrait, MappableTrait, Subject, SubjectTrait};
     use phymes_diagnostics::{HashMap, HashSet};
+    use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
+    use phymes_task::{SubscriptionTrait, test_task};
 
-    use crate::{
-        SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream,
-        SubscriptionTrait, create_message_map, test_session_context_builder, test_task,
-    };
+    use crate::{SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream, test_session_context_builder};
 
     use super::*;
 
