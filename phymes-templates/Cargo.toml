@@ -1,24 +1,24 @@
 [package]
-name = "phymes-network"
+name = "phymes-templates"
 version = "0.3.0"
 edition = "2024"
 authors = ["Douglas McCloskey"]
-description = "The subject-based message passing network of PHYMES"
+description = "The network templates for PHYMES"
 license = "MIT AND Apache-2.0"
 repository = "https://github.com/biom8er/phymes"
-documentation = "https://docs.rs/phymes-network"
+documentation = "https://docs.rs/phymes-templates"
 
 [features]
 default = ["wsl", "candle"]
 hf_hub = ["phymes-processor/hf_hub", "phymes-streams/hf_hub", "phymes-task/hf_hub", "phymes-ml/hf_hub"]
-api = ["phymes-core/api", "phymes-streams/api", "phymes-data/api", "phymes-message/api", "phymes-event/api", "phymes-ml/api", "phymes-task/api", "phymes-processor/api", "dep:urlencoding", "object_store/aws", "object_store/gcp", "object_store/azure", "object_store/http"]
-wasip2 = ["phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-streams/wasip2", "phymes-data/wasip2", "phymes-schemas/wasip2", "phymes-message/wasip2", "phymes-event/wasip2", "phymes-ml/wasip2", "phymes-task/wasip2", "phymes-processor/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "dep:object_store"]
-wsl = ["dep:tempfile", "phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-streams/wsl", "phymes-data/wsl", "phymes-schemas/wsl", "phymes-message/wsl", "phymes-event/wsl", "phymes-ml/wsl", "phymes-task/wsl", "phymes-processor/wsl", "tokio/full", "tracing-subscriber/env-filter", "dep:object_store"]
-gpu = ["phymes-processor/gpu", "phymes-task/gpu", "phymes-streams/gpu", "phymes-data/gpu", "phymes-ml/gpu"]
-candle = ["phymes-streams/candle", "phymes-processor/candle", "phymes-task/candle", "phymes-data/candle", "phymes-ml/candle"]
-accelerate = ["phymes-streams/accelerate", "phymes-processor/accelerate", "phymes-task/accelerate"]
-mkl = ["phymes-streams/mkl", "phymes-processor/mkl", "phymes-task/mkl"]
-mkl-dynamic = ["phymes-streams/mkl-dynamic", "phymes-processor/mkl-dynamic", "phymes-task/mkl-dynamic"]
+api = ["phymes-core/api", "phymes-streams/api", "phymes-data/api", "phymes-message/api", "phymes-event/api", "phymes-ml/api", "phymes-task/api", "phymes-processor/api", "phymes-network/api", "dep:urlencoding", "object_store/aws", "object_store/gcp", "object_store/azure", "object_store/http"]
+wasip2 = ["phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-streams/wasip2", "phymes-data/wasip2", "phymes-schemas/wasip2", "phymes-message/wasip2", "phymes-event/wasip2", "phymes-ml/wasip2", "phymes-task/wasip2", "phymes-processor/wasip2", "phymes-network/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "dep:object_store"]
+wsl = ["dep:tempfile", "phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-streams/wsl", "phymes-data/wsl", "phymes-schemas/wsl", "phymes-message/wsl", "phymes-event/wsl", "phymes-ml/wsl", "phymes-task/wsl", "phymes-processor/wsl", "phymes-network/wsl", "tokio/full", "tracing-subscriber/env-filter", "dep:object_store"]
+gpu = ["phymes-processor/gpu", "phymes-task/gpu", "phymes-streams/gpu", "phymes-data/gpu", "phymes-ml/gpu", "phymes-network/gpu"]
+candle = ["phymes-streams/candle", "phymes-processor/candle", "phymes-task/candle", "phymes-data/candle", "phymes-ml/candle", "phymes-network/candle"]
+accelerate = ["phymes-streams/accelerate", "phymes-processor/accelerate", "phymes-task/accelerate", "phymes-network/accelerate"]
+mkl = ["phymes-streams/mkl", "phymes-processor/mkl", "phymes-task/mkl", "phymes-network/mkl"]
+mkl-dynamic = ["phymes-streams/mkl-dynamic", "phymes-processor/mkl-dynamic", "phymes-task/mkl-dynamic", "phymes-network/mkl-dynamic"]
 
 [dependencies]
 phymes-core = { path = "../phymes-core", default-features = false, optional = true }
@@ -31,6 +31,7 @@ phymes-ml = { path = "../phymes-ml", default-features = false, optional = true }
 phymes-streams = { path = "../phymes-streams", default-features = false, optional = true }
 phymes-processor = { path = "../phymes-processor", default-features = false, optional = true }
 phymes-task = { path = "../phymes-task", default-features = false, optional = true }
+phymes-network = { path = "../phymes-network", default-features = false, optional = true }
 arrow = { version = "58.0.0", default-features = false, features = ["csv", "json", "ipc"] }
 tokio = { version = "1.49.0", default-features = false, optional = true}
 futures = { version = "0.3.31", default-features = false }
@@ -50,14 +51,3 @@ chrono = "0.4.41"
 tempfile = { version = "3.25.0", optional = true }
 urlencoding = { version = "2.1.3", optional = true }
 object_store = { version = "0.13.1", optional = true }
-
-[dev-dependencies]
-criterion = { version = "0.8.2", default-features = false, features = ["cargo_bench_support"] }
-
-[[bench]]
-name = "chat_agent_session"
-harness = false
-
-[[bench]]
-name = "doc_rag_session"
-harness = false

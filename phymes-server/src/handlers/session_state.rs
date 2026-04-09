@@ -13,8 +13,8 @@ use axum::{
 use anyhow::Result;
 use bytes::Bytes;
 use futures::TryStreamExt;
-use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait, SubscriptionTrait};
-use phymes_agents::{SessionStreamStep, SessionStreamStepTrait, create_message_map};
+use phymes_network::{SessionInterfaceMessage, SessionInterfaceMessageTrait, SubscriptionTrait};
+use phymes_network::{SessionStreamStep, SessionStreamStepTrait, create_message_map};
 use phymes_core::{
     BuildableTrait, BuilderTrait, CsvFormat, DataFormat, IPCMessageBuilder,
     JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait,

@@ -151,7 +151,7 @@ The phymes application is available for desktop (Linux, Windows, MacOS) and mobi
 
 ## Repository
 
-The [`phymes-core`], [`phymes-ml`], [`phymes-data`], [`phymes-agents`], [`phymes-server`], [`phymes-app`] crates form a full-stack application that can run Agentic AI workflows, (Hyper-)Graph algorithms, and/or Simulate complex real world networks at scale using a web, desktop, or mobile interface.
+The [`phymes-core`], [`phymes-ml`], [`phymes-data`], [`phymes-network`], [`phymes-server`], [`phymes-app`] crates form a full-stack application that can run Agentic AI workflows, (Hyper-)Graph algorithms, and/or Simulate complex real world networks at scale using a web, desktop, or mobile interface.
 
 | Crate | Description | Latest API Docs | README |
 | ----- | ----------- | --------------- | ------ |
@@ -159,7 +159,7 @@ The [`phymes-core`], [`phymes-ml`], [`phymes-data`], [`phymes-agents`], [`phymes
 | [`phymes-core`] | Core hypergraph messaging functionality | [docs.rs](https://docs.rs/phymes-core/latest) | [README](phymes-core/README.md) |
 | [`phymes-ml`] | Support for machine learning (ML) and generative artificial intelligence (AI) | [docs.rs](https://docs.rs/phymes-ml/latest) | [README](phymes-ml/README.md) |
 | [`phymes-data`] | Support for GPU accelerated data wrangling | [docs.rs](https://docs.rs/phymes-data/latest) | [README](phymes-data/README.md) |
-| [`phymes-agents`] | Support for building Agentic AI hypergraph messaging applications | [docs.rs](https://docs.rs/phymes-agents/latest) | [README](phymes-agents/README.md) |
+| [`phymes-network`] | Support for building Agentic AI hypergraph messaging applications | [docs.rs](https://docs.rs/phymes-network/latest) | [README](phymes-network/README.md) |
 | [`phymes-server`] | Server that runs the Agentic AI hypergraph messaging services  | [docs.rs](https://docs.rs/phymes-server/latest) | [README](phymes-server/README.md) |
 | [`phymes-app`] | Frontend UI for dynamically interacting with the Agentic AI hypergraph messaging services  | [docs.rs](https://docs.rs/phymes-app/latest) | [README](phymes-app/README.md) |
 
@@ -167,7 +167,7 @@ The [`phymes-core`], [`phymes-ml`], [`phymes-data`], [`phymes-agents`], [`phymes
 [`phymes-core`]: https://crates.io/crates/phymes-core
 [`phymes-ml`]: https://crates.io/crates/phymes-ml
 [`phymes-data`]: https://crates.io/crates/phymes-data
-[`phymes-agents`]: https://crates.io/crates/phymes-agents
+[`phymes-network`]: https://crates.io/crates/phymes-network
 [`phymes-server`]: https://crates.io/crates/phymes-server
 [`phymes-app`]: https://crates.io/crates/phymes-app
 

@@ -88,7 +88,7 @@ mod tests {
     use bytes::Bytes;
     use futures::TryStreamExt;
     use futures_executor::block_on;
-    use phymes_agents::{
+    use phymes_network::{
         AvailableInterfaceSubjects, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait,
     };
     use phymes_core::{

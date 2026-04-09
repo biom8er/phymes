@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
-use phymes_agents::{
+use phymes_network::{
     AvailableSessionPlans, SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait,
     SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
     SubscriptionTrait, create_message_map,
@@ -377,7 +377,7 @@ impl ServerState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use phymes_agents::make_example_mermaid_table;
+    use phymes_network::make_example_mermaid_table;
     use phymes_diagnostics::HashSet;
 
     #[cfg(not(target_family = "wasm"))]

@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use phymes_agents::{
+use phymes_network::{
     AvailableSessionPlans, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
     SessionInterfaceMessageBuilderTrait,
 };
@@ -29,7 +29,7 @@ use futures::StreamExt;
 #[cfg(feature = "mermaid_js")]
 use crate::state::MermaidJsObject;
 #[cfg(feature = "mermaid_js")]
-use phymes_agents::{SessionContextBuilder, SessionContextBuilderMermaidTrait};
+use phymes_network::{SessionContextBuilder, SessionContextBuilderMermaidTrait};
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};

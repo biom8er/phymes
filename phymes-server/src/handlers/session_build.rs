@@ -9,7 +9,7 @@ use axum::{
 
 // General imports
 use anyhow::Result;
-use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
+use phymes_network::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
 use phymes_core::{
     AvailableSchemaTrait, AvailableSubjects, BuilderTrait, CsvFormat, DataFormat,
     JoinUserInboxSessionContextsMermaidDiagrams, MessageTrait, SubjectBuilder, SubjectBuilderTrait,

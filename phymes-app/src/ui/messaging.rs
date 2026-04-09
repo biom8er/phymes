@@ -2,14 +2,14 @@
 use dioxus::prelude::*;
 
 // General imports
-use phymes_agents::AvailableInterfaceSubjects;
+use phymes_network::AvailableInterfaceSubjects;
 use phymes_diagnostics::{convert_timestamp_micros_to_str, create_timestamp_micros};
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
 
 // Phymes imports
-use phymes_agents::{
+use phymes_network::{
     SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
 };
 use phymes_core::{

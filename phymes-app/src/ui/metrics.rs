@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use phymes_agents::{
+use phymes_network::{
     AvailableInterfaceSubjects, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
     SessionInterfaceMessageBuilderTrait,
 };

@@ -10,12 +10,12 @@ use axum::{
 // Streaming imports
 use bytes::Bytes;
 use futures::prelude::*;
-use phymes_agents::{
+use phymes_network::{
     AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DiagnosticSession,
     SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep,
     SessionStreamStepTrait, SubscriptionTrait, create_message_map,
 };
-use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
+use phymes_network::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, DiagnosticsVisualizations,
     IPCMessage, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait,

@@ -1,5 +1,5 @@
 use dioxus::{html::FileData, prelude::*};
-use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait};
+use phymes_network::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait};
 use phymes_core::{
     create_attachments_batch, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait,
     Publication, Subject, SubjectBuilderTrait, SubjectTrait,

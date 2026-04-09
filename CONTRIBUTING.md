@@ -300,26 +300,26 @@ cargo build -p phymes-core
 
 CPU, GPU, and WASM-specific compilation features are gated behind feature flags `wsl`, `gpu`, and `wasip2` respectively. The use of embedded Candle or OpenAI API token services are gated behind the feature flag `candle` and `api`, which enables the use of Candle or OpenAI API token services. Enabling `candle` will force the application to use embedded Candle models even if `api` is enabled. The use of HuggingFace models from the HuggingFace Hub API are gated behind the feature flag `hf_hub`.
 
-The following will build the `phymes-agents` workspace with different configurations of CPU and GPU acceleration for Tensor and Token services:
+The following will build the `phymes-network` workspace with different configurations of CPU and GPU acceleration for Tensor and Token services:
 
 ```bash
 # Native CPU for tensor operations and local/remote OpenAI API token services
-cargo build -p phymes-agents --features wsl,api --release
+cargo build -p phymes-network --features wsl,api --release
 
 # Native CPU for tensor operations and embedded Candle for token services
-cargo build -p phymes-agents --features wsl,candle --release
+cargo build -p phymes-network --features wsl,candle --release
 
 # Native CPU for tensor operations and embedded Candle with models from HuggingFace for token services
-cargo build -p phymes-agents --features wsl,candle,hf_hub --release
+cargo build -p phymes-network --features wsl,candle,hf_hub --release
 
 # GPU support for tensor operations and local/remote OpenAI API token services
-cargo build -p phymes-agents --features wsl,gpu,api --release
+cargo build -p phymes-network --features wsl,gpu,api --release
 
 # GPU support for tensor operations and embedded Candle for token services
-cargo build -p phymes-agents --features wsl,gpu,candle --release
+cargo build -p phymes-network --features wsl,gpu,candle --release
 
 # GPU support for tensor operations and embedded Candle with models from HuggingFace for token services
-cargo build -p phymes-agents --features wsl,gpu,candle,hf_hub --release
+cargo build -p phymes-network --features wsl,gpu,candle,hf_hub --release
 ```
 
 Please ensure that all CUDA related environmental variables are setup correctly for GPU acceleration. Most errors related to missing CUDA or CuDNN libraries are related to missing environmental variables particularly on WSL2.
@@ -329,10 +329,10 @@ export PATH=$PATH:/usr/local/cuda/bin:/usr/lib/x86_64-linux-gnu/
 export LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs
 ```
 
-The following will build the phymes-agents workspace as a WASIp2 component:
+The following will build the phymes-network workspace as a WASIp2 component:
 
 ```bash
-cargo build -p phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release
+cargo build -p phymes-network --target wasm32-wasip2 --no-default-features --features wasip2,candle --release
 ```
 
 Mixing and matching features that are compilation target specific and compilation targets will result in build errors.
@@ -420,7 +420,7 @@ cargo test test_session_update_state -p phymes-core --features wsl -- --no-captu
 cargo test --doc
 ```
 
-You can find up-to-date information on the current CI tests in [.github/workflows](https://github.com/biom8er/phymes/tree/main/.github/workflows). The phymes-server, phymes-core, and phymes-agents crates have unit tests. Please note that many of the tests in the phymes-ml and phymes-agent crates do not run on the CPU due to the amount of time that it takes to run them. To run all tests in the phymes-ml and phymes-agents crates, either enable GPU acceleration with Candle using `--features wsl,gpu,candle` feature flag, or with OpenAI API local/remote token services using `--feature wsl,api` or `--feature wsl,gpu,api` feature flags depending upon GPU availability.
+You can find up-to-date information on the current CI tests in [.github/workflows](https://github.com/biom8er/phymes/tree/main/.github/workflows). The phymes-server, phymes-core, and phymes-network crates have unit tests. Please note that many of the tests in the phymes-ml and phymes-agent crates do not run on the CPU due to the amount of time that it takes to run them. To run all tests in the phymes-ml and phymes-network crates, either enable GPU acceleration with Candle using `--features wsl,gpu,candle` feature flag, or with OpenAI API local/remote token services using `--feature wsl,api` or `--feature wsl,gpu,api` feature flags depending upon GPU availability.
 
 ```bash
 # run tests for the phymes-core crate
@@ -438,12 +438,12 @@ cargo test --package phymes-ml --features wsl,gpu,candle,hf_hub --release
 # or run tests for the phymes-ml crate on the CPU with OpenAI API token services
 cargo test --package phymes-ml --features wsl,api --release
 
-# run tests for the phymes-agents crate with GPU acceleration with Candle assets
-cargo test --package phymes-agents --features wsl,gpu,candle --release
-# run tests for the phymes-agents crate with GPU acceleration with Candle assets from HuggingFace
-cargo test --package phymes-agents --features wsl,gpu,candle,hf_hub --release
-# or run tests for the phymes-agents crate on the CPU with OpenAI API token services
-cargo test --package phymes-agents --no-default-features --features wsl,api --release
+# run tests for the phymes-network crate with GPU acceleration with Candle assets
+cargo test --package phymes-network --features wsl,gpu,candle --release
+# run tests for the phymes-network crate with GPU acceleration with Candle assets from HuggingFace
+cargo test --package phymes-network --features wsl,gpu,candle,hf_hub --release
+# or run tests for the phymes-network crate on the CPU with OpenAI API token services
+cargo test --package phymes-network --no-default-features --features wsl,api --release
 
 # run tests for the phymes-server crate
 cargo test --package phymes-server --features wsl --release
@@ -473,12 +473,12 @@ cargo test --package phymes-ml --target wasm32-wasip2 --no-default-features --fe
 # be sure to replace the -9ce9c7c7142d7db7 with your systems unique hash
 wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/debug/deps/phymes_ml-9ce9c7c7142d7db7.wasm
 
-# run tests for the phymes-agents crate
-cargo test --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --no-run
+# run tests for the phymes-network crate
+cargo test --package phymes-network --target wasm32-wasip2 --no-default-features --features wasip2,candle --no-run
 
-# build tests for the phymes-agents crate using wasmtime
+# build tests for the phymes-network crate using wasmtime
 # be sure to replace the -9ce9c7c7142d7db7 with your systems unique hash
-wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/debug/deps/phymes_agents-9ce9c7c7142d7db7.wasm
+wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/debug/deps/phymes_network-9ce9c7c7142d7db7.wasm
 
 # run tests for the phymes-server crate
 cargo test -p phymes-server --features wasip2-candle --no-default-features --target wasm32-wasip2 --no-run
@@ -490,19 +490,19 @@ wasmtime --dir=$HOME/.cache --env=HOME=$HOME target/wasm32-wasip2/debug/deps/phy
 
 #### Running the examples
 
-Run examples using the Rust standard `cargo run` command. A few simple examples are provided for the phymes-core and phymes-agents crates to provide new users a starting point for building application using the crates
+Run examples using the Rust standard `cargo run` command. A few simple examples are provided for the phymes-core and phymes-network crates to provide new users a starting point for building application using the crates
 
 ```bash
 # run examples for the phymes-core crate
 cargo run --package phymes-core --features wsl --release --example addrows
 
-# run examples for the phymes-ml and phymes-agents crates with GPU acceleration with Candle assets
+# run examples for the phymes-ml and phymes-network crates with GPU acceleration with Candle assets
 cargo run --package phymes-ml --features wsl,gpu,candle --release --example chat -- --candle-asset SmoLM2-135M-chat
-cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat_agent_session
+cargo run --package phymes-network --features wsl,gpu,candle --release --example chat_agent_session
 
-# or run examples for the phymes-ml and phymes-agents crates on the CPU with OpenAI API token services
+# or run examples for the phymes-ml and phymes-network crates on the CPU with OpenAI API token services
 cargo run --package phymes-ml --no-default-features --features wsl,api --release --example chat -- --openai-asset Llama-3.2-1b-instruct
-cargo run --package phymes-agents --no-default-features --features wsl,api --release --example chat_agent_session
+cargo run --package phymes-network --no-default-features --features wsl,api --release --example chat_agent_session
 ```
 
 The examples can also be ran using WASM. However, all assets needed to run the example need to be provided locally unlike native where we can rely on the HuggingFace API to download and cache models for us. The following bash script can be used to build the examples in wasm and run the examples using wasmtime:
@@ -517,13 +517,13 @@ wasmtime run target/wasm32-wasip2/release/examples/addrows.wasm
 # build the chat example for the phymes-ml crate
 cargo build --package phymes-ml --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat
 
-# run the chat example for the phymes-agents crate
+# run the chat example for the phymes-network crate
 wasmtime --dir="$HOME/.cache/hf" --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat.wasm --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
 
-# build the chat_agent_session example for the phymes-agents crate
-cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat_agent_session
+# build the chat_agent_session example for the phymes-network crate
+cargo build --package phymes-network --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat_agent_session
 
-# run the chat_agent_session example for the phymes-agents crate
+# run the chat_agent_session example for the phymes-network crate
 wasmtime --dir="$HOME/.cache/hf" --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat_agent_session.wasm
 ```
 
@@ -568,7 +568,7 @@ Run the following to create the API documentation using `doc`:
 cargo doc --document-private-items --no-deps -p phymes-core
 cargo doc --document-private-items --no-deps -p phymes-ml
 cargo doc --document-private-items --no-deps -p phymes-data
-cargo doc --document-private-items --no-deps -p phymes-agents
+cargo doc --document-private-items --no-deps -p phymes-network
 cargo doc --document-private-items --no-deps -p phymes-server
 cargo doc --document-private-items --no-deps -p phymes-app
 ```
@@ -587,11 +587,11 @@ Running benchmarks are a good way to test the performance of a change. As benchm
 # run all benchmarks
 cargo bench
 
-# run phymes-agents benchmarks
-cargo bench -p phymes-agents
+# run phymes-network benchmarks
+cargo bench -p phymes-network
 
-# run benchmark for the candle_asset functions within the phymes-agents crate
-cargo bench -p phymes-agents  --bench candle_asset
+# run benchmark for the candle_asset functions within the phymes-network crate
+cargo bench -p phymes-network  --bench candle_asset
 ```
 
 To set the baseline for your benchmarks, use the --save-baseline flag:
@@ -599,11 +599,11 @@ To set the baseline for your benchmarks, use the --save-baseline flag:
 ```bash
 git checkout main
 
-cargo bench -p phymes-agents --bench candle_asset -- --save-baseline main
+cargo bench -p phymes-network --bench candle_asset -- --save-baseline main
 
 git checkout feature
 
-cargo bench -p phymes-agents --bench candle_asset -- --baseline main
+cargo bench -p phymes-network --bench candle_asset -- --baseline main
 ```
 
 #### Running the CI locally
@@ -624,7 +624,7 @@ Third, Run the actions-runner. Now, when you open a PR, the CI will run locally 
 
 ### Deployment on Web, Desktop, and Mobile
 
-The `phymes-core`, `phymes-agents`, `phymes-server`, `phymes-app` crates form a full-stack application that can run Agentic AI workflows, Graph algorithms, or Simulate networks at scale using a web, desktop, or mobile interface. Both the frontend and server need to be built in `--release` mode for improved performance and security.
+The `phymes-core`, `phymes-network`, `phymes-server`, `phymes-app` crates form a full-stack application that can run Agentic AI workflows, Graph algorithms, or Simulate networks at scale using a web, desktop, or mobile interface. Both the frontend and server need to be built in `--release` mode for improved performance and security.
 
 #### Web
 
@@ -751,7 +751,7 @@ Before running the `phymes-server`, setup the environmental variables as needed 
 
 ### Debugging the PHYMES deployment
 
-We recommend debugging the application using two terminals: one for `phymes-app` and another for `phymes-server`. Dioxus provides a great development loop for front-end application development with nifty hot-reloading features, but requires it's own dedicated terminal to run. Tokio provides an industry grade server along with nifty security features. During development (specifically, debug mode), the server permissions are relaxed to enable iterative debugging of the application. The `phymes-core`, `phymes-ml`, `phymes-data`, `phymes-agents`, and `phymes-server` all use the Tracing crates for tracing and logging functionality. The packages and verbosity of console logging can be specified on the command line using the `RUST_LOG` environmental variable.
+We recommend debugging the application using two terminals: one for `phymes-app` and another for `phymes-server`. Dioxus provides a great development loop for front-end application development with nifty hot-reloading features, but requires it's own dedicated terminal to run. Tokio provides an industry grade server along with nifty security features. During development (specifically, debug mode), the server permissions are relaxed to enable iterative debugging of the application. The `phymes-core`, `phymes-ml`, `phymes-data`, `phymes-network`, and `phymes-server` all use the Tracing crates for tracing and logging functionality. The packages and verbosity of console logging can be specified on the command line using the `RUST_LOG` environmental variable.
 
 In the first terminal:
 
