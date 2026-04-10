@@ -1,11 +1,14 @@
-mod plans;
+mod dynamic;
+mod pipelines;
 
 #[cfg(feature = "api")]
-pub use plans::ExecuteWorkspaceNetwork;
+pub use dynamic::GetContentNetwork;
+pub use dynamic::{
+    GenerateTextNetwork, PatchWorkspaceNetwork, ToolCallNetwork, ToolResponseNetwork,
+};
+
 #[cfg(feature = "api")]
-pub use plans::GetContentNetwork;
-pub use plans::{
-    EmbedTextNetwork, ExtractOntologyNetwork, ExtractPDFNetwork, GenerateTextNetwork,
-    MeltStudyDataNetwork, PatchWorkspaceNetwork, RetrieveTextNetwork, SyncContentNetwork,
-    ToolCallNetwork, ToolResponseNetwork,
+pub use pipelines::ExecuteWorkspaceNetwork;
+pub use pipelines::{
+    EmbedTextNetwork, ExtractOntologyNetwork, ExtractPDFNetwork, MeltStudyDataNetwork, RetrieveTextNetwork, SyncContentNetwork,
 };

@@ -1,4 +1,4 @@
-use crate::plans::tool_call_network::ToolSessionTrait;
+use crate::dynamic::tool_call_network::ToolSessionTrait;
 
 /// A session for dynamic tool response summarization
 ///
