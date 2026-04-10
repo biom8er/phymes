@@ -126,7 +126,7 @@ pub struct ObjectStoreConfig {
     /// The name of the streaming subject to write to the object store
     ///   OR the name of the streaming manifest file with subjects to read
     #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "lhs_name")]
     pub subject_name: Option<String>,
 }
 

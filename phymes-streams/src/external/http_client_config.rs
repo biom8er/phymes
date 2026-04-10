@@ -104,7 +104,7 @@ pub struct HTTPClientConfig {
     /// The name of the streaming subject with the JSON application data to send in the request if POST
     /// or the query URL to join with the base URL if GET
     #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "lhs_name")]
     pub subject_name: Option<String>,
 
     /// The request schema to try and parse responses into

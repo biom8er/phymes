@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 pub struct ToolCallConfig {
     /// The name of the subject containing the `ViewTasksSubscribePublishAggregated` subject
     #[arg(long)]
+    #[serde(alias = "lhs_name")]
     pub subject_name: String,
 
     /// The name of the subjects containing the processor configs

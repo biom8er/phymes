@@ -36,6 +36,7 @@ pub struct CandleEmbedConfig {
 
     /// list of queries formatted as a JSON string e.g., "['query1', 'query2']"
     #[arg(long)]
+    #[serde(alias = "lhs_name")]
     pub documents: String,
 
     /// The tokenizer config in json format.

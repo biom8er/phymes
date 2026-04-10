@@ -44,11 +44,12 @@ pub struct CandleChatConfig {
 
     /// A list of messages comprising the conversation so far
     #[arg(long)]
+    #[serde(alias = "lhs_name")]
     pub messages: String,
 
     /// A list of tools in JSON schema format
     #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "rhs_name")]
     pub tools: Option<String>,
 
     /// The length of the sample to generate (in tokens).

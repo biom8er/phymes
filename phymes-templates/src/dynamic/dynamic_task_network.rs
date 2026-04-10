@@ -21,12 +21,20 @@ pub struct DynamicTaskNetwork<'a> {
     pub is_dynamic: bool,
     /// The processor to use
     pub processor: AvailableProcessors,
+    /// LHS subscription
+    pub subscription_lhs: Subscription,
+    /// RHS subscription
+    pub subscription_rhs: Option<Subscription>,
+    /// Output publication
+    pub publication: Publication,
     /// LHS subject
     pub subject_name_lhs: &'a str,
     /// RHS subject
     pub subject_name_rhs: Option<&'a str>,
     /// Output subject
     pub subject_name_o: &'a str,
+    /// Config data
+    pub config: Option<&'a[u8]>
 }
 
 impl Default for DynamicTaskNetwork<'_> {
@@ -35,9 +43,13 @@ impl Default for DynamicTaskNetwork<'_> {
             network_name: "network_1",
             is_dynamic: false,
             processor: AvailableProcessors::default(),
+            subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: "subject_name_lhs".to_string() },
+            subscription_rhs: None,
+            publication: Publication::Replace { subject_name: "subject_name_o".to_string() },
             subject_name_lhs: "subject_name_lhs",
             subject_name_rhs: None,
             subject_name_o: "subject_name_o",
+            config: None,
         }
     }
 }
