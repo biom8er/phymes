@@ -533,12 +533,12 @@ pub struct CommandSandboxConfig {
 
     /// The name of the streaming subject with the data to run with the command
     #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none", alias = "lhs_name")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "rhs_name")]
     pub subject_name: Option<String>,
 
     /// The name of the streaming workspace with the files needed by the command
     #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none", alias = "rhs_name")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "lhs_name")]
     pub workspace_name: Option<String>,
 }
 

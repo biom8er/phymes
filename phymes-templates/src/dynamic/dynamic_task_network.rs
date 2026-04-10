@@ -1,22 +1,20 @@
 use std::sync::Arc;
 
 use phymes_subject::{
-    BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
-    SubjectPlanBuilderTrait,
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectPlan, SubjectPlanBuilderTrait
 };
-use phymes_data::{AvailableOperators, DataConfig};
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
-use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
+use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait};
 use phymes_task::TaskPlan;
 use phymes_network::CustomAgentsBuilderTrait;
 
 /// Template dynamic (or static) task creation network
 ///   that is intended to be extended with a base network to enable dynamic task invokation
 ///   or extended with a network of the same name to create a static processor pipeline
-pub struct DynamicTaskNetwork<'a> {
+pub struct DynamicTaskNetwork {
     /// Network name (task name)
-    pub network_name: &'a str,
+    pub network_name: String,
     /// Dynamic pipeline (e.g., tool call) or static pipeline
     pub is_dynamic: bool,
     /// The processor to use
@@ -27,37 +25,48 @@ pub struct DynamicTaskNetwork<'a> {
     pub subscription_rhs: Option<Subscription>,
     /// Output publication
     pub publication: Publication,
+    /// Subscribe event
+    pub subscribe: AvailableSubscribeEvents,
     /// LHS subject
-    pub subject_name_lhs: &'a str,
+    pub subject_lhs: SubjectPlan,
     /// RHS subject
-    pub subject_name_rhs: Option<&'a str>,
+    pub subject_rhs: Option<SubjectPlan>,
     /// Output subject
-    pub subject_name_o: &'a str,
+    pub subject_out: SubjectPlan,
     /// Config data
-    pub config: Option<&'a[u8]>
+    pub config: Option<Subject>
 }
 
-impl Default for DynamicTaskNetwork<'_> {
+impl Default for DynamicTaskNetwork {
     fn default() -> Self {
+        let subject_lhs = SubjectPlan::get_builder()
+            .with_subject(AvailableSubjects::Bytes.to_subject(Some("lhs_s"), None).unwrap())
+            .build()
+            .unwrap();
+        let subject_out = SubjectPlan::get_builder()
+            .with_subject(AvailableSubjects::Bytes.to_subject(Some("out_s"), None).unwrap())
+            .build()
+            .unwrap();
         DynamicTaskNetwork {
-            network_name: "network_1",
+            network_name: "network_1".to_string(),
             is_dynamic: false,
             processor: AvailableProcessors::default(),
-            subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: "subject_name_lhs".to_string() },
+            subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
             subscription_rhs: None,
-            publication: Publication::Replace { subject_name: "subject_name_o".to_string() },
-            subject_name_lhs: "subject_name_lhs",
-            subject_name_rhs: None,
-            subject_name_o: "subject_name_o",
+            publication: Publication::Replace { subject_name: subject_out.get_name().to_string() },
+            subscribe: AvailableSubscribeEvents::default(),
+            subject_lhs,
+            subject_rhs: None,
+            subject_out,
             config: None,
         }
     }
 }
 
-impl<'a> DynamicTaskNetwork<'a> {
-    pub fn new_with_network_name(network_name: &'a str) -> Self {
+impl DynamicTaskNetwork {
+    pub fn new_with_network_name(network_name: &str) -> Self {
         DynamicTaskNetwork {
-            network_name,
+            network_name: network_name.to_string(),
             ..Default::default()
         }
     }
@@ -67,12 +76,9 @@ impl<'a> DynamicTaskNetwork<'a> {
     fn processor_name(&self) -> String {
         format!("{}_p", self.network_name)
     }
-    fn subject_name(&self, subject_name: &str) -> String {
-        format!("{subject_name}_s")
-    }
 }
 
-impl CustomAgentsBuilderTrait for DynamicTaskNetwork<'_> {
+impl CustomAgentsBuilderTrait for DynamicTaskNetwork {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![
             TaskPlan {
@@ -89,19 +95,11 @@ impl CustomAgentsBuilderTrait for DynamicTaskNetwork<'_> {
         let mut subscriptions = Vec::new();
 
         // LHS
-        {
-            let subscription = Subscription::OnUpdateAllRecordBatches {
-                subject_name: self.subject_name(self.subject_name_lhs),
-            };
-            subscriptions.push(subscription);
-        }
+        subscriptions.push(self.subscription_lhs.clone());
 
         // RHS
-        if let Some(subject_name_rhs) = self.subject_name_rhs {
-            let subscription = Subscription::OnUpdateAllRecordBatches {
-                subject_name: self.subject_name(subject_name_rhs),
-            };
-            subscriptions.push(subscription);
+        if let Some(subscription_rhs) = self.subscription_rhs.as_ref() {
+            subscriptions.push(subscription_rhs.clone());
         }
 
         // Dynamic
@@ -123,11 +121,9 @@ impl CustomAgentsBuilderTrait for DynamicTaskNetwork<'_> {
                 .with_processor(
                     self.processor.build_arc(&self.processor_name()),
                 )
-                .with_publications(&[Publication::Replace {
-                    subject_name: self.subject_name(self.subject_name_o),
-                }])
+                .with_publications(&[self.publication.clone()])
                 .with_subscriptions(&subscriptions)
-                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
+                .with_subscribe_policy(self.subscribe.clone().build())
                 .build()
                 .unwrap(),
         ];
@@ -142,48 +138,23 @@ impl CustomAgentsBuilderTrait for DynamicTaskNetwork<'_> {
 
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
         // Intended to be extended so the subjects should be defined in the base Network
-        let mut subjects = Vec::new();
-        subjects.push(AvailableSubjects::Bytes
-            .to_subject(Some(&self.subject_name(self.subject_name_lhs)), None)
-            .unwrap());
-        if let Some(subject_name_rhs) = self.subject_name_rhs {
-            subjects.push(AvailableSubjects::Bytes
-                .to_subject(Some(&self.subject_name(subject_name_rhs)), None)
-                .unwrap());
+        let mut subject_plans = Vec::new();
+        subject_plans.push(self.subject_lhs.clone());
+        if let Some(subject_rhs) = self.subject_rhs.as_ref() {
+            subject_plans.push(subject_rhs.clone());
         }
-        subjects.push(AvailableSubjects::Bytes
-            .to_subject(Some(&self.subject_name(self.subject_name_o)), None)
-            .unwrap());
-        subjects.push(AvailableSubjects::Bytes
-            .to_subject(Some(&self.processor_name()), None)
-            .unwrap());
-        
-        // Wrap into the subject plan
-        let subject_plans = subjects
-            .into_iter()
-            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
-            .collect::<Vec<_>>();
+        subject_plans.push(self.subject_out.clone());
+        if let Some(config) = self.config.as_ref() {
+            let subject_plan = SubjectPlan::get_builder().with_subject(config.to_owned()).build().unwrap();
+            subject_plans.push(subject_plan);
+        } else {
+            let subject = AvailableSubjects::Bytes
+                .to_subject(Some(&self.processor_name()), None)
+                .unwrap();
+            let subject_plan = SubjectPlan::get_builder().with_subject(subject).build().unwrap();
+            subject_plans.push(subject_plan);
+        }
+
         Some(subject_plans)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::sync::Arc;
-
-    use anyhow::Result;
-    use futures::TryStreamExt;
-    use phymes_subject::{BuildableTrait, MappableTrait, SubjectTrait};
-    use phymes_diagnostics::HashMap;
-    use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
-    use phymes_streams::ChatBuilderTraitExt;
-    use phymes_network::{NetworkBuilderAgentsTrait, NetworkStream};
-
-    use super::*;
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn test_chat_agent_network() -> Result<()> {
-
-        Ok(())
     }
 }

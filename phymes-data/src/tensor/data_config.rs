@@ -525,10 +525,8 @@ pub trait DataConfigTrait: MappableTrait {
     /// Create an example and serialize to JSON
     ///
     /// # Notes
-    /// - example implementation: serde_json::to_vec(&DataConfig)
-    fn to_example_json(&self) -> Result<Vec<u8>, serde_json::Error>
-    where
-        Self: Serialize;
+    /// - example implementation: `serde_json::to_vec(&DataConfig)`
+    fn to_example_json(&self) -> Result<Vec<u8>, serde_json::Error>;
 
     /// Build the config from a [Subject] with options
     ///   for JSON Values or Bytes schemas
