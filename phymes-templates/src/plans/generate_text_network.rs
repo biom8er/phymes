@@ -2,7 +2,7 @@
 ///   with support for tools
 ///
 /// # Notes
-pub struct GenerateTextSession<'a> {
+pub struct GenerateTextNetwork<'a> {
     /// Session
     pub network_name: &'a str,
     /// The Asset to use for Text Generation and related parameters
@@ -17,7 +17,7 @@ pub struct GenerateTextSession<'a> {
     pub chat_processor: &'a str,
 }
 
-impl<'a> Default for GenerateTextSession<'a> {
+impl<'a> Default for GenerateTextNetwork<'a> {
     fn default() -> Self {
         let (
             candle_asset,
@@ -76,7 +76,7 @@ impl<'a> Default for GenerateTextSession<'a> {
             "CandleChatProcessor"
         };
         Self {
-            network_name: "generate_text_session",
+            network_name: "generate_text_network",
             candle_asset,
             openai_asset,
             weights_config_file,
@@ -89,7 +89,7 @@ impl<'a> Default for GenerateTextSession<'a> {
     }
 }
 
-impl<'a> GenerateTextSession<'a> {
+impl<'a> GenerateTextNetwork<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         network_name: &'a str,
@@ -106,7 +106,7 @@ impl<'a> GenerateTextSession<'a> {
         } else {
             "CandleChatProcessor"
         };
-        GenerateTextSession {
+        GenerateTextNetwork {
             network_name,
             candle_asset,
             openai_asset,
@@ -353,19 +353,19 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_generate_text_session_no_tools() -> Result<()> {
+    async fn test_generate_text_network_no_tools() -> Result<()> {
         // Initialize the session
-        let generate_text_session = GenerateTextSession::default();
+        let generate_text_network = GenerateTextNetwork::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            &generate_text_session.as_mermaid_flowchart(),
+            &generate_text_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &generate_text_session.as_mermaid_erdiagram(),
+            &generate_text_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(generate_text_session.network_name)
+        .with_name(generate_text_network.network_name)
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
@@ -383,7 +383,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: chat.get_name().to_string(),
             })
-            .with_publisher(generate_text_session.network_name)
+            .with_publisher(generate_text_network.network_name)
             .make_name()?
             .build()?;
 
@@ -515,10 +515,10 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_generate_text_session_tool_call() -> Result<()> {
+    async fn test_generate_text_network_tool_call() -> Result<()> {
         // Initialize the session
-        let generate_text_session = GenerateTextSession::new(
-            "generate_text_session",
+        let generate_text_network = GenerateTextNetwork::new(
+            "generate_text_network",
             Some("QwenV2p5_1p5bChat".to_string()),
             None,
             Some(format!(
@@ -540,15 +540,15 @@ mod tests {
             None,
         );
         let mut network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &generate_text_session.as_mermaid_flowchart(),
+            &generate_text_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &generate_text_session.as_mermaid_erdiagram(),
+            &generate_text_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(generate_text_session.network_name)
+        .with_name(generate_text_network.network_name)
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
@@ -595,7 +595,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: table.get_name().to_string(),
             })
-            .with_publisher(generate_text_session.network_name)
+            .with_publisher(generate_text_network.network_name)
             .make_name()?
             .build()?;
 
@@ -609,7 +609,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: chat.get_name().to_string(),
             })
-            .with_publisher(generate_text_session.network_name)
+            .with_publisher(generate_text_network.network_name)
             .make_name()?
             .build()?;
 
@@ -752,19 +752,19 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_generate_text_session_tool_response() -> Result<()> {
+    async fn test_generate_text_network_tool_response() -> Result<()> {
         // Initialize the session
-        let generate_text_session = GenerateTextSession::default();
+        let generate_text_network = GenerateTextNetwork::default();
         let mut network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &generate_text_session.as_mermaid_flowchart(),
+            &generate_text_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &generate_text_session.as_mermaid_erdiagram(),
+            &generate_text_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(generate_text_session.network_name)
+        .with_name(generate_text_network.network_name)
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
@@ -810,7 +810,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: table.get_name().to_string(),
             })
-            .with_publisher(generate_text_session.network_name)
+            .with_publisher(generate_text_network.network_name)
             .make_name()?
             .build()?;
 
@@ -824,7 +824,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: chat.get_name().to_string(),
             })
-            .with_publisher(generate_text_session.network_name)
+            .with_publisher(generate_text_network.network_name)
             .make_name()?
             .build()?;
 
@@ -838,7 +838,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: tool.get_name().to_string(),
             })
-            .with_publisher(generate_text_session.network_name)
+            .with_publisher(generate_text_network.network_name)
             .make_name()?
             .build()?;
 
@@ -983,10 +983,10 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_generate_text_session_error_response() -> Result<()> {
+    async fn test_generate_text_network_error_response() -> Result<()> {
         // Initialize the session
-        let generate_text_session = GenerateTextSession::new(
-            "generate_text_session",
+        let generate_text_network = GenerateTextNetwork::new(
+            "generate_text_network",
             Some("QwenV2p5_1p5bChat".to_string()),
             None,
             Some(format!(
@@ -1008,15 +1008,15 @@ mod tests {
             None,
         );
         let mut network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &generate_text_session.as_mermaid_flowchart(),
+            &generate_text_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &generate_text_session.as_mermaid_erdiagram(),
+            &generate_text_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(generate_text_session.network_name)
+        .with_name(generate_text_network.network_name)
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
@@ -1062,7 +1062,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: table.get_name().to_string(),
             })
-            .with_publisher(generate_text_session.network_name)
+            .with_publisher(generate_text_network.network_name)
             .make_name()?
             .build()?;
 
@@ -1076,7 +1076,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: chat.get_name().to_string(),
             })
-            .with_publisher(generate_text_session.network_name)
+            .with_publisher(generate_text_network.network_name)
             .make_name()?
             .build()?;
 
@@ -1090,7 +1090,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: tool.get_name().to_string(),
             })
-            .with_publisher(generate_text_session.network_name)
+            .with_publisher(generate_text_network.network_name)
             .make_name()?
             .build()?;
 

@@ -1,20 +1,20 @@
 /// A session for retrieving text via vector search
 ///
 /// # Notes
-pub struct RetrieveTextSession<'a> {
+pub struct RetrieveTextNetwork<'a> {
     /// Session
     pub network_name: &'a str,
 }
 
-impl<'a> Default for RetrieveTextSession<'a> {
+impl<'a> Default for RetrieveTextNetwork<'a> {
     fn default() -> Self {
         Self {
-            network_name: "retrieve_text_session",
+            network_name: "retrieve_text_network",
         }
     }
 }
 
-impl<'a> RetrieveTextSession<'a> {
+impl<'a> RetrieveTextNetwork<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
@@ -251,19 +251,19 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_retrieve_text_session() -> Result<()> {
+    async fn test_retrieve_text_network() -> Result<()> {
         // Initialize the session
-        let retrieve_text_session = RetrieveTextSession::default();
+        let retrieve_text_network = RetrieveTextNetwork::default();
         let retrieve_text_builder = NetworkBuilder::from_mermaid_flowchart(
-            retrieve_text_session.as_mermaid_flowchart(),
+            retrieve_text_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            retrieve_text_session.as_mermaid_erdiagram(),
+            retrieve_text_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(retrieve_text_session.network_name)
+        .with_name(retrieve_text_network.network_name)
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
@@ -318,7 +318,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: document.get_name().to_string(),
             })
-            .with_publisher(retrieve_text_session.network_name)
+            .with_publisher(retrieve_text_network.network_name)
             .make_name()?
             .build()?;
 
@@ -3447,7 +3447,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: document.get_name().to_string(),
             })
-            .with_publisher(retrieve_text_session.network_name)
+            .with_publisher(retrieve_text_network.network_name)
             .make_name()?
             .build()?;
 
@@ -3850,7 +3850,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: query.get_name().to_string(),
             })
-            .with_publisher(retrieve_text_session.network_name)
+            .with_publisher(retrieve_text_network.network_name)
             .make_name()?
             .build()?;
 

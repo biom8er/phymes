@@ -1,4 +1,4 @@
-use crate::plans::tool_call_session::ToolSessionTrait;
+use crate::plans::tool_call_network::ToolSessionTrait;
 use anyhow::{Result, anyhow};
 use phymes_schemas::AvailableInterfaceSubjects;
 use phymes_streams::CommandSandboxEnvironments;
@@ -17,7 +17,7 @@ use phymes_streams::CommandSandboxEnvironments;
 ///   1. None -> no `subject_name` but `cli_args`
 ///   2. StdIo -> `subject_name` and no `cli_args`
 ///   3. TempFile -> `subject_name` and no `cli_args`
-pub struct ExecuteWorkspaceSession<'a> {
+pub struct ExecuteWorkspaceNetwork<'a> {
     /// Session
     pub network_name: &'a str,
     /// The Temp directory for reading/writing workspace files
@@ -33,10 +33,10 @@ pub struct ExecuteWorkspaceSession<'a> {
     pub command_sandbox_environment: CommandSandboxEnvironments,
 }
 
-impl<'a> Default for ExecuteWorkspaceSession<'a> {
+impl<'a> Default for ExecuteWorkspaceNetwork<'a> {
     fn default() -> Self {
         // Initialize with reasonable default names
-        let network_name = "execute_workspace_session";
+        let network_name = "execute_workspace_network";
         let subject_name_o = AvailableInterfaceSubjects::AssistantCsv.to_string();
         Self {
             network_name,
@@ -48,7 +48,7 @@ impl<'a> Default for ExecuteWorkspaceSession<'a> {
     }
 }
 
-impl<'a> ToolSessionTrait<'a> for ExecuteWorkspaceSession<'a> {
+impl<'a> ToolSessionTrait<'a> for ExecuteWorkspaceNetwork<'a> {
     fn subject_names(&self) -> Vec<String> {
         let mut subject_names_vec = Vec::new();
         if let Some(subject_name_i) = self.subject_name_i.as_ref() {
@@ -59,7 +59,7 @@ impl<'a> ToolSessionTrait<'a> for ExecuteWorkspaceSession<'a> {
     }
 }
 
-impl<'a> ExecuteWorkspaceSession<'a> {
+impl<'a> ExecuteWorkspaceNetwork<'a> {
     pub fn new(
         network_name: &'a str,
         workspace_dir: Option<&str>,
@@ -78,7 +78,7 @@ impl<'a> ExecuteWorkspaceSession<'a> {
 
     /// Workspace directory logic
     fn workspace_dir(workspace_dir: Option<&str>) -> Option<String> {
-        let network_name = "execute_workspace_session";
+        let network_name = "execute_workspace_network";
         if cfg!(feature = "api") {
             #[cfg(feature = "api")]
             if let Some(workspace_dir) = workspace_dir {
@@ -271,30 +271,30 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_execute_workspace_session_rs() -> Result<()> {
+    async fn test_execute_workspace_network_rs() -> Result<()> {
         // Constants
         let subject_name_i = "subject_name_i";
         let subject_name_o = "subject_name_o";
         let workspace_name = "apply_patch_s";
 
         // Initialize the session
-        let execute_workspace_session = ExecuteWorkspaceSession::new(
-            "execute_workspace_session_rs",
+        let execute_workspace_network = ExecuteWorkspaceNetwork::new(
+            "execute_workspace_network_rs",
             None,
             Some(subject_name_i),
             subject_name_o,
             &CommandSandboxEnvironments::Rust,
         );
         let mut network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &execute_workspace_session.as_mermaid_flowchart(),
+            &execute_workspace_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &execute_workspace_session.as_mermaid_erdiagram()?,
+            &execute_workspace_network.as_mermaid_erdiagram()?,
             false,
             true,
         )?
-        .with_name(execute_workspace_session.network_name)
+        .with_name(execute_workspace_network.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
@@ -307,7 +307,7 @@ mod tests {
             workspace_name.to_string(),
             IPCMessage::get_builder()
                 .with_name(workspace_name)
-                .with_publisher(execute_workspace_session.network_name)
+                .with_publisher(execute_workspace_network.network_name)
                 .with_subject(workspace_name)
                 .with_update(&Publication::Replace {
                     subject_name: workspace_name.to_string(),
@@ -326,7 +326,7 @@ mod tests {
             message_table.get_name().to_string(),
             IPCMessage::get_builder()
                 .with_name(message_table.get_name())
-                .with_publisher(execute_workspace_session.network_name)
+                .with_publisher(execute_workspace_network.network_name)
                 .with_subject(message_table.get_name())
                 .with_update(&Publication::Replace {
                     subject_name: message_table.get_name().to_string(),
@@ -391,30 +391,30 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_execute_workspace_session_py() -> Result<()> {
+    async fn test_execute_workspace_network_py() -> Result<()> {
         // Constants
         let subject_name_i = "subject_name_i";
         let subject_name_o = "subject_name_o";
         let workspace_name = "apply_patch_s";
 
         // Initialize the session
-        let execute_workspace_session = ExecuteWorkspaceSession::new(
-            "execute_workspace_session_py",
+        let execute_workspace_network = ExecuteWorkspaceNetwork::new(
+            "execute_workspace_network_py",
             None,
             Some(subject_name_i),
             subject_name_o,
             &CommandSandboxEnvironments::Python,
         );
         let mut network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &execute_workspace_session.as_mermaid_flowchart(),
+            &execute_workspace_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &execute_workspace_session.as_mermaid_erdiagram()?,
+            &execute_workspace_network.as_mermaid_erdiagram()?,
             false,
             true,
         )?
-        .with_name(execute_workspace_session.network_name)
+        .with_name(execute_workspace_network.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
@@ -427,7 +427,7 @@ mod tests {
             workspace_name.to_string(),
             IPCMessage::get_builder()
                 .with_name(workspace_name)
-                .with_publisher(execute_workspace_session.network_name)
+                .with_publisher(execute_workspace_network.network_name)
                 .with_subject(workspace_name)
                 .with_update(&Publication::Replace {
                     subject_name: workspace_name.to_string(),
@@ -446,7 +446,7 @@ mod tests {
             message_table.get_name().to_string(),
             IPCMessage::get_builder()
                 .with_name(message_table.get_name())
-                .with_publisher(execute_workspace_session.network_name)
+                .with_publisher(execute_workspace_network.network_name)
                 .with_subject(message_table.get_name())
                 .with_update(&Publication::Replace {
                     subject_name: message_table.get_name().to_string(),

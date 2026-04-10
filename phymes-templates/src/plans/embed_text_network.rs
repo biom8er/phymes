@@ -1,7 +1,7 @@
 /// A session for embedding text querries and documents
 ///
 /// # Notes
-pub struct EmbedTextSession<'a> {
+pub struct EmbedTextNetwork<'a> {
     /// Session
     pub network_name: &'a str,
     /// The Asset to use for Text Generation and related parameters
@@ -16,7 +16,7 @@ pub struct EmbedTextSession<'a> {
     pub embed_processor: &'a str,
 }
 
-impl<'a> Default for EmbedTextSession<'a> {
+impl<'a> Default for EmbedTextNetwork<'a> {
     fn default() -> Self {
         let (
             candle_asset,
@@ -75,7 +75,7 @@ impl<'a> Default for EmbedTextSession<'a> {
             "CandleEmbedProcessor"
         };
         Self {
-            network_name: "generate_text_session",
+            network_name: "generate_text_network",
             candle_asset,
             openai_asset,
             weights_config_file,
@@ -88,7 +88,7 @@ impl<'a> Default for EmbedTextSession<'a> {
     }
 }
 
-impl<'a> EmbedTextSession<'a> {
+impl<'a> EmbedTextNetwork<'a> {
     fn embed_text_p(&self) -> String {
         let mut lines = Vec::new();
         if let Some(candle_asset) = &self.candle_asset {
@@ -278,19 +278,19 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_embed_text_session() -> Result<()> {
+    async fn test_embed_text_network() -> Result<()> {
         // Initialize the session
-        let embed_text_session = EmbedTextSession::default();
+        let embed_text_network = EmbedTextNetwork::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            &embed_text_session.as_mermaid_flowchart(),
+            &embed_text_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &embed_text_session.as_mermaid_erdiagram(),
+            &embed_text_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(embed_text_session.network_name)
+        .with_name(embed_text_network.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
@@ -345,7 +345,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: document.get_name().to_string(),
             })
-            .with_publisher(embed_text_session.network_name)
+            .with_publisher(embed_text_network.network_name)
             .make_name()?
             .build()?;
 
@@ -360,7 +360,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: chat.get_name().to_string(),
             })
-            .with_publisher(embed_text_session.network_name)
+            .with_publisher(embed_text_network.network_name)
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![chat_message, document_message]);

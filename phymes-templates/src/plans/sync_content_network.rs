@@ -5,9 +5,9 @@ use serde_json::{Map, Value};
 ///
 /// # Notes
 /// - The syncing direction is unidirectional from remote to local
-/// - Add a second `SyncContentSession` and invert local and remote names
+/// - Add a second `SyncContentNetwork` and invert local and remote names
 ///   to sync remote with local to achieve bidirectional syncing
-pub struct SyncContentSession<'a> {
+pub struct SyncContentNetwork<'a> {
     /// Session
     pub network_name: &'a str,
     /// Local object store
@@ -22,10 +22,10 @@ pub struct SyncContentSession<'a> {
     pub remote_object_store_config: Option<&'a Map<String, Value>>,
 }
 
-impl<'a> Default for SyncContentSession<'a> {
+impl<'a> Default for SyncContentNetwork<'a> {
     fn default() -> Self {
         Self {
-            network_name: "sync_content_session",
+            network_name: "sync_content_network",
             local_object_store_name: "local_object_store_name",
             local_object_store_backend: ObjectStorageBackend::default(),
             local_object_store_bucket: None,
@@ -38,7 +38,7 @@ impl<'a> Default for SyncContentSession<'a> {
     }
 }
 
-impl<'a> SyncContentSession<'a> {
+impl<'a> SyncContentNetwork<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
         let network_name = self.network_name;
@@ -198,7 +198,7 @@ impl<'a> SyncContentSession<'a> {
 	patch_{local_object_store_name}_p-subscribe@{{shape: diamond, label: All}}
 	%% ------------------------------------------------------------------------------
     %% Next steps
-	%% - Create a new `SyncContentSession` with inverted local/remote names
+	%% - Create a new `SyncContentNetwork` with inverted local/remote names
     %%   for bidirectional syncing
 	%% ------------------------------------------------------------------------------"#
         )
@@ -412,13 +412,13 @@ mod tests {
     #[cfg(not(target_family = "wasm"))]
     use tempfile::TempDir;
 
-    use crate::ToolCallSession;
+    use crate::ToolCallNetwork;
 
     use super::*;
 
     #[cfg(not(target_family = "wasm"))]
     #[tokio::test]
-    async fn test_sync_content_session_w_subjects() -> Result<()> {
+    async fn test_sync_content_network_w_subjects() -> Result<()> {
         // Local and remote object stores
         let local_object_store_name = "Local";
         let local_object_store_backend = ObjectStorageBackend::LocalFs;
@@ -432,8 +432,8 @@ mod tests {
         let _ = std::fs::create_dir(&remote_object_store_bucket);
 
         // Initialize the session
-        let sync_content_session = SyncContentSession {
-            network_name: "sync_content_session",
+        let sync_content_network = SyncContentNetwork {
+            network_name: "sync_content_network",
             local_object_store_name,
             local_object_store_backend: local_object_store_backend.clone(),
             local_object_store_bucket: Some(local_object_store_bucket.to_str().unwrap()),
@@ -443,15 +443,15 @@ mod tests {
             ..Default::default()
         };
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            &sync_content_session.as_mermaid_flowchart(),
+            &sync_content_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &sync_content_session.as_mermaid_erdiagram(),
+            &sync_content_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(sync_content_session.network_name)
+        .with_name(sync_content_network.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
@@ -502,7 +502,7 @@ mod tests {
                 messages.to_string(),
                 IPCMessage::get_builder()
                     .with_name(&messages)
-                    .with_publisher(sync_content_session.network_name)
+                    .with_publisher(sync_content_network.network_name)
                     .with_subject(&messages)
                     .with_update(&Publication::Replace {
                         subject_name: messages.to_string(),
@@ -564,7 +564,7 @@ mod tests {
                 config_table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(config_table.get_name())
-                    .with_publisher(sync_content_session.network_name)
+                    .with_publisher(sync_content_network.network_name)
                     .with_subject(config_table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: config_table.get_name().to_string(),
@@ -594,7 +594,7 @@ mod tests {
                 messages.to_string(),
                 IPCMessage::get_builder()
                     .with_name(&messages)
-                    .with_publisher(sync_content_session.network_name)
+                    .with_publisher(sync_content_network.network_name)
                     .with_subject(&messages)
                     .with_update(&Publication::Replace {
                         subject_name: messages.to_string(),
@@ -869,7 +869,7 @@ mod tests {
 
     #[cfg(not(target_family = "wasm"))]
     #[tokio::test]
-    async fn test_sync_content_session_wo_subjects() -> Result<()> {
+    async fn test_sync_content_network_wo_subjects() -> Result<()> {
         // Local and remote object stores
         let local_object_store_name = "Local";
         let local_object_store_backend = ObjectStorageBackend::LocalFs;
@@ -885,21 +885,21 @@ mod tests {
         // View task session
         let tool_call_subject = format!("list_{remote_object_store_name}_p");
         let tool_call_subjects = [tool_call_subject.as_str()];
-        let tool_call_session = ToolCallSession::new("tool_call_session", &tool_call_subjects);
+        let tool_call_network = ToolCallNetwork::new("tool_call_network", &tool_call_subjects);
         let tool_call_network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &tool_call_session.as_mermaid_flowchart(),
+            &tool_call_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &tool_call_session.as_mermaid_erdiagram()?,
+            &tool_call_network.as_mermaid_erdiagram()?,
             false,
             true,
         )?
-        .with_name(tool_call_session.network_name);
+        .with_name(tool_call_network.network_name);
 
         // Initialize the session
-        let sync_content_session = SyncContentSession {
-            network_name: "sync_content_session",
+        let sync_content_network = SyncContentNetwork {
+            network_name: "sync_content_network",
             local_object_store_name,
             local_object_store_backend: local_object_store_backend.clone(),
             local_object_store_bucket: Some(local_object_store_bucket.to_str().unwrap()),
@@ -909,15 +909,15 @@ mod tests {
             ..Default::default()
         };
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            &sync_content_session.as_mermaid_flowchart(),
+            &sync_content_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &sync_content_session.as_mermaid_erdiagram(),
+            &sync_content_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(sync_content_session.network_name)
+        .with_name(sync_content_network.network_name)
         .with_diagnostics(true)
         .extend(tool_call_network_builder)?
         .add_processor_subjects()?
@@ -969,7 +969,7 @@ mod tests {
                 messages.to_string(),
                 IPCMessage::get_builder()
                     .with_name(&messages)
-                    .with_publisher(sync_content_session.network_name)
+                    .with_publisher(sync_content_network.network_name)
                     .with_subject(&messages)
                     .with_update(&Publication::Replace {
                         subject_name: messages.to_string(),
@@ -1030,7 +1030,7 @@ mod tests {
                 config_table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(config_table.get_name())
-                    .with_publisher(sync_content_session.network_name)
+                    .with_publisher(sync_content_network.network_name)
                     .with_subject(config_table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: config_table.get_name().to_string(),

@@ -3,20 +3,20 @@
 /// # Notes
 ///
 /// * Does not consider pre-filtering by ontology before vector search
-pub struct ExtractOntologySession<'a> {
+pub struct ExtractOntologyNetwork<'a> {
     /// Session
     pub network_name: &'a str,
 }
 
-impl<'a> Default for ExtractOntologySession<'a> {
+impl<'a> Default for ExtractOntologyNetwork<'a> {
     fn default() -> Self {
         Self {
-            network_name: "extract_ontology_session",
+            network_name: "extract_ontology_network",
         }
     }
 }
 
-impl<'a> ExtractOntologySession<'a> {
+impl<'a> ExtractOntologyNetwork<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
@@ -1874,9 +1874,9 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_extract_ontology_session() -> Result<()> {
+    async fn test_extract_ontology_network() -> Result<()> {
         // Initialize the session
-        let extract_onto_session = ExtractOntologySession::default();
+        let extract_onto_session = ExtractOntologyNetwork::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             extract_onto_session.as_mermaid_flowchart(),
             false,

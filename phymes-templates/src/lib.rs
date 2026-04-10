@@ -1,11 +1,11 @@
 mod plans;
 
 #[cfg(feature = "api")]
-pub use plans::ExecuteWorkspaceSession;
+pub use plans::ExecuteWorkspaceNetwork;
 #[cfg(feature = "api")]
-pub use plans::GetContentSession;
+pub use plans::GetContentNetwork;
 pub use plans::{
-    EmbedTextSession, ExtractOntologySession, ExtractPDFSession, GenerateTextSession,
-    MeltStudyDataSession, PatchWorkspaceSession, RetrieveTextSession, SyncContentSession,
-    ToolCallSession, ToolResponseSession,
+    EmbedTextNetwork, ExtractOntologyNetwork, ExtractPDFNetwork, GenerateTextNetwork,
+    MeltStudyDataNetwork, PatchWorkspaceNetwork, RetrieveTextNetwork, SyncContentNetwork,
+    ToolCallNetwork, ToolResponseNetwork,
 };

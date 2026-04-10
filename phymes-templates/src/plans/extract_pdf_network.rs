@@ -3,12 +3,12 @@
 /// # Notes
 ///
 /// * Does not yet include image and table extraction
-pub struct ExtractPDFSession<'a> {
+pub struct ExtractPDFNetwork<'a> {
     /// Session
     pub network_name: &'a str,
 }
 
-impl<'a> Default for ExtractPDFSession<'a> {
+impl<'a> Default for ExtractPDFNetwork<'a> {
     fn default() -> Self {
         Self {
             network_name: "extract_pdf_session",
@@ -16,7 +16,7 @@ impl<'a> Default for ExtractPDFSession<'a> {
     }
 }
 
-impl<'a> ExtractPDFSession<'a> {
+impl<'a> ExtractPDFNetwork<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
@@ -111,9 +111,9 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_extract_pdf_session() -> Result<()> {
+    async fn test_extract_pdf_network() -> Result<()> {
         // Initialize the session
-        let extract_pdf_session = ExtractPDFSession::default();
+        let extract_pdf_session = ExtractPDFNetwork::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             extract_pdf_session.as_mermaid_flowchart(),
             false,

@@ -57,31 +57,31 @@ pub trait ToolSessionTrait<'a> {
 }
 
 /// A session for dynamic tool calling
-pub struct ToolCallSession<'a> {
+pub struct ToolCallNetwork<'a> {
     /// Session
     pub network_name: &'a str,
     /// Subjects to listen for
     pub subject_names: &'a [&'a str],
 }
 
-impl Default for ToolCallSession<'_> {
+impl Default for ToolCallNetwork<'_> {
     fn default() -> Self {
-        ToolCallSession {
-            network_name: "tool_call_session",
+        ToolCallNetwork {
+            network_name: "tool_call_network",
             subject_names: &["Bytes"],
         }
     }
 }
 
-impl<'a> ToolSessionTrait<'a> for ToolCallSession<'a> {
+impl<'a> ToolSessionTrait<'a> for ToolCallNetwork<'a> {
     fn subject_names(&self) -> Vec<String> {
         self.subject_names.iter().map(|s| s.to_string()).collect()
     }
 }
 
-impl<'a> ToolCallSession<'a> {
+impl<'a> ToolCallNetwork<'a> {
     pub fn new(network_name: &'a str, subject_names: &'a [&'a str]) -> Self {
-        ToolCallSession {
+        ToolCallNetwork {
             network_name,
             subject_names,
         }
@@ -90,7 +90,7 @@ impl<'a> ToolCallSession<'a> {
     pub fn as_mermaid_flowchart(&self) -> String {
         format!(
             r#"flowchart TD
-    ToolCallSession_runtime_env-rt@{{shape: subproc, label: ToolCallSession_runtime_env}}
+    ToolCallNetwork_runtime_env-rt@{{shape: subproc, label: ToolCallNetwork_runtime_env}}
     
 	subgraph group_by_processors_subscriptions_t
         {}
@@ -103,7 +103,7 @@ impl<'a> ToolCallSession<'a> {
 		select_processors_subscriptions_aggregated_p-processor-->select_processors_subscriptions_aggregated_p-publish
 		select_processors_subscriptions_aggregated_p-publish-->|Replace|select_processors_subscriptions_aggregated_s-subject
     end
-	ToolCallSession_runtime_env-rt-->group_by_processors_subscriptions_t
+	ToolCallNetwork_runtime_env-rt-->group_by_processors_subscriptions_t
     {}
 	select_processors_subscriptions_s-subject@{{shape: doc, label: select_processors_subscriptions_s}}
 	group_by_processors_subscriptions_p-subscribe@{{shape: diamond, label: Any}}
@@ -126,7 +126,7 @@ impl<'a> ToolCallSession<'a> {
 		select_processors_publications_aggregated_p-processor-->select_processors_publications_aggregated_p-publish
 		select_processors_publications_aggregated_p-publish-->|Replace|select_processors_publications_aggregated_s-subject
     end
-	ToolCallSession_runtime_env-rt-->group_by_processors_publications_t
+	ToolCallNetwork_runtime_env-rt-->group_by_processors_publications_t
 	select_processors_publications_s-subject@{{shape: doc, label: select_processors_publications_s}}
 	group_by_processors_publications_p-subscribe@{{shape: diamond, label: Any}}
 	group_by_processors_publications_p-processor@{{shape: rect, label: GroupBy}}
@@ -153,7 +153,7 @@ impl<'a> ToolCallSession<'a> {
 		select_tasks_processors_subscriptions_publications_aggregated_p-processor-->select_tasks_processors_subscriptions_publications_aggregated_p-publish
 		select_tasks_processors_subscriptions_publications_aggregated_p-publish-->|Replace|select_tasks_processors_subscriptions_publications_aggregated_s-subject
 	end
-	ToolCallSession_runtime_env-rt-->join_tasks_processors_subscriptions_publications_aggregated_t
+	ToolCallNetwork_runtime_env-rt-->join_tasks_processors_subscriptions_publications_aggregated_t
 	join_processors_subscriptions_publications_aggregated_p-subscribe@{{shape: diamond, label: All}}
 	join_processors_subscriptions_publications_aggregated_p-processor@{{shape: rect, label: Join}}
 	join_processors_subscriptions_publications_aggregated_p-publish@{{shape: fork}}
@@ -182,7 +182,7 @@ impl<'a> ToolCallSession<'a> {
 		call_processor_p-processor-->call_processor_p-publish
 		call_processor_p-publish-->|Extend|SessionTasksSubscribePublish-subject
 	end
-	ToolCallSession_runtime_env-rt-->call_processor_t
+	ToolCallNetwork_runtime_env-rt-->call_processor_t
 	echo_processor_p-processor@{{shape: rect, label: ProcessorEcho}}
 	echo_processor_p-publish@{{shape: fork}}
 	echo_processor_p-subscribe@{{shape: diamond, label: All}}
@@ -399,19 +399,19 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_tool_call_session() -> Result<()> {
+    async fn test_tool_call_network() -> Result<()> {
         // Initialize the session
-        let tool_call_session = ToolCallSession::default();
+        let tool_call_network = ToolCallNetwork::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            &tool_call_session.as_mermaid_flowchart(),
+            &tool_call_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &tool_call_session.as_mermaid_erdiagram()?,
+            &tool_call_network.as_mermaid_erdiagram()?,
             false,
             true,
         )?
-        .with_name(tool_call_session.network_name)
+        .with_name(tool_call_network.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_supersteps()?
@@ -428,7 +428,7 @@ mod tests {
                 .with_update(&Publication::Replace {
                     subject_name: table.get_name().to_string(),
                 })
-                .with_publisher(tool_call_session.network_name)
+                .with_publisher(tool_call_network.network_name)
                 .with_message(table.to_ipc_stream()?)
                 .make_name()?
                 .build()?;
@@ -461,29 +461,29 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session"
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network"
                 ]
             );
             let column = subject.get_column_as_vec_str("processor_name");
@@ -663,15 +663,15 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session"
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network"
                 ]
             );
             let column = subject.get_column_as_vec_str("processor_name");
@@ -767,15 +767,15 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session"
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network"
                 ]
             );
             let column = subject.get_column_as_vec_str("processor_name");
@@ -886,15 +886,15 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session"
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network"
                 ]
             );
             let column = subject.get_column_as_vec_str("processor_name");
@@ -971,15 +971,15 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session",
-                    "tool_call_session"
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network",
+                    "tool_call_network"
                 ]
             );
             let column = subject.get_column_as_vec_str("task_name");

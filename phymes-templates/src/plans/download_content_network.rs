@@ -3,7 +3,7 @@ use phymes_streams::HTTPClientRequestSchemas;
 use serde_json::{Map, Value};
 
 /// A session for downloading PDF documents from a HTTP Request
-pub struct GetContentSession<'a> {
+pub struct GetContentNetwork<'a> {
     /// Session
     pub network_name: &'a str,
     /// Dynamic pipeline (e.g., tool call) or static pipeline
@@ -24,7 +24,7 @@ pub struct GetContentSession<'a> {
     pub object_store_config: Option<&'a Map<String, Value>>,
 }
 
-impl<'a> Default for GetContentSession<'a> {
+impl<'a> Default for GetContentNetwork<'a> {
     fn default() -> Self {
         Self {
             network_name: "get_content_session",
@@ -40,7 +40,7 @@ impl<'a> Default for GetContentSession<'a> {
     }
 }
 
-impl<'a> GetContentSession<'a> {
+impl<'a> GetContentNetwork<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
         let network_name = self.network_name;
@@ -76,7 +76,7 @@ impl<'a> GetContentSession<'a> {
     %% - We listen for updates both on the config `get_pdf_p` subject
     %%   AND a data `http_client_request_pdf_s` subject which is in the form of a UserMessage
     %%   which can both specify the URL to download the PDF from
-    %% - The `tool_call_session` is used to trigger the download when only the config is updated
+    %% - The `tool_call_network` is used to trigger the download when only the config is updated
 	%% ------------------------------------------------------------------------------
 	subgraph get_pdf_t
 		http_client_request_pdf_s-subject-.->|AllRecordBatches|get_pdf_p-subscribe{get_pdf_p_subgraph}
@@ -95,7 +95,7 @@ impl<'a> GetContentSession<'a> {
     %% - We listen for updates both on the config `get_json_p` subject
     %%   AND a data `http_client_request_json_s` subject which is in the form of a UserMessage
     %%   which can both specify the URL to download the JSON from
-    %% - The `tool_call_session` is used to trigger the download when only the config is updated
+    %% - The `tool_call_network` is used to trigger the download when only the config is updated
 	%% ------------------------------------------------------------------------------
 	subgraph get_json_t
 		http_client_request_json_s-subject-.->|AllRecordBatches|get_json_p-subscribe{get_json_p_subgraph}
@@ -114,7 +114,7 @@ impl<'a> GetContentSession<'a> {
     %% - We listen for updates both on the config `get_object_p` subject
     %%   AND a data `object_store_request_object_s` subject which is in the form of a UserMessage
     %%   which can both specify the URL to download the JSON from
-    %% - The `tool_call_session` is used to trigger the download when only the config is updated
+    %% - The `tool_call_network` is used to trigger the download when only the config is updated
 	%% ------------------------------------------------------------------------------
 	subgraph get_object_t
 		object_store_request_object_s-subject-.->|AllRecordBatches|get_object_p-subscribe{get_object_p_subgraph}
@@ -265,14 +265,14 @@ mod tests {
     };
     use phymes_task::SubscriptionTrait;
 
-    use crate::ToolCallSession;
+    use crate::ToolCallNetwork;
 
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_content_session_dynamic_w_subjects() -> Result<()> {
         // Initialize the session
-        let get_content_session = GetContentSession {
+        let get_content_session = GetContentNetwork {
             is_dynamic: true,
             ..Default::default()
         };
@@ -525,21 +525,21 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_content_session_dynamic_wo_subjects() -> Result<()> {
         // View task session
-        let tool_call_session =
-            ToolCallSession::new("tool_call_session", &["get_pdf_p", "get_json_p"]);
+        let tool_call_network =
+            ToolCallNetwork::new("tool_call_network", &["get_pdf_p", "get_json_p"]);
         let tool_call_network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &tool_call_session.as_mermaid_flowchart(),
+            &tool_call_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &tool_call_session.as_mermaid_erdiagram()?,
+            &tool_call_network.as_mermaid_erdiagram()?,
             false,
             true,
         )?
-        .with_name(tool_call_session.network_name);
+        .with_name(tool_call_network.network_name);
 
         // Initialize the session
-        let get_content_session = GetContentSession {
+        let get_content_session = GetContentNetwork {
             is_dynamic: true,
             ..Default::default()
         };
@@ -724,7 +724,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_content_session_static_w_subjects() -> Result<()> {
         // Initialize the session
-        let get_content_session = GetContentSession {
+        let get_content_session = GetContentNetwork {
             is_dynamic: false,
             pdf_base_url: "https://arxiv.org/",
             json_base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?",

@@ -1,5 +1,5 @@
 /// A session for patching code workspaces from tool calls
-pub struct PatchWorkspaceSession<'a> {
+pub struct PatchWorkspaceNetwork<'a> {
     /// Session
     pub network_name: &'a str,
     /// Dynamic pipeline (e.g., tool call) or static pipeline
@@ -10,10 +10,10 @@ pub struct PatchWorkspaceSession<'a> {
     pub patch_subject_name: &'a str,
 }
 
-impl<'a> Default for PatchWorkspaceSession<'a> {
+impl<'a> Default for PatchWorkspaceNetwork<'a> {
     fn default() -> Self {
         Self {
-            network_name: "patch_workspace_session",
+            network_name: "patch_workspace_network",
             is_dynamic: false,
             workspace_subject_name: "Workspace",
             patch_subject_name: "WorkspacePatch",
@@ -21,7 +21,7 @@ impl<'a> Default for PatchWorkspaceSession<'a> {
     }
 }
 
-impl<'a> PatchWorkspaceSession<'a> {
+impl<'a> PatchWorkspaceNetwork<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
         let network_name = self.network_name;
@@ -46,7 +46,7 @@ impl<'a> PatchWorkspaceSession<'a> {
 	%% Apply patch to workspace
     %% - We listen for updates both on the config `apply_patch_p` subject
     %%   AND a data `WorkspacePatch` subject
-    %% - The `tool_call_session` is used to trigger the operator when only the config is updated
+    %% - The `tool_call_network` is used to trigger the operator when only the config is updated
 	%% ------------------------------------------------------------------------------
 	subgraph apply_patch_t
         {workspace_subject_name}-subject-->|AllRecordBatches|apply_patch_p-subscribe
@@ -134,27 +134,27 @@ mod tests {
     };
     use phymes_task::SubscriptionTrait;
 
-    use crate::ToolCallSession;
+    use crate::ToolCallNetwork;
 
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_patch_workspace_session_dynamic_w_subjects() -> Result<()> {
+    async fn test_patch_workspace_network_dynamic_w_subjects() -> Result<()> {
         // Initialize the session
-        let patch_workspace_session = PatchWorkspaceSession {
+        let patch_workspace_network = PatchWorkspaceNetwork {
             is_dynamic: true,
             ..Default::default()
         };
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            &patch_workspace_session.as_mermaid_flowchart(),
+            &patch_workspace_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &patch_workspace_session.as_mermaid_erdiagram(),
+            &patch_workspace_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(patch_workspace_session.network_name)
+        .with_name(patch_workspace_network.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
@@ -203,7 +203,7 @@ pub use todo::Todo"#,
                 table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(table.get_name())
-                    .with_publisher(patch_workspace_session.network_name)
+                    .with_publisher(patch_workspace_network.network_name)
                     .with_subject(table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: table.get_name().to_string(),
@@ -240,7 +240,7 @@ pub use todo::Todo"#,
                 table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(table.get_name())
-                    .with_publisher(patch_workspace_session.network_name)
+                    .with_publisher(patch_workspace_network.network_name)
                     .with_subject(table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: table.get_name().to_string(),
@@ -274,7 +274,7 @@ pub use todo::Todo"#,
                 apply_patch_config_table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(apply_patch_config_table.get_name())
-                    .with_publisher(patch_workspace_session.network_name)
+                    .with_publisher(patch_workspace_network.network_name)
                     .with_subject(apply_patch_config_table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: apply_patch_config_table.get_name().to_string(),
@@ -331,35 +331,35 @@ pub use todo::Todo"#,
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_patch_workspace_session_dynamic_wo_subjects() -> Result<()> {
+    async fn test_patch_workspace_network_dynamic_wo_subjects() -> Result<()> {
         // View task session
-        let tool_call_session = ToolCallSession::new("tool_call_session", &["apply_patch_p"]);
+        let tool_call_network = ToolCallNetwork::new("tool_call_network", &["apply_patch_p"]);
         let tool_call_network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &tool_call_session.as_mermaid_flowchart(),
+            &tool_call_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &tool_call_session.as_mermaid_erdiagram()?,
+            &tool_call_network.as_mermaid_erdiagram()?,
             false,
             true,
         )?
-        .with_name(tool_call_session.network_name);
+        .with_name(tool_call_network.network_name);
 
         // Initialize the session
-        let patch_workspace_session = PatchWorkspaceSession {
+        let patch_workspace_network = PatchWorkspaceNetwork {
             is_dynamic: true,
             ..Default::default()
         };
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            &patch_workspace_session.as_mermaid_flowchart(),
+            &patch_workspace_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &patch_workspace_session.as_mermaid_erdiagram(),
+            &patch_workspace_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(patch_workspace_session.network_name)
+        .with_name(patch_workspace_network.network_name)
         .with_diagnostics(true)
         .extend(tool_call_network_builder)?
         .add_processor_subjects()?
@@ -409,7 +409,7 @@ pub use todo::Todo"#,
                 table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(table.get_name())
-                    .with_publisher(patch_workspace_session.network_name)
+                    .with_publisher(patch_workspace_network.network_name)
                     .with_subject(table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: table.get_name().to_string(),
@@ -480,7 +480,7 @@ pub use todo::Todo"#,
                 apply_patch_config_table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(apply_patch_config_table.get_name())
-                    .with_publisher(patch_workspace_session.network_name)
+                    .with_publisher(patch_workspace_network.network_name)
                     .with_subject(apply_patch_config_table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: apply_patch_config_table.get_name().to_string(),
@@ -537,19 +537,19 @@ pub use todo::Todo"#,
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_patch_workspace_session_static() -> Result<()> {
+    async fn test_patch_workspace_network_static() -> Result<()> {
         // Initialize the session
-        let patch_workspace_session = PatchWorkspaceSession::default();
+        let patch_workspace_network = PatchWorkspaceNetwork::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            &patch_workspace_session.as_mermaid_flowchart(),
+            &patch_workspace_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &patch_workspace_session.as_mermaid_erdiagram(),
+            &patch_workspace_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(patch_workspace_session.network_name)
+        .with_name(patch_workspace_network.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
@@ -598,7 +598,7 @@ pub use todo::Todo"#,
                 table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(table.get_name())
-                    .with_publisher(patch_workspace_session.network_name)
+                    .with_publisher(patch_workspace_network.network_name)
                     .with_subject(table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: table.get_name().to_string(),
@@ -635,7 +635,7 @@ pub use todo::Todo"#,
                 table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(table.get_name())
-                    .with_publisher(patch_workspace_session.network_name)
+                    .with_publisher(patch_workspace_network.network_name)
                     .with_subject(table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: table.get_name().to_string(),

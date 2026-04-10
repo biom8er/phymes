@@ -2,20 +2,20 @@ use object_store::aws::AmazonS3ConfigKey;
 use serde_json::{Map, Value};
 
 /// OpenAlex agent
-pub struct OpenAlexAgentSession<'a> {
+pub struct OpenAlexAgentNetwork<'a> {
     /// Session
     pub network_name: &'a str,
 }
 
-impl Default for OpenAlexAgentSession<'_> {
+impl Default for OpenAlexAgentNetwork<'_> {
     fn default() -> Self {
-        OpenAlexAgentSession {
-            network_name: "open_alex_agent_session",
+        OpenAlexAgentNetwork {
+            network_name: "open_alex_agent_network",
         }
     }
 }
 
-impl<'a> OpenAlexAgentSession<'a> {
+impl<'a> OpenAlexAgentNetwork<'a> {
     pub fn as_mermaid_flowchart(&self) -> String {
         let network_name = self.network_name;
         format!(
@@ -189,9 +189,9 @@ impl<'a> OpenAlexAgentSession<'a> {
 	%% ------------------------------------------------------------------------------
 	%% HTTP OpenAccess PDF download
     %% 1. Download PDF
-    %% 2. ExtractPDFSession
-    %% 3. EmbedTextSession (where query = Ontology term)
-    %% 4. RetrieveTextSession
+    %% 2. ExtractPDFNetwork
+    %% 3. EmbedTextNetwork (where query = Ontology term)
+    %% 4. RetrieveTextNetwork
 	%% ------------------------------------------------------------------------------
 	subgraph download_open_access_pdf_t
 		select_open_acces_pdf_url_s-subject-.->|AllRecordBatches|download_open_access_pdf_p-subscribe
@@ -206,9 +206,9 @@ impl<'a> OpenAlexAgentSession<'a> {
 	UserPdf-subject@{{shape: doc, label: UserPdf}}
 	%% ------------------------------------------------------------------------------
 	%% Extensions
-    %% 1. ExtractPDFSession
-    %% 2. EmbedTextSession (where query = Ontology term)
-    %% 3. RetrieveTextSession
+    %% 1. ExtractPDFNetwork
+    %% 2. EmbedTextNetwork (where query = Ontology term)
+    %% 3. RetrieveTextNetwork
 	%% ------------------------------------------------------------------------------"#
         )
     }
@@ -479,13 +479,13 @@ mod tests {
     use phymes_task::SubscriptionTrait;
 
     use super::*;
-    use crate::{EmbedTextSession, ExtractPDFSession, RetrieveTextSession};
+    use crate::{EmbedTextNetwork, ExtractPDFNetwork, RetrieveTextNetwork};
 
     #[ignore = "In progress... Some issues with embeddings and retrieval."]
     #[tokio::test(flavor = "current_thread")]
-    async fn test_open_alex_agent_session() -> Result<()> {
+    async fn test_open_alex_agent_network() -> Result<()> {
         // Extract PDF session
-        let extract_pdf_session = ExtractPDFSession::default();
+        let extract_pdf_session = ExtractPDFNetwork::default();
         let extract_pdf_network_builder = NetworkBuilder::from_mermaid_flowchart(
             extract_pdf_session.as_mermaid_flowchart(),
             false,
@@ -498,43 +498,43 @@ mod tests {
         .with_name(extract_pdf_session.network_name);
 
         // Embed text session
-        let embed_text_session = EmbedTextSession::default();
+        let embed_text_network = EmbedTextNetwork::default();
         let embed_text_network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &embed_text_session.as_mermaid_flowchart(),
+            &embed_text_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &embed_text_session.as_mermaid_erdiagram(),
+            &embed_text_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(embed_text_session.network_name);
+        .with_name(embed_text_network.network_name);
 
         // Retrieve text session
-        let retrieve_text_session = RetrieveTextSession::default();
+        let retrieve_text_network = RetrieveTextNetwork::default();
         let retrieve_text_builder = NetworkBuilder::from_mermaid_flowchart(
-            retrieve_text_session.as_mermaid_flowchart(),
+            retrieve_text_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            retrieve_text_session.as_mermaid_erdiagram(),
+            retrieve_text_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(retrieve_text_session.network_name);
+        .with_name(retrieve_text_network.network_name);
 
         // Initialize the session
-        let open_alex_agent_session = OpenAlexAgentSession::default();
+        let open_alex_agent_network = OpenAlexAgentNetwork::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            &open_alex_agent_session.as_mermaid_flowchart(),
+            &open_alex_agent_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &open_alex_agent_session.as_mermaid_erdiagram(),
+            &open_alex_agent_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(open_alex_agent_session.network_name)
+        .with_name(open_alex_agent_network.network_name)
         .extend(extract_pdf_network_builder)?
         .extend(embed_text_network_builder)?
         .extend(retrieve_text_builder)?
@@ -581,7 +581,7 @@ mod tests {
         //     config_table.get_name().to_string(),
         //     IPCMessage::get_builder()
         //         .with_name(config_table.get_name())
-        //         .with_publisher(open_alex_agent_session.network_name)
+        //         .with_publisher(open_alex_agent_network.network_name)
         //         .with_subject(config_table.get_name())
         //         .with_update(&Publication::Replace {
         //             subject_name: config_table.get_name().to_string(),
@@ -609,7 +609,7 @@ mod tests {
             messages.to_string(),
             IPCMessage::get_builder()
                 .with_name(&messages)
-                .with_publisher(open_alex_agent_session.network_name)
+                .with_publisher(open_alex_agent_network.network_name)
                 .with_subject(&messages)
                 .with_update(&Publication::Replace {
                     subject_name: messages.to_string(),
@@ -882,7 +882,7 @@ mod tests {
                 .with_update(&Publication::Extend {
                     subject_name: chat.get_name().to_string(),
                 })
-                .with_publisher(open_alex_agent_session.network_name)
+                .with_publisher(open_alex_agent_network.network_name)
                 .make_name()?
                 .build()?,
         );

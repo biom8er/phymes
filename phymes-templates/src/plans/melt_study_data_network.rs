@@ -42,7 +42,7 @@ impl Display for SampleType {
 ///
 /// * Support for melting a `Study Dataset` from `StudySamplesMelt` and `StudyVariableMelt` input tables
 ///   instead of as struct parameters
-pub struct MeltStudyDataSession<'a> {
+pub struct MeltStudyDataNetwork<'a> {
     /// Session
     pub network_name: &'a str,
     /// `sample_name` column name
@@ -56,8 +56,8 @@ pub struct MeltStudyDataSession<'a> {
     pub data_types: &'a [DataType],
 }
 
-impl<'a> MeltStudyDataSession<'a> {
-    /// New [MeltStudyDataSession]
+impl<'a> MeltStudyDataNetwork<'a> {
+    /// New [MeltStudyDataNetwork]
     pub fn new(
         network_name: Option<&'a str>,
         sample_name_col: &'a str,
@@ -65,7 +65,7 @@ impl<'a> MeltStudyDataSession<'a> {
         variable_names: &'a [&'a str],
         data_types: &'a [DataType],
     ) -> Result<Self> {
-        let network_name = network_name.unwrap_or("melt_study_data_session");
+        let network_name = network_name.unwrap_or("melt_study_data_network");
         if variable_names.len() != data_types.len() {
             return Err(anyhow!(
                 "variable_names `{variable_names:?}` length does not match data_types `{data_types:?}` length."
@@ -365,7 +365,7 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_melt_study_data_session() -> Result<()> {
+    async fn test_melt_study_data_network() -> Result<()> {
         // Make the anticipated pivot table values
         let variable_names = &["Age", "Gender", "Ethnicity", "RFFT", "VAT", "BMI", "Statin"];
         let data_types = &[
@@ -379,19 +379,19 @@ mod tests {
         ];
 
         // Initialize the session
-        let melt_study_data_session =
-            MeltStudyDataSession::new(None, "Casenr", None, variable_names, data_types)?;
-        // dbg!(&melt_study_data_session.as_mermaid_erdiagram()?);
+        let melt_study_data_network =
+            MeltStudyDataNetwork::new(None, "Casenr", None, variable_names, data_types)?;
+        // dbg!(&melt_study_data_network.as_mermaid_erdiagram()?);
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            melt_study_data_session.as_mermaid_flowchart(),
+            melt_study_data_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            melt_study_data_session.as_mermaid_erdiagram()?.as_str(),
+            melt_study_data_network.as_mermaid_erdiagram()?.as_str(),
             false,
             true,
         )?
-        .with_name(melt_study_data_session.network_name)
+        .with_name(melt_study_data_network.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
@@ -456,7 +456,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: blob.get_name().to_string(),
             })
-            .with_publisher(melt_study_data_session.network_name)
+            .with_publisher(melt_study_data_network.network_name)
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![blob_message]);
