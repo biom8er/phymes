@@ -267,11 +267,15 @@ impl NetworkBuilder {
 
         // Extend the tasks
         let other_tasks = if let Some(tasks) = self.tasks.as_ref() {
-            if let Some(other) = other.tasks {
+            if let Some(other) = other.tasks.as_ref() {
                 let names = tasks.iter().map(|t| &t.task_name).collect::<HashSet<_>>();
                 other
                     .into_iter()
-                    .filter(|t| !names.contains(&t.task_name))
+                    .filter_map(|t| if names.contains(&t.task_name) {
+                        None
+                    } else {
+                        Some(t.to_owned())
+                    })
                     .collect::<Vec<_>>()
             } else {
                 Vec::new()
@@ -279,8 +283,22 @@ impl NetworkBuilder {
         } else {
             Vec::new()
         };
-        if let Some(tasks) = self.tasks.as_mut() {
+        if let Some(tasks) = self.tasks.take() {
+            let mut tasks = if let Some(other) = other.tasks {
+                let task_map = other.iter().map(|t| (&t.task_name, t)).collect::<HashMap<_, _>>();
+                tasks
+                    .into_iter()
+                    .map(|t| if let Some(o) = task_map.get(&t.task_name){
+                        t.extend(o.to_owned().to_owned())
+                    } else {
+                        t
+                    })
+                    .collect::<Vec<_>>()
+            } else {
+                tasks
+            };
             tasks.extend(other_tasks);
+            self.tasks.replace(tasks);
         } else if !other_tasks.is_empty() {
             self.tasks.replace(other_tasks);
         }

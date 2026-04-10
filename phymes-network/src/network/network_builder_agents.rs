@@ -17,8 +17,7 @@ use phymes_message::{IPCMessage, IPCMessageMap, MessageBuilderTrait};
 use phymes_ml::{CandleChatConfig, CandleEmbedConfig};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
 use phymes_schemas::{
-    AvailableInterfaceSubjects, AvailableSchemaTrait, AvailableSubjects, create_bytes_fields,
-    create_values_fields,
+    AvailableInterfaceSubjects, AvailableSchemaTrait, AvailableSubjects,
 };
 #[cfg(feature = "api")]
 use phymes_streams::{CommandSandboxConfig, HTTPClientConfig};
@@ -545,14 +544,6 @@ impl NetworkBuilderAgentsTrait for NetworkBuilder {
             .iter()
             .map(|t| (t.get_name().to_string(), t))
             .collect::<HashMap<_, _>>();
-
-        let tasks = self
-            .tasks
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|t| t.task_name.to_string())
-            .collect::<HashSet<_>>();
 
         // Find the config tables whereby a config table is defined as
         //  a subject with the same name as a processor
