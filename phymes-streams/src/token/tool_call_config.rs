@@ -44,36 +44,56 @@ impl DataConfigTrait for ToolCallConfig {
     where
         Self: Sized,
     {
-        // Check for the required fields
-        let column_names = subject
-            .get_schema()
-            .fields()
-            .iter()
-            .map(|f| f.name().to_string())
-            .collect::<HashSet<_>>();
-        if !(column_names.contains("subject_name")
-            && column_names.contains("subject_names")
-            && column_names.contains("subscription_table_names"))
-        {
-            return Err(anyhow!(
-                "Table {} is missing required Field for `subject_name`, `subject_names`, `subscription_table_names` in ToolCallConfig.",
-                subject.get_name()
-            ));
-        }
-
-        // Try to build the config
-        match subject.to_struct::<ToolCallConfig>() {
-            Ok(config_vec) => match config_vec.first() {
-                Some(config) => Ok(config.to_owned()),
-                None => Err(anyhow!(
-                    "No config data found for ToolCallConfig with subject {}",
+        if let Some(bytes) = Self::from_subject_as_bytes(subject) {
+            // Try to build the config
+            match serde_json::from_slice::<ToolCallConfig>(&bytes) {
+                Ok(config) => {
+                    config.check_required_members(subject.get_name())?;
+                    Ok(config)
+                },
+                Err(err) => Err(anyhow!(
+                    "`{}` could not be built for subject `{}`. {err}",
+                    Self::get_static_name(), 
                     subject.get_name()
                 )),
-            },
-            Err(err) => Err(anyhow!(
-                "ToolCallConfig could not be built for subject {}. {err}",
-                subject.get_name()
-            )),
+            }
+        } else {
+            // Check for the required fields
+            let required_fields = &["subject_name", "subject_names", "subscription_table_names"];
+            let column_names = subject
+                .get_schema()
+                .fields()
+                .iter()
+                .map(|f| f.name().to_string())
+                .collect::<HashSet<_>>();
+            Self::check_required_fields(subject.get_name(), &column_names, required_fields)?;            
+
+            // Try to build the config
+            match subject.to_struct::<ToolCallConfig>() {
+                Ok(mut config_vec) => match config_vec.pop() {
+                    Some(config) => Ok(config),
+                    None => Err(anyhow!(
+                        "No config data found for `{}` with subject {}",
+                        Self::get_static_name(),
+                        subject.get_name()
+                    )),
+                },
+                Err(err) => Err(anyhow!(
+                    "`{}` could not be built for subject `{}`. {err}",
+                    Self::get_static_name(), 
+                    subject.get_name()
+                )),
+            }
         }
+    }
+    
+    fn check_required_members(&self, _subject_name: &str) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl MappableTrait for ToolCallConfig {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
 }

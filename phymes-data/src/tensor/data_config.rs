@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
 use phymes_subject::{MappableTrait, Subject, SubjectTrait};
 use phymes_diagnostics::HashSet;
-use phymes_schemas::{AvailableSubjects, DataEncoding, DataFormat};
+use phymes_schemas::{AvailableSubjects, DataEncoding, DataFormat, create_bytes_fields, create_values_fields};
 use serde::{Deserialize, Serialize};
 
 use crate::{AvailableJinja2Templates, AvailableOperators, DiffType};
@@ -521,7 +521,7 @@ impl Display for DataJoinOperator {
 }
 
 /// Traits for all configs
-pub trait DataConfigTrait {
+pub trait DataConfigTrait: MappableTrait {
     /// Create an example and serialize to JSON
     ///
     /// # Notes
@@ -530,10 +530,57 @@ pub trait DataConfigTrait {
     where
         Self: Serialize;
 
-    /// Build the config from a [Subject]
+    /// Build the config from a [Subject] with options
+    ///   for JSON Values or Bytes schemas
     fn from_subject(subject: &Subject) -> Result<Self>
     where
         Self: Sized;
+
+    /// Build the config from JSON Values or Bytes
+    fn from_subject_as_bytes(subject: &Subject) -> Option<Vec<u8>>
+    where
+        Self: Sized
+    {        
+        if subject.get_schema().fields().contains(&create_values_fields()) {
+            let mut config_str = subject.get_column_as_vec_nonprimitive::<String>("values")
+                .unwrap();
+            if let Some(last) = config_str.pop() {
+                let bytes = last.into_bytes();
+                Some(bytes)
+            } else {
+                None
+            }
+        } else if subject.get_schema().fields().contains(&create_bytes_fields()) {
+            let mut config_str = subject
+                .get_column_as_vec_nested_primitive::<u8>("bytes")
+                .unwrap();            
+            if let Some(bytes) = config_str.pop() {
+                Some(bytes)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Check required fields for the config
+    fn check_required_fields(subject_name: &str, subject_fields: &HashSet<String>, required_fields: &[&str]) -> Result<()> 
+    where
+        Self: Sized{
+        for required_field in required_fields {
+            if !subject_fields.contains(*required_field) {
+                return Err(anyhow!(
+                    "Subject `{subject_name}` is missing required field for `{required_field}` in `{}`. Required fields are `{required_fields:?}`",
+                    Self::get_static_name()
+                ))
+            }
+        }
+        Ok(())
+    }
+
+    /// Check required variants in the config
+    fn check_required_members(&self, subject_name: &str) -> Result<()>;
 }
 
 #[derive(Parser, Debug, Serialize, Deserialize, Clone, Default)]
@@ -761,36 +808,56 @@ impl DataConfigTrait for DataConfig {
     where
         Self: Sized,
     {
-        // Check for the required fields
-        let column_names = subject
-            .get_schema()
-            .fields()
-            .iter()
-            .map(|f| f.name().to_string())
-            .collect::<HashSet<_>>();
-        if !(column_names.contains("operator")
-            && column_names.contains("cpu")
-            && column_names.contains("lhs_stream"))
-        {
-            return Err(anyhow!(
-                "Table {} is missing required Field for `operator`, `cpu`, or `lhs_stream` in DataConfig.",
-                subject.get_name()
-            ));
-        }
-
-        // Try to build the config
-        match subject.to_struct::<DataConfig>() {
-            Ok(config_vec) => match config_vec.first() {
-                Some(config) => Ok(config.to_owned()),
-                None => Err(anyhow!(
-                    "No config data found for DataConfig with subject {}",
+        if let Some(bytes) = Self::from_subject_as_bytes(subject) {
+            // Try to build the config
+            match serde_json::from_slice::<DataConfig>(&bytes) {
+                Ok(config) => {
+                    config.check_required_members(subject.get_name())?;
+                    Ok(config)
+                },
+                Err(err) => Err(anyhow!(
+                    "`{}` could not be built for subject `{}`. {err}",
+                    Self::get_static_name(), 
                     subject.get_name()
                 )),
-            },
-            Err(err) => Err(anyhow!(
-                "DataConfig could not be built for subject {}. {err}",
-                subject.get_name()
-            )),
+            }
+        } else {
+            // Check for the required fields
+            let required_fields = &["operator", "cpu", "lhs_stream"];
+            let column_names = subject
+                .get_schema()
+                .fields()
+                .iter()
+                .map(|f| f.name().to_string())
+                .collect::<HashSet<_>>();
+            Self::check_required_fields(subject.get_name(), &column_names, required_fields)?;            
+
+            // Try to build the config
+            match subject.to_struct::<DataConfig>() {
+                Ok(mut config_vec) => match config_vec.pop() {
+                    Some(config) => Ok(config),
+                    None => Err(anyhow!(
+                        "No config data found for `{}` with subject {}",
+                        Self::get_static_name(),
+                        subject.get_name()
+                    )),
+                },
+                Err(err) => Err(anyhow!(
+                    "`{}` could not be built for subject `{}`. {err}",
+                    Self::get_static_name(), 
+                    subject.get_name()
+                )),
+            }
         }
+    }
+    
+    fn check_required_members(&self, _subject_name: &str) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl MappableTrait for DataConfig {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
 }

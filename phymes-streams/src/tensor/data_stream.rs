@@ -16,7 +16,6 @@ use phymes_message::{
     MessageTrait, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_ml::{CandleTensorService, TensorStreamTrait};
-use phymes_schemas::{create_bytes_fields, create_values_fields};
 use std::{
     pin::Pin,
     sync::Arc,
@@ -118,31 +117,8 @@ impl Stream for CandleDataStream {
                 .with_name("CandleDataStream Config")
                 .with_record_batches(batches)?
                 .build()?;
-            if config_subject
-                .get_schema()
-                .fields()
-                .contains(&create_values_fields())
-            {
-                let config_json = config_subject.get_column_as_vec_str("values").join("");
-                let config = serde_json::from_str::<DataConfig>(&config_json)?;
-                self.config.replace(config);
-            } else if config_subject
-                .get_schema()
-                .fields()
-                .contains(&create_bytes_fields())
-            {
-                let config_json = config_subject
-                    .get_column_as_vec_nested_primitive::<u8>("bytes")?
-                    .into_iter()
-                    .map(|b| String::from_utf8(b).unwrap())
-                    .collect::<Vec<_>>()
-                    .join("");
-                let config = serde_json::from_str::<DataConfig>(&config_json)?;
-                self.config.replace(config);
-            } else {
-                let config = DataConfig::from_subject(&config_subject)?;
-                self.config.replace(config);
-            }
+            let config = DataConfig::from_subject(&config_subject)?;
+            self.config.replace(config);
         }
         // DM: need to implement a trigger for event verbosity
         // if let Some(diagnostic_builder) = &self.diagnostic_builder {

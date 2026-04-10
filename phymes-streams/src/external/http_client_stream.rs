@@ -124,31 +124,8 @@ impl Stream for HTTPClientRequestStream {
                         .with_name("config")
                         .with_record_batches(batches)?
                         .build()?;
-                    if config_table
-                        .get_schema()
-                        .fields()
-                        .contains(&create_values_fields())
-                    {
-                        let config_json = config_table.get_column_as_vec_str("values").join("");
-                        let config = serde_json::from_str::<HTTPClientConfig>(&config_json)?;
-                        self.config.replace(config);
-                    } else if config_table
-                        .get_schema()
-                        .fields()
-                        .contains(&create_bytes_fields())
-                    {
-                        let config_json = config_table
-                            .get_column_as_vec_nested_primitive::<u8>("bytes")?
-                            .into_iter()
-                            .map(|b| String::from_utf8(b).unwrap())
-                            .collect::<Vec<_>>()
-                            .join("");
-                        let config = serde_json::from_str::<HTTPClientConfig>(&config_json)?;
-                        self.config.replace(config);
-                    } else {
-                        let config = HTTPClientConfig::from_table(&config_table)?;
-                        self.config.replace(config);
-                    }
+                    let config = HTTPClientConfig::from_subject(&config_table)?;
+                    self.config.replace(config);
                 }
 
                 // Collect the request data

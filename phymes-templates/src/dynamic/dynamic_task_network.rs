@@ -55,9 +55,6 @@ impl<'a> DynamicTaskNetwork<'a> {
     fn processor_name(&self) -> String {
         format!("{}_p", self.network_name)
     }
-    fn runtime_env_name(&self) -> String {
-        format!("{}_rt", self.network_name)
-    }
     fn subject_name(&self, subject_name: &str) -> String {
         format!("{subject_name}_s")
     }

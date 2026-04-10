@@ -70,7 +70,7 @@ impl OpenAIEmbedStream {
     /// Initialize the config for text embedding inference
     fn init_config(&mut self, config_table: Subject) -> Result<()> {
         if self.config.is_none() {
-            let config = CandleEmbedConfig::from_table(&config_table)?;
+            let config = CandleEmbedConfig::from_subject(&config_table)?;
             self.config.replace(config);
         }
         Ok(())

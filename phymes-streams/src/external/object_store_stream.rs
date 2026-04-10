@@ -29,8 +29,7 @@ use phymes_message::{
     MessageTrait, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_schemas::{
-    AvailableSchemaTrait, AvailableSubjects, create_bytes_fields, create_object_store_batch,
-    create_object_store_meta_batch, create_values_fields,
+    AvailableSchemaTrait, AvailableSubjects, create_object_store_batch, create_object_store_meta_batch,
 };
 use serde_json::{Map, Value, json};
 
@@ -134,31 +133,8 @@ impl Stream for ObjectStoreStream {
                         .with_name("config")
                         .with_record_batches(batches)?
                         .build()?;
-                    if config_table
-                        .get_schema()
-                        .fields()
-                        .contains(&create_values_fields())
-                    {
-                        let config_json = config_table.get_column_as_vec_str("values").join("");
-                        let config = serde_json::from_str::<ObjectStoreConfig>(&config_json)?;
-                        self.config.replace(config);
-                    } else if config_table
-                        .get_schema()
-                        .fields()
-                        .contains(&create_bytes_fields())
-                    {
-                        let config_json = config_table
-                            .get_column_as_vec_nested_primitive::<u8>("bytes")?
-                            .into_iter()
-                            .map(|b| String::from_utf8(b).unwrap())
-                            .collect::<Vec<_>>()
-                            .join("");
-                        let config = serde_json::from_str::<ObjectStoreConfig>(&config_json)?;
-                        self.config.replace(config);
-                    } else {
-                        let config = ObjectStoreConfig::from_subject(&config_table)?;
-                        self.config.replace(config);
-                    }
+                    let config = ObjectStoreConfig::from_subject(&config_table)?;
+                    self.config.replace(config);
                 }
 
                 // Collect the request data

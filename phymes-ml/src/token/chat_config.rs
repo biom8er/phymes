@@ -114,41 +114,69 @@ impl DataConfigTrait for CandleChatConfig {
     where
         Self: Sized,
     {
-        // Check for the required fields
-        let column_names = subject
-            .get_schema()
-            .fields()
-            .iter()
-            .map(|f| f.name().to_string())
-            .collect::<HashSet<_>>();
-        if !((column_names.contains("candle_asset") || column_names.contains("openai_asset"))
-            && column_names.contains("max_tokens")
-            && column_names.contains("temperature")
-            && column_names.contains("seed")
-            && column_names.contains("repeat_penalty")
-            && column_names.contains("repeat_last_n")
-            && column_names.contains("frequency_penalty")
-            && column_names.contains("messages"))
-        {
-            return Err(anyhow!(
-                "Table {} is missing required Field for `candle_asset`, `openai_asset`, `max_tokens`, `temperature`, `seed`, `repeat_penalty`, `repeat_last_n`, `messages`, or `frequency_penalty` in CandleChatConfig.",
-                subject.get_name()
-            ));
-        }
-
-        // Try to build the config
-        match subject.to_struct::<CandleChatConfig>() {
-            Ok(config_vec) => match config_vec.first() {
-                Some(config) => Ok(config.to_owned()),
-                None => Err(anyhow!(
-                    "No config data found for CandleChatConfig with subject {}",
+        if let Some(bytes) = Self::from_subject_as_bytes(subject) {
+            // Try to build the config
+            match serde_json::from_slice::<CandleChatConfig>(&bytes) {
+                Ok(config) => {
+                    config.check_required_members(subject.get_name())?;
+                    Ok(config)
+                },
+                Err(err) => Err(anyhow!(
+                    "`{}` could not be built for subject `{}`. {err}",
+                    Self::get_static_name(), 
                     subject.get_name()
                 )),
-            },
-            Err(err) => Err(anyhow!(
-                "CandleChatConfig could not be built for subject {}. {err}",
-                subject.get_name()
-            )),
+            }
+        } else {
+            // Check for the required fields
+            let required_fields = &["max_tokens", "temperature", "seed", "repeat_penalty", "repeat_last_n", "frequency_penalty", "messages"];
+            let column_names = subject
+                .get_schema()
+                .fields()
+                .iter()
+                .map(|f| f.name().to_string())
+                .collect::<HashSet<_>>();
+            Self::check_required_fields(subject.get_name(), &column_names, required_fields)?;
+            if let Err(err_1) = Self::check_required_fields(subject.get_name(), &column_names, &["candle_asset"]) {
+                if let Err(err_2) = Self::check_required_fields(subject.get_name(), &column_names, &["openai_asset"]) {
+                    let err = [err_1.to_string(), err_2.to_string()].join("; ");
+                    return Err(anyhow!(err))
+                }
+            };         
+
+            // Try to build the config
+            match subject.to_struct::<CandleChatConfig>() {
+                Ok(mut config_vec) => match config_vec.pop() {
+                    Some(config) => Ok(config),
+                    None => Err(anyhow!(
+                        "No config data found for `{}` with subject {}",
+                        Self::get_static_name(),
+                        subject.get_name()
+                    )),
+                },
+                Err(err) => Err(anyhow!(
+                    "`{}` could not be built for subject `{}`. {err}",
+                    Self::get_static_name(), 
+                    subject.get_name()
+                )),
+            }
         }
+    }
+    
+    fn check_required_members(&self, subject_name: &str) -> Result<()> {
+        if self.candle_asset.is_none() && self.openai_asset.is_none() {
+            Err(anyhow!(
+                "Subject `{subject_name}` is missing required field for `candle_asset` or `openai_asset` in `{}`",
+                Self::get_static_name()
+            ))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl MappableTrait for CandleChatConfig {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
 }

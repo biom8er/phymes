@@ -158,36 +158,56 @@ impl DataConfigTrait for HTTPClientConfig {
     where
         Self: Sized,
     {
-        // Check for the required fields
-        let column_names = subject
-            .get_schema()
-            .fields()
-            .iter()
-            .map(|f| f.name().to_string())
-            .collect::<HashSet<_>>();
-        if !(column_names.contains("timeout")
-            && column_names.contains("request_type")
-            && column_names.contains("request_schema"))
-        {
-            return Err(anyhow!(
-                "Table {} is missing required Field for `timeout`, `request_type`, and `request_schema` in HTTPClientConfig.",
-                subject.get_name()
-            ));
-        }
-
-        // Try to build the config
-        match subject.to_struct::<HTTPClientConfig>() {
-            Ok(config_vec) => match config_vec.first() {
-                Some(config) => Ok(config.to_owned()),
-                None => Err(anyhow!(
-                    "No config data found for HTTPClientConfig with subject {}",
+        if let Some(bytes) = Self::from_subject_as_bytes(subject) {
+            // Try to build the config
+            match serde_json::from_slice::<HTTPClientConfig>(&bytes) {
+                Ok(config) => {
+                    config.check_required_members(subject.get_name())?;
+                    Ok(config)
+                },
+                Err(err) => Err(anyhow!(
+                    "`{}` could not be built for subject `{}`. {err}",
+                    Self::get_static_name(), 
                     subject.get_name()
                 )),
-            },
-            Err(err) => Err(anyhow!(
-                "HTTPClientConfig could not be built for subject {}. {err}",
-                subject.get_name()
-            )),
+            }
+        } else {
+            // Check for the required fields
+            let required_fields = &["timeout", "request_type", "request_schema"];
+            let column_names = subject
+                .get_schema()
+                .fields()
+                .iter()
+                .map(|f| f.name().to_string())
+                .collect::<HashSet<_>>();
+            Self::check_required_fields(subject.get_name(), &column_names, required_fields)?;            
+
+            // Try to build the config
+            match subject.to_struct::<HTTPClientConfig>() {
+                Ok(mut config_vec) => match config_vec.pop() {
+                    Some(config) => Ok(config),
+                    None => Err(anyhow!(
+                        "No config data found for `{}` with subject {}",
+                        Self::get_static_name(),
+                        subject.get_name()
+                    )),
+                },
+                Err(err) => Err(anyhow!(
+                    "`{}` could not be built for subject `{}`. {err}",
+                    Self::get_static_name(), 
+                    subject.get_name()
+                )),
+            }
         }
+    }
+    
+    fn check_required_members(&self, _subject_name: &str) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl MappableTrait for HTTPClientConfig {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
 }

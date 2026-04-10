@@ -552,11 +552,23 @@ impl DataConfigTrait for AvailableProcessors {
             }),
         }
     }
-    fn from_subject(_table: &Subject) -> Result<Self>
+    fn from_subject(_subject: &Subject) -> Result<Self>
     where
         Self: Sized,
     {
         unimplemented!()
+    }
+    fn check_required_members(&self, _subject_name: &str) -> Result<()>
+    where
+        Self: Sized,
+    {
+        unimplemented!()
+    }
+}
+
+impl MappableTrait for AvailableProcessors {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
 }
 
