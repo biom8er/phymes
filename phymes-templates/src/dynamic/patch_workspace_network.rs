@@ -46,7 +46,7 @@ impl<'a> PatchWorkspaceNetwork<'a> {
 	%% Apply patch to workspace
     %% - We listen for updates both on the config `apply_patch_p` subject
     %%   AND a data `WorkspacePatch` subject
-    %% - The `tool_call_network` is used to trigger the operator when only the config is updated
+    %% - The `invoke_task_network` is used to trigger the operator when only the config is updated
 	%% ------------------------------------------------------------------------------
 	subgraph apply_patch_t
         {workspace_subject_name}-subject-->|AllRecordBatches|apply_patch_p-subscribe
@@ -333,17 +333,17 @@ pub use todo::Todo"#,
     #[tokio::test(flavor = "current_thread")]
     async fn test_patch_workspace_network_dynamic_wo_subjects() -> Result<()> {
         // View task session
-        let tool_call_network = ToolCallNetwork::new("tool_call_network", &["apply_patch_p"]);
-        let tool_call_network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &tool_call_network.as_mermaid_flowchart(),
+        let invoke_task_network = ToolCallNetwork::new("invoke_task_network", &["apply_patch_p"]);
+        let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
+            &invoke_task_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &tool_call_network.as_mermaid_erdiagram()?,
+            &invoke_task_network.as_mermaid_erdiagram()?,
             false,
             true,
         )?
-        .with_name(tool_call_network.network_name);
+        .with_name(invoke_task_network.network_name);
 
         // Initialize the session
         let patch_workspace_network = PatchWorkspaceNetwork {
@@ -361,7 +361,7 @@ pub use todo::Todo"#,
         )?
         .with_name(patch_workspace_network.network_name)
         .with_diagnostics(true)
-        .extend(tool_call_network_builder)?
+        .extend(invoke_task_network_builder)?
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?

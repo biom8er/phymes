@@ -885,17 +885,17 @@ mod tests {
         // View task session
         let tool_call_subject = format!("list_{remote_object_store_name}_p");
         let tool_call_subjects = [tool_call_subject.as_str()];
-        let tool_call_network = ToolCallNetwork::new("tool_call_network", &tool_call_subjects);
-        let tool_call_network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &tool_call_network.as_mermaid_flowchart(),
+        let invoke_task_network = ToolCallNetwork::new("invoke_task_network", &tool_call_subjects);
+        let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
+            &invoke_task_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &tool_call_network.as_mermaid_erdiagram()?,
+            &invoke_task_network.as_mermaid_erdiagram()?,
             false,
             true,
         )?
-        .with_name(tool_call_network.network_name);
+        .with_name(invoke_task_network.network_name);
 
         // Initialize the session
         let sync_content_network = SyncContentNetwork {
@@ -919,7 +919,7 @@ mod tests {
         )?
         .with_name(sync_content_network.network_name)
         .with_diagnostics(true)
-        .extend(tool_call_network_builder)?
+        .extend(invoke_task_network_builder)?
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?

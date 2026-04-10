@@ -156,7 +156,7 @@ impl Stream for ObjectStoreStream {
                         let config = serde_json::from_str::<ObjectStoreConfig>(&config_json)?;
                         self.config.replace(config);
                     } else {
-                        let config = ObjectStoreConfig::from_table(&config_table)?;
+                        let config = ObjectStoreConfig::from_subject(&config_table)?;
                         self.config.replace(config);
                     }
                 }

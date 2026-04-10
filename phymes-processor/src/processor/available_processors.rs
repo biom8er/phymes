@@ -552,7 +552,7 @@ impl DataConfigTrait for AvailableProcessors {
             }),
         }
     }
-    fn from_table(_table: &Subject) -> Result<Self>
+    fn from_subject(_table: &Subject) -> Result<Self>
     where
         Self: Sized,
     {

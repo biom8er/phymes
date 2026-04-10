@@ -76,7 +76,7 @@ impl<'a> GetContentNetwork<'a> {
     %% - We listen for updates both on the config `get_pdf_p` subject
     %%   AND a data `http_client_request_pdf_s` subject which is in the form of a UserMessage
     %%   which can both specify the URL to download the PDF from
-    %% - The `tool_call_network` is used to trigger the download when only the config is updated
+    %% - The `invoke_task_network` is used to trigger the download when only the config is updated
 	%% ------------------------------------------------------------------------------
 	subgraph get_pdf_t
 		http_client_request_pdf_s-subject-.->|AllRecordBatches|get_pdf_p-subscribe{get_pdf_p_subgraph}
@@ -95,7 +95,7 @@ impl<'a> GetContentNetwork<'a> {
     %% - We listen for updates both on the config `get_json_p` subject
     %%   AND a data `http_client_request_json_s` subject which is in the form of a UserMessage
     %%   which can both specify the URL to download the JSON from
-    %% - The `tool_call_network` is used to trigger the download when only the config is updated
+    %% - The `invoke_task_network` is used to trigger the download when only the config is updated
 	%% ------------------------------------------------------------------------------
 	subgraph get_json_t
 		http_client_request_json_s-subject-.->|AllRecordBatches|get_json_p-subscribe{get_json_p_subgraph}
@@ -114,7 +114,7 @@ impl<'a> GetContentNetwork<'a> {
     %% - We listen for updates both on the config `get_object_p` subject
     %%   AND a data `object_store_request_object_s` subject which is in the form of a UserMessage
     %%   which can both specify the URL to download the JSON from
-    %% - The `tool_call_network` is used to trigger the download when only the config is updated
+    %% - The `invoke_task_network` is used to trigger the download when only the config is updated
 	%% ------------------------------------------------------------------------------
 	subgraph get_object_t
 		object_store_request_object_s-subject-.->|AllRecordBatches|get_object_p-subscribe{get_object_p_subgraph}
@@ -525,18 +525,18 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_content_session_dynamic_wo_subjects() -> Result<()> {
         // View task session
-        let tool_call_network =
-            ToolCallNetwork::new("tool_call_network", &["get_pdf_p", "get_json_p"]);
-        let tool_call_network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &tool_call_network.as_mermaid_flowchart(),
+        let invoke_task_network =
+            ToolCallNetwork::new("invoke_task_network", &["get_pdf_p", "get_json_p"]);
+        let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
+            &invoke_task_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &tool_call_network.as_mermaid_erdiagram()?,
+            &invoke_task_network.as_mermaid_erdiagram()?,
             false,
             true,
         )?
-        .with_name(tool_call_network.network_name);
+        .with_name(invoke_task_network.network_name);
 
         // Initialize the session
         let get_content_session = GetContentNetwork {
@@ -554,7 +554,7 @@ mod tests {
         )?
         .with_name(get_content_session.network_name)
         .with_diagnostics(true)
-        .extend(tool_call_network_builder)?
+        .extend(invoke_task_network_builder)?
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?

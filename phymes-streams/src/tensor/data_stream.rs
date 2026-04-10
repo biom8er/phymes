@@ -140,7 +140,7 @@ impl Stream for CandleDataStream {
                 let config = serde_json::from_str::<DataConfig>(&config_json)?;
                 self.config.replace(config);
             } else {
-                let config = DataConfig::from_table(&config_subject)?;
+                let config = DataConfig::from_subject(&config_subject)?;
                 self.config.replace(config);
             }
         }

@@ -154,12 +154,12 @@ impl DataConfigTrait for HTTPClientConfig {
     fn to_example_json(&self) -> Result<Vec<u8>, serde_json::Error> {
         serde_json::to_vec(&Self::default())
     }
-    fn from_table(table: &Subject) -> Result<Self>
+    fn from_subject(subject: &Subject) -> Result<Self>
     where
         Self: Sized,
     {
         // Check for the required fields
-        let column_names = table
+        let column_names = subject
             .get_schema()
             .fields()
             .iter()
@@ -171,22 +171,22 @@ impl DataConfigTrait for HTTPClientConfig {
         {
             return Err(anyhow!(
                 "Table {} is missing required Field for `timeout`, `request_type`, and `request_schema` in HTTPClientConfig.",
-                table.get_name()
+                subject.get_name()
             ));
         }
 
         // Try to build the config
-        match table.to_struct::<HTTPClientConfig>() {
+        match subject.to_struct::<HTTPClientConfig>() {
             Ok(config_vec) => match config_vec.first() {
                 Some(config) => Ok(config.to_owned()),
                 None => Err(anyhow!(
                     "No config data found for HTTPClientConfig with subject {}",
-                    table.get_name()
+                    subject.get_name()
                 )),
             },
             Err(err) => Err(anyhow!(
                 "HTTPClientConfig could not be built for subject {}. {err}",
-                table.get_name()
+                subject.get_name()
             )),
         }
     }

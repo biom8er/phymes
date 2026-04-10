@@ -59,7 +59,7 @@ impl LimitStream {
     /// Initialize the config and update the values for skip and fetch
     fn init_config(&mut self, config_table: Subject) -> Result<()> {
         if self.config.is_none() {
-            let config = LimitConfig::from_table(&config_table)?;
+            let config = LimitConfig::from_subject(&config_table)?;
             self.config.replace(config);
         }
         self.skip.replace(

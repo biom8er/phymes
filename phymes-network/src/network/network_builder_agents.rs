@@ -642,7 +642,7 @@ impl NetworkBuilderAgentsTrait for NetworkBuilder {
             }
 
             // Check everything else
-            if let Ok(_config) = CandleChatConfig::from_table(subject_plan.subject()) {
+            if let Ok(_config) = CandleChatConfig::from_subject(subject_plan.subject()) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() != "CandleChatConfig" {
                         return Err(anyhow!(
@@ -661,7 +661,7 @@ impl NetworkBuilderAgentsTrait for NetworkBuilder {
                         AvailableProcessors::all_varient_names()
                     ));
                 }
-            } else if let Ok(_config) = CandleEmbedConfig::from_table(subject_plan.subject()) {
+            } else if let Ok(_config) = CandleEmbedConfig::from_subject(subject_plan.subject()) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() != "CandleEmbedConfig" {
                         return Err(anyhow!(
@@ -680,7 +680,7 @@ impl NetworkBuilderAgentsTrait for NetworkBuilder {
                         AvailableProcessors::all_varient_names()
                     ));
                 }
-            } else if let Ok(_config) = ToolCallConfig::from_table(subject_plan.subject()) {
+            } else if let Ok(_config) = ToolCallConfig::from_subject(subject_plan.subject()) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() != "ToolCallConfig" {
                         return Err(anyhow!(
@@ -699,7 +699,7 @@ impl NetworkBuilderAgentsTrait for NetworkBuilder {
                         AvailableProcessors::all_varient_names()
                     ));
                 }
-            } else if let Ok(_config) = LimitConfig::from_table(subject_plan.subject()) {
+            } else if let Ok(_config) = LimitConfig::from_subject(subject_plan.subject()) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() != "LimitConfig" {
                         return Err(anyhow!(
@@ -718,7 +718,7 @@ impl NetworkBuilderAgentsTrait for NetworkBuilder {
                         AvailableProcessors::all_varient_names()
                     ));
                 }
-            } else if let Ok(_config) = ObjectStoreConfig::from_table(subject_plan.subject()) {
+            } else if let Ok(_config) = ObjectStoreConfig::from_subject(subject_plan.subject()) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() != "ObjectStoreConfig" {
                         return Err(anyhow!(
@@ -737,7 +737,7 @@ impl NetworkBuilderAgentsTrait for NetworkBuilder {
                         AvailableProcessors::all_varient_names()
                     ));
                 }
-            } else if let Ok(config) = DataConfig::from_table(subject_plan.subject()) {
+            } else if let Ok(config) = DataConfig::from_subject(subject_plan.subject()) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() == "DataConfig" {
                         if config.operator.to_string().as_str() != r#type
@@ -806,7 +806,7 @@ impl NetworkBuilderAgentsTrait for NetworkBuilder {
 
             // Return an error if the config didn't pass one of the checks
             if !passed_config_checks {
-                if let Err(err) = DataConfig::from_table(subject_plan.subject()) {
+                if let Err(err) = DataConfig::from_subject(subject_plan.subject()) {
                     return Err(anyhow!(
                         "Config could not be built for subject `{}` and Error `{err}` when trying to build for DataConfig with table `{subject_plan:?}`.",
                         subject_plan.get_name()

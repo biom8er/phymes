@@ -94,12 +94,12 @@ impl DataConfigTrait for CandleEmbedConfig {
     fn to_example_json(&self) -> Result<Vec<u8>, serde_json::Error> {
         serde_json::to_vec(&Self::default())
     }
-    fn from_table(table: &Subject) -> Result<Self>
+    fn from_subject(subject: &Subject) -> Result<Self>
     where
         Self: Sized,
     {
         // Check for the required fields
-        let column_names = table
+        let column_names = subject
             .get_schema()
             .fields()
             .iter()
@@ -113,22 +113,22 @@ impl DataConfigTrait for CandleEmbedConfig {
         {
             return Err(anyhow!(
                 "Table {} is missing required Field for `candle_asset`, `openai_asset`, `encoding_format`, `input_type`, `documents`, or `modality` in CandleEmbedConfig.",
-                table.get_name()
+                subject.get_name()
             ));
         }
 
         // Try to build the config
-        match table.to_struct::<CandleEmbedConfig>() {
+        match subject.to_struct::<CandleEmbedConfig>() {
             Ok(config_vec) => match config_vec.first() {
                 Some(config) => Ok(config.to_owned()),
                 None => Err(anyhow!(
                     "No config data found for CandleEmbedConfig with subject {}",
-                    table.get_name()
+                    subject.get_name()
                 )),
             },
             Err(err) => Err(anyhow!(
                 "CandleEmbedConfig could not be built for subject {}. {err}",
-                table.get_name()
+                subject.get_name()
             )),
         }
     }

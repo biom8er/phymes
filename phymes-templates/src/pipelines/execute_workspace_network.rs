@@ -1,4 +1,4 @@
-use crate::plans::tool_call_network::ToolSessionTrait;
+use crate::plans::invoke_task_network::DynamicNetworkTrait;
 use anyhow::{Result, anyhow};
 use phymes_schemas::AvailableInterfaceSubjects;
 use phymes_streams::CommandSandboxEnvironments;
@@ -48,7 +48,7 @@ impl<'a> Default for ExecuteWorkspaceNetwork<'a> {
     }
 }
 
-impl<'a> ToolSessionTrait<'a> for ExecuteWorkspaceNetwork<'a> {
+impl<'a> DynamicNetworkTrait<'a> for ExecuteWorkspaceNetwork<'a> {
     fn subject_names(&self) -> Vec<String> {
         let mut subject_names_vec = Vec::new();
         if let Some(subject_name_i) = self.subject_name_i.as_ref() {

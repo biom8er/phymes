@@ -4,7 +4,7 @@ mod pipelines;
 #[cfg(feature = "api")]
 pub use dynamic::GetContentNetwork;
 pub use dynamic::{
-    GenerateTextNetwork, PatchWorkspaceNetwork, ToolCallNetwork, ToolResponseNetwork,
+    DynamicTaskNetwork, GenerateTextNetwork, PatchWorkspaceNetwork, ToolCallNetwork, TaskResponseNetwork,
 };
 
 #[cfg(feature = "api")]

@@ -1,4 +1,4 @@
-use crate::dynamic::tool_call_network::ToolSessionTrait;
+use crate::dynamic::invoke_task_network::DynamicNetworkTrait;
 
 /// A session for dynamic tool response summarization
 ///
@@ -7,29 +7,29 @@ use crate::dynamic::tool_call_network::ToolSessionTrait;
 ///   `extend`ing with this session will skip duplicate subjects
 ///   that are already defined in the source session
 /// - Any limits to the row counts should be taken care of prior
-pub struct ToolResponseNetwork<'a> {
+pub struct TaskResponseNetwork<'a> {
     /// Session
     pub network_name: &'a str,
     /// Subjects to listen for
     pub subject_names: &'a [&'a str],
 }
 
-impl Default for ToolResponseNetwork<'_> {
+impl Default for TaskResponseNetwork<'_> {
     fn default() -> Self {
-        ToolResponseNetwork {
-            network_name: "tool_response_network",
+        TaskResponseNetwork {
+            network_name: "task_response_network",
             subject_names: &["Bytes"],
         }
     }
 }
 
-impl<'a> ToolSessionTrait<'a> for ToolResponseNetwork<'a> {
+impl<'a> DynamicNetworkTrait<'a> for TaskResponseNetwork<'a> {
     fn subject_names(&self) -> Vec<String> {
         self.subject_names.iter().map(|s| s.to_string()).collect()
     }
 }
 
-impl<'a> ToolResponseNetwork<'a> {
+impl<'a> TaskResponseNetwork<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
         let subgraphs = self
@@ -46,7 +46,7 @@ impl<'a> ToolResponseNetwork<'a> {
 		{processor}_p-processor-->{processor}_p-publish
 		{processor}_p-publish-->|Extend|ToolMessages-subject
 	end
-	ToolResponseNetwork_runtime_env-rt-->{processor}_t
+	TaskResponseNetwork_runtime_env-rt-->{processor}_t
     {}
 	{processor}_p-processor@{{shape: rect, label: PackTabular}}
 	{processor}_p-publish@{{shape: fork}}
@@ -57,7 +57,7 @@ impl<'a> ToolResponseNetwork<'a> {
             })
             .collect::<Vec<_>>();
         [r#"flowchart TD
-    ToolResponseNetwork_runtime_env-rt@{shape: subproc, label: ToolResponseNetwork_runtime_env}
+    TaskResponseNetwork_runtime_env-rt@{shape: subproc, label: TaskResponseNetwork_runtime_env}
 	ToolMessages-subject@{shape: doc, label: ToolMessages}"#
             .to_string()]
         .into_iter()
@@ -130,21 +130,21 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_tool_response_network() -> Result<()> {
+    async fn test_task_response_network() -> Result<()> {
         // Initialize the session
-        let tool_response_network = ToolResponseNetwork::default();
-        dbg!(&tool_response_network.as_mermaid_flowchart());
-        dbg!(&tool_response_network.as_mermaid_erdiagram());
+        let task_response_network = TaskResponseNetwork::default();
+        dbg!(&task_response_network.as_mermaid_flowchart());
+        dbg!(&task_response_network.as_mermaid_erdiagram());
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            &tool_response_network.as_mermaid_flowchart(),
+            &task_response_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &tool_response_network.as_mermaid_erdiagram(),
+            &task_response_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(tool_response_network.network_name)
+        .with_name(task_response_network.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_supersteps()?
@@ -161,7 +161,7 @@ mod tests {
                 .with_update(&Publication::Replace {
                     subject_name: table.get_name().to_string(),
                 })
-                .with_publisher(tool_response_network.network_name)
+                .with_publisher(task_response_network.network_name)
                 .with_message(table.to_ipc_stream()?)
                 .make_name()?
                 .build()?;

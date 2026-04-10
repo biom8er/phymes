@@ -62,7 +62,7 @@ impl AggregatorStream {
     #[instrument(skip(self))]
     fn init_config(&mut self, config_table: Subject) -> Result<()> {
         if self.config.is_none() {
-            let config = DataConfig::from_table(&config_table)?;
+            let config = DataConfig::from_subject(&config_table)?;
             self.config.replace(config);
         }
         Ok(())

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use phymes_data::items_to_list;
 
-pub trait ToolSessionTrait<'a> {
+pub trait DynamicNetworkTrait<'a> {
     /// Subjects to listen for
     fn subject_names(&self) -> Vec<String>;
 
@@ -67,13 +67,13 @@ pub struct ToolCallNetwork<'a> {
 impl Default for ToolCallNetwork<'_> {
     fn default() -> Self {
         ToolCallNetwork {
-            network_name: "tool_call_network",
+            network_name: "invoke_task_network",
             subject_names: &["Bytes"],
         }
     }
 }
 
-impl<'a> ToolSessionTrait<'a> for ToolCallNetwork<'a> {
+impl<'a> DynamicNetworkTrait<'a> for ToolCallNetwork<'a> {
     fn subject_names(&self) -> Vec<String> {
         self.subject_names.iter().map(|s| s.to_string()).collect()
     }
@@ -399,19 +399,19 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_tool_call_network() -> Result<()> {
+    async fn test_invoke_task_network() -> Result<()> {
         // Initialize the session
-        let tool_call_network = ToolCallNetwork::default();
+        let invoke_task_network = ToolCallNetwork::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            &tool_call_network.as_mermaid_flowchart(),
+            &invoke_task_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &tool_call_network.as_mermaid_erdiagram()?,
+            &invoke_task_network.as_mermaid_erdiagram()?,
             false,
             true,
         )?
-        .with_name(tool_call_network.network_name)
+        .with_name(invoke_task_network.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_supersteps()?
@@ -428,7 +428,7 @@ mod tests {
                 .with_update(&Publication::Replace {
                     subject_name: table.get_name().to_string(),
                 })
-                .with_publisher(tool_call_network.network_name)
+                .with_publisher(invoke_task_network.network_name)
                 .with_message(table.to_ipc_stream()?)
                 .make_name()?
                 .build()?;
@@ -461,29 +461,29 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network"
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network"
                 ]
             );
             let column = subject.get_column_as_vec_str("processor_name");
@@ -663,15 +663,15 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network"
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network"
                 ]
             );
             let column = subject.get_column_as_vec_str("processor_name");
@@ -767,15 +767,15 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network"
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network"
                 ]
             );
             let column = subject.get_column_as_vec_str("processor_name");
@@ -886,15 +886,15 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network"
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network"
                 ]
             );
             let column = subject.get_column_as_vec_str("processor_name");
@@ -971,15 +971,15 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network",
-                    "tool_call_network"
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network"
                 ]
             );
             let column = subject.get_column_as_vec_str("task_name");
