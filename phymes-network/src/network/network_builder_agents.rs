@@ -581,16 +581,18 @@ impl NetworkBuilderAgentsTrait for NetworkBuilder {
 
         // Try to build each config
         let mut data_config_vec = Vec::new();
-        for (subject_plan, r#type, name) in config_tables {
-            // Check for processors names that are tasks names with empty rows
-            if tasks.contains(name) && subject_plan.subject().count_rows() == 0 {
+        for (subject_plan, r#type, _name) in config_tables {
+            // Ignore empty rows
+            if subject_plan.subject().count_rows() == 0 {
                 continue;
-            // Check for `values` schema
-            } else if subject_plan.subject().get_schema().fields() == &create_values_fields() {
-                continue;
-            // Check for `bytes` schema
-            } else if subject_plan.subject().get_schema().fields() == &create_bytes_fields() {
-                continue;
+            // if tasks.contains(name) && subject_plan.subject().count_rows() == 0 {
+            //     continue;
+            // // Check for `values` schema
+            // } else if subject_plan.subject().get_schema().fields() == &create_values_fields() {
+            //     continue;
+            // // Check for `bytes` schema
+            // } else if subject_plan.subject().get_schema().fields() == &create_bytes_fields() {
+            //     continue;
             // Ignore Echo processors
             } else if let Ok(processor) = AvailableProcessors::from_str(r#type, false)
                 && processor == AvailableProcessors::ProcessorEcho
@@ -601,7 +603,7 @@ impl NetworkBuilderAgentsTrait for NetworkBuilder {
             // Check guarded configs
             let mut passed_config_checks = false;
             #[cfg(feature = "api")]
-            if let Ok(_config) = HTTPClientConfig::from_table(subject_plan.subject()) {
+            if let Ok(_config) = HTTPClientConfig::from_subject(subject_plan.subject()) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() != "HTTPClientConfig" {
                         return Err(anyhow!(
@@ -620,7 +622,7 @@ impl NetworkBuilderAgentsTrait for NetworkBuilder {
                         AvailableProcessors::all_varient_names()
                     ));
                 }
-            } else if let Ok(_config) = CommandSandboxConfig::from_table(subject_plan.subject()) {
+            } else if let Ok(_config) = CommandSandboxConfig::from_subject(subject_plan.subject()) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() != "CommandSandboxConfig" {
                         return Err(anyhow!(

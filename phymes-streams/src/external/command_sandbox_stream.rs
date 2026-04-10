@@ -23,8 +23,7 @@ use phymes_message::{
     MessageTrait, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_schemas::{
-    AvailableSchemaTrait, AvailableSubjects, create_bytes_fields, create_chat_record_batch,
-    create_values_fields,
+    AvailableSchemaTrait, AvailableSubjects, create_chat_record_batch,
 };
 use serde_json::Value;
 use tempfile::NamedTempFile;
@@ -32,7 +31,7 @@ use tokio::process::Command;
 
 use crate::{
     CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod,
-    external::http_client_processor::error_report,
+    external::http_client_stream::error_report,
 };
 
 /// The state of the command stream

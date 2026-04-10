@@ -23,8 +23,7 @@ use phymes_message::{
     MessageTrait, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_schemas::{
-    AvailableSchemaTrait, AvailableSubjects, create_attachments_batch, create_bytes_fields,
-    create_chat_record_batch, create_values_fields,
+    AvailableSchemaTrait, AvailableSubjects, create_attachments_batch, create_chat_record_batch,
 };
 use reqwest::{
     Client, Response,

@@ -1,4 +1,4 @@
-use crate::plans::invoke_task_network::DynamicNetworkTrait;
+use crate::dynamic::invoke_task_network::DynamicNetworkTrait;
 use anyhow::{Result, anyhow};
 use phymes_schemas::AvailableInterfaceSubjects;
 use phymes_streams::CommandSandboxEnvironments;

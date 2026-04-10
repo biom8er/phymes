@@ -208,7 +208,7 @@ impl NetworkBuilder {
             .collect::<HashMap<_, _>>();
 
         let name = self.name.ok_or(anyhow!(
-            "Please give the session a name before attempting to build the session."
+            "Please give the session a name before attempting to build the network."
         ))?;
         Ok((
             name,
@@ -222,10 +222,10 @@ impl NetworkBuilder {
 
     /// Extend a session with another
     pub fn extend(mut self, other: NetworkBuilder) -> Result<Self> {
-        // Extend the state
-        let other_state = if let Some(state) = self.subjects.as_ref() {
+        // Extend the subjects
+        let other_subjects = if let Some(subjects) = self.subjects.as_ref() {
             if let Some(other) = other.subjects {
-                let names = state.iter().map(|t| t.get_name()).collect::<HashSet<_>>();
+                let names = subjects.iter().map(|t| t.get_name()).collect::<HashSet<_>>();
                 other
                     .into_iter()
                     .filter(|t| !names.contains(t.get_name()))
@@ -236,10 +236,10 @@ impl NetworkBuilder {
         } else {
             Vec::new()
         };
-        if let Some(state) = self.subjects.as_mut() {
-            state.extend(other_state);
-        } else if !other_state.is_empty() {
-            self.subjects.replace(other_state);
+        if let Some(subjects) = self.subjects.as_mut() {
+            subjects.extend(other_subjects);
+        } else if !other_subjects.is_empty() {
+            self.subjects.replace(other_subjects);
         }
 
         // Extend the processors
@@ -338,7 +338,7 @@ impl BuilderTrait for NetworkBuilder {
         self.check_runtime_env()?;
         self.check_subjects()?;
 
-        // build the tasks, state, metrics, and runtime objects
+        // build the tasks, subjects, metrics, and runtime objects
         let (name, tasks, schemas, subjects, runtime_env, diagnostics) = self.build_inner()?;
         let messages: Result<IPCMessageMap> = subjects
             .into_iter()
@@ -387,13 +387,13 @@ impl NetworkBuilderTrait for NetworkBuilder {
     fn check_tasks(&self) -> Result<()> {
         if self.name.is_none() {
             return Err(anyhow!(
-                "Please give the session a name before attempting to build the session."
+                "Please give the session a name before attempting to build the network."
             ));
         }
 
         if self.tasks.is_none() {
             return Err(anyhow!(
-                "Please add a plan before attempting to build the session."
+                "Please add a plan before attempting to build the network."
             ));
         }
         Ok(())
@@ -401,7 +401,7 @@ impl NetworkBuilderTrait for NetworkBuilder {
     fn check_processors(&self) -> Result<()> {
         if self.processors.is_none() {
             return Err(anyhow!(
-                "Please add a processor before attempting to build the session."
+                "Please add a processor before attempting to build the network."
             ));
         }
 
@@ -428,7 +428,7 @@ impl NetworkBuilderTrait for NetworkBuilder {
     fn check_runtime_env(&self) -> Result<()> {
         if self.runtime_env.is_none() {
             return Err(anyhow!(
-                "Please add runtime environments before attempting to build the session."
+                "Please add runtime environments before attempting to build the network."
             ));
         }
 
@@ -437,22 +437,22 @@ impl NetworkBuilderTrait for NetworkBuilder {
     fn check_subjects(&self) -> Result<()> {
         if self.subjects.is_none() {
             return Err(anyhow!(
-                "Please add state before attempting to build the session."
+                "Please add subjects before attempting to build the network."
             ));
         }
 
-        let state_names = self
+        let subjects_names = self
             .subjects
             .as_ref()
             .unwrap()
             .iter()
             .map(|s| s.get_name().to_string())
             .collect::<HashSet<_>>();
-        let state_names_task_plan = self.get_subject_names_from_processors();
-        if state_names_task_plan != state_names {
-            let mut l = state_names_task_plan.iter().collect::<Vec<_>>();
+        let subjects_names_task_plan = self.get_subject_names_from_processors();
+        if subjects_names_task_plan != subjects_names {
+            let mut l = subjects_names_task_plan.iter().collect::<Vec<_>>();
             l.sort();
-            let mut r = state_names.iter().collect::<Vec<_>>();
+            let mut r = subjects_names.iter().collect::<Vec<_>>();
             r.sort();
             return Err(anyhow!(
                 "Mismatch between provided subjects {l:?} and plan subjects and subscription names {r:?}."
@@ -912,7 +912,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Please give the session a name before attempting to build the session."
+                "Please give the session a name before attempting to build the network."
             ),
         }
         Ok(())
@@ -925,7 +925,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Please add a plan before attempting to build the session."
+                "Please add a plan before attempting to build the network."
             ),
         }
         Ok(())
@@ -944,7 +944,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Please add a processor before attempting to build the session."
+                "Please add a processor before attempting to build the network."
             ),
         }
 
@@ -1033,7 +1033,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Please add runtime environments before attempting to build the session."
+                "Please add runtime environments before attempting to build the network."
             ),
         }
 
@@ -1046,7 +1046,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Please add runtime environments before attempting to build the session."
+                "Please add runtime environments before attempting to build the network."
             ),
         }
 
@@ -1065,7 +1065,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Please add state before attempting to build the session."
+                "Please add subjects before attempting to build the network."
             ),
         }
 
