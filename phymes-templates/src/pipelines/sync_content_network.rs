@@ -412,7 +412,7 @@ mod tests {
     #[cfg(not(target_family = "wasm"))]
     use tempfile::TempDir;
 
-    use crate::ToolCallNetwork;
+    use crate::InvokeTaskNetwork;
 
     use super::*;
 
@@ -885,7 +885,7 @@ mod tests {
         // View task session
         let tool_call_subject = format!("list_{remote_object_store_name}_p");
         let tool_call_subjects = [tool_call_subject.as_str()];
-        let invoke_task_network = ToolCallNetwork::new("invoke_task_network", &tool_call_subjects);
+        let invoke_task_network = InvokeTaskNetwork::new("invoke_task_network", &tool_call_subjects);
         let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
             &invoke_task_network.as_mermaid_flowchart(),
             false,

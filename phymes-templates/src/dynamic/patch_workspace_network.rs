@@ -134,7 +134,7 @@ mod tests {
     };
     use phymes_task::SubscriptionTrait;
 
-    use crate::ToolCallNetwork;
+    use crate::InvokeTaskNetwork;
 
     use super::*;
 
@@ -333,7 +333,7 @@ pub use todo::Todo"#,
     #[tokio::test(flavor = "current_thread")]
     async fn test_patch_workspace_network_dynamic_wo_subjects() -> Result<()> {
         // View task session
-        let invoke_task_network = ToolCallNetwork::new("invoke_task_network", &["apply_patch_p"]);
+        let invoke_task_network = InvokeTaskNetwork::new("invoke_task_network", &["apply_patch_p"]);
         let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
             &invoke_task_network.as_mermaid_flowchart(),
             false,

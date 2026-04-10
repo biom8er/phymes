@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectPlan, SubjectPlanBuilderTrait
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, SubjectPlan, SubjectPlanBuilderTrait
 };
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
@@ -33,8 +33,8 @@ pub struct DynamicTaskNetwork {
     pub subject_rhs: Option<SubjectPlan>,
     /// Output subject
     pub subject_out: SubjectPlan,
-    /// Config data
-    pub config: Option<Subject>
+    /// Config data for the processor
+    pub subject_processor: SubjectPlan
 }
 
 impl Default for DynamicTaskNetwork {
@@ -47,8 +47,12 @@ impl Default for DynamicTaskNetwork {
             .with_subject(AvailableSubjects::Bytes.to_subject(Some("out_s"), None).unwrap())
             .build()
             .unwrap();
+        let subject_processor = SubjectPlan::get_builder()
+            .with_subject(AvailableSubjects::Bytes.to_subject(Some("network_p"), None).unwrap())
+            .build()
+            .unwrap();
         DynamicTaskNetwork {
-            network_name: "network_1".to_string(),
+            network_name: "network_t".to_string(),
             is_dynamic: false,
             processor: AvailableProcessors::default(),
             subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
@@ -58,7 +62,7 @@ impl Default for DynamicTaskNetwork {
             subject_lhs,
             subject_rhs: None,
             subject_out,
-            config: None,
+            subject_processor
         }
     }
 }
@@ -70,20 +74,14 @@ impl DynamicTaskNetwork {
             ..Default::default()
         }
     }
-    fn task_name(&self) -> String {
-        format!("{}_t", self.network_name)
-    }
-    fn processor_name(&self) -> String {
-        format!("{}_p", self.network_name)
-    }
 }
 
 impl CustomAgentsBuilderTrait for DynamicTaskNetwork {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![
             TaskPlan {
-                task_name: self.task_name(),
-                processor_names: vec![self.processor_name()],
+                task_name: self.network_name.to_string(),
+                processor_names: vec![self.subject_processor.get_name().to_string()],
             },
         ];
 
@@ -105,12 +103,12 @@ impl CustomAgentsBuilderTrait for DynamicTaskNetwork {
         // Dynamic
         if self.is_dynamic {
             let subscription = Subscription::OnUpdateLastRecordBatch {
-                subject_name: self.processor_name(),
+                subject_name: self.subject_processor.get_name().to_string(),
             };
             subscriptions.push(subscription)
         } else {
             let subscription = Subscription::AlwaysLastRecordBatch {
-                subject_name: self.processor_name(),
+                subject_name: self.subject_processor.get_name().to_string(),
             };
             subscriptions.push(subscription)
         }
@@ -119,7 +117,7 @@ impl CustomAgentsBuilderTrait for DynamicTaskNetwork {
         let processors = vec![
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    self.processor.build_arc(&self.processor_name()),
+                    self.processor.build_arc(&self.subject_processor.get_name().to_string()),
                 )
                 .with_publications(&[self.publication.clone()])
                 .with_subscriptions(&subscriptions)
@@ -137,23 +135,13 @@ impl CustomAgentsBuilderTrait for DynamicTaskNetwork {
     }
 
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
-        // Intended to be extended so the subjects should be defined in the base Network
         let mut subject_plans = Vec::new();
         subject_plans.push(self.subject_lhs.clone());
         if let Some(subject_rhs) = self.subject_rhs.as_ref() {
             subject_plans.push(subject_rhs.clone());
         }
         subject_plans.push(self.subject_out.clone());
-        if let Some(config) = self.config.as_ref() {
-            let subject_plan = SubjectPlan::get_builder().with_subject(config.to_owned()).build().unwrap();
-            subject_plans.push(subject_plan);
-        } else {
-            let subject = AvailableSubjects::Bytes
-                .to_subject(Some(&self.processor_name()), None)
-                .unwrap();
-            let subject_plan = SubjectPlan::get_builder().with_subject(subject).build().unwrap();
-            subject_plans.push(subject_plan);
-        }
+        subject_plans.push(self.subject_processor.clone());
 
         Some(subject_plans)
     }

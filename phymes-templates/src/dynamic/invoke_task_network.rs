@@ -57,31 +57,31 @@ pub trait DynamicNetworkTrait<'a> {
 }
 
 /// A session for dynamic tool calling
-pub struct ToolCallNetwork<'a> {
+pub struct InvokeTaskNetwork<'a> {
     /// Session
     pub network_name: &'a str,
     /// Subjects to listen for
     pub subject_names: &'a [&'a str],
 }
 
-impl Default for ToolCallNetwork<'_> {
+impl Default for InvokeTaskNetwork<'_> {
     fn default() -> Self {
-        ToolCallNetwork {
+        InvokeTaskNetwork {
             network_name: "invoke_task_network",
             subject_names: &["Bytes"],
         }
     }
 }
 
-impl<'a> DynamicNetworkTrait<'a> for ToolCallNetwork<'a> {
+impl<'a> DynamicNetworkTrait<'a> for InvokeTaskNetwork<'a> {
     fn subject_names(&self) -> Vec<String> {
         self.subject_names.iter().map(|s| s.to_string()).collect()
     }
 }
 
-impl<'a> ToolCallNetwork<'a> {
+impl<'a> InvokeTaskNetwork<'a> {
     pub fn new(network_name: &'a str, subject_names: &'a [&'a str]) -> Self {
-        ToolCallNetwork {
+        InvokeTaskNetwork {
             network_name,
             subject_names,
         }
@@ -401,7 +401,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_invoke_task_network() -> Result<()> {
         // Initialize the session
-        let invoke_task_network = ToolCallNetwork::default();
+        let invoke_task_network = InvokeTaskNetwork::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             &invoke_task_network.as_mermaid_flowchart(),
             false,

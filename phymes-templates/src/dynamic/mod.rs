@@ -11,9 +11,7 @@ mod task_response_network;
 pub use dynamic_task_network::DynamicTaskNetwork;
 #[cfg(feature = "api")]
 pub use execute_workspace_network::ExecuteWorkspaceNetwork;
-#[cfg(feature = "api")]
-pub use get_content_network::GetContentNetwork;
 pub use generate_text_network::GenerateTextNetwork;
 pub use patch_workspace_network::PatchWorkspaceNetwork;
-pub use invoke_task_network::ToolCallNetwork;
+pub use invoke_task_network::InvokeTaskNetwork;
 pub use task_response_network::TaskResponseNetwork;
