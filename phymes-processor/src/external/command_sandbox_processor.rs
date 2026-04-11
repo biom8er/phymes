@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -9,6 +8,7 @@ use phymes_message::{
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_streams::CommandSandboxStream;
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 
 use crate::ProcessorTrait;
 
@@ -95,13 +95,13 @@ pub mod test_command_sandbox_processor {
 mod tests {
     use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
     use futures::TryStreamExt;
-    use phymes_subject::{SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
     use phymes_event::Publication;
     use phymes_schemas::create_chat_record_batch;
     use phymes_streams::{
         CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod,
     };
+    use phymes_subject::{SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
     use std::{fs::File, io::Write};
     use tempfile::{NamedTempFile, TempDir};
 

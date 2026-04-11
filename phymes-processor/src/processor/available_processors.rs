@@ -3,7 +3,6 @@ use std::{fmt::Display, sync::Arc};
 use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
-use phymes_subject::{MappableTrait, ObjectStorageBackend, Subject};
 use phymes_data::{
     AvailableJinja2Templates, AvailableOperators, DataAggregatorOperator, DataCastOperator,
     DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig,
@@ -20,6 +19,7 @@ use phymes_streams::{
     HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType,
 };
 use phymes_streams::{LimitConfig, ObjectStoreConfig, ObjectStoreOptsType, ToolCallConfig};
+use phymes_subject::{MappableTrait, ObjectStorageBackend, Subject};
 use serde::{Deserialize, Serialize};
 
 use crate::{

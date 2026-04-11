@@ -5,8 +5,8 @@ use arrow::{
     array::{ArrayRef, RecordBatch, StringArray},
     datatypes::{DataType, Field, Fields},
 };
-use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait};
 use phymes_diagnostics::{Diagnostics, DiagnosticsType, JSONObjectTrait};
+use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait};
 use serde::{Deserialize, Serialize};
 
 use crate::{AvailableSchemaTrait, AvailableSubjects};

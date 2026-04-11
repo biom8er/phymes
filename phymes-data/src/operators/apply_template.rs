@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_schemas::{
     AvailableSubjects, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine,
     JSONSchemaType, Tool, ToolType, create_bytes_record_batch,
     create_mermaid_content_template_batch,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};

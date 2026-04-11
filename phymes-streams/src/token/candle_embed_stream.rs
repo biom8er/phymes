@@ -9,10 +9,6 @@ use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 use candle_core::{DType, Tensor};
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
-use phymes_subject::{
-    BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject,
-    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_data::{DataConfigTrait, device};
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait};
 use phymes_message::{
@@ -23,6 +19,10 @@ use phymes_ml::{
     process_prompt_embed,
 };
 use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects};
+use phymes_subject::{
+    BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject,
+    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+};
 use tracing::instrument;
 
 pub struct CandleEmbedStream {

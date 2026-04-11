@@ -4,12 +4,12 @@ use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use clap::ValueEnum;
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_schemas::{
     DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
     create_parse_owl_batch, create_parse_xml_batch,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use quick_xml::{
     NsReader,
@@ -671,9 +671,11 @@ pub fn extract_xml(
 #[cfg(test)]
 mod tests {
     use crate::device;
-    use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
     use phymes_diagnostics::{HashSet, create_timestamp_micros};
     use phymes_schemas::{DataFormat, create_attachments_batch};
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+    };
 
     use super::*;
 

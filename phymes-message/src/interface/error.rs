@@ -1,8 +1,8 @@
 use anyhow::{Error, Result};
-use phymes_subject::{BuilderTrait, MappableTrait, SubjectTrait};
 use phymes_diagnostics::HashMap;
 use phymes_event::Publication;
 use phymes_schemas::{AvailableSubjects, create_error_subject};
+use phymes_subject::{BuilderTrait, MappableTrait, SubjectTrait};
 
 use crate::{
     IPCMessage, IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessage,

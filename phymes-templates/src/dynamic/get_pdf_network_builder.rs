@@ -1,8 +1,13 @@
-use phymes_processor::AvailableProcessors;
-use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
+use phymes_processor::AvailableProcessors;
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
-use phymes_streams::{ChatBuilderTraitExt, HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
+use phymes_streams::{
+    ChatBuilderTraitExt, HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
+    SubjectPlanBuilderTrait,
+};
 
 use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
 
@@ -29,29 +34,42 @@ impl Default for GetPdfNetworkBuilderStaticWSubject {
         let config_json = serde_json::to_vec(&config).unwrap();
         let subject = SubjectBuilder::new()
             .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
-            .with_json(&config_json, 1).unwrap()
-            .build().unwrap();
+            .with_json(&config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
         let subject_processor = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Subscriptions and publications
-        let subject = AvailableInterfaceSubjects::UserMessages.to_subject(Some(subject_name_lhs), None).unwrap();
+        let subject = AvailableInterfaceSubjects::UserMessages
+            .to_subject(Some(subject_name_lhs), None)
+            .unwrap();
         let subject_lhs = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
-        let subject = AvailableInterfaceSubjects::UserPdf.to_subject(None, None).unwrap();
+            .build()
+            .unwrap();
+        let subject = AvailableInterfaceSubjects::UserPdf
+            .to_subject(None, None)
+            .unwrap();
         let subject_out = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
             is_dynamic: false,
             processor: AvailableProcessors::HTTPClientRequestProcessor,
-            subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
-            publication: Publication::Extend { subject_name: subject_out.get_name().to_string() },
+            subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                subject_name: subject_lhs.get_name().to_string(),
+            },
+            publication: Publication::Extend {
+                subject_name: subject_out.get_name().to_string(),
+            },
             subject_lhs,
             subject_out,
             subject_processor,
@@ -73,33 +91,49 @@ impl Default for GetPdfNetworkBuilderDynamicWSubject {
         let subject_name_lhs = "http_client_request_pdf_s";
 
         // Processor subject
-        let subject = AvailableSubjects::Bytes.to_subject(Some(&DynamicTaskNetworkNames::Processor(network_name).to_string()), None).unwrap();
+        let subject = AvailableSubjects::Bytes
+            .to_subject(
+                Some(&DynamicTaskNetworkNames::Processor(network_name).to_string()),
+                None,
+            )
+            .unwrap();
         let subject_processor = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Subscriptions and publications
         let id = "2508.18700";
         let get_url = format!("pdf/{id}");
         let subject = SubjectBuilder::new()
             .with_name(subject_name_lhs)
-            .append_new_user_query_str(&get_url, "user").unwrap()
-            .build().unwrap();
+            .append_new_user_query_str(&get_url, "user")
+            .unwrap()
+            .build()
+            .unwrap();
         let subject_lhs = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
-        let subject = AvailableInterfaceSubjects::UserPdf.to_subject(None, None).unwrap();
+            .build()
+            .unwrap();
+        let subject = AvailableInterfaceSubjects::UserPdf
+            .to_subject(None, None)
+            .unwrap();
         let subject_out = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
             is_dynamic: true,
             processor: AvailableProcessors::HTTPClientRequestProcessor,
-            subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
-            publication: Publication::Extend { subject_name: subject_out.get_name().to_string() },
+            subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                subject_name: subject_lhs.get_name().to_string(),
+            },
+            publication: Publication::Extend {
+                subject_name: subject_out.get_name().to_string(),
+            },
             subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
             subject_lhs,
             subject_out,
@@ -122,28 +156,44 @@ impl Default for GetPdfNetworkBuilderDynamicWOSubject {
         let subject_name_lhs = "http_client_request_pdf_s";
 
         // Processor subject
-        let subject = AvailableSubjects::Bytes.to_subject(Some(&DynamicTaskNetworkNames::Processor(network_name).to_string()), None).unwrap();
+        let subject = AvailableSubjects::Bytes
+            .to_subject(
+                Some(&DynamicTaskNetworkNames::Processor(network_name).to_string()),
+                None,
+            )
+            .unwrap();
         let subject_processor = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Subscriptions and publications
-        let subject = AvailableInterfaceSubjects::UserMessages.to_subject(Some(subject_name_lhs), None).unwrap();
+        let subject = AvailableInterfaceSubjects::UserMessages
+            .to_subject(Some(subject_name_lhs), None)
+            .unwrap();
         let subject_lhs = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
-        let subject = AvailableInterfaceSubjects::UserPdf.to_subject(None, None).unwrap();
+            .build()
+            .unwrap();
+        let subject = AvailableInterfaceSubjects::UserPdf
+            .to_subject(None, None)
+            .unwrap();
         let subject_out = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
             is_dynamic: true,
             processor: AvailableProcessors::HTTPClientRequestProcessor,
-            subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
-            publication: Publication::Extend { subject_name: subject_out.get_name().to_string() },
+            subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                subject_name: subject_lhs.get_name().to_string(),
+            },
+            publication: Publication::Extend {
+                subject_name: subject_out.get_name().to_string(),
+            },
             subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
             subject_lhs,
             subject_out,
@@ -161,16 +211,19 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnvBuilder, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait
-    };
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
-    use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, create_bytes_record_batch};
+    use phymes_schemas::{
+        AvailableInterfaceSubjects, AvailableSubjects, create_bytes_record_batch,
+    };
     use phymes_streams::{
         ChatBuilderTraitExt, HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType,
+    };
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnvBuilder, Subject, SubjectBuilder,
+        SubjectBuilderTrait, SubjectTrait,
     };
     use phymes_task::SubscriptionTrait;
 
@@ -179,9 +232,17 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_pdf_network_static_w_subject() -> Result<()> {
         let get_content_network = GetPdfNetworkBuilderStaticWSubject::default();
-        let (network, session_messages) = get_content_network.inner
+        let (network, session_messages) = get_content_network
+            .inner
             .build_dynamic()
-            .with_runtime_env(RuntimeEnvBuilder::default().with_name(&DynamicTaskNetworkNames::Task(&get_content_network.inner.network_name).to_string()).build_arc()?)
+            .with_runtime_env(
+                RuntimeEnvBuilder::default()
+                    .with_name(
+                        &DynamicTaskNetworkNames::Task(&get_content_network.inner.network_name)
+                            .to_string(),
+                    )
+                    .build_arc()?,
+            )
             .with_diagnostics(true)
             .add_processor_subjects()?
             .add_next_tasks()?
@@ -254,9 +315,17 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_pdf_network_dynamic_w_subject() -> Result<()> {
         let get_content_network = GetPdfNetworkBuilderDynamicWSubject::default();
-        let (network, session_messages) = get_content_network.inner
+        let (network, session_messages) = get_content_network
+            .inner
             .build_dynamic()
-            .with_runtime_env(RuntimeEnvBuilder::default().with_name(&DynamicTaskNetworkNames::Task(&get_content_network.inner.network_name).to_string()).build_arc()?)
+            .with_runtime_env(
+                RuntimeEnvBuilder::default()
+                    .with_name(
+                        &DynamicTaskNetworkNames::Task(&get_content_network.inner.network_name)
+                            .to_string(),
+                    )
+                    .build_arc()?,
+            )
             .with_diagnostics(true)
             .add_processor_subjects()?
             .add_next_tasks()?
@@ -278,10 +347,12 @@ mod tests {
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_batch =
-            create_bytes_record_batch(vec![http_client_config_json])?;
+        let http_client_config_batch = create_bytes_record_batch(vec![http_client_config_json])?;
         let http_client_config_table = SubjectBuilder::new()
-            .with_name(&DynamicTaskNetworkNames::Processor(&get_content_network.inner.network_name).to_string())
+            .with_name(
+                &DynamicTaskNetworkNames::Processor(&get_content_network.inner.network_name)
+                    .to_string(),
+            )
             .with_record_batches(vec![http_client_config_batch])?
             .build()?;
         let _ = message_map.insert(
@@ -340,9 +411,17 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_pdf_network_dynamic_wo_subject() -> Result<()> {
         let get_content_network = GetPdfNetworkBuilderDynamicWSubject::default();
-        let (network, session_messages) = get_content_network.inner
+        let (network, session_messages) = get_content_network
+            .inner
             .build_dynamic()
-            .with_runtime_env(RuntimeEnvBuilder::default().with_name(&DynamicTaskNetworkNames::Task(&get_content_network.inner.network_name).to_string()).build_arc()?)
+            .with_runtime_env(
+                RuntimeEnvBuilder::default()
+                    .with_name(
+                        &DynamicTaskNetworkNames::Task(&get_content_network.inner.network_name)
+                            .to_string(),
+                    )
+                    .build_arc()?,
+            )
             .with_diagnostics(true)
             .add_processor_subjects()?
             .add_next_tasks()?
@@ -363,12 +442,11 @@ mod tests {
             base_url: "https://arxiv.org/".to_string(),
             subject_name: None,
             request_schema: HTTPClientRequestSchemas::Attachments,
-                json: Some(get_url),
+            json: Some(get_url),
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_batch =
-            create_bytes_record_batch(vec![http_client_config_json])?;
+        let http_client_config_batch = create_bytes_record_batch(vec![http_client_config_json])?;
         let http_client_config_table = SubjectBuilder::new()
             .with_name(get_content_network.inner.subject_processor.get_name())
             .with_record_batches(vec![http_client_config_batch])?

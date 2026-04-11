@@ -3,12 +3,12 @@ use std::sync::Arc;
 
 use dioxus::prelude::*;
 use futures::StreamExt;
+use phymes_diagnostics::HashSet;
 #[cfg(feature = "serverless")]
 use phymes_subject::{
     make_store, BuildableTrait, BuilderTrait, ObjectStorageBackend, RuntimeEnv,
     RuntimeEnvBuilderTrait,
 };
-use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "serverless")]
@@ -81,12 +81,7 @@ pub fn filter_in_mermaid_diagrams_by_session_name(
         .filter(|(i, _s)| indices.contains(i))
         .map(|(_i, s)| s.to_owned())
         .collect::<Vec<_>>();
-    (
-        network_name,
-        flowchart_diagram,
-        er_diagram,
-        timestamp,
-    )
+    (network_name, flowchart_diagram, er_diagram, timestamp)
 }
 
 /// Filter out mermaid diagrams by session name
@@ -127,12 +122,7 @@ pub fn filter_out_mermaid_diagrams_by_session_name(
         .filter(|(i, _s)| indices.contains(i))
         .map(|(_i, s)| s.to_owned())
         .collect::<Vec<_>>();
-    (
-        network_name,
-        flowchart_diagram,
-        er_diagram,
-        timestamp,
-    )
+    (network_name, flowchart_diagram, er_diagram, timestamp)
 }
 
 /// Get a non duplicated list of sorted subject names

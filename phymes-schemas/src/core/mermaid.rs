@@ -12,12 +12,7 @@ pub(crate) fn create_session_mermaid_fields() -> Fields {
     let flowchart_diagram = Field::new("flowchart_diagram", DataType::Utf8, false);
     let er_diagram = Field::new("er_diagram", DataType::Utf8, false);
     let timestamp = Field::new("timestamp", DataType::Int64, false);
-    Fields::from(vec![
-        network_name,
-        flowchart_diagram,
-        er_diagram,
-        timestamp,
-    ])
+    Fields::from(vec![network_name, flowchart_diagram, er_diagram, timestamp])
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]

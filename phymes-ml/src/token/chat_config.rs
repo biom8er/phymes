@@ -1,8 +1,8 @@
 use anyhow::{Result, anyhow};
 use clap::Parser;
-use phymes_subject::{MappableTrait, Subject, SubjectTrait};
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::HashSet;
+use phymes_subject::{MappableTrait, Subject, SubjectTrait};
 use serde::{Deserialize, Serialize};
 
 use crate::candle_assets::AvailableCandleAssets;
@@ -121,16 +121,24 @@ impl DataConfigTrait for CandleChatConfig {
                 Ok(config) => {
                     config.check_required_members(subject.get_name())?;
                     Ok(config)
-                },
+                }
                 Err(err) => Err(anyhow!(
                     "`{}` could not be built for subject `{}`. {err}",
-                    Self::get_static_name(), 
+                    Self::get_static_name(),
                     subject.get_name()
                 )),
             }
         } else {
             // Check for the required fields
-            let required_fields = &["max_tokens", "temperature", "seed", "repeat_penalty", "repeat_last_n", "frequency_penalty", "messages"];
+            let required_fields = &[
+                "max_tokens",
+                "temperature",
+                "seed",
+                "repeat_penalty",
+                "repeat_last_n",
+                "frequency_penalty",
+                "messages",
+            ];
             let column_names = subject
                 .get_schema()
                 .fields()
@@ -138,12 +146,17 @@ impl DataConfigTrait for CandleChatConfig {
                 .map(|f| f.name().to_string())
                 .collect::<HashSet<_>>();
             Self::check_required_fields(subject.get_name(), &column_names, required_fields)?;
-            if let Err(err_1) = Self::check_required_fields(subject.get_name(), &column_names, &["candle_asset"]) {
-                if let Err(err_2) = Self::check_required_fields(subject.get_name(), &column_names, &["openai_asset"]) {
-                    let err = [err_1.to_string(), err_2.to_string()].join("; ");
-                    return Err(anyhow!(err))
-                }
-            };         
+            if let Err(err_1) =
+                Self::check_required_fields(subject.get_name(), &column_names, &["candle_asset"])
+                && let Err(err_2) = Self::check_required_fields(
+                    subject.get_name(),
+                    &column_names,
+                    &["openai_asset"],
+                )
+            {
+                let err = [err_1.to_string(), err_2.to_string()].join("; ");
+                return Err(anyhow!(err));
+            };
 
             // Try to build the config
             match subject.to_struct::<CandleChatConfig>() {
@@ -157,13 +170,13 @@ impl DataConfigTrait for CandleChatConfig {
                 },
                 Err(err) => Err(anyhow!(
                     "`{}` could not be built for subject `{}`. {err}",
-                    Self::get_static_name(), 
+                    Self::get_static_name(),
                     subject.get_name()
                 )),
             }
         }
     }
-    
+
     fn check_required_members(&self, subject_name: &str) -> Result<()> {
         if self.candle_asset.is_none() && self.openai_asset.is_none() {
             Err(anyhow!(

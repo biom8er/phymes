@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow};
-use phymes_subject::{BuilderTrait, SendableRecordBatchStream};
 use phymes_event::Publication;
+use phymes_subject::{BuilderTrait, SendableRecordBatchStream};
 
 use crate::{IPCMessage, SendableRecordBatchStreamMessage};
 

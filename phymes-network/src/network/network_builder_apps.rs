@@ -6,27 +6,25 @@ use arrow::{
     datatypes::{Schema, SchemaRef},
 };
 use clap::ValueEnum;
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait,
-    SubjectPlan, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait,
-};
 use phymes_data::{AvailableOperators, DataConfig, DataConfigTrait, device};
 use phymes_diagnostics::{HashMap, HashSet};
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 use phymes_message::{IPCMessage, IPCMessageMap, MessageBuilderTrait};
 use phymes_ml::{CandleChatConfig, CandleEmbedConfig};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
-use phymes_schemas::{
-    AvailableInterfaceSubjects, AvailableSchemaTrait, AvailableSubjects,
-};
+use phymes_schemas::{AvailableInterfaceSubjects, AvailableSchemaTrait, AvailableSubjects};
 #[cfg(feature = "api")]
 use phymes_streams::{CommandSandboxConfig, HTTPClientConfig};
 use phymes_streams::{LimitConfig, ObjectStoreConfig, ToolCallConfig};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait,
+    SubjectPlan, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait,
+};
 use phymes_task::{TaskMap, TaskPlan};
 
 use crate::{
-    Network, NetworkBuilder, NetworkBuilderMermaidTrait,
-    NetworkBuilderTabularTrait, NetworkBuilderTrait,
+    Network, NetworkBuilder, NetworkBuilderMermaidTrait, NetworkBuilderTabularTrait,
+    NetworkBuilderTrait,
     core::{CountSubjectRowsNetwork, NextSuperstepNetwork, NextTaskNetwork},
 };
 
@@ -1138,13 +1136,15 @@ impl NetworkBuilderAppsTrait for NetworkBuilder {
     {
         // Initialize the subjects num rows session
         let subjects_session = CountSubjectRowsNetwork::default();
-        let other_builder = NetworkBuilder::from_mermaid_flowchart(
-            subjects_session.as_mermaid_flowchart(),
-            false,
-        )?
-        .with_subjects_from_mermaid_erdiagram(subjects_session.as_mermaid_erdiagram(), false, true)?
-        .with_name(subjects_session.network_name)
-        .add_processor_subjects()?;
+        let other_builder =
+            NetworkBuilder::from_mermaid_flowchart(subjects_session.as_mermaid_flowchart(), false)?
+                .with_subjects_from_mermaid_erdiagram(
+                    subjects_session.as_mermaid_erdiagram(),
+                    false,
+                    true,
+                )?
+                .with_name(subjects_session.network_name)
+                .add_processor_subjects()?;
 
         // Extend the current session context builder
         self.extend(other_builder)
@@ -1236,9 +1236,9 @@ pub trait NetworkBuilderCustomTrait {
 }
 
 pub mod test_network_builder_apps {
-    use phymes_subject::{BuildableTrait, BuilderTrait, SubjectBuilderTrait, test_subject};
     use phymes_data::{AvailableOperators, DataConfig, DataJoinOperator};
     use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
+    use phymes_subject::{BuildableTrait, BuilderTrait, SubjectBuilderTrait, test_subject};
     use phymes_task::test_task;
 
     use crate::test_network_builder;
@@ -1363,9 +1363,7 @@ pub mod test_network_builder_apps {
 
         let builder = NetworkBuilder::new()
             .with_name(name)
-            .with_tasks(
-                test_network_builder::make_test_network_builder_parallel_tasks(),
-            )
+            .with_tasks(test_network_builder::make_test_network_builder_parallel_tasks())
             .with_processors(processor_plans)
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plan)
@@ -1377,8 +1375,8 @@ pub mod test_network_builder_apps {
 #[cfg(test)]
 mod tests {
     use crate::test_network_builder;
-    use phymes_subject::{BuildableTrait, BuilderTrait, SubjectBuilderTrait};
     use phymes_data::{AvailableOperators, DataConfig, DataJoinOperator, DataStreamManager};
+    use phymes_subject::{BuildableTrait, BuilderTrait, SubjectBuilderTrait};
     use phymes_task::{TaskTrait, test_task};
 
     use super::*;
@@ -1476,8 +1474,8 @@ mod tests {
     }
 
     #[test]
-    fn test_network_builder_apps_build_with_tables_missing_processor_configs_subjects()
-    -> Result<()> {
+    fn test_network_builder_apps_build_with_tables_missing_processor_configs_subjects() -> Result<()>
+    {
         // Check that missing config subscriptions can be identified
         let mut subjects = test_network_builder_apps::make_test_state_agents()?;
         let join_config = DataConfig {
@@ -1503,14 +1501,12 @@ mod tests {
             .into_iter()
             .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
             .collect::<Vec<_>>();
-        let mut task_plans =
-            test_network_builder::make_test_network_builder_parallel_tasks();
+        let mut task_plans = test_network_builder::make_test_network_builder_parallel_tasks();
         task_plans.push(TaskPlan {
             task_name: "task_4".to_string(),
             processor_names: vec!["processor_4".to_string()],
         });
-        let mut processor_plans =
-            test_network_builder_apps::make_test_processors_agents()?;
+        let mut processor_plans = test_network_builder_apps::make_test_processors_agents()?;
         processor_plans.push(
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_4"))
@@ -1540,8 +1536,7 @@ mod tests {
         }
 
         // Check that the default processor subjects fix the issue
-        let mut processor_plans =
-            test_network_builder_apps::make_test_processors_agents()?;
+        let mut processor_plans = test_network_builder_apps::make_test_processors_agents()?;
         processor_plans.push(
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_4"))
@@ -1598,8 +1593,7 @@ mod tests {
     }
 
     #[test]
-    fn test_network_builder_apps_build_with_tables_missing_data_config_subjects()
-    -> Result<()> {
+    fn test_network_builder_apps_build_with_tables_missing_data_config_subjects() -> Result<()> {
         let subjects = test_network_builder_apps::make_test_state_agents()?;
 
         // Test that mismatches in the lhs/rhs name are identified
@@ -1625,9 +1619,7 @@ mod tests {
             .collect::<Vec<_>>();
 
         let result = NetworkBuilder::new()
-            .with_tasks(
-                test_network_builder::make_test_network_builder_parallel_tasks(),
-            )
+            .with_tasks(test_network_builder::make_test_network_builder_parallel_tasks())
             .with_processors(test_network_builder_apps::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
@@ -1669,9 +1661,7 @@ mod tests {
             .collect::<Vec<_>>();
 
         let result = NetworkBuilder::new()
-            .with_tasks(
-                test_network_builder::make_test_network_builder_parallel_tasks(),
-            )
+            .with_tasks(test_network_builder::make_test_network_builder_parallel_tasks())
             .with_processors(test_network_builder_apps::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
@@ -1714,9 +1704,7 @@ mod tests {
             .collect::<Vec<_>>();
 
         let result = NetworkBuilder::new()
-            .with_tasks(
-                test_network_builder::make_test_network_builder_parallel_tasks(),
-            )
+            .with_tasks(test_network_builder::make_test_network_builder_parallel_tasks())
             .with_processors(test_network_builder_apps::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
@@ -1735,8 +1723,7 @@ mod tests {
     }
 
     #[test]
-    fn test_network_builder_apps_build_with_tables_failing_processor_config_builds()
-    -> Result<()> {
+    fn test_network_builder_apps_build_with_tables_failing_processor_config_builds() -> Result<()> {
         let subjects = test_network_builder_apps::make_test_state_agents()?;
 
         // Test for mismatch between processor and config types
@@ -1759,9 +1746,7 @@ mod tests {
             .collect::<Vec<_>>();
 
         let result = NetworkBuilder::new()
-            .with_tasks(
-                test_network_builder::make_test_network_builder_parallel_tasks(),
-            )
+            .with_tasks(test_network_builder::make_test_network_builder_parallel_tasks())
             .with_processors(test_network_builder_apps::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
@@ -1800,9 +1785,7 @@ mod tests {
             .collect::<Vec<_>>();
 
         let result = NetworkBuilder::new()
-            .with_tasks(
-                test_network_builder::make_test_network_builder_parallel_tasks(),
-            )
+            .with_tasks(test_network_builder::make_test_network_builder_parallel_tasks())
             .with_processors(test_network_builder_apps::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
@@ -1841,9 +1824,7 @@ mod tests {
             .collect::<Vec<_>>();
 
         let result = NetworkBuilder::new()
-            .with_tasks(
-                test_network_builder::make_test_network_builder_parallel_tasks(),
-            )
+            .with_tasks(test_network_builder::make_test_network_builder_parallel_tasks())
             .with_processors(test_network_builder_apps::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)

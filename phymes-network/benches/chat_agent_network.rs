@@ -2,17 +2,17 @@ use std::sync::Arc;
 
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
 use phymes_network::{
-    ChatAgentNetwork, NetworkBuilderCustomTrait, NetworkBuilderAppsTrait, NetworkStream,
+    ChatAgentNetwork, NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkStream,
 };
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
 use phymes_streams::ChatBuilderTraitExt;
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+};
 use phymes_task::SubscriptionTrait;
 
 fn benchmark_chat_agent_network(c: &mut Criterion) {

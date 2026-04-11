@@ -258,21 +258,21 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
-    };
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, NetworkStreamStep, NetworkStreamStepTrait,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
+        NetworkStreamStep, NetworkStreamStepTrait,
     };
     use phymes_schemas::{
         AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait,
         create_documents_batch,
     };
     use phymes_streams::ChatBuilderTraitExt;
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+    };
     use phymes_task::SubscriptionTrait;
 
     use super::*;
@@ -375,10 +375,9 @@ mod tests {
             feature = "gpu"
         )) {
             // Run the first superstep
-            let response =
-                NetworkStreamStep::run_superstep(Arc::clone(&network_arc), message_map)
-                    .await?
-                    .unwrap();
+            let response = NetworkStreamStep::run_superstep(Arc::clone(&network_arc), message_map)
+                .await?
+                .unwrap();
 
             assert_eq!(response.len(), 0);
 

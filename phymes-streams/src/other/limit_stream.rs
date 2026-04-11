@@ -6,12 +6,12 @@ use anyhow::Result;
 use arrow::datatypes::SchemaRef;
 use arrow::record_batch::RecordBatch;
 use futures::stream::{Stream, StreamExt};
+use phymes_data::DataConfigTrait;
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait};
 use phymes_subject::{
     BuildableTrait, BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
     Subject, SubjectBuilderTrait,
 };
-use phymes_data::DataConfigTrait;
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait};
 
 use crate::LimitConfig;
 
@@ -208,8 +208,8 @@ mod tests {
     use arrow::datatypes::{DataType, Field, Schema};
     use arrow::record_batch::RecordBatchOptions;
     use futures::{Stream, TryStreamExt};
-    use phymes_subject::{SubjectBuilder, SubjectTrait};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
+    use phymes_subject::{SubjectBuilder, SubjectTrait};
 
     /// Return a RecordBatch with a single Int32 array with values (0..sz) in a field named "i"
     fn make_partition(sz: i32) -> RecordBatch {

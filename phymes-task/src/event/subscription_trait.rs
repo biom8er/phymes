@@ -1,10 +1,6 @@
 use anyhow::Result;
 use arrow::datatypes::Schema;
 use futures::{StreamExt, TryStreamExt};
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, ObjectStorageBackend, RecordBatchStreamAdapter, RuntimeEnv,
-    SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_data::{AvailableOperators, DataConfig, DataStreamManager};
 use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
@@ -13,6 +9,10 @@ use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects, DataEncoding, Data
 use phymes_streams::{
     CandleDataStream, LimitConfig, LimitStream, ObjectStoreConfig, ObjectStoreOptsType,
     ObjectStoreStream,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, ObjectStorageBackend, RecordBatchStreamAdapter, RuntimeEnv,
+    SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 use std::sync::Arc;
 

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -9,6 +8,7 @@ use phymes_message::{
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_streams::LimitStream;
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 
 use crate::ProcessorTrait;
 
@@ -90,10 +90,10 @@ impl ProcessorTrait for LimitProcessor {
 mod tests {
 
     use super::*;
-    use phymes_subject::{SubjectBuilder, SubjectBuilderTrait, SubjectTrait, test_subject};
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
     use phymes_event::Publication;
     use phymes_streams::LimitConfig;
+    use phymes_subject::{SubjectBuilder, SubjectBuilderTrait, SubjectTrait, test_subject};
 
     #[tokio::test]
     async fn test_limit_processor() -> Result<()> {

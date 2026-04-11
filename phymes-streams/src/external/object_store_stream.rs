@@ -16,11 +16,6 @@ use object_store::{
     PutPayload, PutResult, WriteMultipart, path::Path,
 };
 use parking_lot::Mutex;
-use phymes_subject::{
-    BuilderTrait, ChunkedWriter, MappableTrait, ObjectStorageBackend, OnChunk, RecordBatchStream,
-    RuntimeEnv, RuntimeEnvTrait, SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait,
-    SubjectTrait, make_store,
-};
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait, create_timestamp_micros,
@@ -29,7 +24,13 @@ use phymes_message::{
     MessageTrait, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_schemas::{
-    AvailableSchemaTrait, AvailableSubjects, create_object_store_batch, create_object_store_meta_batch,
+    AvailableSchemaTrait, AvailableSubjects, create_object_store_batch,
+    create_object_store_meta_batch,
+};
+use phymes_subject::{
+    BuilderTrait, ChunkedWriter, MappableTrait, ObjectStorageBackend, OnChunk, RecordBatchStream,
+    RuntimeEnv, RuntimeEnvTrait, SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait,
+    SubjectTrait, make_store,
 };
 use serde_json::{Map, Value, json};
 

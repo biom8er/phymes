@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -9,6 +8,7 @@ use phymes_message::{
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_streams::OpenAIEmbedStream;
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use tracing::{Level, event};
 
 use crate::ProcessorTrait;

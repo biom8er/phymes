@@ -1858,17 +1858,17 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
-    };
     use phymes_diagnostics::{HashMap, create_timestamp_micros};
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, NetworkStreamStep, NetworkStreamStepTrait,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
+        NetworkStreamStep, NetworkStreamStepTrait,
     };
     use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, create_attachments_batch};
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+    };
     use phymes_task::SubscriptionTrait;
 
     use super::*;

@@ -9,14 +9,14 @@ use arrow::{
     datatypes::Schema,
 };
 use candle_core::Device;
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_diagnostics::HashSet;
 use phymes_schemas::{
     AvailableSubjects, CsvFormat, DataEncoding, DataFormat, Function, FunctionParameters,
     JSONSchemaDefine, JSONSchemaType, Tool, ToolType, create_parse_owl_batch,
     create_parse_xml_batch,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use serde::{Deserialize, Serialize};
 

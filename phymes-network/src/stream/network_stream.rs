@@ -98,32 +98,27 @@ impl Stream for NetworkStream {
 #[cfg(test)]
 mod tests {
     use futures::TryStreamExt;
-    use phymes_subject::{
-        BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
-    };
     use phymes_event::{Publication, Subscription};
     use phymes_message::MessageTrait;
     use phymes_schemas::AvailableSubjects;
+    use phymes_subject::{
+        BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+    };
     use phymes_task::{SubscriptionTrait, test_task};
 
     use super::*;
-    use crate::{
-        NetworkBuilderAppsTrait, NetworkBuilderTrait, test_network_builder,
-    };
+    use crate::{NetworkBuilderAppsTrait, NetworkBuilderTrait, test_network_builder};
 
     #[tokio::test]
     async fn test_network_stream_replace_state_update_sequential_tasks() -> Result<()> {
         // Build the session
         let (network, session_messages) =
-            test_network_builder::make_test_network_builder_sequential(
-                "session_1",
-                2,
-            )?
-            .with_diagnostics(true)
-            .add_network_interface(Some(&["state_1"]))?
-            .add_next_tasks()?
-            .add_next_supersteps()?
-            .build_with_tables()?;
+            test_network_builder::make_test_network_builder_sequential("session_1", 2)?
+                .with_diagnostics(true)
+                .add_network_interface(Some(&["state_1"]))?
+                .add_next_tasks()?
+                .add_next_supersteps()?
+                .build_with_tables()?;
         let network_arc = Arc::new(network);
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)

@@ -134,15 +134,14 @@ pub async fn authorize(
     };
 
     // Retrieve user from the database
-    let (user_info, user_networks) =
-        match state.get_user_by_email(&token_data.claims.email).await {
-            Ok((user_info, user_networks)) => (user_info, user_networks),
-            Err(err) => {
-                return Err(
-                    JsonError::new(err.to_string()).to_response(StatusCode::INTERNAL_SERVER_ERROR)
-                );
-            }
-        };
+    let (user_info, user_networks) = match state.get_user_by_email(&token_data.claims.email).await {
+        Ok((user_info, user_networks)) => (user_info, user_networks),
+        Err(err) => {
+            return Err(
+                JsonError::new(err.to_string()).to_response(StatusCode::INTERNAL_SERVER_ERROR)
+            );
+        }
+    };
     if user_info.is_empty() {
         return Err(JsonError::new("You are not an authorized user".to_string())
             .to_response(StatusCode::UNAUTHORIZED));

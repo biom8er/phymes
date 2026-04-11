@@ -1,10 +1,6 @@
 use anyhow::{Result, anyhow};
 use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 use futures::{FutureExt, Stream, StreamExt};
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
-    Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait};
 use phymes_message::{
@@ -13,6 +9,10 @@ use phymes_message::{
 use phymes_ml::{CandleEmbedConfig, convert_embedding_vector_to_record_batch};
 use phymes_schemas::{
     AvailableSchemaTrait, AvailableSubjects, EmbeddingRequest, EmbeddingResponse, EncodingFormat,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 use reqwest::{Client, header::CONTENT_TYPE};
 use std::{

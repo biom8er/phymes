@@ -2,9 +2,11 @@ use std::fmt::Display;
 
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
-use phymes_subject::{MappableTrait, Subject, SubjectTrait};
 use phymes_diagnostics::HashSet;
-use phymes_schemas::{AvailableSubjects, DataEncoding, DataFormat, create_bytes_fields, create_values_fields};
+use phymes_schemas::{
+    AvailableSubjects, DataEncoding, DataFormat, create_bytes_fields, create_values_fields,
+};
+use phymes_subject::{MappableTrait, Subject, SubjectTrait};
 use serde::{Deserialize, Serialize};
 
 use crate::{AvailableJinja2Templates, AvailableOperators, DiffType};
@@ -537,10 +539,15 @@ pub trait DataConfigTrait: MappableTrait {
     /// Build the config from JSON Values or Bytes
     fn from_subject_as_bytes(subject: &Subject) -> Option<Vec<u8>>
     where
-        Self: Sized
-    {        
-        if subject.get_schema().fields().contains(&create_values_fields()) {
-            let mut config_str = subject.get_column_as_vec_nonprimitive::<String>("values")
+        Self: Sized,
+    {
+        if subject
+            .get_schema()
+            .fields()
+            .contains(&create_values_fields())
+        {
+            let mut config_str = subject
+                .get_column_as_vec_nonprimitive::<String>("values")
                 .unwrap();
             if let Some(last) = config_str.pop() {
                 let bytes = last.into_bytes();
@@ -548,30 +555,35 @@ pub trait DataConfigTrait: MappableTrait {
             } else {
                 None
             }
-        } else if subject.get_schema().fields().contains(&create_bytes_fields()) {
+        } else if subject
+            .get_schema()
+            .fields()
+            .contains(&create_bytes_fields())
+        {
             let mut config_str = subject
                 .get_column_as_vec_nested_primitive::<u8>("bytes")
-                .unwrap();            
-            if let Some(bytes) = config_str.pop() {
-                Some(bytes)
-            } else {
-                None
-            }
+                .unwrap();
+            config_str.pop()
         } else {
             None
         }
     }
 
     /// Check required fields for the config
-    fn check_required_fields(subject_name: &str, subject_fields: &HashSet<String>, required_fields: &[&str]) -> Result<()> 
+    fn check_required_fields(
+        subject_name: &str,
+        subject_fields: &HashSet<String>,
+        required_fields: &[&str],
+    ) -> Result<()>
     where
-        Self: Sized{
+        Self: Sized,
+    {
         for required_field in required_fields {
             if !subject_fields.contains(*required_field) {
                 return Err(anyhow!(
                     "Subject `{subject_name}` is missing required field for `{required_field}` in `{}`. Required fields are `{required_fields:?}`",
                     Self::get_static_name()
-                ))
+                ));
             }
         }
         Ok(())
@@ -812,10 +824,10 @@ impl DataConfigTrait for DataConfig {
                 Ok(config) => {
                     config.check_required_members(subject.get_name())?;
                     Ok(config)
-                },
+                }
                 Err(err) => Err(anyhow!(
                     "`{}` could not be built for subject `{}`. {err}",
-                    Self::get_static_name(), 
+                    Self::get_static_name(),
                     subject.get_name()
                 )),
             }
@@ -828,7 +840,7 @@ impl DataConfigTrait for DataConfig {
                 .iter()
                 .map(|f| f.name().to_string())
                 .collect::<HashSet<_>>();
-            Self::check_required_fields(subject.get_name(), &column_names, required_fields)?;            
+            Self::check_required_fields(subject.get_name(), &column_names, required_fields)?;
 
             // Try to build the config
             match subject.to_struct::<DataConfig>() {
@@ -842,13 +854,13 @@ impl DataConfigTrait for DataConfig {
                 },
                 Err(err) => Err(anyhow!(
                     "`{}` could not be built for subject `{}`. {err}",
-                    Self::get_static_name(), 
+                    Self::get_static_name(),
                     subject.get_name()
                 )),
             }
         }
     }
-    
+
     fn check_required_members(&self, _subject_name: &str) -> Result<()> {
         Ok(())
     }

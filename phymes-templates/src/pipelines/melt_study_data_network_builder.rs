@@ -347,18 +347,18 @@ mod tests {
     use anyhow::Result;
     use arrow::array::{ArrayRef, Float64Array, Int64Array, RecordBatch, StringArray};
     use futures::TryStreamExt;
-    use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
-    };
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, NetworkStream,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
+        NetworkStream,
     };
     use phymes_schemas::{
         AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjectsTrait, CsvFormat,
+    };
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
     };
     use phymes_task::SubscriptionTrait;
 

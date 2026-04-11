@@ -4,10 +4,6 @@ use arrow::{
     record_batch::RecordBatch,
 };
 use futures::{Stream, StreamExt};
-use phymes_subject::{
-    BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
-    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_data::{DataConfig, DataConfigTrait, DataOperatorTrait, DataStreamManager, device};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, MetricBuilderTrait,
@@ -16,6 +12,10 @@ use phymes_message::{
     MessageTrait, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_ml::{CandleTensorService, TensorStreamTrait};
+use phymes_subject::{
+    BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+};
 use std::{
     pin::Pin,
     sync::Arc,

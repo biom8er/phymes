@@ -4,10 +4,6 @@ mod test_messages {
     use anyhow::{Result, anyhow};
     use arrow::{array::RecordBatch, datatypes::SchemaRef};
     use futures::{Stream, StreamExt};
-    use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
-        SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
-    };
     use phymes_diagnostics::{DiagnosticBuilder, HashMap, create_timestamp_micros};
     use phymes_message::{
         MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -16,6 +12,10 @@ mod test_messages {
     };
     use phymes_schemas::{Tool, create_chat_record_batch};
     use phymes_streams::ChatTraitExt;
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
+        SendableRecordBatchStream, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+    };
     use std::{
         pin::Pin,
         sync::Arc,
@@ -202,14 +202,14 @@ mod tests {
     use anyhow::Result;
     use arrow::array::RecordBatch;
     use futures::TryStreamExt;
-    use phymes_subject::{
-        BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait,
-        SubjectTrait, test_subject,
-    };
     use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap};
     use phymes_event::Publication;
     use phymes_message::{MessageBuilderTrait, SendableRecordBatchStreamMessage};
     use phymes_streams::ChatBuilderTraitExt;
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait,
+        SubjectTrait, test_subject,
+    };
 
     use super::*;
     use crate::ProcessorTrait;

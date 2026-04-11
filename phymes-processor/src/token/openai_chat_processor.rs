@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -9,6 +8,7 @@ use phymes_message::{
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_streams::OpenAIChatStream;
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use tracing::{Level, event};
 
 use crate::ProcessorTrait;
@@ -90,8 +90,8 @@ impl ProcessorTrait for OpenAIChatProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use phymes_subject::{ChatBuilderTraitExt, Publication, SubjectBuilder};
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
+    use phymes_subject::{ChatBuilderTraitExt, Publication, SubjectBuilder};
 
     use crate::AvailableOpenAIAssets;
 

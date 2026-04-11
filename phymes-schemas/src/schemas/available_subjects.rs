@@ -399,9 +399,9 @@ impl AvailableSchemaTrait for AvailableSubjects {
             AvailableSubjects::JoinUserInboxNetworks => {
                 create_schema_from_fields(&create_join_user_inbox_networks_fields)
             }
-            AvailableSubjects::JoinUserInboxNetworksMermaid => create_schema_from_fields(
-                &create_join_user_inbox_networks_mermaid_diagrams_fields,
-            ),
+            AvailableSubjects::JoinUserInboxNetworksMermaid => {
+                create_schema_from_fields(&create_join_user_inbox_networks_mermaid_diagrams_fields)
+            }
             AvailableSubjects::SessionMermaid => {
                 create_schema_from_fields(&create_session_mermaid_fields)
             }

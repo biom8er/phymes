@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use arrow::datatypes::SchemaRef;
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
-    SubjectPlan, SubjectPlanTrait, SubjectTrait,
-};
 use phymes_diagnostics::{HashMap, HashSet};
 use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, IPCMessageMap, MessageBuilderTrait};
 use phymes_processor::ProcessorPlan;
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
+    SubjectPlan, SubjectPlanTrait, SubjectTrait,
+};
 use phymes_task::{Task, TaskBuilderTrait, TaskMap, TaskPlan};
 
 use crate::Network;
@@ -225,7 +225,10 @@ impl NetworkBuilder {
         // Extend the subjects
         let other_subjects = if let Some(subjects) = self.subjects.as_ref() {
             if let Some(other) = other.subjects {
-                let names = subjects.iter().map(|t| t.get_name()).collect::<HashSet<_>>();
+                let names = subjects
+                    .iter()
+                    .map(|t| t.get_name())
+                    .collect::<HashSet<_>>();
                 other
                     .into_iter()
                     .filter(|t| !names.contains(t.get_name()))
@@ -270,11 +273,13 @@ impl NetworkBuilder {
             if let Some(other) = other.tasks.as_ref() {
                 let names = tasks.iter().map(|t| &t.task_name).collect::<HashSet<_>>();
                 other
-                    .into_iter()
-                    .filter_map(|t| if names.contains(&t.task_name) {
-                        None
-                    } else {
-                        Some(t.to_owned())
+                    .iter()
+                    .filter_map(|t| {
+                        if names.contains(&t.task_name) {
+                            None
+                        } else {
+                            Some(t.to_owned())
+                        }
                     })
                     .collect::<Vec<_>>()
             } else {
@@ -285,13 +290,18 @@ impl NetworkBuilder {
         };
         if let Some(tasks) = self.tasks.take() {
             let mut tasks = if let Some(other) = other.tasks {
-                let task_map = other.iter().map(|t| (&t.task_name, t)).collect::<HashMap<_, _>>();
+                let task_map = other
+                    .iter()
+                    .map(|t| (&t.task_name, t))
+                    .collect::<HashMap<_, _>>();
                 tasks
                     .into_iter()
-                    .map(|t| if let Some(o) = task_map.get(&t.task_name){
-                        t.extend(o.to_owned().to_owned())
-                    } else {
-                        t
+                    .map(|t| {
+                        if let Some(o) = task_map.get(&t.task_name) {
+                            t.extend(o.to_owned().to_owned())
+                        } else {
+                            t
+                        }
                     })
                     .collect::<Vec<_>>()
             } else {
@@ -483,9 +493,9 @@ impl NetworkBuilderTrait for NetworkBuilder {
 
 /// Mock objects and functions for session context builer testing
 pub mod test_network_builder {
-    use phymes_subject::{ObjectStorageBackend, SubjectPlanBuilderTrait, make_store};
     use phymes_event::AvailableSubscribeEvents;
     use phymes_processor::{AvailableProcessors, ProcessorPlanBuilder};
+    use phymes_subject::{ObjectStorageBackend, SubjectPlanBuilderTrait, make_store};
     use phymes_task::test_task;
 
     use super::*;
@@ -725,17 +735,16 @@ pub mod test_network_builder {
 
 #[cfg(test)]
 mod tests {
-    use phymes_subject::SubjectPlanBuilderTrait;
     use phymes_event::{AvailableSubscribeEvents, Subscription};
     use phymes_processor::{AvailableProcessors, ProcessorPlanBuilder};
+    use phymes_subject::SubjectPlanBuilderTrait;
     use phymes_task::test_task;
 
     use super::*;
 
     #[test]
     fn test_network_builder_get_task_sub_pub_with_input() {
-        let plan =
-            test_network_builder::make_test_network_builder_parallel_processors();
+        let plan = test_network_builder::make_test_network_builder_parallel_processors();
         let (subscriptions, publications) = plan.get_sub_pub_for_task("task_1");
         assert!(
             subscriptions.contains(&&Subscription::AlwaysAllRecordBatches {
@@ -754,8 +763,7 @@ mod tests {
 
     #[test]
     fn test_network_builder_get_processor_names() {
-        let plan =
-            test_network_builder::make_test_network_builder_parallel_processors();
+        let plan = test_network_builder::make_test_network_builder_parallel_processors();
         let names = plan.get_processor_names_from_tasks();
         assert!(names.contains("processor_1"));
         assert!(names.contains("processor_2"));
@@ -764,8 +772,7 @@ mod tests {
 
     #[test]
     fn test_network_builder_get_subject_names() {
-        let plan =
-            test_network_builder::make_test_network_builder_parallel_processors();
+        let plan = test_network_builder::make_test_network_builder_parallel_processors();
         let names = plan.get_subject_names_from_processors();
         assert!(names.contains("state_1"));
         assert!(names.contains("state_2"));
@@ -777,30 +784,21 @@ mod tests {
 
     #[test]
     fn test_network_builder_get_processor_names_for_task() {
-        let plan =
-            test_network_builder::make_test_network_builder_parallel_processors();
+        let plan = test_network_builder::make_test_network_builder_parallel_processors();
         let names = plan.get_processor_names_for_task("task_1");
         assert_eq!(names, vec!["processor_1".to_string()]);
     }
 
     #[test]
     fn test_network_builder_extend_duplicate() -> Result<()> {
-        let plan = test_network_builder::make_test_network_builder_parallel(
+        let plan = test_network_builder::make_test_network_builder_parallel("session_1", 25)?;
+        let plan = plan.extend(test_network_builder::make_test_network_builder_parallel(
             "session_1",
             25,
-        )?;
-        let plan = plan.extend(
-            test_network_builder::make_test_network_builder_parallel(
-                "session_1",
-                25,
-            )?,
-        )?;
+        )?)?;
         assert_eq!(
             plan,
-            test_network_builder::make_test_network_builder_parallel(
-                "session_1",
-                25
-            )?
+            test_network_builder::make_test_network_builder_parallel("session_1", 25)?
         );
 
         Ok(())
@@ -840,11 +838,8 @@ mod tests {
             .with_runtime_env(test_task::make_runtime_env("rt_4")?)
             .with_subjects(subject_plans)
             .with_diagnostics(false);
-        let plan = test_network_builder::make_test_network_builder_parallel(
-            "session_1",
-            25,
-        )?
-        .with_diagnostics(true);
+        let plan = test_network_builder::make_test_network_builder_parallel("session_1", 25)?
+            .with_diagnostics(true);
         let plan = plan.extend(other_plan)?;
         assert_eq!(plan.name.unwrap(), "session_1");
         assert!(plan.diagnostics.unwrap());
@@ -893,12 +888,9 @@ mod tests {
     #[test]
     fn test_network_builder_build_success() -> Result<()> {
         let (session, messages) =
-            test_network_builder::make_test_network_builder_parallel(
-                "session_1",
-                25,
-            )?
-            .with_diagnostics(true)
-            .build()?;
+            test_network_builder::make_test_network_builder_parallel("session_1", 25)?
+                .with_diagnostics(true)
+                .build()?;
         assert_eq!(session.runtime_env.name, "rt_1");
         assert_eq!(session.tasks().len(), 3);
         assert_eq!(session.get_name(), "session_1");
@@ -954,9 +946,7 @@ mod tests {
         // No tasks
         let result = NetworkBuilder::new()
             .with_name("session_1")
-            .with_tasks(
-                test_network_builder::make_test_network_builder_parallel_tasks(),
-            )
+            .with_tasks(test_network_builder::make_test_network_builder_parallel_tasks())
             .build();
         match result {
             Ok(_) => panic!("Should have failed"),
@@ -983,9 +973,7 @@ mod tests {
         ];
         let result = NetworkBuilder::new()
             .with_name("session_1")
-            .with_tasks(
-                test_network_builder::make_test_network_builder_parallel_tasks(),
-            )
+            .with_tasks(test_network_builder::make_test_network_builder_parallel_tasks())
             .with_processors(processors)
             .build();
         match result {
@@ -1025,9 +1013,7 @@ mod tests {
         ];
         let result = NetworkBuilder::new()
             .with_name("session_1")
-            .with_tasks(
-                test_network_builder::make_test_network_builder_parallel_tasks(),
-            )
+            .with_tasks(test_network_builder::make_test_network_builder_parallel_tasks())
             .with_processors(processors)
             .build();
         match result {
@@ -1043,10 +1029,9 @@ mod tests {
     #[test]
     fn test_network_builder_build_fail_missing_runtime_env() -> Result<()> {
         // No runtime env
-        let result =
-            test_network_builder::make_test_network_builder_parallel_processors()
-                .with_name("session_1")
-                .build();
+        let result = test_network_builder::make_test_network_builder_parallel_processors()
+            .with_name("session_1")
+            .build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -1056,10 +1041,9 @@ mod tests {
         }
 
         // Missing runtime env
-        let result =
-            test_network_builder::make_test_network_builder_parallel_processors()
-                .with_name("session_1")
-                .build();
+        let result = test_network_builder::make_test_network_builder_parallel_processors()
+            .with_name("session_1")
+            .build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -1074,11 +1058,10 @@ mod tests {
     #[test]
     fn test_network_builder_build_fail_missing_state() -> Result<()> {
         // No state
-        let result =
-            test_network_builder::make_test_network_builder_parallel_processors()
-                .with_name("session_1")
-                .with_runtime_env(test_task::make_runtime_env("rt_1")?)
-                .build();
+        let result = test_network_builder::make_test_network_builder_parallel_processors()
+            .with_name("session_1")
+            .with_runtime_env(test_task::make_runtime_env("rt_1")?)
+            .build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -1095,12 +1078,11 @@ mod tests {
             subject_plans.push(plan);
         }
 
-        let result =
-            test_network_builder::make_test_network_builder_parallel_processors()
-                .with_name("session_1")
-                .with_runtime_env(test_task::make_runtime_env("rt_1")?)
-                .with_subjects(subject_plans)
-                .build();
+        let result = test_network_builder::make_test_network_builder_parallel_processors()
+            .with_name("session_1")
+            .with_runtime_env(test_task::make_runtime_env("rt_1")?)
+            .with_subjects(subject_plans)
+            .build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -1118,12 +1100,11 @@ mod tests {
             let plan = SubjectPlan::get_builder().with_subject(table).build()?;
             subject_plans.push(plan);
         }
-        let result =
-            test_network_builder::make_test_network_builder_parallel_processors()
-                .with_name("session_1")
-                .with_runtime_env(test_task::make_runtime_env("rt_1")?)
-                .with_subjects(subject_plans)
-                .build();
+        let result = test_network_builder::make_test_network_builder_parallel_processors()
+            .with_name("session_1")
+            .with_runtime_env(test_task::make_runtime_env("rt_1")?)
+            .with_subjects(subject_plans)
+            .build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(

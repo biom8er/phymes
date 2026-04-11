@@ -7,16 +7,16 @@ use std::{
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{Stream, StreamExt};
-use phymes_subject::{
-    BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject,
-    SubjectBuilder, SubjectBuilderTrait,
-};
 use phymes_data::{DataConfig, DataConfigTrait, DataOperatorTrait, device};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, MetricBuilderTrait,
 };
 use phymes_message::{MessageTrait, SendableRecordBatchStreamMessageMap};
 use phymes_ml::{CandleTensorService, TensorStreamTrait};
+use phymes_subject::{
+    BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, Subject,
+    SubjectBuilder, SubjectBuilderTrait,
+};
 use tracing::instrument;
 
 #[allow(dead_code)]

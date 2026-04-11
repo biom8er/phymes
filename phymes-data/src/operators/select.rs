@@ -28,13 +28,13 @@ use arrow::{
 };
 use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast, WrappingShl, WrappingShr};
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_diagnostics::HashSet;
 use phymes_schemas::{
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
     from_str_to_data_type,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use serde_json::json;
 use tracing::instrument;

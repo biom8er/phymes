@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -9,6 +8,7 @@ use phymes_message::{
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_streams::ToolCallStream;
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use tracing::{Level, event, instrument};
 
 use crate::ProcessorTrait;
@@ -85,7 +85,6 @@ impl ProcessorTrait for ToolCallProcessor {
 
 #[cfg(test)]
 mod tests {
-    use phymes_subject::{Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
     use phymes_data::DataConfig;
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
     use phymes_event::Publication;
@@ -93,6 +92,7 @@ mod tests {
         AvailableSubjects, create_bytes_record_batch, create_session_tasks_subscribe_publish_batch,
     };
     use phymes_streams::ToolCallConfig;
+    use phymes_subject::{Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
 
     use super::*;
 

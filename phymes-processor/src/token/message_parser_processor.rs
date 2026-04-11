@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use crate::ProcessorTrait;
 use anyhow::{Result, anyhow};
-use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -10,6 +9,7 @@ use phymes_message::{
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_streams::MessageParserStream;
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use tracing::{Level, event, instrument};
 
 /// Processor that takes an unstructured chat response
@@ -89,11 +89,11 @@ impl ProcessorTrait for MessageParserProcessor {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
-    use phymes_subject::{Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
     use phymes_event::Publication;
     use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
     use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects, DataFormat};
+    use phymes_subject::{Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
 
     use super::*;
 

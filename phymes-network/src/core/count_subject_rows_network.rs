@@ -77,18 +77,18 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
-    };
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_schemas::AvailableSubjects;
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+    };
     use phymes_task::{SubscriptionTrait, test_task};
 
     use crate::{
-        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, NetworkStream, test_network_builder,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
+        NetworkStream, test_network_builder,
     };
 
     use super::*;
@@ -97,32 +97,31 @@ mod tests {
     async fn test_count_subject_rows_network() -> Result<()> {
         // Initialize the session
         let subjects_session = CountSubjectRowsNetwork::default();
-        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            subjects_session.as_mermaid_flowchart(),
-            false,
-        )?
-        .with_subjects_from_mermaid_erdiagram(subjects_session.as_mermaid_erdiagram(), false, true)?
-        .with_name(subjects_session.network_name)
-        .with_diagnostics(true)
-        .add_processor_subjects()?
-        .add_next_tasks()?
-        .add_next_supersteps()?
-        .build_with_tables()?;
+        let (network, session_messages) =
+            NetworkBuilder::from_mermaid_flowchart(subjects_session.as_mermaid_flowchart(), false)?
+                .with_subjects_from_mermaid_erdiagram(
+                    subjects_session.as_mermaid_erdiagram(),
+                    false,
+                    true,
+                )?
+                .with_name(subjects_session.network_name)
+                .with_diagnostics(true)
+                .add_processor_subjects()?
+                .add_next_tasks()?
+                .add_next_supersteps()?
+                .build_with_tables()?;
         let network_arc = Arc::new(network);
 
         // Make the test session data
         let message_map = {
             // Make the test sequential session
             let (network, session_messages) =
-                test_network_builder::make_test_network_builder_sequential(
-                    "session_1",
-                    2,
-                )?
-                .with_diagnostics(false)
-                .add_network_interface(Some(&["state_1"]))?
-                .add_next_tasks()?
-                .add_next_supersteps()?
-                .build_with_tables()?;
+                test_network_builder::make_test_network_builder_sequential("session_1", 2)?
+                    .with_diagnostics(false)
+                    .add_network_interface(Some(&["state_1"]))?
+                    .add_next_tasks()?
+                    .add_next_supersteps()?
+                    .build_with_tables()?;
 
             // Mimic a session run for 1 steps
             let network_arc = Arc::new(network);

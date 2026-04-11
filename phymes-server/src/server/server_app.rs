@@ -33,8 +33,8 @@ use tokio::net::TcpListener;
 // From lib
 use crate::{
     handlers::{
-        authorize, network_build, session_diagnostics, network_get_subjects, network_put_subjects,
-        network_stream, sign_in,
+        authorize, network_build, network_get_subjects, network_put_subjects, network_stream,
+        session_diagnostics, sign_in,
     },
     state::{ServerState, UserState},
 };

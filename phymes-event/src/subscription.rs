@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow};
-use phymes_subject::MappableTrait;
 use phymes_diagnostics::{TraceableTrait, Tracer};
+use phymes_subject::MappableTrait;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 

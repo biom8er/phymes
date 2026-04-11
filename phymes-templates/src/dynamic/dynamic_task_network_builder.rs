@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, SubjectPlan, SubjectPlanBuilderTrait
-};
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
+use phymes_network::{NetworkBuilder, NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
 use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, SubjectPlan, SubjectPlanBuilderTrait,
+};
 use phymes_task::TaskPlan;
-use phymes_network::{NetworkBuilder, NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait};
 
 use crate::InvokeTaskNetworkBuilder;
 
@@ -58,35 +58,51 @@ pub struct DynamicTaskNetworkBuilder {
     /// Output subject
     pub subject_out: SubjectPlan,
     /// Config data for the processor
-    pub subject_processor: SubjectPlan
+    pub subject_processor: SubjectPlan,
 }
 
 impl Default for DynamicTaskNetworkBuilder {
     fn default() -> Self {
         let subject_lhs = SubjectPlan::get_builder()
-            .with_subject(AvailableSubjects::Bytes.to_subject(Some("lhs_s"), None).unwrap())
+            .with_subject(
+                AvailableSubjects::Bytes
+                    .to_subject(Some("lhs_s"), None)
+                    .unwrap(),
+            )
             .build()
             .unwrap();
         let subject_out = SubjectPlan::get_builder()
-            .with_subject(AvailableSubjects::Bytes.to_subject(Some("out_s"), None).unwrap())
+            .with_subject(
+                AvailableSubjects::Bytes
+                    .to_subject(Some("out_s"), None)
+                    .unwrap(),
+            )
             .build()
             .unwrap();
         let subject_processor = SubjectPlan::get_builder()
-            .with_subject(AvailableSubjects::Bytes.to_subject(Some("network_p"), None).unwrap())
+            .with_subject(
+                AvailableSubjects::Bytes
+                    .to_subject(Some("network_p"), None)
+                    .unwrap(),
+            )
             .build()
             .unwrap();
         DynamicTaskNetworkBuilder {
             network_name: "network_t".to_string(),
             is_dynamic: false,
             processor: AvailableProcessors::default(),
-            subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
+            subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                subject_name: subject_lhs.get_name().to_string(),
+            },
             subscription_rhs: None,
-            publication: Publication::Replace { subject_name: subject_out.get_name().to_string() },
+            publication: Publication::Replace {
+                subject_name: subject_out.get_name().to_string(),
+            },
             subscribe: AvailableSubscribeEvents::default(),
             subject_lhs,
             subject_rhs: None,
             subject_out,
-            subject_processor
+            subject_processor,
         }
     }
 }
@@ -133,12 +149,10 @@ impl DynamicTaskNetworkBuilder {
 
 impl NetworkBuilderCustomTrait for DynamicTaskNetworkBuilder {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
-        let tasks = vec![
-            TaskPlan {
-                task_name: DynamicTaskNetworkNames::Task(&self.network_name).to_string(),
-                processor_names: vec![self.subject_processor.get_name().to_string()],
-            },
-        ];
+        let tasks = vec![TaskPlan {
+            task_name: DynamicTaskNetworkNames::Task(&self.network_name).to_string(),
+            processor_names: vec![self.subject_processor.get_name().to_string()],
+        }];
 
         Some(tasks)
     }
@@ -171,10 +185,8 @@ impl NetworkBuilderCustomTrait for DynamicTaskNetworkBuilder {
         // Build the processor
         let processors = vec![
             ProcessorPlanBuilder::default()
-                .with_processor(
-                    self.processor.build_arc(&self.subject_processor.get_name().to_string()),
-                )
-                .with_publications(&[self.publication.clone()])
+                .with_processor(self.processor.build_arc(self.subject_processor.get_name()))
+                .with_publications(std::slice::from_ref(&self.publication))
                 .with_subscriptions(&subscriptions)
                 .with_subscribe_policy(self.subscribe.clone().build())
                 .build()

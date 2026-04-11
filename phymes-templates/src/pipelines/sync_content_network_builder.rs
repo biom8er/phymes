@@ -393,21 +393,21 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
-        SubjectBuilder, SubjectBuilderTrait, SubjectTrait, make_store, test_subject,
-    };
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, NetworkStream,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
+        NetworkStream,
     };
     use phymes_schemas::{
         AvailableSubjects, create_bytes_record_batch, create_object_store_meta_batch,
     };
     use phymes_streams::{ObjectStoreConfig, ObjectStoreOptsType};
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
+        SubjectBuilder, SubjectBuilderTrait, SubjectTrait, make_store, test_subject,
+    };
     use phymes_task::{PublicationTrait, SubscriptionTrait};
     #[cfg(not(target_family = "wasm"))]
     use tempfile::TempDir;
@@ -885,7 +885,8 @@ mod tests {
         // View task session
         let tool_call_subject = format!("list_{remote_object_store_name}_p");
         let tool_call_subjects = [tool_call_subject.as_str()];
-        let invoke_task_network = InvokeTaskNetworkBuilder::new("invoke_task_network", &tool_call_subjects);
+        let invoke_task_network =
+            InvokeTaskNetworkBuilder::new("invoke_task_network", &tool_call_subjects);
         let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
             &invoke_task_network.as_mermaid_flowchart(),
             false,

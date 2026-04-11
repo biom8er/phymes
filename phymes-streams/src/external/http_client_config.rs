@@ -2,9 +2,9 @@ use std::{env, fmt::Display};
 
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
-use phymes_subject::{MappableTrait, Subject, SubjectTrait};
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::HashSet;
+use phymes_subject::{MappableTrait, Subject, SubjectTrait};
 use serde::{Deserialize, Serialize};
 
 /// Schema to use when packaging the HTTP client request response
@@ -164,10 +164,10 @@ impl DataConfigTrait for HTTPClientConfig {
                 Ok(config) => {
                     config.check_required_members(subject.get_name())?;
                     Ok(config)
-                },
+                }
                 Err(err) => Err(anyhow!(
                     "`{}` could not be built for subject `{}`. {err}",
-                    Self::get_static_name(), 
+                    Self::get_static_name(),
                     subject.get_name()
                 )),
             }
@@ -180,7 +180,7 @@ impl DataConfigTrait for HTTPClientConfig {
                 .iter()
                 .map(|f| f.name().to_string())
                 .collect::<HashSet<_>>();
-            Self::check_required_fields(subject.get_name(), &column_names, required_fields)?;            
+            Self::check_required_fields(subject.get_name(), &column_names, required_fields)?;
 
             // Try to build the config
             match subject.to_struct::<HTTPClientConfig>() {
@@ -194,13 +194,13 @@ impl DataConfigTrait for HTTPClientConfig {
                 },
                 Err(err) => Err(anyhow!(
                     "`{}` could not be built for subject `{}`. {err}",
-                    Self::get_static_name(), 
+                    Self::get_static_name(),
                     subject.get_name()
                 )),
             }
         }
     }
-    
+
     fn check_required_members(&self, _subject_name: &str) -> Result<()> {
         Ok(())
     }

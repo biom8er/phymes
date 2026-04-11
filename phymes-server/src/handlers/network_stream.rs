@@ -11,10 +11,6 @@ use axum::{
 use bytes::Bytes;
 use clap::ValueEnum;
 use futures::prelude::*;
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
-    SubjectTrait,
-};
 use phymes_message::{
     IPCMessage, MessageBuilderTrait, MessageTrait, SessionInterfaceMessage,
     SessionInterfaceMessageTrait, create_message_map,
@@ -23,6 +19,10 @@ use phymes_network::NetworkStream;
 use phymes_schemas::{
     AvailableInterfaceSubjects, AvailableSchemaTrait, DataFormat,
     JoinUserInboxNetworksMermaidDiagrams,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
+    SubjectTrait,
 };
 
 // General imports

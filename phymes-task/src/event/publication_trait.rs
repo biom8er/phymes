@@ -9,11 +9,6 @@ use arrow::{
     datatypes::{DataType, Field, Schema},
 };
 use futures::StreamExt;
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, RecordBatchStreamAdapter,
-    RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait,
-    SubjectTrait,
-};
 use phymes_data::{
     AvailableOperators, DataColumnOperator, DataConfig, DataJoinOperator, DataStreamManager,
 };
@@ -22,6 +17,11 @@ use phymes_event::Publication;
 use phymes_message::{MessageBuilderTrait, SendableRecordBatchStreamMessage, make_random_id};
 use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects, DataEncoding, DataFormat};
 use phymes_streams::{CandleDataStream, ObjectStoreConfig, ObjectStoreOptsType, ObjectStoreStream};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, RecordBatchStreamAdapter,
+    RuntimeEnv, SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait,
+    SubjectTrait,
+};
 
 use crate::list_subject;
 
@@ -616,9 +616,9 @@ mod tests {
     use arrow::datatypes::Schema;
 
     use futures::TryStreamExt;
-    use phymes_subject::test_subject;
     use phymes_event::Subscription;
     use phymes_schemas::create_bytes_record_batch;
+    use phymes_subject::test_subject;
 
     use crate::SubscriptionTrait;
 

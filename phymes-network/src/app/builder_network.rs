@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectPlan,
-    SubjectPlanBuilderTrait,
-};
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
 use phymes_schemas::{AvailableSubjects, create_session_mermaid_batch};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectPlan,
+    SubjectPlanBuilderTrait,
+};
 use phymes_task::TaskPlan;
 
 use crate::{AvailableNetworks, NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait};
@@ -27,11 +27,8 @@ pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Sub
     let mut er_diagram = Vec::new();
     let mut timestamp = Vec::new();
     for network_name in available_session_plans {
-        let builder = AvailableNetworks::get_network_builder_by_name(
-            &network_name,
-            &network_name,
-        )?
-        .with_name(&network_name);
+        let builder = AvailableNetworks::get_network_builder_by_name(&network_name, &network_name)?
+            .with_name(&network_name);
         flowchart_diagram.push(builder.to_mermaid_flowchart(false, false)?);
         er_diagram.push(builder.to_mermaid_erdiagram(false, true)?);
         network_names.push(network_name);
@@ -44,12 +41,8 @@ pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Sub
     } else {
         AvailableSubjects::SessionMermaid.to_string()
     };
-    let batch = create_session_mermaid_batch(
-        network_names,
-        flowchart_diagram,
-        er_diagram,
-        timestamp,
-    )?;
+    let batch =
+        create_session_mermaid_batch(network_names, flowchart_diagram, er_diagram, timestamp)?;
     Subject::get_builder()
         .with_name(subject_name.as_str())
         .with_record_batches(vec![batch])?
@@ -72,9 +65,7 @@ impl Default for BuilderNetwork<'_> {
 
 impl<'a> BuilderNetwork<'a> {
     pub fn new_with_network_name(network_name: &'a str) -> Self {
-        BuilderNetwork {
-            network_name,
-        }
+        BuilderNetwork { network_name }
     }
 }
 
@@ -92,9 +83,7 @@ impl NetworkBuilderCustomTrait for BuilderNetwork<'_> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
             ProcessorPlanBuilder::default()
-                .with_processor(
-                    AvailableProcessors::ProcessorEcho.build_arc(self.network_name),
-                )
+                .with_processor(AvailableProcessors::ProcessorEcho.build_arc(self.network_name))
                 .with_publications(&[Publication::Extend {
                     subject_name: AvailableSubjects::BuilderMermaid.to_string(),
                 }])

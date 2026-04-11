@@ -1,8 +1,13 @@
 use phymes_data::{AvailableOperators, DataConfig, DataStreamManager, PatchOperator};
-use phymes_processor::AvailableProcessors;
-use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
-use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait, create_workspace_batch, create_workspace_patch_batch};
+use phymes_processor::AvailableProcessors;
+use phymes_schemas::{
+    AvailableSubjects, AvailableSubjectsTrait, create_workspace_batch, create_workspace_patch_batch,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
+    SubjectPlanBuilderTrait,
+};
 
 use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
 
@@ -34,34 +39,50 @@ impl Default for PatchWorkspaceNetworkBuilderStaticWSubject {
         let config_json = serde_json::to_vec(&config).unwrap();
         let subject = SubjectBuilder::new()
             .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
-            .with_json(&config_json, 1).unwrap()
-            .build().unwrap();
+            .with_json(&config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
         let subject_processor = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Subscriptions and publications
         let subject = AvailableSubjects::Workspace.to_subject(None, None).unwrap();
         let subject_lhs = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
-        let subject = AvailableSubjects::WorkspacePatch.to_subject(None, None).unwrap();
+            .build()
+            .unwrap();
+        let subject = AvailableSubjects::WorkspacePatch
+            .to_subject(None, None)
+            .unwrap();
         let subject_rhs = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
-        let subject = AvailableSubjects::Workspace.to_subject(Some(subject_name_out), None).unwrap();
+            .build()
+            .unwrap();
+        let subject = AvailableSubjects::Workspace
+            .to_subject(Some(subject_name_out), None)
+            .unwrap();
         let subject_out = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
             is_dynamic: false,
             processor: AvailableProcessors::Patch,
-            subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
-            subscription_rhs: Some(Subscription::OnUpdateAllRecordBatches { subject_name: subject_rhs.get_name().to_string() }),
-            publication: Publication::Extend { subject_name: subject_out.get_name().to_string() },
+            subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                subject_name: subject_lhs.get_name().to_string(),
+            },
+            subscription_rhs: Some(Subscription::OnUpdateAllRecordBatches {
+                subject_name: subject_rhs.get_name().to_string(),
+            }),
+            publication: Publication::Extend {
+                subject_name: subject_out.get_name().to_string(),
+            },
             subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
             subject_lhs,
             subject_rhs: Some(subject_rhs),
@@ -84,10 +105,16 @@ impl Default for PatchWorkspaceNetworkBuilderDynamicWSubject {
         let subject_name_out = "apply_patch_s";
 
         // Processor subject
-        let subject = AvailableSubjects::Bytes.to_subject(Some(&DynamicTaskNetworkNames::Processor(network_name).to_string()), None).unwrap();
+        let subject = AvailableSubjects::Bytes
+            .to_subject(
+                Some(&DynamicTaskNetworkNames::Processor(network_name).to_string()),
+                None,
+            )
+            .unwrap();
         let subject_processor = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Subscriptions and publications
         let subject = {
@@ -122,13 +149,15 @@ pub use todo::Todo"#,
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
             let batch = create_workspace_batch(path, content).unwrap();
-            AvailableSubjects::Workspace.to_subject(None, Some(vec![batch])).unwrap()
+            AvailableSubjects::Workspace
+                .to_subject(None, Some(vec![batch]))
+                .unwrap()
         };
         let subject_lhs = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
+            .build()
+            .unwrap();
         let subject = {
-
             // Create the mock patches
             let filename = [
                 "/home/sandbox/src/main.rs",
@@ -152,24 +181,36 @@ pub use todo::Todo"#,
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
             let batch = create_workspace_patch_batch(filename, content, operator).unwrap();
-            AvailableSubjects::WorkspacePatch.to_subject(None, Some(vec![batch])).unwrap()
+            AvailableSubjects::WorkspacePatch
+                .to_subject(None, Some(vec![batch]))
+                .unwrap()
         };
         let subject_rhs = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
-        let subject = AvailableSubjects::Workspace.to_subject(Some(subject_name_out), None).unwrap();
+            .build()
+            .unwrap();
+        let subject = AvailableSubjects::Workspace
+            .to_subject(Some(subject_name_out), None)
+            .unwrap();
         let subject_out = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
             is_dynamic: true,
             processor: AvailableProcessors::Patch,
-            subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
-            subscription_rhs: Some(Subscription::OnUpdateAllRecordBatches { subject_name: subject_rhs.get_name().to_string() }),
-            publication: Publication::Extend { subject_name: subject_out.get_name().to_string() },
+            subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                subject_name: subject_lhs.get_name().to_string(),
+            },
+            subscription_rhs: Some(Subscription::OnUpdateAllRecordBatches {
+                subject_name: subject_rhs.get_name().to_string(),
+            }),
+            publication: Publication::Extend {
+                subject_name: subject_out.get_name().to_string(),
+            },
             subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
             subject_lhs,
             subject_rhs: Some(subject_rhs),
@@ -192,33 +233,52 @@ impl Default for PatchWorkspaceNetworkBuilderDynamicWOSubject {
         let subject_name_out = "apply_patch_s";
 
         // Processor subject
-        let subject = AvailableSubjects::Bytes.to_subject(Some(&DynamicTaskNetworkNames::Processor(network_name).to_string()), None).unwrap();
+        let subject = AvailableSubjects::Bytes
+            .to_subject(
+                Some(&DynamicTaskNetworkNames::Processor(network_name).to_string()),
+                None,
+            )
+            .unwrap();
         let subject_processor = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Subscriptions and publications
         let subject = AvailableSubjects::Workspace.to_subject(None, None).unwrap();
         let subject_lhs = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
-        let subject = AvailableSubjects::WorkspacePatch.to_subject(None, None).unwrap();
+            .build()
+            .unwrap();
+        let subject = AvailableSubjects::WorkspacePatch
+            .to_subject(None, None)
+            .unwrap();
         let subject_rhs = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
-        let subject = AvailableSubjects::Workspace.to_subject(Some(subject_name_out), None).unwrap();
+            .build()
+            .unwrap();
+        let subject = AvailableSubjects::Workspace
+            .to_subject(Some(subject_name_out), None)
+            .unwrap();
         let subject_out = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
             is_dynamic: true,
             processor: AvailableProcessors::Patch,
-            subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
-            subscription_rhs: Some(Subscription::OnUpdateAllRecordBatches { subject_name: subject_rhs.get_name().to_string() }),
-            publication: Publication::Extend { subject_name: subject_out.get_name().to_string() },
+            subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                subject_name: subject_lhs.get_name().to_string(),
+            },
+            subscription_rhs: Some(Subscription::OnUpdateAllRecordBatches {
+                subject_name: subject_rhs.get_name().to_string(),
+            }),
+            publication: Publication::Extend {
+                subject_name: subject_out.get_name().to_string(),
+            },
             subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
             subject_lhs,
             subject_rhs: Some(subject_rhs),
@@ -236,9 +296,6 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnvBuilder, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait
-    };
     use phymes_data::{AvailableOperators, DataConfig, DataStreamManager, PatchOperator};
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
@@ -248,6 +305,10 @@ mod tests {
         AvailableSubjects, AvailableSubjectsTrait, WorkspacePatchSubject,
         create_bytes_record_batch, create_workspace_batch, create_workspace_patch_batch,
     };
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnvBuilder, Subject, SubjectBuilder,
+        SubjectBuilderTrait, SubjectTrait,
+    };
     use phymes_task::SubscriptionTrait;
 
     use super::*;
@@ -255,14 +316,22 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_patch_workspace_network_dynamic_w_subjects() -> Result<()> {
         let patch_workspace_network = PatchWorkspaceNetworkBuilderDynamicWSubject::default();
-        let (network, session_messages) = patch_workspace_network.inner
+        let (network, session_messages) = patch_workspace_network
+            .inner
             .build_dynamic()
-            .with_runtime_env(RuntimeEnvBuilder::default().with_name(&DynamicTaskNetworkNames::Task(&patch_workspace_network.inner.network_name).to_string()).build_arc()?)
-        .with_diagnostics(true)
-        .add_processor_subjects()?
-        .add_next_tasks()?
-        .add_next_supersteps()?
-        .build_with_tables()?;
+            .with_runtime_env(
+                RuntimeEnvBuilder::default()
+                    .with_name(
+                        &DynamicTaskNetworkNames::Task(&patch_workspace_network.inner.network_name)
+                            .to_string(),
+                    )
+                    .build_arc()?,
+            )
+            .with_diagnostics(true)
+            .add_processor_subjects()?
+            .add_next_tasks()?
+            .add_next_supersteps()?
+            .build_with_tables()?;
         let network_arc = Arc::new(network);
 
         // Make the test data
@@ -391,14 +460,22 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_patch_workspace_network_dynamic_wo_subjects() -> Result<()> {
         let patch_workspace_network = PatchWorkspaceNetworkBuilderDynamicWOSubject::default();
-        let (network, session_messages) = patch_workspace_network.inner
+        let (network, session_messages) = patch_workspace_network
+            .inner
             .build_dynamic()
-            .with_runtime_env(RuntimeEnvBuilder::default().with_name(&DynamicTaskNetworkNames::Task(&patch_workspace_network.inner.network_name).to_string()).build_arc()?)
-        .with_diagnostics(true)
-        .add_processor_subjects()?
-        .add_next_tasks()?
-        .add_next_supersteps()?
-        .build_with_tables()?;
+            .with_runtime_env(
+                RuntimeEnvBuilder::default()
+                    .with_name(
+                        &DynamicTaskNetworkNames::Task(&patch_workspace_network.inner.network_name)
+                            .to_string(),
+                    )
+                    .build_arc()?,
+            )
+            .with_diagnostics(true)
+            .add_processor_subjects()?
+            .add_next_tasks()?
+            .add_next_supersteps()?
+            .build_with_tables()?;
         let network_arc = Arc::new(network);
 
         // Make the test data
@@ -609,14 +686,22 @@ pub use todo::Todo"#,
     #[tokio::test(flavor = "current_thread")]
     async fn test_patch_workspace_network_static() -> Result<()> {
         let patch_workspace_network = PatchWorkspaceNetworkBuilderStaticWSubject::default();
-        let (network, session_messages) = patch_workspace_network.inner
+        let (network, session_messages) = patch_workspace_network
+            .inner
             .build_dynamic()
-            .with_runtime_env(RuntimeEnvBuilder::default().with_name(&DynamicTaskNetworkNames::Task(&patch_workspace_network.inner.network_name).to_string()).build_arc()?)
-        .with_diagnostics(true)
-        .add_processor_subjects()?
-        .add_next_tasks()?
-        .add_next_supersteps()?
-        .build_with_tables()?;
+            .with_runtime_env(
+                RuntimeEnvBuilder::default()
+                    .with_name(
+                        &DynamicTaskNetworkNames::Task(&patch_workspace_network.inner.network_name)
+                            .to_string(),
+                    )
+                    .build_arc()?,
+            )
+            .with_diagnostics(true)
+            .add_processor_subjects()?
+            .add_next_tasks()?
+            .add_next_supersteps()?
+            .build_with_tables()?;
         let network_arc = Arc::new(network);
 
         // Make the test data

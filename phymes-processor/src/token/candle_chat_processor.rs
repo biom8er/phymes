@@ -2,10 +2,6 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use parking_lot::Mutex;
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilder,
-    SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_event::Publication;
 use phymes_message::{
@@ -16,6 +12,10 @@ use phymes_message::{
 use phymes_ml::CandleChatConfig;
 use phymes_ml::TokenStreamTrait;
 use phymes_streams::CandleChatStream;
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilder,
+    SubjectBuilderTrait, SubjectTrait,
+};
 use tracing::{Level, event, instrument};
 
 use crate::{ProcessorTrait, TokenStreamTraitExt};

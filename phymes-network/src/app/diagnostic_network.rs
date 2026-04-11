@@ -1,10 +1,6 @@
 use std::sync::Arc;
 
 use arrow::datatypes::DataType;
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
-    SubjectPlanBuilderTrait,
-};
 use phymes_data::{
     AvailableJinja2Templates, AvailableOperators, DataAggregatorOperator, DataCastOperator,
     DataColumnOperator, DataConfig,
@@ -13,6 +9,10 @@ use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
 use phymes_schemas::{
     AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat, DiagnosticsVisualizations,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
+    SubjectPlanBuilderTrait,
 };
 use phymes_task::TaskPlan;
 use serde_json::json;
@@ -1818,14 +1818,13 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_subject::{BuildableTrait, MappableTrait, Subject, SubjectTrait};
     use phymes_diagnostics::{HashMap, HashSet};
     use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
+    use phymes_subject::{BuildableTrait, MappableTrait, Subject, SubjectTrait};
     use phymes_task::{SubscriptionTrait, test_task};
 
     use crate::{
-        NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream,
-        test_network_builder,
+        NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream, test_network_builder,
     };
 
     use super::*;
@@ -1834,15 +1833,12 @@ mod tests {
     async fn make_test_data(name: &str) -> Result<HashMap<String, IPCMessage>> {
         // Make the test sequential session
         let (network, session_messages) =
-            test_network_builder::make_test_network_builder_sequential(
-                "session_1",
-                2,
-            )?
-            .with_diagnostics(true)
-            .add_network_interface(Some(&["state_1"]))?
-            .add_next_tasks()?
-            .add_next_supersteps()?
-            .build_with_tables()?;
+            test_network_builder::make_test_network_builder_sequential("session_1", 2)?
+                .with_diagnostics(true)
+                .add_network_interface(Some(&["state_1"]))?
+                .add_next_tasks()?
+                .add_next_supersteps()?
+                .build_with_tables()?;
 
         // Mimic a session run for 1 steps
         let network_arc = Arc::new(network);

@@ -1,8 +1,8 @@
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
-use phymes_subject::{MappableTrait, Subject, SubjectTrait};
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::HashSet;
+use phymes_subject::{MappableTrait, Subject, SubjectTrait};
 use serde::{Deserialize, Serialize};
 
 use crate::candle_assets::AvailableCandleAssets;
@@ -105,10 +105,10 @@ impl DataConfigTrait for CandleEmbedConfig {
                 Ok(config) => {
                     config.check_required_members(subject.get_name())?;
                     Ok(config)
-                },
+                }
                 Err(err) => Err(anyhow!(
                     "`{}` could not be built for subject `{}`. {err}",
-                    Self::get_static_name(), 
+                    Self::get_static_name(),
                     subject.get_name()
                 )),
             }
@@ -122,12 +122,17 @@ impl DataConfigTrait for CandleEmbedConfig {
                 .map(|f| f.name().to_string())
                 .collect::<HashSet<_>>();
             Self::check_required_fields(subject.get_name(), &column_names, required_fields)?;
-            if let Err(err_1) = Self::check_required_fields(subject.get_name(), &column_names, &["candle_asset"]) {
-                if let Err(err_2) = Self::check_required_fields(subject.get_name(), &column_names, &["openai_asset"]) {
-                    let err = [err_1.to_string(), err_2.to_string()].join("; ");
-                    return Err(anyhow!(err))
-                }
-            };         
+            if let Err(err_1) =
+                Self::check_required_fields(subject.get_name(), &column_names, &["candle_asset"])
+                && let Err(err_2) = Self::check_required_fields(
+                    subject.get_name(),
+                    &column_names,
+                    &["openai_asset"],
+                )
+            {
+                let err = [err_1.to_string(), err_2.to_string()].join("; ");
+                return Err(anyhow!(err));
+            };
 
             // Try to build the config
             match subject.to_struct::<CandleEmbedConfig>() {
@@ -141,13 +146,13 @@ impl DataConfigTrait for CandleEmbedConfig {
                 },
                 Err(err) => Err(anyhow!(
                     "`{}` could not be built for subject `{}`. {err}",
-                    Self::get_static_name(), 
+                    Self::get_static_name(),
                     subject.get_name()
                 )),
             }
         }
     }
-    
+
     fn check_required_members(&self, subject_name: &str) -> Result<()> {
         if self.candle_asset.is_none() && self.openai_asset.is_none() {
             Err(anyhow!(

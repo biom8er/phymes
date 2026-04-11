@@ -1,6 +1,6 @@
 use anyhow::{Error, Result};
-use phymes_subject::{BuilderTrait, Subject, SubjectBuilder, SubjectBuilderTrait};
 use phymes_diagnostics::create_timestamp_micros;
+use phymes_subject::{BuilderTrait, Subject, SubjectBuilder, SubjectBuilderTrait};
 
 use crate::{AvailableSubjects, create_chat_record_batch};
 

@@ -254,18 +254,18 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
-        SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait,
-    };
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, NetworkStream,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
+        NetworkStream,
     };
     use phymes_processor::test_command_sandbox_processor;
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
+        SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait,
+    };
     use phymes_task::SubscriptionTrait;
 
     use super::*;

@@ -1,9 +1,9 @@
 use anyhow::{Result, anyhow};
-use phymes_subject::{MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream};
 use phymes_diagnostics::DiagnosticBuilder;
 use phymes_message::{
     SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
 };
+use phymes_subject::{MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream};
 use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::{Level, event};
@@ -195,12 +195,12 @@ pub mod test_processor {
 
     use arrow::{array::RecordBatch, compute::concat_batches, datatypes::SchemaRef};
     use futures::{Stream, StreamExt};
-    use phymes_subject::{BuildableTrait, BuilderTrait, test_subject::make_test_record_batch};
     use phymes_diagnostics::{DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
     use phymes_message::{
         MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
         SendableRecordBatchStreamMessageBuilder,
     };
+    use phymes_subject::{BuildableTrait, BuilderTrait, test_subject::make_test_record_batch};
     use std::{
         pin::Pin,
         sync::Arc,
@@ -385,13 +385,13 @@ pub mod test_processor {
 mod tests {
     use super::*;
     use anyhow::Result;
+    use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder};
+    use phymes_event::Publication;
+    use phymes_message::{MessageBuilderTrait, SendableRecordBatchStreamMessage};
     use phymes_subject::{
         BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait,
         SubjectTrait, test_subject::make_test_subject,
     };
-    use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder};
-    use phymes_event::Publication;
-    use phymes_message::{MessageBuilderTrait, SendableRecordBatchStreamMessage};
     use std::sync::Arc;
 
     #[tokio::test]

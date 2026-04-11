@@ -8,20 +8,20 @@ use anyhow::Result;
 use futures::TryStreamExt;
 use std::sync::Arc;
 
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_data::make_pdf_document;
 use phymes_diagnostics::HashMap;
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
 use phymes_network::{
-    NetworkBuilderCustomTrait, DocumentRAGNetwork, NetworkBuilderAppsTrait, NetworkStream,
+    DocumentRAGNetwork, NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkStream,
 };
 use phymes_schemas::{
     AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjectsTrait,
 };
 use phymes_streams::ChatBuilderTraitExt;
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+};
 
 pub async fn run_main() -> Result<()> {
     // initialize the session

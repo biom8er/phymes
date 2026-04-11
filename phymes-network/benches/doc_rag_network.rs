@@ -2,21 +2,21 @@ use std::sync::Arc;
 
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_data::make_pdf_document;
 use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
 use phymes_network::{
-    NetworkBuilderCustomTrait, DocumentRAGNetwork, NetworkBuilderAppsTrait, NetworkStream,
+    DocumentRAGNetwork, NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkStream,
 };
 use phymes_schemas::{
     AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjects,
     AvailableSubjectsTrait,
 };
 use phymes_streams::ChatBuilderTraitExt;
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+};
 use phymes_task::SubscriptionTrait;
 
 fn benchmark_chat_agent_network(c: &mut Criterion) {
@@ -176,8 +176,7 @@ fn benchmark_chat_agent_network(c: &mut Criterion) {
                     let _ = network_arc
                         .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
                         .await;
-                    let network_stream =
-                        NetworkStream::new(message_map, Arc::clone(&network_arc));
+                    let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
                     network_stream
                         .try_collect::<Vec<HashMap<String, IPCMessage>>>()
                         .await
@@ -197,8 +196,7 @@ fn benchmark_chat_agent_network(c: &mut Criterion) {
                         .make_name()?
                         .build()?;
                     let message_map = create_message_map(vec![chat_message]);
-                    let network_stream =
-                        NetworkStream::new(message_map, Arc::clone(&network_arc));
+                    let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
                     network_stream
                         .try_collect::<Vec<HashMap<String, IPCMessage>>>()
                         .await

@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use parking_lot::Mutex;
-use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -11,6 +10,7 @@ use phymes_message::{
 };
 use phymes_ml::TokenStreamTrait;
 use phymes_streams::CandleEmbedStream;
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use tracing::{Level, event, instrument};
 
 use crate::{ProcessorTrait, TokenStreamTraitExt};
@@ -96,10 +96,10 @@ impl TokenStreamTraitExt for CandleEmbedProcessor {
 mod tests {
     use arrow::array::{ArrayRef, Float32Array, ListArray, RecordBatch, StringArray};
     use futures::TryStreamExt;
-    use phymes_subject::{Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
     use phymes_event::Publication;
     use phymes_ml::{AvailableCandleAssets, CandleEmbedConfig};
+    use phymes_subject::{Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
 
     use super::*;
 

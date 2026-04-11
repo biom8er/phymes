@@ -7,10 +7,6 @@ use std::{
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
-    Subject, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait, create_timestamp_micros,
@@ -22,6 +18,10 @@ use phymes_ml::CandleChatConfig;
 use phymes_schemas::{
     AvailableSchemaTrait, AvailableSubjects, ChatCompletionRequest, ChatCompletionResponse,
     FinishReason, Tool, ToolChoiceType, create_chat_record_batch,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use reqwest::{Client, header::CONTENT_TYPE};
 use tracing::{Level, event};

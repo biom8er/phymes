@@ -6,11 +6,11 @@ use arrow::{
     datatypes::{Schema, SchemaRef},
 };
 use candle_core::Device;
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_schemas::{
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};

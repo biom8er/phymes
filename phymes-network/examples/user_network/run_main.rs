@@ -9,18 +9,18 @@ use futures::TryStreamExt;
 use phymes_diagnostics::HashMap;
 use std::sync::Arc;
 
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
-    SubjectTrait,
-};
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
 use phymes_network::{
-    NetworkBuilderCustomTrait, NetworkBuilderAppsTrait, NetworkStream, UserNetwork,
+    NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkStream, UserNetwork,
 };
 use phymes_schemas::{
     AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjectsTrait,
     create_user_inbox_batch,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
+    SubjectTrait,
 };
 
 pub async fn run_main() -> Result<()> {

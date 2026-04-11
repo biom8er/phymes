@@ -2,12 +2,12 @@ use std::{env, fmt::Display};
 
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{HashMap, HashSet};
 use phymes_schemas::{WorkspaceSubject, create_workspace_batch};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+};
 use serde::{Deserialize, Serialize};
 
 /// Command runners
@@ -576,23 +576,30 @@ impl DataConfigTrait for CommandSandboxConfig {
                 Ok(config) => {
                     config.check_required_members(subject.get_name())?;
                     Ok(config)
-                },
+                }
                 Err(err) => Err(anyhow!(
                     "`{}` could not be built for subject `{}`. {err}",
-                    Self::get_static_name(), 
+                    Self::get_static_name(),
                     subject.get_name()
                 )),
             }
         } else {
             // Check for the required fields
-            let required_fields = &["timeout", "runner", "environment", "container_image", "data_i", "data_o"];
+            let required_fields = &[
+                "timeout",
+                "runner",
+                "environment",
+                "container_image",
+                "data_i",
+                "data_o",
+            ];
             let column_names = subject
                 .get_schema()
                 .fields()
                 .iter()
                 .map(|f| f.name().to_string())
                 .collect::<HashSet<_>>();
-            Self::check_required_fields(subject.get_name(), &column_names, required_fields)?;            
+            Self::check_required_fields(subject.get_name(), &column_names, required_fields)?;
 
             // Try to build the config
             match subject.to_struct::<CommandSandboxConfig>() {
@@ -606,13 +613,13 @@ impl DataConfigTrait for CommandSandboxConfig {
                 },
                 Err(err) => Err(anyhow!(
                     "`{}` could not be built for subject `{}`. {err}",
-                    Self::get_static_name(), 
+                    Self::get_static_name(),
                     subject.get_name()
                 )),
             }
         }
     }
-    
+
     fn check_required_members(&self, _subject_name: &str) -> Result<()> {
         Ok(())
     }

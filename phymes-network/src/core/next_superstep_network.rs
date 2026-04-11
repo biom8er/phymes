@@ -1,8 +1,8 @@
 use anyhow::Result;
-use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, IPCMessageMap, MessageBuilderTrait, create_message_map};
 use phymes_schemas::{AvailableSubjects, create_session_tasks_subscribe_publish_batch};
+use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 
 /// A session for determining the next superstep task publications and subscriptions
 pub struct NextSuperstepNetwork<'a> {
@@ -140,17 +140,16 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, SubjectTrait};
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_schemas::create_session_supersteps_batch;
+    use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, SubjectTrait};
     use phymes_task::SubscriptionTrait;
 
     use crate::{
-        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, NetworkStream, NetworkStreamStepMinimal,
-        NetworkStreamStepTrait,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
+        NetworkStream, NetworkStreamStepMinimal, NetworkStreamStepTrait,
     };
 
     use super::*;
@@ -241,8 +240,7 @@ mod tests {
             .collect::<Vec<_>>();
         message_map.extend(next_superstep_messages.pop().unwrap());
         let _response =
-            NetworkStreamStepMinimal::run_superstep(Arc::clone(&network_arc), message_map)
-                .await?;
+            NetworkStreamStepMinimal::run_superstep(Arc::clone(&network_arc), message_map).await?;
 
         // Test supserstep 1
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {

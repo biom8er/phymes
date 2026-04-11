@@ -3,10 +3,6 @@ use std::sync::Arc;
 use anyhow::Result;
 use serde_json::json;
 
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait,
-    SubjectPlan, SubjectPlanBuilderTrait,
-};
 use phymes_data::{
     AvailableJinja2Templates, AvailableOperators, DataCastOperator, DataColumnOperator, DataConfig,
     DataStreamManager, ToolTrait,
@@ -19,6 +15,10 @@ use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder}
 use phymes_schemas::{
     AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataEncoding,
     DataFormat, create_schema_from_fields, create_tools_record_batch,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait,
+    SubjectPlan, SubjectPlanBuilderTrait,
 };
 use phymes_task::TaskPlan;
 
@@ -839,12 +839,12 @@ mod tests {
     use std::sync::Arc;
 
     use futures::TryStreamExt;
-    use phymes_subject::{BuildableTrait, MappableTrait, SubjectTrait};
     use phymes_data::test_extract_tabular_data::make_scores_table;
     use phymes_diagnostics::HashMap;
     use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
     use phymes_schemas::{AttachmentBuilderTraitExt, CsvFormat};
     use phymes_streams::ChatBuilderTraitExt;
+    use phymes_subject::{BuildableTrait, MappableTrait, SubjectTrait};
 
     use crate::{NetworkBuilderAppsTrait, NetworkStream};
 

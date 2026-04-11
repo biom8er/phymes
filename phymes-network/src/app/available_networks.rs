@@ -2,14 +2,14 @@ use std::{fmt::Display, sync::Arc};
 
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
-use phymes_subject::{BuilderTrait, RuntimeEnv};
 use phymes_message::IPCMessageMap;
+use phymes_subject::{BuilderTrait, RuntimeEnv};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BuilderNetwork, ChatAgentNetwork, NetworkBuilderCustomTrait, DocumentRAGNetwork, Network,
-    NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderTrait,
-    ToolAgentNetwork, UserNetwork,
+    BuilderNetwork, ChatAgentNetwork, DocumentRAGNetwork, Network, NetworkBuilder,
+    NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkBuilderTrait, ToolAgentNetwork,
+    UserNetwork,
 };
 
 /// The available session plans

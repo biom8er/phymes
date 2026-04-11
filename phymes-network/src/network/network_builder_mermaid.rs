@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    Network, NetworkBuilder, NetworkBuilderAppsTrait,
-    NetworkBuilderTrait,
+    Network, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderTrait,
     core::{NextSuperstepNetwork, NextTaskNetwork},
 };
 use anyhow::{Result, anyhow};
@@ -11,10 +10,6 @@ use arrow::{
     datatypes::{Field, Schema},
 };
 use clap::ValueEnum;
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait,
-    SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait,
-};
 use phymes_data::{
     MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE, SubjectScript,
 };
@@ -26,6 +21,10 @@ use phymes_schemas::{
     check_agent_subjects, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type,
 };
 use phymes_streams::extract_tool_calls_str;
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait,
+    SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait,
+};
 use phymes_task::TaskPlanBuilder;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
@@ -1451,17 +1450,16 @@ impl BuilderTrait for NetworkBuilderMermaid {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ChatAgentNetwork, NetworkBuilderCustomTrait, DocumentRAGNetwork,
-        NetworkBuilderAppsTrait, ToolAgentNetwork, test_network_builder_apps,
+        ChatAgentNetwork, DocumentRAGNetwork, NetworkBuilderAppsTrait, NetworkBuilderCustomTrait,
+        ToolAgentNetwork, test_network_builder_apps,
     };
 
     use super::*;
     #[test]
     fn test_to_mermaid_flowchart() -> Result<()> {
-        let builder =
-            test_network_builder_apps::make_test_network_builder_apps("session_1")?
-                .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?
-                .add_next_tasks()?;
+        let builder = test_network_builder_apps::make_test_network_builder_apps("session_1")?
+            .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?
+            .add_next_tasks()?;
 
         // Test to flowchart
         let mermaid_js = builder.to_mermaid_flowchart(false, false)?;
@@ -1480,8 +1478,7 @@ mod tests {
 
     #[test]
     fn test_to_mermaid_erdiagram() -> Result<()> {
-        let builder =
-            test_network_builder_apps::make_test_network_builder_apps("session_1")?;
+        let builder = test_network_builder_apps::make_test_network_builder_apps("session_1")?;
 
         // Make the ER Diagram
         let mermaid_js = builder.to_mermaid_erdiagram(false, false)?;
@@ -1505,9 +1502,8 @@ mod tests {
 
     #[test]
     fn test_from_mermaid_parallel_with_config_and_session_no_data() -> Result<()> {
-        let builder =
-            test_network_builder_apps::make_test_network_builder_apps("session_1")?
-                .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?;
+        let builder = test_network_builder_apps::make_test_network_builder_apps("session_1")?
+            .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart(true, true)?;
@@ -1577,9 +1573,8 @@ mod tests {
 
     #[test]
     fn test_from_mermaid_parallel_with_config_and_session_with_data() -> Result<()> {
-        let builder =
-            test_network_builder_apps::make_test_network_builder_apps("session_1")?
-                .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?;
+        let builder = test_network_builder_apps::make_test_network_builder_apps("session_1")?
+            .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart(true, true)?;
@@ -1654,9 +1649,8 @@ mod tests {
 
     #[test]
     fn test_from_mermaid_parallel_no_config_with_session_and_data() -> Result<()> {
-        let builder =
-            test_network_builder_apps::make_test_network_builder_apps("session_1")?
-                .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?;
+        let builder = test_network_builder_apps::make_test_network_builder_apps("session_1")?
+            .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart(false, true)?;

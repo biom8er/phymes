@@ -1,17 +1,16 @@
 use anyhow::Result;
 use std::sync::Arc;
 
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait,
-    SubjectPlan, SubjectPlanBuilderTrait,
-};
 use phymes_data::{AvailableOperators, DataConfig, DataJoinOperator};
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
 use phymes_schemas::{
-    AvailableSubjects, AvailableSubjectsTrait, create_user_batch,
-    create_user_networks_batch,
+    AvailableSubjects, AvailableSubjectsTrait, create_user_batch, create_user_networks_batch,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait,
+    SubjectPlan, SubjectPlanBuilderTrait,
 };
 use phymes_task::TaskPlan;
 
@@ -106,10 +105,7 @@ impl NetworkBuilderCustomTrait for UserNetwork<'_> {
         let tasks = vec![
             TaskPlan {
                 task_name: self.filter_networks_by_email_task_name.to_string(),
-                processor_names: vec![
-                    self.filter_networks_by_email_processor_name
-                        .to_string(),
-                ],
+                processor_names: vec![self.filter_networks_by_email_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self
@@ -142,9 +138,7 @@ impl NetworkBuilderCustomTrait for UserNetwork<'_> {
                 }])
                 .with_subscriptions(&[
                     Subscription::AlwaysLastRecordBatch {
-                        subject_name: self
-                            .filter_networks_by_email_processor_name
-                            .to_string(),
+                        subject_name: self.filter_networks_by_email_processor_name.to_string(),
                     },
                     Subscription::OnUpdateAllRecordBatches {
                         subject_name: AvailableSubjects::UserInbox.to_string(),
@@ -162,8 +156,7 @@ impl NetworkBuilderCustomTrait for UserNetwork<'_> {
                         .build_arc(self.join_networks_with_mermaid_diagrams_processor_name),
                 )
                 .with_publications(&[Publication::Replace {
-                    subject_name: AvailableSubjects::JoinUserInboxNetworksMermaid
-                        .to_string(),
+                    subject_name: AvailableSubjects::JoinUserInboxNetworksMermaid.to_string(),
                 }])
                 .with_subscriptions(&[
                     Subscription::AlwaysLastRecordBatch {
@@ -310,13 +303,11 @@ impl NetworkBuilderCustomTrait for UserNetwork<'_> {
 #[allow(dead_code)]
 pub(crate) mod user_network_inner {
     use anyhow::Result;
-    use phymes_subject::{BuildableTrait, MappableTrait, SubjectTrait};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_schemas::create_user_inbox_batch;
+    use phymes_subject::{BuildableTrait, MappableTrait, SubjectTrait};
 
-    use crate::{
-        Network, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream,
-    };
+    use crate::{Network, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
 
     use super::*;
 
@@ -362,9 +353,9 @@ pub(crate) mod user_network_inner {
 mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_subject::{MappableTrait, SubjectTrait};
     use phymes_diagnostics::HashMap;
     use phymes_message::IPCMessage;
+    use phymes_subject::{MappableTrait, SubjectTrait};
     use phymes_task::SubscriptionTrait;
 
     use super::*;

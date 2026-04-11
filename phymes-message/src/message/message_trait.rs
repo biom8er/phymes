@@ -1,12 +1,12 @@
 use anyhow::Result;
 use clap::ValueEnum;
+use phymes_diagnostics::{HashMap, TraceableTrait, Tracer};
+use phymes_event::Publication;
+use phymes_schemas::{DataFormat, create_bytes_record_batch, create_route_bytes_fields};
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, SendableRecordBatchStream, SubjectBuilder,
     SubjectBuilderTrait, SubjectTrait,
 };
-use phymes_diagnostics::{HashMap, TraceableTrait, Tracer};
-use phymes_event::Publication;
-use phymes_schemas::{DataFormat, create_bytes_record_batch, create_route_bytes_fields};
 
 use crate::{
     IPCMessageBuilder, IPCMessageMap, MessageBuilderTrait, SendableRecordBatchStreamMessageBuilder,
@@ -253,9 +253,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use phymes_subject::{SubjectBuilder, SubjectTrait, test_subject};
     use phymes_diagnostics::HashMap;
     use phymes_schemas::create_route_bytes_record_batch;
+    use phymes_subject::{SubjectBuilder, SubjectTrait, test_subject};
 
     use super::*;
 

@@ -89,10 +89,7 @@ pub fn create_user_networks_batch(
 ) -> Result<RecordBatch> {
     let email: ArrayRef = Arc::new(StringArray::from(email));
     let network_name: ArrayRef = Arc::new(StringArray::from(network_name));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("email", email),
-        ("network_name", network_name),
-    ])?;
+    let batch = RecordBatch::try_from_iter(vec![("email", email), ("network_name", network_name)])?;
     Ok(batch)
 }
 

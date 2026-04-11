@@ -13,10 +13,6 @@ use axum::{
 use anyhow::Result;
 use bytes::Bytes;
 use futures::TryStreamExt;
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
-    SubjectTrait,
-};
 use phymes_event::Subscription;
 use phymes_message::{
     IPCMessageBuilder, MessageBuilderTrait, MessageTrait, SessionInterfaceMessage,
@@ -24,6 +20,10 @@ use phymes_message::{
 };
 use phymes_network::{NetworkStreamStep, NetworkStreamStepTrait};
 use phymes_schemas::{CsvFormat, DataFormat, JoinUserInboxNetworksMermaidDiagrams};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
+    SubjectTrait,
+};
 use phymes_task::SubscriptionTrait;
 
 // Library imports
@@ -83,8 +83,7 @@ pub async fn network_put_subjects(
             };
 
             // Extract the payload as bytes
-            let schema = if let Some(schema) = network_arc.subjects().get(payload.get_subject())
-            {
+            let schema = if let Some(schema) = network_arc.subjects().get(payload.get_subject()) {
                 schema.clone()
             } else {
                 return JsonError::new("Failed to get the schema for the session".to_string())
@@ -246,11 +245,7 @@ pub async fn network_get_subjects(
                 };
             }
 
-            let network_arc = match state
-                .networks
-                .write()
-                .get(payload.get_session_name())
-            {
+            let network_arc = match state.networks.write().get(payload.get_session_name()) {
                 Some(network_arc) => network_arc.clone(),
                 None => {
                     return JsonError::new("Failed to get the session stream state".to_string())

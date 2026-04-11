@@ -1,6 +1,5 @@
 use anyhow::{Result, anyhow};
 use futures::{FutureExt, TryStreamExt};
-use phymes_subject::{BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap, Span,
     SpanBuilder, TraceBuilderTrait, TraceRecord, create_timestamp_micros,
@@ -14,6 +13,9 @@ use phymes_message::{
 use phymes_processor::ProcessorSubjectsMap;
 use phymes_schemas::{
     AvailableSubjects, AvailableSubjectsTrait, create_session_tasks_run_log_batch,
+};
+use phymes_subject::{
+    BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_task::{SubscriptionTrait, TaskTrait};
 use std::sync::Arc;
@@ -105,10 +107,9 @@ pub trait NetworkStreamStepTrait {
         diagnostics_vec.push(diagnostics);
 
         // Trace the session step
-        let trace =
-            diagnostic_builder
-                .clone()
-                .messages(line!(), file!(), network.get_name());
+        let trace = diagnostic_builder
+            .clone()
+            .messages(line!(), file!(), network.get_name());
         trace.enter(&subject_messages.values().collect::<Vec<_>>());
         let event = diagnostic_builder
             .clone()
@@ -145,9 +146,8 @@ pub trait NetworkStreamStepTrait {
         async move {
             // Update the network and handle any errors
             let network_name = network.get_name().to_string();
-            let (changelog, meta, errors) = network
-                .update_subjects_from_messages(messages, step)
-                .await;
+            let (changelog, meta, errors) =
+                network.update_subjects_from_messages(messages, step).await;
 
             let mut messages = Vec::new();
             if let Some(subject) = changelog {
@@ -220,9 +220,7 @@ pub trait NetworkStreamStepTrait {
 
             // Update the subjects change log
             let messages = create_message_map(messages);
-            let _ = network
-                .update_subjects_from_messages(messages, step)
-                .await;
+            let _ = network.update_subjects_from_messages(messages, step).await;
 
             Ok(())
         }
@@ -270,9 +268,8 @@ pub trait NetworkStreamStepTrait {
             ]);
 
             // Update the tasks run log
-            let (changelog, meta, errors) = network
-                .update_subjects_from_messages(messages, step)
-                .await;
+            let (changelog, meta, errors) =
+                network.update_subjects_from_messages(messages, step).await;
             if let Some(table) = errors {
                 let error = table.get_column_as_vec_str("content").join("; ");
                 return Err(anyhow!(error));
@@ -305,9 +302,8 @@ pub trait NetworkStreamStepTrait {
                 messages.push(message);
             }
             let messages = create_message_map(messages);
-            let (_update, _meta, errors) = network
-                .update_subjects_from_messages(messages, step)
-                .await;
+            let (_update, _meta, errors) =
+                network.update_subjects_from_messages(messages, step).await;
             if let Some(table) = errors {
                 let error = table.get_column_as_vec_str("content").join("; ");
                 return Err(anyhow!(error));
@@ -319,9 +315,7 @@ pub trait NetworkStreamStepTrait {
     }
 
     /// Get the next superstep using the [NextSuperstepNetwork] pre-compiled tasks and [Network] helpers
-    fn next_superstep(
-        network: &Arc<Network>,
-    ) -> impl std::future::Future<Output = u32> + Send {
+    fn next_superstep(network: &Arc<Network>) -> impl std::future::Future<Output = u32> + Send {
         async move {
             // Compute the current superstep
             let next_superstep_messages = NextSuperstepNetwork::default()
@@ -330,14 +324,13 @@ pub trait NetworkStreamStepTrait {
                     panic!("Missing pre-compiled tasks for `NextSuperstepNetwork`.")
                 });
             for messages in next_superstep_messages.into_iter() {
-                let _ = NetworkStreamStepMinimal::run_superstep(
-                    Arc::clone(network),
-                    messages,
-                )
-                .await
-                .unwrap_or_else(|err| {
-                    panic!("Error `{err}` running pre-compiled tasks for `NextSuperstepNetwork`.")
-                });
+                let _ = NetworkStreamStepMinimal::run_superstep(Arc::clone(network), messages)
+                    .await
+                    .unwrap_or_else(|err| {
+                        panic!(
+                            "Error `{err}` running pre-compiled tasks for `NextSuperstepNetwork`."
+                        )
+                    });
             }
 
             // Return the next superstep
@@ -349,17 +342,12 @@ pub trait NetworkStreamStepTrait {
     }
 
     /// Get the current superstep handling any initialization
-    fn current_superstep(
-        network: &Arc<Network>,
-    ) -> impl std::future::Future<Output = u32> + Send {
+    fn current_superstep(network: &Arc<Network>) -> impl std::future::Future<Output = u32> + Send {
         async move {
             let (step, next) = match network.current_superstep().await {
                 Ok(step) => (step, false),
                 Err(_err) => (
-                    network
-                        .increment_superstep()
-                        .await
-                        .unwrap_or_default(),
+                    network.increment_superstep().await.unwrap_or_default(),
                     true,
                 ),
             };
@@ -376,10 +364,7 @@ pub trait NetworkStreamStepTrait {
         network: &Arc<Network>,
     ) -> impl std::future::Future<Output = u32> + Send {
         async move {
-            let _step = network
-                .increment_superstep()
-                .await
-                .unwrap_or_default();
+            let _step = network.increment_superstep().await.unwrap_or_default();
             Self::next_superstep(network).await
         }
     }
@@ -411,11 +396,8 @@ pub trait NetworkStreamStepTrait {
                         if let Err(_err) = network.tasks_subscribe().await {
                             return HashMap::<(String, String), ProcessorSubjectsMap>::new();
                         }
-                    } else if let Err(_err) = NetworkStreamStepMinimal::run_superstep(
-                        Arc::clone(network),
-                        messages,
-                    )
-                    .await
+                    } else if let Err(_err) =
+                        NetworkStreamStepMinimal::run_superstep(Arc::clone(network), messages).await
                     {
                         return HashMap::<(String, String), ProcessorSubjectsMap>::new();
                     }
@@ -600,8 +582,7 @@ impl NetworkStreamStepTrait for NetworkStreamStep {
 
         // Start the diagnostics
         let (mut diagnostics_vec, span, trace) = if network.get_diagnostics() {
-            let (diagnostics_vec, span, trace) =
-                Self::enter_span(&messages, &network, step)?;
+            let (diagnostics_vec, span, trace) = Self::enter_span(&messages, &network, step)?;
             (Some(diagnostics_vec), Some(span), Some(trace))
         } else {
             (None, None, None)
@@ -609,8 +590,7 @@ impl NetworkStreamStepTrait for NetworkStreamStep {
 
         // Update the session context with the incoming messages
         if !messages.is_empty() {
-            Self::update_subjects_and_changelog_from_messages(&network, messages, step)
-                .await?;
+            Self::update_subjects_and_changelog_from_messages(&network, messages, step).await?;
         }
 
         // Retrieve the task subscriptions and corresponding publications
@@ -634,24 +614,14 @@ impl NetworkStreamStepTrait for NetworkStreamStep {
         } else {
             // Iterate through each task and collect the resulting stream responses
             let (subject_tasks, session_tasks) = tasks.into_iter().partition(|((t, s), _v)| t != s);
-            let subject_streams = Self::run_tasks(
-                &network,
-                &subject_tasks,
-                &mut diagnostics_vec,
-                &span,
-            )?;
-            let user_streams = Self::run_tasks(
-                &network,
-                &session_tasks,
-                &mut diagnostics_vec,
-                &span,
-            )?;
+            let subject_streams =
+                Self::run_tasks(&network, &subject_tasks, &mut diagnostics_vec, &span)?;
+            let user_streams =
+                Self::run_tasks(&network, &session_tasks, &mut diagnostics_vec, &span)?;
 
             // Update the tasks run log
-            Self::update_subjects_and_changelog_from_tasks(&network, subject_tasks, step)
-                .await?;
-            Self::update_subjects_and_changelog_from_tasks(&network, session_tasks, step)
-                .await?;
+            Self::update_subjects_and_changelog_from_tasks(&network, subject_tasks, step).await?;
+            Self::update_subjects_and_changelog_from_tasks(&network, session_tasks, step).await?;
 
             // Increment the superstep
             let _step = Self::increment_superstep(&network).await;
@@ -664,25 +634,14 @@ impl NetworkStreamStepTrait for NetworkStreamStep {
 
             // Update the session context with the incoming messages
             if !subject_batches.is_empty() {
-                Self::update_subjects_and_changelog_from_messages(
-                    &network,
-                    subject_batches,
-                    step,
-                )
-                .await?;
+                Self::update_subjects_and_changelog_from_messages(&network, subject_batches, step)
+                    .await?;
             }
 
             // Join each of the response futures
             let user_batches = Self::join_message_streams(user_streams).await?;
             if let (Some(diagnostics_vec), Some(trace)) = (diagnostics_vec, trace) {
-                Self::exit_span(
-                    &network,
-                    &user_batches,
-                    diagnostics_vec,
-                    trace,
-                    step,
-                )
-                .await?;
+                Self::exit_span(&network, &user_batches, diagnostics_vec, trace, step).await?;
             }
 
             Ok(Some(user_batches))
@@ -754,9 +713,7 @@ impl NetworkStreamStepTrait for NetworkStreamStepMinimal {
     ) -> Result<Option<IPCMessageMap>> {
         // Update the session context with the incoming messages
         if !messages.is_empty() {
-            let (_update, _meta, errors) = network
-                .update_subjects_from_messages(messages, 0)
-                .await;
+            let (_update, _meta, errors) = network.update_subjects_from_messages(messages, 0).await;
             if let Some(table) = errors {
                 let error = table.get_column_as_vec_str("content").join("; ");
                 return Err(anyhow!(error));
@@ -768,8 +725,7 @@ impl NetworkStreamStepTrait for NetworkStreamStepMinimal {
 
         if !subject_tasks.is_empty() {
             // Iterate through each task and collect the resulting stream responses
-            let subject_streams =
-                Self::run_tasks(&network, &subject_tasks, &mut None, &None)?;
+            let subject_streams = Self::run_tasks(&network, &subject_tasks, &mut None, &None)?;
 
             // Join each of the response futures
             let subject_batches = Self::join_message_streams(subject_streams).await?;
@@ -794,12 +750,7 @@ impl NetworkStreamStepTrait for NetworkStreamStepMinimal {
 mod tests {
     use super::*;
     use crate::{
-        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderTrait,
-        test_network_builder,
-    };
-    use phymes_subject::{
-        BuildableTrait, ObjectStorageBackend, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
-        SubjectPlan, SubjectPlanBuilderTrait, make_store,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderTrait, test_network_builder,
     };
     use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
     use phymes_processor::{
@@ -807,19 +758,20 @@ mod tests {
         test_processor::{ProcessorError, ProcessorMock},
     };
     use phymes_schemas::AvailableSubjects;
+    use phymes_subject::{
+        BuildableTrait, ObjectStorageBackend, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
+        SubjectPlan, SubjectPlanBuilderTrait, make_store,
+    };
     use phymes_task::{TaskPlan, test_task};
 
     #[tokio::test]
     async fn test_session_run_superstep_no_state_update() -> Result<()> {
         let (network, session_messages) =
-            test_network_builder::make_test_network_builder_parallel(
-                "session_1",
-                4,
-            )?
-            .with_diagnostics(true)
-            .add_next_tasks()?
-            .add_next_supersteps()?
-            .build_with_tables()?;
+            test_network_builder::make_test_network_builder_parallel("session_1", 4)?
+                .with_diagnostics(true)
+                .add_next_tasks()?
+                .add_next_supersteps()?
+                .build_with_tables()?;
         let network_arc = Arc::new(network);
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
@@ -833,8 +785,7 @@ mod tests {
             &Publication::None,
             true,
         )?;
-        let response =
-            NetworkStreamStep::run_superstep(Arc::clone(&network_arc), messages).await?;
+        let response = NetworkStreamStep::run_superstep(Arc::clone(&network_arc), messages).await?;
         assert!(response.is_none());
 
         // check the session and network
@@ -934,14 +885,11 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_extend_state_update_single_task() -> Result<()> {
         let (network, session_messages) =
-            test_network_builder::make_test_network_builder_parallel(
-                "session_1",
-                4,
-            )?
-            .with_diagnostics(true)
-            .add_next_tasks()?
-            .add_next_supersteps()?
-            .build_with_tables()?;
+            test_network_builder::make_test_network_builder_parallel("session_1", 4)?
+                .with_diagnostics(true)
+                .add_next_tasks()?
+                .add_next_supersteps()?
+                .build_with_tables()?;
         let network_arc = Arc::new(network);
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
@@ -1058,14 +1006,11 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_single_task() -> Result<()> {
         let (network, session_messages) =
-            test_network_builder::make_test_network_builder_parallel(
-                "session_1",
-                4,
-            )?
-            .with_diagnostics(true)
-            .add_next_tasks()?
-            .add_next_supersteps()?
-            .build_with_tables()?;
+            test_network_builder::make_test_network_builder_parallel("session_1", 4)?
+                .with_diagnostics(true)
+                .add_next_tasks()?
+                .add_next_supersteps()?
+                .build_with_tables()?;
         let network_arc = Arc::new(network);
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
@@ -1183,15 +1128,12 @@ mod tests {
     async fn test_session_run_superstep_replace_state_update_parallel_tasks() -> Result<()> {
         // Superstep 1
         let (network, session_messages) =
-            test_network_builder::make_test_network_builder_parallel(
-                "session_1",
-                4,
-            )?
-            .with_diagnostics(true)
-            .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?
-            .add_next_tasks()?
-            .add_next_supersteps()?
-            .build_with_tables()?;
+            test_network_builder::make_test_network_builder_parallel("session_1", 4)?
+                .with_diagnostics(true)
+                .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?
+                .add_next_tasks()?
+                .add_next_supersteps()?
+                .build_with_tables()?;
         let network_arc = Arc::new(network);
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
@@ -1462,15 +1404,12 @@ mod tests {
     async fn test_session_run_superstep_replace_state_update_sequential_tasks() -> Result<()> {
         // Superstep 1
         let (network, session_messages) =
-            test_network_builder::make_test_network_builder_sequential(
-                "session_1",
-                4,
-            )?
-            .with_diagnostics(true)
-            .add_network_interface(Some(&["state_1"]))?
-            .add_next_tasks()?
-            .add_next_supersteps()?
-            .build_with_tables()?;
+            test_network_builder::make_test_network_builder_sequential("session_1", 4)?
+                .with_diagnostics(true)
+                .add_network_interface(Some(&["state_1"]))?
+                .add_next_tasks()?
+                .add_next_supersteps()?
+                .build_with_tables()?;
         let network_arc = Arc::new(network);
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
@@ -1622,14 +1561,11 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_schema_mismatch_error() -> Result<()> {
         let (network, session_messages) =
-            test_network_builder::make_test_network_builder_sequential(
-                "session_1",
-                4,
-            )?
-            .with_diagnostics(true)
-            .add_next_tasks()?
-            .add_next_supersteps()?
-            .build_with_tables()?;
+            test_network_builder::make_test_network_builder_sequential("session_1", 4)?
+                .with_diagnostics(true)
+                .add_next_tasks()?
+                .add_next_supersteps()?
+                .build_with_tables()?;
         let network_arc = Arc::new(network);
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
@@ -1644,8 +1580,7 @@ mod tests {
             },
             false,
         )?;
-        let response =
-            NetworkStreamStep::run_superstep(Arc::clone(&network_arc), messages).await?;
+        let response = NetworkStreamStep::run_superstep(Arc::clone(&network_arc), messages).await?;
         assert!(response.is_none());
 
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {

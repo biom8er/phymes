@@ -1,8 +1,8 @@
 use anyhow::{Result, anyhow};
 use clap::Parser;
-use phymes_subject::{MappableTrait, Subject, SubjectTrait};
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::HashSet;
+use phymes_subject::{MappableTrait, Subject, SubjectTrait};
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug, Serialize, Deserialize, Clone, Default)]
@@ -33,10 +33,10 @@ impl DataConfigTrait for LimitConfig {
                 Ok(config) => {
                     config.check_required_members(subject.get_name())?;
                     Ok(config)
-                },
+                }
                 Err(err) => Err(anyhow!(
                     "`{}` could not be built for subject `{}`. {err}",
-                    Self::get_static_name(), 
+                    Self::get_static_name(),
                     subject.get_name()
                 )),
             }
@@ -49,7 +49,7 @@ impl DataConfigTrait for LimitConfig {
                 .iter()
                 .map(|f| f.name().to_string())
                 .collect::<HashSet<_>>();
-            Self::check_required_fields(subject.get_name(), &column_names, required_fields)?;            
+            Self::check_required_fields(subject.get_name(), &column_names, required_fields)?;
 
             // Try to build the config
             match subject.to_struct::<LimitConfig>() {
@@ -63,13 +63,13 @@ impl DataConfigTrait for LimitConfig {
                 },
                 Err(err) => Err(anyhow!(
                     "`{}` could not be built for subject `{}`. {err}",
-                    Self::get_static_name(), 
+                    Self::get_static_name(),
                     subject.get_name()
                 )),
             }
         }
     }
-    
+
     fn check_required_members(&self, _subject_name: &str) -> Result<()> {
         Ok(())
     }

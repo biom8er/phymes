@@ -11,10 +11,6 @@ use std::{
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_data::{DataConfigTrait, WorkspaceEditor};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait, create_timestamp_micros,
@@ -22,8 +18,10 @@ use phymes_diagnostics::{
 use phymes_message::{
     MessageTrait, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
-use phymes_schemas::{
-    AvailableSchemaTrait, AvailableSubjects, create_chat_record_batch,
+use phymes_schemas::{AvailableSchemaTrait, AvailableSubjects, create_chat_record_batch};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
+    SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 use serde_json::Value;
 use tempfile::NamedTempFile;

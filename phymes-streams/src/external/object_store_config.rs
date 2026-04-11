@@ -2,9 +2,9 @@ use std::fmt::Display;
 
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
-use phymes_subject::{MappableTrait, ObjectStorageBackend, Subject, SubjectTrait};
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::HashSet;
+use phymes_subject::{MappableTrait, ObjectStorageBackend, Subject, SubjectTrait};
 use serde::{Deserialize, Serialize};
 
 /// The Object Store operation types
@@ -144,10 +144,10 @@ impl DataConfigTrait for ObjectStoreConfig {
                 Ok(config) => {
                     config.check_required_members(subject.get_name())?;
                     Ok(config)
-                },
+                }
                 Err(err) => Err(anyhow!(
                     "`{}` could not be built for subject `{}`. {err}",
-                    Self::get_static_name(), 
+                    Self::get_static_name(),
                     subject.get_name()
                 )),
             }
@@ -160,7 +160,7 @@ impl DataConfigTrait for ObjectStoreConfig {
                 .iter()
                 .map(|f| f.name().to_string())
                 .collect::<HashSet<_>>();
-            Self::check_required_fields(subject.get_name(), &column_names, required_fields)?;            
+            Self::check_required_fields(subject.get_name(), &column_names, required_fields)?;
 
             // Try to build the config
             match subject.to_struct::<ObjectStoreConfig>() {
@@ -174,13 +174,13 @@ impl DataConfigTrait for ObjectStoreConfig {
                 },
                 Err(err) => Err(anyhow!(
                     "`{}` could not be built for subject `{}`. {err}",
-                    Self::get_static_name(), 
+                    Self::get_static_name(),
                     subject.get_name()
                 )),
             }
         }
     }
-    
+
     fn check_required_members(&self, _subject_name: &str) -> Result<()> {
         Ok(())
     }

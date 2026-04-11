@@ -2,10 +2,6 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use clap::ValueEnum;
 use futures::{StreamExt, TryStreamExt};
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvTrait, Subject,
-    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
 use phymes_event::{AvailableSubscribeEvents, AvailableUpdateEvents, Publication, Subscription};
 use phymes_message::{
@@ -17,6 +13,10 @@ use phymes_schemas::{
     create_session_supersteps_batch, create_session_tasks_subscribe_batch,
     create_subjects_change_log_batch, create_subjects_object_store_meta_batch,
     from_diagnostics_to_tables,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvTrait, Subject,
+    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_task::{PublicationTrait, SubscriptionTrait, TaskMap, clear_subject};
 use std::sync::Arc;
@@ -919,12 +919,12 @@ impl BuildableTrait for Network {
 #[cfg(test)]
 mod tests {
     use arrow::array::Int64Array;
-    use phymes_subject::test_subject;
     use phymes_message::IPCMessage;
     use phymes_schemas::{
         AvailableSchemaTrait, create_session_tasks_subscribe_aggregate_batch,
         create_session_tasks_subscribe_publish_batch,
     };
+    use phymes_subject::test_subject;
     use phymes_task::{Task, test_task};
 
     use super::*;
@@ -933,11 +933,7 @@ mod tests {
     #[test]
     fn test_session_get_subject_name_by_schema() -> Result<()> {
         let (network, _messages) =
-            test_network_builder::make_test_network_builder_parallel(
-                "session_1",
-                25,
-            )?
-            .build()?;
+            test_network_builder::make_test_network_builder_parallel("session_1", 25)?.build()?;
 
         // table should be found
         let schema = test_subject::make_test_subject_schema(8)?;
@@ -955,11 +951,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_update_subject_num_rows_subject() -> Result<()> {
         let (network, _messages) =
-            test_network_builder::make_test_network_builder_parallel(
-                "session_1",
-                25,
-            )?
-            .build()?;
+            test_network_builder::make_test_network_builder_parallel("session_1", 25)?.build()?;
         network.update_subject_num_rows().await?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
@@ -1010,11 +1002,7 @@ mod tests {
     async fn test_session_update_subjects_from_messages() -> Result<()> {
         // Case 1: no state update
         let (network, _messages) =
-            test_network_builder::make_test_network_builder_parallel(
-                "session_1",
-                25,
-            )?
-            .build()?;
+            test_network_builder::make_test_network_builder_parallel("session_1", 25)?.build()?;
         let input = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -1023,9 +1011,7 @@ mod tests {
             &Publication::None,
             true,
         )?;
-        let (changelog, meta, errors) = network
-            .update_subjects_from_messages(input, 0)
-            .await;
+        let (changelog, meta, errors) = network.update_subjects_from_messages(input, 0).await;
 
         // check the updates
         assert!(changelog.is_none());
@@ -1069,9 +1055,7 @@ mod tests {
             },
             true,
         )?;
-        let (changelog, meta, errors) = network
-            .update_subjects_from_messages(input, 0)
-            .await;
+        let (changelog, meta, errors) = network.update_subjects_from_messages(input, 0).await;
         assert!(errors.is_none());
 
         // check the updates
@@ -1185,9 +1169,7 @@ mod tests {
             },
             false,
         )?;
-        let (changelog, meta, errors) = network
-            .update_subjects_from_messages(input, 0)
-            .await;
+        let (changelog, meta, errors) = network.update_subjects_from_messages(input, 0).await;
         assert!(changelog.is_none());
         assert!(meta.is_none());
         assert!(errors.is_some());
@@ -1205,9 +1187,7 @@ mod tests {
         );
         let mut input = HashMap::<String, IPCMessage>::new();
         input.insert(message.get_name().to_string(), message);
-        let (changelog, meta, errors) = network
-            .update_subjects_from_messages(input, 0)
-            .await;
+        let (changelog, meta, errors) = network.update_subjects_from_messages(input, 0).await;
         assert!(changelog.is_none());
         assert!(meta.is_none());
         assert!(errors.is_some());

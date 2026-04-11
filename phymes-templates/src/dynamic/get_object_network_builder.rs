@@ -1,9 +1,15 @@
 use object_store::aws::AmazonS3ConfigKey;
-use phymes_processor::AvailableProcessors;
-use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
-use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, create_object_store_meta_batch};
+use phymes_processor::AvailableProcessors;
+use phymes_schemas::{
+    AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait,
+    create_object_store_meta_batch,
+};
 use phymes_streams::{ObjectStoreConfig, ObjectStoreOptsType};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, SubjectBuilder,
+    SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait,
+};
 use serde_json::{Map, Value};
 
 use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
@@ -39,29 +45,42 @@ impl Default for GetObjectNetworkBuilderStaticWSubject {
         let config_json = serde_json::to_vec(&config).unwrap();
         let subject = SubjectBuilder::new()
             .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
-            .with_json(&config_json, 1).unwrap()
-            .build().unwrap();
+            .with_json(&config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
         let subject_processor = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Subscriptions and publications
-        let subject = AvailableSubjects::ObjectStoreMeta.to_subject(None, None).unwrap();
+        let subject = AvailableSubjects::ObjectStoreMeta
+            .to_subject(None, None)
+            .unwrap();
         let subject_lhs = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
-        let subject = AvailableInterfaceSubjects::UserObject.to_subject(None, None).unwrap();
+            .build()
+            .unwrap();
+        let subject = AvailableInterfaceSubjects::UserObject
+            .to_subject(None, None)
+            .unwrap();
         let subject_out = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
             is_dynamic: false,
             processor: AvailableProcessors::ObjectStoreProcessor,
-            subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
-            publication: Publication::Extend { subject_name: subject_out.get_name().to_string() },
+            subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                subject_name: subject_lhs.get_name().to_string(),
+            },
+            publication: Publication::Extend {
+                subject_name: subject_out.get_name().to_string(),
+            },
             subject_lhs,
             subject_out,
             subject_processor,
@@ -83,10 +102,16 @@ impl Default for GetObjectNetworkBuilderDynamicWSubject {
         let subject_name_lhs = "http_client_request_pdf_s";
 
         // Processor subject
-        let subject = AvailableSubjects::Bytes.to_subject(Some(&DynamicTaskNetworkNames::Processor(network_name).to_string()), None).unwrap();
+        let subject = AvailableSubjects::Bytes
+            .to_subject(
+                Some(&DynamicTaskNetworkNames::Processor(network_name).to_string()),
+                None,
+            )
+            .unwrap();
         let subject_processor = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Subscriptions and publications
         // let location = vec!["data/works/updated_date=2018-01-12/part_0000.gz".to_string()];
@@ -98,23 +123,34 @@ impl Default for GetObjectNetworkBuilderDynamicWSubject {
         let size = vec![0_u32];
         let last_modified = vec![0_i64];
         let batch =
-            create_object_store_meta_batch(location, bucket, e_tag, version, size, last_modified).unwrap();
-        let subject = AvailableSubjects::ObjectStoreMeta.to_subject(None, Some(vec![batch])).unwrap();
+            create_object_store_meta_batch(location, bucket, e_tag, version, size, last_modified)
+                .unwrap();
+        let subject = AvailableSubjects::ObjectStoreMeta
+            .to_subject(None, Some(vec![batch]))
+            .unwrap();
         let subject_lhs = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
-        let subject = AvailableInterfaceSubjects::UserObject.to_subject(None, None).unwrap();
+            .build()
+            .unwrap();
+        let subject = AvailableInterfaceSubjects::UserObject
+            .to_subject(None, None)
+            .unwrap();
         let subject_out = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
             is_dynamic: true,
             processor: AvailableProcessors::ObjectStoreProcessor,
-            subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
-            publication: Publication::Extend { subject_name: subject_out.get_name().to_string() },
+            subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                subject_name: subject_lhs.get_name().to_string(),
+            },
+            publication: Publication::Extend {
+                subject_name: subject_out.get_name().to_string(),
+            },
             subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
             subject_lhs,
             subject_out,
@@ -136,28 +172,44 @@ impl Default for GetObjectNetworkBuilderDynamicWOSubject {
         let network_name = "get_object";
 
         // Processor subject
-        let subject = AvailableSubjects::Bytes.to_subject(Some(&DynamicTaskNetworkNames::Processor(network_name).to_string()), None).unwrap();
+        let subject = AvailableSubjects::Bytes
+            .to_subject(
+                Some(&DynamicTaskNetworkNames::Processor(network_name).to_string()),
+                None,
+            )
+            .unwrap();
         let subject_processor = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Subscriptions and publications
-        let subject = AvailableSubjects::ObjectStoreMeta.to_subject(None, None).unwrap();
+        let subject = AvailableSubjects::ObjectStoreMeta
+            .to_subject(None, None)
+            .unwrap();
         let subject_lhs = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
-        let subject = AvailableInterfaceSubjects::UserObject.to_subject(None, None).unwrap();
+            .build()
+            .unwrap();
+        let subject = AvailableInterfaceSubjects::UserObject
+            .to_subject(None, None)
+            .unwrap();
         let subject_out = SubjectPlan::get_builder()
             .with_subject(subject)
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
             is_dynamic: true,
             processor: AvailableProcessors::ObjectStoreProcessor,
-            subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
-            publication: Publication::Extend { subject_name: subject_out.get_name().to_string() },
+            subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                subject_name: subject_lhs.get_name().to_string(),
+            },
+            publication: Publication::Extend {
+                subject_name: subject_out.get_name().to_string(),
+            },
             subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
             subject_lhs,
             subject_out,
@@ -175,14 +227,17 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnvBuilder, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait
-    };
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
-    use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, create_bytes_record_batch};
+    use phymes_schemas::{
+        AvailableInterfaceSubjects, AvailableSubjects, create_bytes_record_batch,
+    };
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnvBuilder, Subject, SubjectBuilder,
+        SubjectBuilderTrait, SubjectTrait,
+    };
     use phymes_task::SubscriptionTrait;
 
     use super::*;
@@ -190,9 +245,17 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_object_network_static_w_subject() -> Result<()> {
         let get_content_network = GetObjectNetworkBuilderStaticWSubject::default();
-        let (network, session_messages) = get_content_network.inner
+        let (network, session_messages) = get_content_network
+            .inner
             .build_dynamic()
-            .with_runtime_env(RuntimeEnvBuilder::default().with_name(&DynamicTaskNetworkNames::Task(&get_content_network.inner.network_name).to_string()).build_arc()?)
+            .with_runtime_env(
+                RuntimeEnvBuilder::default()
+                    .with_name(
+                        &DynamicTaskNetworkNames::Task(&get_content_network.inner.network_name)
+                            .to_string(),
+                    )
+                    .build_arc()?,
+            )
             .with_diagnostics(true)
             .add_processor_subjects()?
             .add_next_tasks()?
@@ -212,7 +275,9 @@ mod tests {
         let last_modified = vec![0_i64];
         let batch =
             create_object_store_meta_batch(location, bucket, e_tag, version, size, last_modified)?;
-        let subject = AvailableSubjects::ObjectStoreMeta.to_subject(None, Some(vec![batch])).unwrap();
+        let subject = AvailableSubjects::ObjectStoreMeta
+            .to_subject(None, Some(vec![batch]))
+            .unwrap();
         let _ = message_map.insert(
             get_content_network.inner.subject_lhs.get_name().to_string(),
             IPCMessage::get_builder()
@@ -269,9 +334,17 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_object_network_dynamic_w_subject() -> Result<()> {
         let get_content_network = GetObjectNetworkBuilderDynamicWSubject::default();
-        let (network, session_messages) = get_content_network.inner
+        let (network, session_messages) = get_content_network
+            .inner
             .build_dynamic()
-            .with_runtime_env(RuntimeEnvBuilder::default().with_name(&DynamicTaskNetworkNames::Task(&get_content_network.inner.network_name).to_string()).build_arc()?)
+            .with_runtime_env(
+                RuntimeEnvBuilder::default()
+                    .with_name(
+                        &DynamicTaskNetworkNames::Task(&get_content_network.inner.network_name)
+                            .to_string(),
+                    )
+                    .build_arc()?,
+            )
             .with_diagnostics(true)
             .add_processor_subjects()?
             .add_next_tasks()?
@@ -301,7 +374,14 @@ mod tests {
         };
         let config_json = serde_json::to_vec(&config).unwrap();
         let batch = create_bytes_record_batch(vec![config_json])?;
-        let subject = AvailableSubjects::Bytes.to_subject(Some(DynamicTaskNetworkNames::Processor(&get_content_network.inner.network_name).to_string().as_str()), Some(vec![batch]))?;
+        let subject = AvailableSubjects::Bytes.to_subject(
+            Some(
+                DynamicTaskNetworkNames::Processor(&get_content_network.inner.network_name)
+                    .to_string()
+                    .as_str(),
+            ),
+            Some(vec![batch]),
+        )?;
         let _ = message_map.insert(
             subject.get_name().to_string(),
             IPCMessage::get_builder()
@@ -395,9 +475,17 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_object_network_dynamic_wo_subject() -> Result<()> {
         let get_content_network = GetObjectNetworkBuilderDynamicWSubject::default();
-        let (network, session_messages) = get_content_network.inner
+        let (network, session_messages) = get_content_network
+            .inner
             .build_dynamic()
-            .with_runtime_env(RuntimeEnvBuilder::default().with_name(&DynamicTaskNetworkNames::Task(&get_content_network.inner.network_name).to_string()).build_arc()?)
+            .with_runtime_env(
+                RuntimeEnvBuilder::default()
+                    .with_name(
+                        &DynamicTaskNetworkNames::Task(&get_content_network.inner.network_name)
+                            .to_string(),
+                    )
+                    .build_arc()?,
+            )
             .with_diagnostics(true)
             .add_processor_subjects()?
             .add_next_tasks()?
@@ -429,7 +517,14 @@ mod tests {
         };
         let config_json = serde_json::to_vec(&config).unwrap();
         let batch = create_bytes_record_batch(vec![config_json])?;
-        let subject = AvailableSubjects::Bytes.to_subject(Some(DynamicTaskNetworkNames::Processor(&get_content_network.inner.network_name).to_string().as_str()), Some(vec![batch]))?;
+        let subject = AvailableSubjects::Bytes.to_subject(
+            Some(
+                DynamicTaskNetworkNames::Processor(&get_content_network.inner.network_name)
+                    .to_string()
+                    .as_str(),
+            ),
+            Some(vec![batch]),
+        )?;
         let _ = message_map.insert(
             subject.get_name().to_string(),
             IPCMessage::get_builder()

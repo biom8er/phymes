@@ -9,11 +9,11 @@ use arrow::{
 
 use anyhow::{Result, anyhow};
 use candle_core::{Device, Tensor};
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_schemas::{
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};

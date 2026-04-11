@@ -7,13 +7,13 @@ use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use flate2::read::{DeflateDecoder, GzDecoder, ZlibDecoder};
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
-    SubjectTrait,
-};
 use phymes_schemas::{
     AvailableSubjects, CsvFormat, DataEncoding, DataFormat, Function, FunctionParameters,
     JSONSchemaDefine, JSONSchemaType, JsonFormat, JsonSchemaTrait, Tool, ToolType, open_alex,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
+    SubjectTrait,
 };
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -408,9 +408,11 @@ mod tests {
         Compression,
         write::{DeflateEncoder, GzEncoder, ZlibEncoder},
     };
-    use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
     use phymes_diagnostics::create_timestamp_micros;
     use phymes_schemas::{CsvFormat, DataFormat, JsonFormat, create_attachments_batch};
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+    };
 
     use crate::operators::extract_tabular::test_extract_tabular_data::make_scores_table;
 

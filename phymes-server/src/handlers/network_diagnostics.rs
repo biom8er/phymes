@@ -10,22 +10,22 @@ use axum::{
 // Streaming imports
 use bytes::Bytes;
 use futures::prelude::*;
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
-    SubjectTrait,
-};
 use phymes_event::{Publication, Subscription};
 use phymes_message::{
     IPCMessage, MessageBuilderTrait, MessageTrait, SessionInterfaceMessage,
     SessionInterfaceMessageTrait, create_message_map,
 };
 use phymes_network::{
-    NetworkBuilderCustomTrait, DiagnosticNetwork, NetworkBuilderAppsTrait,
-    NetworkBuilderTrait, NetworkStream, NetworkStreamStep, NetworkStreamStepTrait,
+    DiagnosticNetwork, NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkBuilderTrait,
+    NetworkStream, NetworkStreamStep, NetworkStreamStepTrait,
 };
 use phymes_schemas::{
     AvailableInterfaceSubjects, AvailableSubjects, DataFormat, DiagnosticsVisualizations,
     JoinUserInboxNetworksMermaidDiagrams,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
+    SubjectTrait,
 };
 
 // General imports
@@ -297,8 +297,7 @@ pub async fn session_diagnostics(
                     let response = network_stream.into_stream().map_ok(move |f| {
                         f.into_iter()
                             .filter(|(_k, v)| {
-                                v.get_name()
-                                    .contains(diagnostic_network.network_name)
+                                v.get_name().contains(diagnostic_network.network_name)
                             })
                             .flat_map(|(_k, v)| {
                                 let name = v.get_name().to_string();
@@ -323,10 +322,7 @@ pub async fn session_diagnostics(
                     let response = response
                         .into_iter()
                         .flatten()
-                        .filter(|(_k, v)| {
-                            v.get_name()
-                                .contains(diagnostic_network.network_name)
-                        })
+                        .filter(|(_k, v)| v.get_name().contains(diagnostic_network.network_name))
                         .flat_map(|(_k, v)| {
                             let name = v.get_name().to_string();
                             SubjectBuilder::new_from_ipc_stream(&v.get_message_own())
@@ -348,8 +344,7 @@ pub async fn session_diagnostics(
                     let response = network_stream.into_stream().map_ok(move |f| {
                         f.into_iter()
                             .filter(|(_k, v)| {
-                                v.get_name()
-                                    .contains(diagnostic_network.network_name)
+                                v.get_name().contains(diagnostic_network.network_name)
                             })
                             .flat_map(|(_k, v)| v.get_message_own())
                             .collect::<Vec<_>>()

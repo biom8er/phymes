@@ -5,12 +5,12 @@ use crate::{DataConfig, DataOperatorTrait, ToolTrait};
 
 use anyhow::Result;
 use candle_core::Device;
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_schemas::{
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
     create_chat_record_batch,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

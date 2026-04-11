@@ -4,10 +4,6 @@ use std::{
     task::{Context, Poll, ready},
 };
 
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, Subject, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, HashSet, MetricBuilderTrait,
@@ -18,6 +14,10 @@ use phymes_message::{
 use phymes_schemas::{
     AvailableSchemaTrait, AvailableSubjects, create_bytes_fields,
     create_session_tasks_subscribe_publish_batch, create_values_fields,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
+    SendableRecordBatchStream, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 
 use anyhow::{Result, anyhow};

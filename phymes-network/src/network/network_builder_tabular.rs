@@ -6,12 +6,6 @@ use arrow::{
     datatypes::{Field, Schema},
 };
 use clap::ValueEnum;
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, RuntimeEnv,
-    RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectFilePartition,
-    SubjectFolderPartition, SubjectPlan, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait,
-    make_store,
-};
 use phymes_diagnostics::{HashSet, create_timestamp_micros};
 use phymes_event::{AvailableSubscribeEvents, AvailableUpdateEvents, Publication, Subscription};
 use phymes_processor::{AvailableProcessors, ProcessorPlanBuilder};
@@ -23,12 +17,17 @@ use phymes_schemas::{
     create_subjects_num_rows_batch, create_subjects_object_store_meta_batch, from_data_type_to_str,
     from_str_to_data_type,
 };
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, RuntimeEnv,
+    RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectFilePartition,
+    SubjectFolderPartition, SubjectPlan, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait,
+    make_store,
+};
 use phymes_task::TaskPlanBuilder;
 use serde_json::{Map, Value};
 
 use crate::{
-    NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
-    NetworkBuilderTrait,
+    NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
     core::{CountSubjectRowsNetwork, NextSuperstepNetwork, NextTaskNetwork},
 };
 
@@ -1418,11 +1417,10 @@ mod tests {
             .collect::<Vec<_>>();
 
         // Make the builder
-        let builder =
-            test_network_builder::make_test_network_builder_parallel_processors()
-                .with_name("")
-                .with_runtime_env(runtime_env)
-                .with_subjects(subject_plans);
+        let builder = test_network_builder::make_test_network_builder_parallel_processors()
+            .with_name("")
+            .with_runtime_env(runtime_env)
+            .with_subjects(subject_plans);
 
         // Test to tables
         let tables = builder.to_subject_plans(true, true, true, true, true)?;

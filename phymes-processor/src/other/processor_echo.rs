@@ -1,11 +1,11 @@
 use anyhow::Result;
-use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap,
 };
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::{Level, event};

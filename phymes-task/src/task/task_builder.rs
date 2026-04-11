@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use phymes_subject::BuilderTrait;
 use phymes_processor::ProcessorTrait;
+use phymes_subject::BuilderTrait;
 
 use crate::Task;
 

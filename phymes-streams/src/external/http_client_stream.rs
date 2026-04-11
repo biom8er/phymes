@@ -11,10 +11,6 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use bytes::Bytes;
 use futures::{FutureExt, Stream, StreamExt};
-use phymes_subject::{
-    BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
-    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait, create_timestamp_micros,
@@ -24,6 +20,10 @@ use phymes_message::{
 };
 use phymes_schemas::{
     AvailableSchemaTrait, AvailableSubjects, create_attachments_batch, create_chat_record_batch,
+};
+use phymes_subject::{
+    BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 use reqwest::{
     Client, Response,

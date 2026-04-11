@@ -1,8 +1,8 @@
 use std::fmt::Display;
 
 use anyhow::{Result, anyhow};
-use phymes_subject::MappableTrait;
 use phymes_schemas::DataFormat;
+use phymes_subject::MappableTrait;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Hash, Eq, Default)]

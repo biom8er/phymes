@@ -1,9 +1,5 @@
 use std::sync::Arc;
 
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
-    SubjectPlanBuilderTrait,
-};
 use phymes_data::{AvailableOperators, DataConfig};
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 #[cfg(all(not(feature = "candle"), feature = "api"))]
@@ -11,6 +7,10 @@ use phymes_ml::AvailableOpenAIAssets;
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
+    SubjectPlanBuilderTrait,
+};
 use phymes_task::TaskPlan;
 
 use crate::NetworkBuilderCustomTrait;
@@ -314,10 +314,10 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_subject::{BuildableTrait, MappableTrait, SubjectTrait};
     use phymes_diagnostics::HashMap;
     use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
     use phymes_streams::ChatBuilderTraitExt;
+    use phymes_subject::{BuildableTrait, MappableTrait, SubjectTrait};
 
     use crate::{NetworkBuilderAppsTrait, NetworkStream};
 
@@ -363,8 +363,7 @@ mod tests {
             let _ = network_arc
                 .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
                 .await;
-            let network_stream =
-                NetworkStream::new(incoming_message_map, Arc::clone(&network_arc));
+            let network_stream = NetworkStream::new(incoming_message_map, Arc::clone(&network_arc));
             let mut response: Vec<HashMap<String, IPCMessage>> =
                 network_stream.try_collect().await?;
 
@@ -425,8 +424,7 @@ mod tests {
                 .make_name()?
                 .build()?;
             let incoming_message_map = create_message_map(vec![message]);
-            let network_stream =
-                NetworkStream::new(incoming_message_map, Arc::clone(&network_arc));
+            let network_stream = NetworkStream::new(incoming_message_map, Arc::clone(&network_arc));
             let mut response: Vec<HashMap<String, IPCMessage>> =
                 network_stream.try_collect().await?;
 

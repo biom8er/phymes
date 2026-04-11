@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use phymes_message::{
     MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
@@ -9,6 +8,7 @@ use phymes_message::{
     SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
 use phymes_streams::HTTPClientRequestStream;
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 
 use crate::ProcessorTrait;
 
@@ -75,7 +75,6 @@ impl ProcessorTrait for HTTPClientRequestProcessor {
 mod tests {
     use super::*;
     use futures::TryStreamExt;
-    use phymes_subject::{SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
     use phymes_data::{extract_pdf, filter_pdf, load_pdf_document};
     use phymes_diagnostics::{
         DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder,
@@ -83,6 +82,7 @@ mod tests {
     use phymes_event::Publication;
     use phymes_schemas::{create_chat_record_batch, open_alex, semantic_scholar};
     use phymes_streams::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
+    use phymes_subject::{SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
     use serde_json::{Map, Value};
 
     #[tokio::test]
@@ -580,7 +580,9 @@ mod tests {
         let result = table.get_column_as_vec_str("filename");
         assert_eq!(
             result,
-            ["https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=37997144,37997132,37997130,37997120,37997092&retmode=xml"]
+            [
+                "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=37997144,37997132,37997130,37997120,37997092&retmode=xml"
+            ]
         );
         let result = table.get_column_as_vec_str("extension");
         assert_eq!(result, ["text/xml; charset=UTF-8"]);
@@ -699,9 +701,23 @@ mod tests {
             .with_name("")
             .build()?;
         let result = table.get_column_as_vec_str("chunk_id");
-        assert_eq!(result, ["https://arxiv.org/pdf/2508.18700_1", "https://arxiv.org/pdf/2508.18700_2", "https://arxiv.org/pdf/2508.18700_3"]);
+        assert_eq!(
+            result,
+            [
+                "https://arxiv.org/pdf/2508.18700_1",
+                "https://arxiv.org/pdf/2508.18700_2",
+                "https://arxiv.org/pdf/2508.18700_3"
+            ]
+        );
         let result = table.get_column_as_vec_str("document_id");
-        assert_eq!(result, ["https://arxiv.org/pdf/2508.18700", "https://arxiv.org/pdf/2508.18700", "https://arxiv.org/pdf/2508.18700"]);
+        assert_eq!(
+            result,
+            [
+                "https://arxiv.org/pdf/2508.18700",
+                "https://arxiv.org/pdf/2508.18700",
+                "https://arxiv.org/pdf/2508.18700"
+            ]
+        );
         let result = table.get_column_as_vec_str("text");
         let snippet = result.first().unwrap().to_string();
         assert_eq!(

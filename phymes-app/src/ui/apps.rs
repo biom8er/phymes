@@ -1,8 +1,5 @@
 use dioxus::prelude::*;
 
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
-};
 use phymes_event::Publication;
 use phymes_message::{
     MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
@@ -11,6 +8,9 @@ use phymes_message::{
 use phymes_network::AvailableNetworks;
 use phymes_schemas::{AvailableSubjects, DataFormat};
 use phymes_server::create_session_name;
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+};
 
 use crate::{
     state::{

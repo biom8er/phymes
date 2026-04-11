@@ -9,12 +9,12 @@ use axum::{
 
 // General imports
 use anyhow::Result;
-use phymes_subject::{BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
 use phymes_message::{MessageTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait};
 use phymes_schemas::{
     AvailableSchemaTrait, AvailableSubjects, CsvFormat, DataFormat,
     JoinUserInboxNetworksMermaidDiagrams,
 };
+use phymes_subject::{BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
 
 // Library imports
 use crate::handlers::json_error::{ErrorToResponse, JsonError, serde_json_error_response};
@@ -132,15 +132,13 @@ pub async fn network_build(
                 .zip(flowchart_diagram.into_iter())
                 .zip(er_diagram.into_iter())
                 .zip(timestamp.into_iter())
-                .map(
-                    |(((a, b), c), d)| JoinUserInboxNetworksMermaidDiagrams {
-                        email: current_user.to_owned(),
-                        network_name: a,
-                        flowchart_diagram: b,
-                        er_diagram: c,
-                        timestamp: d,
-                    },
-                )
+                .map(|(((a, b), c), d)| JoinUserInboxNetworksMermaidDiagrams {
+                    email: current_user.to_owned(),
+                    network_name: a,
+                    flowchart_diagram: b,
+                    er_diagram: c,
+                    timestamp: d,
+                })
                 .collect::<Vec<JoinUserInboxNetworksMermaidDiagrams>>();
 
             // Add the new mermaid diagrams to the user session contexts

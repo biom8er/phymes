@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use arrow::record_batch::RecordBatch;
-use phymes_subject::{BuildableTrait, MappableTrait, RuntimeEnv};
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
 use phymes_event::Subscription;
 use phymes_message::{SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap};
 use phymes_processor::{ProcessorSubjectsMap, ProcessorTrait};
+use phymes_subject::{BuildableTrait, MappableTrait, RuntimeEnv};
 use tracing::{Level, event};
 
 use crate::{TaskBuilder, build_and_publish_to_stream, subscribe_to_subject, update_publisher};
@@ -179,15 +179,15 @@ pub mod test_task {
     use super::*;
     use crate::TaskBuilderTrait;
     use arrow::array::{ArrayRef, BooleanArray, StringArray};
-    use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilder,
-        SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait, test_subject,
-    };
     use phymes_diagnostics::HashMap;
     use phymes_event::Publication;
     use phymes_message::{IPCMessage, IPCMessageBuilder, IPCMessageMap, MessageBuilderTrait};
     use phymes_processor::{
         ProcessorBuilder, ProcessorSubjects, ProcessorSubjectsBuilder, test_processor,
+    };
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilder,
+        SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait, test_subject,
     };
     use std::sync::Arc;
 
@@ -470,12 +470,12 @@ mod tests {
 
     use super::*;
     use futures::TryStreamExt;
-    use phymes_subject::{
-        BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlanTrait, SubjectTrait,
-    };
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
     use phymes_event::Publication;
     use phymes_message::MessageTrait;
+    use phymes_subject::{
+        BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlanTrait, SubjectTrait,
+    };
 
     /// A compilation test to ensure that the `Task::get_name()` method can
     /// be called from a trait object.

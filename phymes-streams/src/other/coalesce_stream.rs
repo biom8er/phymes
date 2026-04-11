@@ -9,12 +9,12 @@ use arrow::array::{Array, ArrayRef, RecordBatch, RecordBatchOptions};
 use arrow::compute::concat_batches;
 use arrow::datatypes::SchemaRef;
 use futures::stream::{Stream, StreamExt};
+use phymes_data::DataConfigTrait;
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait};
 use phymes_subject::{
     BuildableTrait, BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
     Subject, SubjectBuilderTrait,
 };
-use phymes_data::DataConfigTrait;
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait};
 
 use crate::LimitConfig;
 
@@ -370,8 +370,8 @@ mod tests {
     use arrow::array::{StringViewArray, UInt32Array};
     use arrow::datatypes::{DataType, Field, Schema};
     use futures::TryStreamExt;
-    use phymes_subject::{RecordBatchStreamAdapter, SubjectBuilder, SubjectTrait};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
+    use phymes_subject::{RecordBatchStreamAdapter, SubjectBuilder, SubjectTrait};
 
     #[tokio::test]
     async fn test_coalesce_stream() -> Result<()> {

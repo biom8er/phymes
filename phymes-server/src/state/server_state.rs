@@ -3,10 +3,6 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
-use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait,
-    SubjectTrait,
-};
 use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, create_message_map};
@@ -17,6 +13,10 @@ use phymes_network::{
 use phymes_schemas::{
     AvailableSubjects, JoinUserInboxNetworksMermaidDiagrams, UserSubject,
     create_session_mermaid_batch, create_user_inbox_batch, create_user_networks_batch,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait,
+    SubjectTrait,
 };
 use phymes_task::SubscriptionTrait;
 
@@ -44,30 +44,24 @@ impl UserState {
         runtime_env: &Arc<RuntimeEnv>,
     ) -> Result<Self> {
         let session_name = user_network_name.unwrap_or("Users");
-        let (network_arc, session_messages) =
-            AvailableNetworks::get_network_stream_state_by_name(
-                "Users",
-                session_name,
-                runtime_env,
-            )?;
+        let (network_arc, session_messages) = AvailableNetworks::get_network_stream_state_by_name(
+            "Users",
+            session_name,
+            runtime_env,
+        )?;
 
         // Write the session messages to the store
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
-        Ok(Self {
-            users: network_arc,
-        })
+        Ok(Self { users: network_arc })
     }
 
     /// Get the user information by their email
     pub async fn get_user_by_email(
         &self,
         email: &str,
-    ) -> Result<(
-        Vec<UserSubject>,
-        Vec<JoinUserInboxNetworksMermaidDiagrams>,
-    )> {
+    ) -> Result<(Vec<UserSubject>, Vec<JoinUserInboxNetworksMermaidDiagrams>)> {
         // Prepare the input message
         let batch = create_user_inbox_batch(vec![email.to_string()])?;
         let table = Subject::get_builder()
@@ -135,8 +129,7 @@ impl UserState {
             .iter()
             .map(|_| email.to_string())
             .collect::<Vec<_>>();
-        let user_networks =
-            create_user_networks_batch(email_vec, network_name.to_owned())?;
+        let user_networks = create_user_networks_batch(email_vec, network_name.to_owned())?;
         let user_networks_bytes = Subject::get_builder()
             .with_record_batches(vec![user_networks])?
             .with_name(AvailableSubjects::UserNetworks.to_string().as_str())
@@ -267,10 +260,7 @@ impl ServerState {
         let mut session_names = Vec::new();
         for user_network in user_networks {
             // Create the session name
-            let session_name = create_session_name(
-                &user_network.email,
-                &user_network.network_name,
-            );
+            let session_name = create_session_name(&user_network.email, &user_network.network_name);
 
             if make_networks {
                 // Create the session stream state if it does not yet exist
@@ -316,22 +306,17 @@ impl ServerState {
                     // Build the session stream state with tables from Mermaid
                     // and leave the upload of configs and other initial session state to another step
                     // DM: turn agent subject tests back on after refactoring BuilderNetwork
-                    let (network, session_messages) =
-                        NetworkBuilder::from_mermaid_flowchart(
-                            &user_network.flowchart_diagram,
-                            false,
-                        )?
-                        .with_name(&session_name)
-                        .with_subjects_from_mermaid_erdiagram(
-                            &user_network.er_diagram,
-                            false,
-                            true,
-                        )?
-                        .add_processor_subjects()?
-                        .add_network_interface(None)?
-                        .with_diagnostics(true)
-                        .with_runtime_env(runtime_env.clone())
-                        .build_with_tables()?;
+                    let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
+                        &user_network.flowchart_diagram,
+                        false,
+                    )?
+                    .with_name(&session_name)
+                    .with_subjects_from_mermaid_erdiagram(&user_network.er_diagram, false, true)?
+                    .add_processor_subjects()?
+                    .add_network_interface(None)?
+                    .with_diagnostics(true)
+                    .with_runtime_env(runtime_env.clone())
+                    .build_with_tables()?;
                     let network_arc = Arc::new(network);
 
                     // Write the session messages to the store
@@ -444,45 +429,20 @@ mod tests {
     async fn test_server_state_get_user_by_email() -> Result<()> {
         let runtime_env = Arc::new(RuntimeEnv::default());
         let user = UserState::new(None, &runtime_env).await?;
-        let (user_info, user_networks) =
-            user.get_user_by_email("contact@biom8er.com").await?;
+        let (user_info, user_networks) = user.get_user_by_email("contact@biom8er.com").await?;
         assert_eq!(user_info.len(), 1);
         assert_eq!(user_networks.len(), 4);
         assert_eq!(user_info.first().unwrap().email, "contact@biom8er.com");
         assert_eq!(user_info.first().unwrap().first_name, "con");
         assert_eq!(user_info.first().unwrap().last_name, "tact");
-        assert_eq!(
-            user_networks.first().unwrap().email,
-            "contact@biom8er.com"
-        );
-        assert_eq!(
-            user_networks.first().unwrap().network_name,
-            "Builder"
-        );
-        assert_eq!(
-            user_networks.get(1).unwrap().email,
-            "contact@biom8er.com"
-        );
-        assert_eq!(
-            user_networks.get(1).unwrap().network_name,
-            "Chat"
-        );
-        assert_eq!(
-            user_networks.get(2).unwrap().email,
-            "contact@biom8er.com"
-        );
-        assert_eq!(
-            user_networks.get(2).unwrap().network_name,
-            "DocChat"
-        );
-        assert_eq!(
-            user_networks.get(3).unwrap().email,
-            "contact@biom8er.com"
-        );
-        assert_eq!(
-            user_networks.get(3).unwrap().network_name,
-            "ToolChat"
-        );
+        assert_eq!(user_networks.first().unwrap().email, "contact@biom8er.com");
+        assert_eq!(user_networks.first().unwrap().network_name, "Builder");
+        assert_eq!(user_networks.get(1).unwrap().email, "contact@biom8er.com");
+        assert_eq!(user_networks.get(1).unwrap().network_name, "Chat");
+        assert_eq!(user_networks.get(2).unwrap().email, "contact@biom8er.com");
+        assert_eq!(user_networks.get(2).unwrap().network_name, "DocChat");
+        assert_eq!(user_networks.get(3).unwrap().email, "contact@biom8er.com");
+        assert_eq!(user_networks.get(3).unwrap().network_name, "ToolChat");
 
         Ok(())
     }
@@ -491,8 +451,7 @@ mod tests {
     async fn test_server_state_make_networks_from_mermaid_diagrams() -> Result<()> {
         let runtime_env = Arc::new(RuntimeEnv::default());
         let user = UserState::new(None, &runtime_env).await?;
-        let (_user_info, user_networks) =
-            user.get_user_by_email("contact@biom8er.com").await?;
+        let (_user_info, user_networks) = user.get_user_by_email("contact@biom8er.com").await?;
         let mut state = ServerState::new();
         let session_names = state
             .make_networks(&user_networks, true, &runtime_env)

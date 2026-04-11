@@ -1,6 +1,6 @@
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use phymes_subject::MappableTrait;
 use phymes_diagnostics::HashMap;
+use phymes_subject::MappableTrait;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::sync::Arc;

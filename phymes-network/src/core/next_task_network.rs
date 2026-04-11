@@ -1,9 +1,9 @@
 use anyhow::Result;
-use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 use phymes_diagnostics::HashMap;
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, IPCMessageMap, MessageBuilderTrait, create_message_map};
 use phymes_schemas::{AvailableSubjects, create_session_tasks_subscribe_publish_batch};
+use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 
 /// A session for determining the next superstep task publications and subscriptions
 pub struct NextTaskNetwork<'a> {
@@ -889,20 +889,19 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait,
-        SubjectTrait,
-    };
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_schemas::AvailableSubjects;
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait,
+        SubjectTrait,
+    };
     use phymes_task::{SubscriptionTrait, test_task};
 
     use crate::{
-        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, NetworkStream, NetworkStreamStep, NetworkStreamStepTrait,
-        test_network_builder,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
+        NetworkStream, NetworkStreamStep, NetworkStreamStepTrait, test_network_builder,
     };
 
     use super::*;
@@ -938,15 +937,12 @@ mod tests {
         let mut message_map = {
             // Make the test sequential session
             let (network, session_messages) =
-                test_network_builder::make_test_network_builder_sequential(
-                    "session_1",
-                    4,
-                )?
-                .with_diagnostics(false)
-                .add_network_interface(Some(&["state_1"]))?
-                .add_next_tasks()? // DM required for 'SessionTasksSubscribePublish' table
-                .add_next_supersteps()?
-                .build_with_tables()?;
+                test_network_builder::make_test_network_builder_sequential("session_1", 4)?
+                    .with_diagnostics(false)
+                    .add_network_interface(Some(&["state_1"]))?
+                    .add_next_tasks()? // DM required for 'SessionTasksSubscribePublish' table
+                    .add_next_supersteps()?
+                    .build_with_tables()?;
 
             // Mimic a superstep update without running the superstep
             let network_arc = Arc::new(network);

@@ -92,19 +92,19 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
-    };
     use phymes_data::make_pdf_document;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, NetworkStreamStep, NetworkStreamStepTrait,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
+        NetworkStreamStep, NetworkStreamStepTrait,
     };
     use phymes_schemas::{
         AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjects,
         AvailableSubjectsTrait,
+    };
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
     };
     use phymes_task::SubscriptionTrait;
 

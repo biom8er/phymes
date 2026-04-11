@@ -1,13 +1,13 @@
 use anyhow::Result;
 use arrow::array::{Int64Array, StringArray};
 use futures::StreamExt;
-use phymes_subject::{
-    RecordBatchReceiverStream, SendableRecordBatchStream, Subject, SubjectBuilder, SubjectTrait,
-};
 use phymes_data::SubjectScript;
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_schemas::{
     ChatCompletionMessage, Content, MessageRole, Tool, ToolCall, create_chat_record_batch,
+};
+use phymes_subject::{
+    RecordBatchReceiverStream, SendableRecordBatchStream, Subject, SubjectBuilder, SubjectTrait,
 };
 use tracing::{Level, event};
 

@@ -9,10 +9,10 @@ use lopdf::{
     dictionary,
 };
 
-use phymes_subject::MappableTrait;
 use phymes_schemas::{
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
 };
+use phymes_subject::MappableTrait;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use tracing::{Level, event, instrument};
@@ -384,7 +384,9 @@ pub fn make_pdf_document(contents: &[&str]) -> Document {
 
 #[cfg(test)]
 mod tests {
-    use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+    };
 
     use super::*;
 

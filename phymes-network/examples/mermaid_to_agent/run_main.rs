@@ -2,8 +2,8 @@ use std::{io::Write, str::FromStr};
 
 use anyhow::Result;
 use clap::Parser;
-use phymes_subject::BuilderTrait;
 use phymes_network::NetworkBuilderMermaid;
+use phymes_subject::BuilderTrait;
 
 #[derive(Parser, Debug, Default, Clone)]
 #[command(author, version, about, long_about = None)]

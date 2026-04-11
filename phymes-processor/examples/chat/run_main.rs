@@ -6,9 +6,9 @@ extern crate accelerate_src;
 
 use anyhow::Result;
 use clap::Parser;
-use phymes_subject::SubjectTrait;
 use phymes_ml::CandleChatConfig;
 use phymes_processor::bench_chat_processor::bench_chat_processor;
+use phymes_subject::SubjectTrait;
 
 pub async fn run_main() -> Result<()> {
     // DM, todo!(): move to phymes-ml
