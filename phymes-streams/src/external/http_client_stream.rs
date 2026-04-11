@@ -396,12 +396,7 @@ impl Stream for HTTPClientRequestStream {
                         .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                     // Determine the filename
-                    let filename = if let Some(url) = self.url.take() {
-                        // url.split("/").last().unwrap_or_default().to_string()
-                        url
-                    } else {
-                        String::new()
-                    };
+                    let filename = self.url.take().unwrap_or_default();
 
                     // Parse the response
                     let batch = match self.config.as_ref().unwrap().request_schema {

@@ -49,13 +49,13 @@ mkdir ./target/criterion/metrics
 The following runs all benchmarks with all CPU, GPU, and WASM features and targets
 
 ```bash
-cargo bench --bench candle_asset -p phymes-ml --no-default-features --features wsl,gpu,candle -- --sample-size 10
-cargo bench --bench candle_asset -p phymes-ml --no-default-features --features wsl,candle -- --sample-size 10
-cargo bench --bench candle_asset -p phymes-ml --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
+cargo bench --bench candle_asset -p phymes-processor --no-default-features --features wsl,gpu,candle -- --sample-size 10
+cargo bench --bench candle_asset -p phymes-processor --no-default-features --features wsl,candle -- --sample-size 10
+cargo bench --bench candle_asset -p phymes-processor --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
 for file in target/wasm32-wasip2/release/deps/candle_asset-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --dir=$HOME/.cache/metrics --dir=./target/criterion --env=HOME=$HOME "$file" --bench --sample-size 10; done
-cargo bench --bench chat -p phymes-ml --no-default-features --features wsl,gpu,candle -- --sample-size 10
-cargo bench --bench chat -p phymes-ml --no-default-features --features wsl,candle -- --sample-size 10
-cargo bench --bench chat -p phymes-ml --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
+cargo bench --bench chat -p phymes-processor --no-default-features --features wsl,gpu,candle -- --sample-size 10
+cargo bench --bench chat -p phymes-processor --no-default-features --features wsl,candle -- --sample-size 10
+cargo bench --bench chat -p phymes-processor --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run
 for file in target/wasm32-wasip2/release/deps/chat-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --dir=$HOME/.cache/metrics --dir=./target/criterion --env=HOME=$HOME "$file" --bench --sample-size 10; done
 cargo bench --bench chat_agent_network -p phymes-network --no-default-features --features wsl,gpu,candle -- --sample-size 10
 cargo bench --bench chat_agent_network -p phymes-network --no-default-features --features wsl,candle -- --sample-size 10
@@ -78,7 +78,7 @@ The following will change the version of all `Cargo.toml` and `Cargo.lock` files
 
 ```bash
 export RELEASE_VERSION="0.3.0"
-export PACKAGES="phymes-app phymes-network phymes-ml phymes-data phymes-subject phymes-server phymes-diagnostics"
+export PACKAGES="phymes-app phymes-network phymes-templates phymes-stream phymes-processor phymes-task phymes-schemas phymes-event phymes-message phymes-data phymes-subject phymes-server phymes-diagnostics"
 for p in $PACKAGES; do cd $p;  awk -v ver="$RELEASE_VERSION" '/^version = / {sub(/= "[^"]*"/, "= \""ver"\""); print; next} {print}' Cargo.toml > Cargo.toml.new;  mv Cargo.toml.new Cargo.toml; cd ..; awk -v ver="$RELEASE_VERSION" -v package="$p" '"^name = \"\"package\"\"$" {print; getline; sub(/version = "[^"]*"/, "version = \""ver"\""); print; next} {print}' Cargo.lock > Cargo.lock.new; mv Cargo.lock.new Cargo.lock; done
 ```
 

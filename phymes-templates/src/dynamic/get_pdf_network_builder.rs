@@ -215,9 +215,7 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
-    use phymes_schemas::{
-        AvailableInterfaceSubjects, AvailableSubjects, create_bytes_record_batch,
-    };
+    use phymes_schemas::{AvailableInterfaceSubjects, create_bytes_record_batch};
     use phymes_streams::{
         ChatBuilderTraitExt, HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType,
     };

@@ -15,6 +15,13 @@ on:
       - phymes-book/**
       - phymes-app/**
       - phymes-subject/**
+      - phymes-schemas/**
+      - phymes-event/**
+      - phymes-message/**
+      - phymes-streams/**
+      - phymes-processor/**
+      - phymes-task/**
+      - phymes-templates/**
       - phymes-ml/**
       - phymes-data/**
       - phymes-network/**

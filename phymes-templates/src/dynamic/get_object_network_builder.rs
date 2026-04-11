@@ -99,7 +99,6 @@ impl Default for GetObjectNetworkBuilderDynamicWSubject {
     fn default() -> Self {
         // Initialize the task data
         let network_name = "get_object";
-        let subject_name_lhs = "http_client_request_pdf_s";
 
         // Processor subject
         let subject = AvailableSubjects::Bytes
@@ -235,7 +234,7 @@ mod tests {
         AvailableInterfaceSubjects, AvailableSubjects, create_bytes_record_batch,
     };
     use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnvBuilder, Subject, SubjectBuilder,
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnvBuilder, Subject,
         SubjectBuilderTrait, SubjectTrait,
     };
     use phymes_task::SubscriptionTrait;
@@ -326,7 +325,7 @@ mod tests {
         }
         let column = subject.get_column_as_vec_nested_primitive::<u8>("bytes")?;
         for c in column {
-            assert!(c.len() > 0);
+            assert!(!c.is_empty());
         }
         Ok(())
     }
@@ -467,7 +466,7 @@ mod tests {
         }
         let column = subject.get_column_as_vec_nested_primitive::<u8>("bytes")?;
         for c in column {
-            assert!(c.len() > 0);
+            assert!(!c.is_empty());
         }
         Ok(())
     }
@@ -610,7 +609,7 @@ mod tests {
         }
         let column = subject.get_column_as_vec_nested_primitive::<u8>("bytes")?;
         for c in column {
-            assert!(c.len() > 0);
+            assert!(!c.is_empty());
         }
         Ok(())
     }

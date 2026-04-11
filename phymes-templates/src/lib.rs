@@ -12,7 +12,8 @@ pub use dynamic::{
     ExecuteWorkspaceNetwork, GetJsonNetworkBuilderDynamicWOSubject,
     GetJsonNetworkBuilderDynamicWSubject, GetJsonNetworkBuilderStaticWSubject,
     GetPdfNetworkBuilderDynamicWOSubject, GetPdfNetworkBuilderDynamicWSubject,
-    GetPdfNetworkBuilderStaticWSubject,
+    GetPdfNetworkBuilderStaticWSubject, GetObjectNetworkBuilderDynamicWOSubject, 
+    GetObjectNetworkBuilderDynamicWSubject, GetObjectNetworkBuilderStaticWSubject,
 };
 
 pub use pipelines::{
