@@ -2,8 +2,6 @@ mod embed_text_network;
 mod extract_ontology_network;
 mod extract_pdf_network;
 mod melt_study_data_network;
-#[cfg(feature = "api")]
-mod open_alex_agent_network;
 mod retrieve_text_network;
 mod sync_content_network;
 

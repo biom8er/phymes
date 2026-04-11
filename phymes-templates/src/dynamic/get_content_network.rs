@@ -28,7 +28,10 @@ mod tests {
     async fn test_get_pdf_network_static_w_subject() -> Result<()> {
         // Initialize the task data
         let subject_name_lhs = "http_client_request_pdf_s";
-        let name = "get_pdf_p";
+        let processor_name = "get_pdf_p";
+        let task_name = "get_pdf_t";
+        let network_name = "get_pdf_n";
+        let runtime_env_name = "get_pdf_r";
 
         // Processor subject
         let config = HTTPClientConfig {
@@ -42,7 +45,7 @@ mod tests {
         };
         let config_json = serde_json::to_vec(&config)?;
         let subject = SubjectBuilder::new()
-            .with_name(name)
+            .with_name(processor_name)
             .with_json(&config_json, 1)?
             .build()?;
         let subject_processor = SubjectPlan::get_builder()
@@ -61,7 +64,7 @@ mod tests {
 
         // Initialize the network
         let get_content_network = DynamicTaskNetwork {
-            network_name: "get_pdf_t".to_string(),
+            network_name: task_name.to_string(),
             is_dynamic: false,
             processor: AvailableProcessors::HTTPClientRequestProcessor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
@@ -73,8 +76,8 @@ mod tests {
         };
         let (network, session_messages) = get_content_network
             .build()
-            .with_name(&"get_pdf_n")
-            .with_runtime_env(RuntimeEnvBuilder::default().with_name(&get_content_network.network_name).build_arc()?)
+            .with_name(network_name)
+            .with_runtime_env(RuntimeEnvBuilder::default().with_name(runtime_env_name).build_arc()?)
             .with_diagnostics(true)
             .add_processor_subjects()?
             .add_next_tasks()?
@@ -148,10 +151,13 @@ mod tests {
     async fn test_get_pdf_network_dynamic_w_subject() -> Result<()> {
         // Initialize the task data
         let subject_name_lhs = "http_client_request_pdf_s";
-        let name = "get_pdf_p";
+        let processor_name = "get_pdf_p";
+        let task_name = "get_pdf_t";
+        let network_name = "get_pdf_n";
+        let runtime_env_name = "get_pdf_r";
 
         // Processor subject
-        let subject = AvailableSubjects::Bytes.to_subject(Some(name), None)?;
+        let subject = AvailableSubjects::Bytes.to_subject(Some(processor_name), None)?;
         let subject_processor = SubjectPlan::get_builder()
             .with_subject(subject)
             .build()?;
@@ -173,7 +179,7 @@ mod tests {
 
         // Initialize the network
         let get_content_network = DynamicTaskNetwork {
-            network_name: "get_pdf_t".to_string(),
+            network_name: task_name.to_string(),
             is_dynamic: true,
             processor: AvailableProcessors::HTTPClientRequestProcessor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
@@ -186,7 +192,7 @@ mod tests {
         };
 
         // Invoke task session
-        let subject_names = &[name];
+        let subject_names = &[processor_name];
         let invoke_task_network =
             InvokeTaskNetwork::new("invoke_task_network", subject_names);
         let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
@@ -202,8 +208,8 @@ mod tests {
 
         let (network, session_messages) = get_content_network
             .build()
-            .with_name(&"get_pdf_n")
-            .with_runtime_env(RuntimeEnvBuilder::default().with_name(&get_content_network.network_name).build_arc()?)
+            .with_name(network_name)
+            .with_runtime_env(RuntimeEnvBuilder::default().with_name(runtime_env_name).build_arc()?)
             .with_diagnostics(true)
             .extend(invoke_task_network_builder)?
             .add_processor_subjects()?
@@ -229,7 +235,7 @@ mod tests {
         let http_client_config_batch =
             create_bytes_record_batch(vec![http_client_config_json])?;
         let http_client_config_table = SubjectBuilder::new()
-            .with_name(name)
+            .with_name(processor_name)
             .with_record_batches(vec![http_client_config_batch])?
             .build()?;
         let _ = message_map.insert(
@@ -326,10 +332,13 @@ mod tests {
     async fn test_get_pdf_network_dynamic_wo_subject() -> Result<()> {
         // Initialize the task data
         let subject_name_lhs = "http_client_request_pdf_s";
-        let name = "get_pdf_p";
+        let processor_name = "get_pdf_p";
+        let task_name = "get_pdf_t";
+        let network_name = "get_pdf_n";
+        let runtime_env_name = "get_pdf_r";
 
         // Processor subject
-        let subject = AvailableSubjects::Bytes.to_subject(Some(name), None)?;
+        let subject = AvailableSubjects::Bytes.to_subject(Some(processor_name), None)?;
         let subject_processor = SubjectPlan::get_builder()
             .with_subject(subject)
             .build()?;
@@ -346,7 +355,7 @@ mod tests {
 
         // Initialize the network
         let get_content_network = DynamicTaskNetwork {
-            network_name: "get_pdf_t".to_string(),
+            network_name: task_name.to_string(),
             is_dynamic: true,
             processor: AvailableProcessors::HTTPClientRequestProcessor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
@@ -359,7 +368,7 @@ mod tests {
         };
 
         // Invoke task session
-        let subject_names = &[name];
+        let subject_names = &[processor_name];
         let invoke_task_network =
             InvokeTaskNetwork::new("invoke_task_network", subject_names);
         let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
@@ -375,8 +384,8 @@ mod tests {
 
         let (network, session_messages) = get_content_network
             .build()
-            .with_name(&"get_pdf_n")
-            .with_runtime_env(RuntimeEnvBuilder::default().with_name(&get_content_network.network_name).build_arc()?)
+            .with_name(network_name)
+            .with_runtime_env(RuntimeEnvBuilder::default().with_name(runtime_env_name).build_arc()?)
             .with_diagnostics(true)
             .extend(invoke_task_network_builder)?
             .add_processor_subjects()?
@@ -405,7 +414,7 @@ mod tests {
         let http_client_config_batch =
             create_bytes_record_batch(vec![http_client_config_json])?;
         let http_client_config_table = SubjectBuilder::new()
-            .with_name(name)
+            .with_name(processor_name)
             .with_record_batches(vec![http_client_config_batch])?
             .build()?;
         let _ = message_map.insert(
@@ -465,7 +474,10 @@ mod tests {
     async fn test_get_json_network_static_w_subject() -> Result<()> {
         // Initialize the task data
         let subject_name_lhs = "http_client_request_json_s";
-        let name = "get_json_p";
+        let processor_name = "get_json_p";
+        let task_name = "get_json_t";
+        let network_name = "get_json_n";
+        let runtime_env_name = "get_json_r";
 
         // Processor subject
         let config = HTTPClientConfig {
@@ -479,7 +491,7 @@ mod tests {
         };
         let config_json = serde_json::to_vec(&config)?;
         let subject = SubjectBuilder::new()
-            .with_name(name)
+            .with_name(processor_name)
             .with_json(&config_json, 1)?
             .build()?;
         let subject_processor = SubjectPlan::get_builder()
@@ -498,7 +510,7 @@ mod tests {
 
         // Initialize the network
         let get_content_network = DynamicTaskNetwork {
-            network_name: "get_pdf_t".to_string(),
+            network_name: task_name.to_string(),
             is_dynamic: false,
             processor: AvailableProcessors::HTTPClientRequestProcessor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
@@ -511,8 +523,8 @@ mod tests {
         };
         let (network, session_messages) = get_content_network
             .build()
-            .with_name(&"get_pdf_n")
-            .with_runtime_env(RuntimeEnvBuilder::default().with_name(&get_content_network.network_name).build_arc()?)
+            .with_name(network_name)
+            .with_runtime_env(RuntimeEnvBuilder::default().with_name(runtime_env_name).build_arc()?)
             .with_diagnostics(true)
             .add_processor_subjects()?
             .add_next_tasks()?
@@ -602,10 +614,13 @@ mod tests {
     async fn test_get_json_network_dynamic_w_subject() -> Result<()> {
         // Initialize the task data
         let subject_name_lhs = "http_client_request_pdf_s";
-        let name = "get_json_p";
+        let processor_name = "get_json_p";
+        let task_name = "get_json_t";
+        let network_name = "get_json_n";
+        let runtime_env_name = "get_json_r";
 
         // Processor subject
-        let subject = AvailableSubjects::Bytes.to_subject(Some(name), None)?;
+        let subject = AvailableSubjects::Bytes.to_subject(Some(processor_name), None)?;
         let subject_processor = SubjectPlan::get_builder()
             .with_subject(subject)
             .build()?;
@@ -639,7 +654,7 @@ mod tests {
 
         // Initialize the network
         let get_content_network = DynamicTaskNetwork {
-            network_name: "get_pdf_t".to_string(),
+            network_name: task_name.to_string(),
             is_dynamic: true,
             processor: AvailableProcessors::HTTPClientRequestProcessor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
@@ -652,7 +667,7 @@ mod tests {
         };
 
         // Invoke task session
-        let subject_names = &[name];
+        let subject_names = &[processor_name];
         let invoke_task_network =
             InvokeTaskNetwork::new("invoke_task_network", subject_names);
         let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
@@ -668,8 +683,8 @@ mod tests {
 
         let (network, session_messages) = get_content_network
             .build()
-            .with_name(&"get_pdf_n")
-            .with_runtime_env(RuntimeEnvBuilder::default().with_name(&get_content_network.network_name).build_arc()?)
+            .with_name(network_name)
+            .with_runtime_env(RuntimeEnvBuilder::default().with_name(runtime_env_name).build_arc()?)
             .with_diagnostics(true)
             .extend(invoke_task_network_builder)?
             .add_processor_subjects()?
@@ -695,7 +710,7 @@ mod tests {
         let http_client_config_batch =
             create_bytes_record_batch(vec![http_client_config_json])?;
         let http_client_config_table = SubjectBuilder::new()
-            .with_name(name)
+            .with_name(processor_name)
             .with_record_batches(vec![http_client_config_batch])?
             .build()?;
         let _ = message_map.insert(
@@ -760,10 +775,13 @@ mod tests {
     async fn test_get_json_network_dynamic_wo_subject() -> Result<()> {
         // Initialize the task data
         let subject_name_lhs = "http_client_request_pdf_s";
-        let name = "get_json_p";
+        let processor_name = "get_json_p";
+        let task_name = "get_json_t";
+        let network_name = "get_json_n";
+        let runtime_env_name = "get_json_r";
 
         // Processor subject
-        let subject = AvailableSubjects::Bytes.to_subject(Some(name), None)?;
+        let subject = AvailableSubjects::Bytes.to_subject(Some(processor_name), None)?;
         let subject_processor = SubjectPlan::get_builder()
             .with_subject(subject)
             .build()?;
@@ -780,7 +798,7 @@ mod tests {
 
         // Initialize the network
         let get_content_network = DynamicTaskNetwork {
-            network_name: "get_pdf_t".to_string(),
+            network_name: task_name.to_string(),
             is_dynamic: true,
             processor: AvailableProcessors::HTTPClientRequestProcessor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
@@ -793,7 +811,7 @@ mod tests {
         };
 
         // Invoke task session
-        let subject_names = &[name];
+        let subject_names = &[processor_name];
         let invoke_task_network =
             InvokeTaskNetwork::new("invoke_task_network", subject_names);
         let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
@@ -809,8 +827,8 @@ mod tests {
 
         let (network, session_messages) = get_content_network
             .build()
-            .with_name(&"get_pdf_n")
-            .with_runtime_env(RuntimeEnvBuilder::default().with_name(&get_content_network.network_name).build_arc()?)
+            .with_name(network_name)
+            .with_runtime_env(RuntimeEnvBuilder::default().with_name(runtime_env_name).build_arc()?)
             .with_diagnostics(true)
             .extend(invoke_task_network_builder)?
             .add_processor_subjects()?
@@ -851,7 +869,7 @@ mod tests {
         let http_client_config_batch =
             create_bytes_record_batch(vec![http_client_config_json])?;
         let http_client_config_table = SubjectBuilder::new()
-            .with_name(name)
+            .with_name(processor_name)
             .with_record_batches(vec![http_client_config_batch])?
             .build()?;
         let _ = message_map.insert(
