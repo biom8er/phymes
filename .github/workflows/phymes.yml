@@ -1,5 +1,5 @@
 name: phymes
-description: CI for the phymes diagnostics, core, agents, server, and app crates
+description: CI for the phymes crates
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}

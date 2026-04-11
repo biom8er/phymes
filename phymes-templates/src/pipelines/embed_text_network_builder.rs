@@ -123,6 +123,7 @@ impl<'a> EmbedTextNetworkBuilder<'a> {
     }
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
+        let embed_processor = self.embed_processor;
         format!(
             r#"flowchart TD
 	%% ------------------------------------------------------------------------------
@@ -151,7 +152,7 @@ impl<'a> EmbedTextNetworkBuilder<'a> {
 	    embed_query_p-publish-->|Replace|QueryEmbeddings-subject
 	end
 	embed_text_r-rt-->embed_query_t
-	embed_query_p-processor@{{shape: rect, label: {}}}
+	embed_query_p-processor@{{shape: rect, label: {embed_processor}}}
 	embed_query_p-publish@{{shape: fork}}
 	embed_query_p-subscribe@{{shape: diamond, label: All}}
 	QueryEmbeddings-subject@{{shape: doc, label: QueryEmbeddings}}
@@ -174,13 +175,11 @@ impl<'a> EmbedTextNetworkBuilder<'a> {
 	coalesce_documents_p-publish@{{shape: fork}}
 	coalesce_documents_p-subscribe@{{shape: diamond, label: All}}
 	coalesce_documents_s-subject@{{shape: doc, label: coalesce_documents_s}}
-	embed_documents_p-processor@{{shape: rect, label: {}}}
+	embed_documents_p-processor@{{shape: rect, label: {embed_processor}}}
 	embed_documents_p-publish@{{shape: fork}}
 	embed_documents_p-subscribe@{{shape: diamond, label: All}}
 	DocumentEmbeddings-subject@{{shape: doc, label: DocumentEmbeddings}}
-	%% ------------------------------------------------------------------------------"#,
-            self.embed_processor, self.embed_processor
-        )
+	%% ------------------------------------------------------------------------------"#)
     }
     /// Return the Mermaid.js ER diagram representation of the session
     ///
@@ -188,6 +187,7 @@ impl<'a> EmbedTextNetworkBuilder<'a> {
     /// * for QWEN, the following cast template should be used
     ///   List-Utf8 cast_templates "['','Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: {{ content }}']"
     pub fn as_mermaid_erdiagram(&self) -> String {
+        let embed_text_p = self.embed_text_p();
         format!(
             r#"erDiagram
     UserMessages["UserMessages"] {{
@@ -218,7 +218,7 @@ impl<'a> EmbedTextNetworkBuilder<'a> {
 	    Utf8 encoding_format "float"
 	    Utf8 input_type "query"
 	    Utf8 modality "text"
-        {}
+        {embed_text_p}
 	}}
 	QueryEmbeddings["QueryEmbeddings"] {{
 	    Utf8 query_id
@@ -239,16 +239,13 @@ impl<'a> EmbedTextNetworkBuilder<'a> {
 	    Utf8 encoding_format "float"
 	    Utf8 input_type "passage"
 	    Utf8 modality "text"
-        {}
+        {embed_text_p}
 	}}
 	DocumentEmbeddings["DocumentEmbeddings"] {{
 	    Utf8 chunk_id
 	    Utf8 document_id
 	    List-Float32 embedding
-	}}"#,
-            self.embed_text_p(),
-            self.embed_text_p()
-        )
+	}}"#)
     }
 }
 

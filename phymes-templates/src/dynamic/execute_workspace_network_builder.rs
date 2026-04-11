@@ -166,6 +166,7 @@ impl<'a> ExecuteWorkspaceNetwork<'a> {
                 .to_string(),
         ];
         if let Some(subject_name_i) = self.subject_name_i.as_ref() {
+            let subject_name_o = self.subject_name_o;
             let flowchart_component = format!(
                 r#"
 	%% ------------------------------------------------------------------------------
@@ -175,28 +176,22 @@ impl<'a> ExecuteWorkspaceNetwork<'a> {
 	%% ------------------------------------------------------------------------------
 	subgraph command_sandbox_t
 		apply_patch_s-subject-.->|AllRecordBatches|command_sandbox_p-subscribe
-        {}-subject-.->|AllRecordBatches|command_sandbox_p-subscribe
+        {subject_name_i}-subject-.->|AllRecordBatches|command_sandbox_p-subscribe
 		command_sandbox_p-subscribe-->command_sandbox_p-processor
 		command_sandbox_p-processor-->command_sandbox_p-publish
-		command_sandbox_p-publish-->|Extend|{}-subject
+		command_sandbox_p-publish-->|Extend|{subject_name_o}-subject
 	end
 	patch_workspace_r-rt-->command_sandbox_t
 	apply_patch_s-subject@{{shape: doc, label: apply_patch_s}}
-	{}-subject@{{shape: doc, label: {}}}
+	{subject_name_i}-subject@{{shape: doc, label: {subject_name_i}}}
 	command_sandbox_p-processor@{{shape: rect, label: CommandSandboxProcessor}}
 	command_sandbox_p-publish@{{shape: fork}}
 	command_sandbox_p-subscribe@{{shape: diamond, label: Any}}
-	{}-subject@{{shape: doc, label: {}}}
-	%% ------------------------------------------------------------------------------"#,
-                subject_name_i,
-                self.subject_name_o,
-                subject_name_i,
-                subject_name_i,
-                self.subject_name_o,
-                self.subject_name_o
-            );
+	{subject_name_o}-subject@{{shape: doc, label: {subject_name_o}}}
+	%% ------------------------------------------------------------------------------"#);
             flowchart_vec.push(flowchart_component);
         } else {
+            let subject_name_o = self.subject_name_o;
             let flowchart_component = format!(
                 r#"
 	%% ------------------------------------------------------------------------------
@@ -207,17 +202,15 @@ impl<'a> ExecuteWorkspaceNetwork<'a> {
 		apply_patch_s-subject-.->|AllRecordBatches|command_sandbox_p-subscribe
 		command_sandbox_p-subscribe-->command_sandbox_p-processor
 		command_sandbox_p-processor-->command_sandbox_p-publish
-		command_sandbox_p-publish-->|Extend|{}-subject
+		command_sandbox_p-publish-->|Extend|{subject_name_o}-subject
 	end
 	patch_workspace_r-rt-->command_sandbox_t
 	apply_patch_s-subject@{{shape: doc, label: apply_patch_s}}
 	command_sandbox_p-processor@{{shape: rect, label: CommandSandboxProcessor}}
 	command_sandbox_p-publish@{{shape: fork}}
 	command_sandbox_p-subscribe@{{shape: diamond, label: Any}}
-	{}-subject@{{shape: doc, label: {}}}
-	%% ------------------------------------------------------------------------------"#,
-                self.subject_name_o, self.subject_name_o, self.subject_name_o
-            );
+	{subject_name_o}-subject@{{shape: doc, label: {subject_name_o}}}
+	%% ------------------------------------------------------------------------------"#);
             flowchart_vec.push(flowchart_component);
         }
         flowchart_vec.join("")
@@ -225,25 +218,24 @@ impl<'a> ExecuteWorkspaceNetwork<'a> {
 
     /// Return the Mermaid.js ER diagram representation of the session
     pub fn as_mermaid_erdiagram(&self) -> Result<String> {
+        let erdiagram_subject_subscriptions = self.erdiagram_subject_subscriptions(
+            &self
+                .subject_names()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>()
+        );
+        let command_sandbox_p = self.command_sandbox_p()?;
         let erdiagram = format!(
             r#"erDiagram
     apply_patch_s["apply_patch_s"] {{
         Utf8 path
         Utf8 content
     }}
-    {}
+    {erdiagram_subject_subscriptions}
     command_sandbox_p["command_sandbox_p"] {{
-        {}
-    }}"#,
-            self.erdiagram_subject_subscriptions(
-                &self
-                    .subject_names()
-                    .iter()
-                    .map(|s| s.as_str())
-                    .collect::<Vec<_>>()
-            ),
-            self.command_sandbox_p()?
-        );
+        {command_sandbox_p}
+    }}"#);
         Ok(erdiagram)
     }
 }

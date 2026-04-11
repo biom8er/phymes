@@ -164,6 +164,7 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
     }
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
+        let chat_processor = self.chat_processor;
         format!(
             r#"flowchart TD
 	%% ------------------------------------------------------------------------------
@@ -215,7 +216,7 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
 	end
 	generate_text_r-rt-->generate_text_inference_t
 	Tools-subject@{{shape: doc, label: Tools}}
-	generate_text_inference_p-processor@{{shape: rect, label: {}}}
+	generate_text_inference_p-processor@{{shape: rect, label: {chat_processor}}}
 	generate_text_inference_p-publish@{{shape: fork}}
 	generate_text_inference_p-subscribe@{{shape: diamond, label: All}}
 	generate_text_inference_s-subject@{{shape: doc, label: generate_text_inference_s}}
@@ -232,13 +233,13 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
 	parse_generated_text_p-processor@{{shape: rect, label: MessageParserProcessor}}
 	parse_generated_text_p-publish@{{shape: fork}}
 	parse_generated_text_p-subscribe@{{shape: diamond, label: All}}
-	%% ------------------------------------------------------------------------------"#,
-            self.chat_processor
-        )
+	%% ------------------------------------------------------------------------------"#)
     }
 
     /// Return the Mermaid.js ER diagram representation of the session
     pub fn as_mermaid_erdiagram(&self) -> String {
+        let generate_text_inference_p = self.generate_text_inference_p();
+        let parse_generated_text_p = self.parse_generated_text_p();
         format!(
             r#"erDiagram
     UserMessages["UserMessages"] {{
@@ -300,7 +301,7 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
         Int64 seed "299792458"
         Boolean split_prompt "false"
         Float64 temperature "0.8"
-        {}
+        {generate_text_inference_p}
     }}
     generate_text_inference_s["generate_text_inference_s"] {{
         Utf8 role
@@ -317,11 +318,8 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
         Int64 seed "299792458"
         Boolean split_prompt "false"
         Float64 temperature "0.8"
-        {}
-    }}"#,
-            self.generate_text_inference_p(),
-            self.parse_generated_text_p()
-        )
+        {parse_generated_text_p}
+    }}"#)
     }
 }
 
