@@ -125,7 +125,7 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
         NetworkBuilderTrait, NetworkStream,
     };
     use phymes_schemas::{
@@ -134,7 +134,7 @@ mod tests {
     };
     use phymes_task::SubscriptionTrait;
 
-    use crate::InvokeTaskNetwork;
+    use crate::InvokeTaskNetworkBuilder;
 
     use super::*;
 
@@ -333,7 +333,7 @@ pub use todo::Todo"#,
     #[tokio::test(flavor = "current_thread")]
     async fn test_patch_workspace_network_dynamic_wo_subjects() -> Result<()> {
         // View task session
-        let invoke_task_network = InvokeTaskNetwork::new("invoke_task_network", &["apply_patch_p"]);
+        let invoke_task_network = InvokeTaskNetworkBuilder::new("invoke_task_network", &["apply_patch_p"]);
         let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
             &invoke_task_network.as_mermaid_flowchart(),
             false,

@@ -16,7 +16,7 @@ use phymes_subject::{
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
 use phymes_network::{
-    CustomAgentsBuilderTrait, NetworkBuilderAgentsTrait, NetworkStream, UserNetwork,
+    NetworkBuilderCustomTrait, NetworkBuilderAppsTrait, NetworkStream, UserNetwork,
 };
 use phymes_schemas::{
     AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjectsTrait,

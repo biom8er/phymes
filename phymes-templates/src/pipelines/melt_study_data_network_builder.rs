@@ -42,7 +42,7 @@ impl Display for SampleType {
 ///
 /// * Support for melting a `Study Dataset` from `StudySamplesMelt` and `StudyVariableMelt` input tables
 ///   instead of as struct parameters
-pub struct MeltStudyDataNetwork<'a> {
+pub struct MeltStudyDataNetworkBuilder<'a> {
     /// Session
     pub network_name: &'a str,
     /// `sample_name` column name
@@ -56,7 +56,7 @@ pub struct MeltStudyDataNetwork<'a> {
     pub data_types: &'a [DataType],
 }
 
-impl<'a> MeltStudyDataNetwork<'a> {
+impl<'a> MeltStudyDataNetworkBuilder<'a> {
     /// New [MeltStudyDataNetwork]
     pub fn new(
         network_name: Option<&'a str>,
@@ -354,7 +354,7 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
         NetworkBuilderTrait, NetworkStream,
     };
     use phymes_schemas::{
@@ -380,7 +380,7 @@ mod tests {
 
         // Initialize the session
         let melt_study_data_network =
-            MeltStudyDataNetwork::new(None, "Casenr", None, variable_names, data_types)?;
+            MeltStudyDataNetworkBuilder::new(None, "Casenr", None, variable_names, data_types)?;
         // dbg!(&melt_study_data_network.as_mermaid_erdiagram()?);
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             melt_study_data_network.as_mermaid_flowchart(),

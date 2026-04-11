@@ -3,12 +3,12 @@
 /// # Notes
 ///
 /// * Does not consider pre-filtering by ontology before vector search
-pub struct ExtractOntologyNetwork<'a> {
+pub struct ExtractOntologyNetworkBuilder<'a> {
     /// Session
     pub network_name: &'a str,
 }
 
-impl<'a> Default for ExtractOntologyNetwork<'a> {
+impl<'a> Default for ExtractOntologyNetworkBuilder<'a> {
     fn default() -> Self {
         Self {
             network_name: "extract_ontology_network",
@@ -16,7 +16,7 @@ impl<'a> Default for ExtractOntologyNetwork<'a> {
     }
 }
 
-impl<'a> ExtractOntologyNetwork<'a> {
+impl<'a> ExtractOntologyNetworkBuilder<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
@@ -1865,7 +1865,7 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
         NetworkBuilderTrait, NetworkStreamStep, NetworkStreamStepTrait,
     };
     use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, create_attachments_batch};
@@ -1876,7 +1876,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_extract_ontology_network() -> Result<()> {
         // Initialize the session
-        let extract_onto_session = ExtractOntologyNetwork::default();
+        let extract_onto_session = ExtractOntologyNetworkBuilder::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             extract_onto_session.as_mermaid_flowchart(),
             false,

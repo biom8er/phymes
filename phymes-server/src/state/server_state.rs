@@ -11,7 +11,7 @@ use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, create_message_map};
 use phymes_network::{
-    AvailableNetworks, Network, NetworkBuilder, NetworkBuilderAgentsTrait,
+    AvailableNetworks, Network, NetworkBuilder, NetworkBuilderAppsTrait,
     NetworkBuilderMermaidTrait, NetworkBuilderTrait, NetworkStream,
 };
 use phymes_schemas::{
@@ -328,7 +328,7 @@ impl ServerState {
                             true,
                         )?
                         .add_processor_subjects()?
-                        .add_session_interface(None)?
+                        .add_network_interface(None)?
                         .with_diagnostics(true)
                         .with_runtime_env(runtime_env.clone())
                         .build_with_tables()?;

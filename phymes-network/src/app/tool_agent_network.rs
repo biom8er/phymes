@@ -24,7 +24,7 @@ use phymes_task::TaskPlan;
 
 use arrow::datatypes::{DataType, Field, Fields};
 
-use crate::CustomAgentsBuilderTrait;
+use crate::NetworkBuilderCustomTrait;
 
 /// Tool agent node with human-in-the-loop
 pub struct ToolAgentNetwork<'a> {
@@ -139,7 +139,7 @@ impl<'a> ToolAgentNetwork<'a> {
     }
 }
 
-impl CustomAgentsBuilderTrait for ToolAgentNetwork<'_> {
+impl NetworkBuilderCustomTrait for ToolAgentNetwork<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         Some(vec![
             // DM: `Reqwest` connections break prematurely in `OpenAIChatProcessor`
@@ -846,7 +846,7 @@ mod tests {
     use phymes_schemas::{AttachmentBuilderTraitExt, CsvFormat};
     use phymes_streams::ChatBuilderTraitExt;
 
-    use crate::{NetworkBuilderAgentsTrait, NetworkStream};
+    use crate::{NetworkBuilderAppsTrait, NetworkStream};
 
     use super::*;
 
@@ -857,7 +857,7 @@ mod tests {
         let (network, session_messages) = tool_agent_network
             .build()
             .with_name(tool_agent_network.network_name)
-            .add_session_interface(None)?
+            .add_network_interface(None)?
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;

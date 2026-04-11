@@ -13,7 +13,7 @@ use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder}
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
 use phymes_task::TaskPlan;
 
-use crate::CustomAgentsBuilderTrait;
+use crate::NetworkBuilderCustomTrait;
 
 pub struct ChatAgentNetwork<'a> {
     /// Chat tasks
@@ -59,7 +59,7 @@ impl<'a> ChatAgentNetwork<'a> {
     }
 }
 
-impl CustomAgentsBuilderTrait for ChatAgentNetwork<'_> {
+impl NetworkBuilderCustomTrait for ChatAgentNetwork<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         // DM: `Reqwest` connections break prematurely in `OpenAIChatProcessor`
         //  when chained or nested within other streams.
@@ -319,7 +319,7 @@ mod tests {
     use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
     use phymes_streams::ChatBuilderTraitExt;
 
-    use crate::{NetworkBuilderAgentsTrait, NetworkStream};
+    use crate::{NetworkBuilderAppsTrait, NetworkStream};
 
     use super::*;
 
@@ -330,7 +330,7 @@ mod tests {
         let (network, session_messages) = chat_agent_network
             .build()
             .with_name(chat_agent_network.network_name)
-            .add_session_interface(None)?
+            .add_network_interface(None)?
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;

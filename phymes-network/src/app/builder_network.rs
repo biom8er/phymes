@@ -11,7 +11,7 @@ use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder}
 use phymes_schemas::{AvailableSubjects, create_session_mermaid_batch};
 use phymes_task::TaskPlan;
 
-use crate::{AvailableNetworks, CustomAgentsBuilderTrait, NetworkBuilderMermaidTrait};
+use crate::{AvailableNetworks, NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait};
 
 /// Example Mermaid diagrams for chat, doc, and tool agent sessions
 pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Subject> {
@@ -78,7 +78,7 @@ impl<'a> BuilderNetwork<'a> {
     }
 }
 
-impl CustomAgentsBuilderTrait for BuilderNetwork<'_> {
+impl NetworkBuilderCustomTrait for BuilderNetwork<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![TaskPlan {
             task_name: self.network_name.to_string(),
@@ -131,7 +131,7 @@ impl CustomAgentsBuilderTrait for BuilderNetwork<'_> {
 mod tests {
     use anyhow::Result;
 
-    use crate::NetworkBuilderAgentsTrait;
+    use crate::NetworkBuilderAppsTrait;
 
     use super::*;
 

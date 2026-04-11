@@ -27,7 +27,7 @@ use phymes_task::TaskPlanBuilder;
 use serde_json::{Map, Value};
 
 use crate::{
-    NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+    NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
     NetworkBuilderTrait,
     core::{CountSubjectRowsNetwork, NextSuperstepNetwork, NextTaskNetwork},
 };

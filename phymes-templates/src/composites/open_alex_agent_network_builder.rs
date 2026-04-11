@@ -2,20 +2,20 @@ use object_store::aws::AmazonS3ConfigKey;
 use serde_json::{Map, Value};
 
 /// OpenAlex agent
-pub struct OpenAlexAgentNetwork<'a> {
+pub struct OpenAlexAgentNetworkBuilder<'a> {
     /// Session
     pub network_name: &'a str,
 }
 
-impl Default for OpenAlexAgentNetwork<'_> {
+impl Default for OpenAlexAgentNetworkBuilder<'_> {
     fn default() -> Self {
-        OpenAlexAgentNetwork {
+        OpenAlexAgentNetworkBuilder {
             network_name: "open_alex_agent_network",
         }
     }
 }
 
-impl<'a> OpenAlexAgentNetwork<'a> {
+impl<'a> OpenAlexAgentNetworkBuilder<'a> {
     pub fn as_mermaid_flowchart(&self) -> String {
         let network_name = self.network_name;
         format!(
@@ -524,7 +524,7 @@ mod tests {
         .with_name(retrieve_text_network.network_name);
 
         // Initialize the session
-        let open_alex_agent_network = OpenAlexAgentNetwork::default();
+        let open_alex_agent_network = OpenAlexAgentNetworkBuilder::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             &open_alex_agent_network.as_mermaid_flowchart(),
             false,

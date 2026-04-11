@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    Network, NetworkBuilder, NetworkBuilderAgentsTrait,
+    Network, NetworkBuilder, NetworkBuilderAppsTrait,
     NetworkBuilderTrait,
     core::{NextSuperstepNetwork, NextTaskNetwork},
 };
@@ -1442,7 +1442,7 @@ impl BuilderTrait for NetworkBuilderMermaid {
             .with_name(&name)
             .with_subjects_from_mermaid_erdiagram(&erdiagram, true, true)?
             .add_processor_subjects()?
-            .add_session_interface(None)?
+            .add_network_interface(None)?
             .with_diagnostics(true)
             .build_with_tables()
     }
@@ -1451,16 +1451,16 @@ impl BuilderTrait for NetworkBuilderMermaid {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ChatAgentNetwork, CustomAgentsBuilderTrait, DocumentRAGNetwork,
-        NetworkBuilderAgentsTrait, ToolAgentNetwork, test_network_builder_agents,
+        ChatAgentNetwork, NetworkBuilderCustomTrait, DocumentRAGNetwork,
+        NetworkBuilderAppsTrait, ToolAgentNetwork, test_network_builder_apps,
     };
 
     use super::*;
     #[test]
     fn test_to_mermaid_flowchart() -> Result<()> {
         let builder =
-            test_network_builder_agents::make_test_network_builder_agents("session_1")?
-                .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?
+            test_network_builder_apps::make_test_network_builder_apps("session_1")?
+                .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?
                 .add_next_tasks()?;
 
         // Test to flowchart
@@ -1481,7 +1481,7 @@ mod tests {
     #[test]
     fn test_to_mermaid_erdiagram() -> Result<()> {
         let builder =
-            test_network_builder_agents::make_test_network_builder_agents("session_1")?;
+            test_network_builder_apps::make_test_network_builder_apps("session_1")?;
 
         // Make the ER Diagram
         let mermaid_js = builder.to_mermaid_erdiagram(false, false)?;
@@ -1506,8 +1506,8 @@ mod tests {
     #[test]
     fn test_from_mermaid_parallel_with_config_and_session_no_data() -> Result<()> {
         let builder =
-            test_network_builder_agents::make_test_network_builder_agents("session_1")?
-                .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?;
+            test_network_builder_apps::make_test_network_builder_apps("session_1")?
+                .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart(true, true)?;
@@ -1578,8 +1578,8 @@ mod tests {
     #[test]
     fn test_from_mermaid_parallel_with_config_and_session_with_data() -> Result<()> {
         let builder =
-            test_network_builder_agents::make_test_network_builder_agents("session_1")?
-                .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?;
+            test_network_builder_apps::make_test_network_builder_apps("session_1")?
+                .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart(true, true)?;
@@ -1655,8 +1655,8 @@ mod tests {
     #[test]
     fn test_from_mermaid_parallel_no_config_with_session_and_data() -> Result<()> {
         let builder =
-            test_network_builder_agents::make_test_network_builder_agents("session_1")?
-                .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?;
+            test_network_builder_apps::make_test_network_builder_apps("session_1")?
+                .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart(false, true)?;
@@ -1740,7 +1740,7 @@ mod tests {
         let builder = ChatAgentNetwork::new_with_network_name("session_1")
             .build()
             .with_name("session_1")
-            .add_session_interface(None)?;
+            .add_network_interface(None)?;
 
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart(true, true)?;
@@ -1793,7 +1793,7 @@ mod tests {
         let builder = DocumentRAGNetwork::new_with_network_name("session_1")
             .build()
             .with_name("session_1")
-            .add_session_interface(None)?;
+            .add_network_interface(None)?;
 
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart(true, true)?;
@@ -1846,7 +1846,7 @@ mod tests {
         let builder = ToolAgentNetwork::new_with_network_name("session_1")
             .build()
             .with_name("session_1")
-            .add_session_interface(None)?;
+            .add_network_interface(None)?;
 
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart(true, true)?;
@@ -1899,7 +1899,7 @@ mod tests {
         let builder = ChatAgentNetwork::new_with_network_name("session_1")
             .build()
             .with_name("session_1")
-            .add_session_interface(None)?;
+            .add_network_interface(None)?;
 
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart(false, false)?;
@@ -1910,7 +1910,7 @@ mod tests {
             .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?
             .with_name("session_1")
             .add_processor_subjects()?
-            .add_session_interface(None)?;
+            .add_network_interface(None)?;
 
         // Test that the names match
         assert_eq!(builder_test.tasks, builder.tasks);
@@ -1955,7 +1955,7 @@ mod tests {
         let builder = DocumentRAGNetwork::new_with_network_name("session_1")
             .build()
             .with_name("session_1")
-            .add_session_interface(None)?;
+            .add_network_interface(None)?;
 
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart(false, false)?;
@@ -1966,7 +1966,7 @@ mod tests {
             .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?
             .with_name("session_1")
             .add_processor_subjects()?
-            .add_session_interface(None)?;
+            .add_network_interface(None)?;
 
         // Test that the names match
         assert_eq!(builder_test.tasks, builder.tasks);
@@ -2011,7 +2011,7 @@ mod tests {
         let builder = ToolAgentNetwork::new_with_network_name("session_1")
             .build()
             .with_name("session_1")
-            .add_session_interface(None)?;
+            .add_network_interface(None)?;
 
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart(false, false)?;
@@ -2022,7 +2022,7 @@ mod tests {
             .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?
             .with_name("session_1")
             .add_processor_subjects()?
-            .add_session_interface(None)?;
+            .add_network_interface(None)?;
 
         // Test that the names match
         assert_eq!(builder_test.tasks, builder.tasks);
@@ -2067,7 +2067,7 @@ mod tests {
         let builder = DocumentRAGNetwork::new_with_network_name("session_1")
             .build()
             .with_name("session_1")
-            .add_session_interface(None)?;
+            .add_network_interface(None)?;
 
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart(false, false)?;
@@ -2078,7 +2078,7 @@ mod tests {
             .with_subjects_from_mermaid_erdiagram(&erdiagram, true, true)?
             .with_name("session_1")
             .add_processor_subjects()?
-            .add_session_interface(None)?;
+            .add_network_interface(None)?;
 
         // Test that the names match
         assert_eq!(builder_test.tasks, builder.tasks);
@@ -2164,7 +2164,7 @@ mod tests {
         let builder = ToolAgentNetwork::new_with_network_name("session_1")
             .build()
             .with_name("session_1")
-            .add_session_interface(None)?;
+            .add_network_interface(None)?;
 
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart(false, false)?;
@@ -2175,7 +2175,7 @@ mod tests {
             .with_subjects_from_mermaid_erdiagram(&erdiagram, true, true)?
             .with_name("session_1")
             .add_processor_subjects()?
-            .add_session_interface(None)?;
+            .add_network_interface(None)?;
 
         // Test that the names match
         assert_eq!(builder_test.tasks, builder.tasks);

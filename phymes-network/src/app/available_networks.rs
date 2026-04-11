@@ -7,8 +7,8 @@ use phymes_message::IPCMessageMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BuilderNetwork, ChatAgentNetwork, CustomAgentsBuilderTrait, DocumentRAGNetwork, Network,
-    NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderTrait,
+    BuilderNetwork, ChatAgentNetwork, NetworkBuilderCustomTrait, DocumentRAGNetwork, Network,
+    NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderTrait,
     ToolAgentNetwork, UserNetwork,
 };
 
@@ -105,7 +105,7 @@ impl AvailableNetworks {
             .with_name(session_name)
             .with_runtime_env(Arc::clone(runtime_env))
             .with_diagnostics(true)
-            .add_session_interface(None)
+            .add_network_interface(None)
             .unwrap()
             .add_next_tasks()
             .unwrap()

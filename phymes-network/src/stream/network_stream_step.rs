@@ -794,7 +794,7 @@ impl NetworkStreamStepTrait for NetworkStreamStepMinimal {
 mod tests {
     use super::*;
     use crate::{
-        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderTrait,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderTrait,
         test_network_builder,
     };
     use phymes_subject::{
@@ -1188,7 +1188,7 @@ mod tests {
                 4,
             )?
             .with_diagnostics(true)
-            .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?
+            .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
@@ -1467,7 +1467,7 @@ mod tests {
                 4,
             )?
             .with_diagnostics(true)
-            .add_session_interface(Some(&["state_1"]))?
+            .add_network_interface(Some(&["state_1"]))?
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;

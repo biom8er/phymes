@@ -2,7 +2,7 @@
 ///   with support for tools
 ///
 /// # Notes
-pub struct GenerateTextNetwork<'a> {
+pub struct GenerateTextNetworkBuilder<'a> {
     /// Session
     pub network_name: &'a str,
     /// The Asset to use for Text Generation and related parameters
@@ -17,7 +17,7 @@ pub struct GenerateTextNetwork<'a> {
     pub chat_processor: &'a str,
 }
 
-impl<'a> Default for GenerateTextNetwork<'a> {
+impl<'a> Default for GenerateTextNetworkBuilder<'a> {
     fn default() -> Self {
         let (
             candle_asset,
@@ -89,7 +89,7 @@ impl<'a> Default for GenerateTextNetwork<'a> {
     }
 }
 
-impl<'a> GenerateTextNetwork<'a> {
+impl<'a> GenerateTextNetworkBuilder<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         network_name: &'a str,
@@ -106,7 +106,7 @@ impl<'a> GenerateTextNetwork<'a> {
         } else {
             "CandleChatProcessor"
         };
-        GenerateTextNetwork {
+        GenerateTextNetworkBuilder {
             network_name,
             candle_asset,
             openai_asset,
@@ -340,7 +340,7 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
         NetworkBuilderTrait, NetworkStream,
     };
     use phymes_schemas::{
@@ -355,7 +355,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_generate_text_network_no_tools() -> Result<()> {
         // Initialize the session
-        let generate_text_network = GenerateTextNetwork::default();
+        let generate_text_network = GenerateTextNetworkBuilder::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_network.as_mermaid_flowchart(),
             false,
@@ -517,7 +517,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_generate_text_network_tool_call() -> Result<()> {
         // Initialize the session
-        let generate_text_network = GenerateTextNetwork::new(
+        let generate_text_network = GenerateTextNetworkBuilder::new(
             "generate_text_network",
             Some("QwenV2p5_1p5bChat".to_string()),
             None,
@@ -568,7 +568,7 @@ mod tests {
         let (network, session_messages) = network_builder
             .with_subjects(subjects)
             // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
-            .add_session_interface(Some(&[
+            .add_network_interface(Some(&[
                 AvailableOperators::Sort.to_string().as_str(),
                 AvailableOperators::HumanInTheLoop.to_string().as_str(),
             ]))?
@@ -754,7 +754,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_generate_text_network_tool_response() -> Result<()> {
         // Initialize the session
-        let generate_text_network = GenerateTextNetwork::default();
+        let generate_text_network = GenerateTextNetworkBuilder::default();
         let mut network_builder = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_network.as_mermaid_flowchart(),
             false,
@@ -783,7 +783,7 @@ mod tests {
         let (network, session_messages) = network_builder
             .with_subjects(subjects)
             // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
-            .add_session_interface(Some(&[
+            .add_network_interface(Some(&[
                 AvailableOperators::Sort.to_string().as_str(),
                 AvailableOperators::HumanInTheLoop.to_string().as_str(),
             ]))?
@@ -985,7 +985,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_generate_text_network_error_response() -> Result<()> {
         // Initialize the session
-        let generate_text_network = GenerateTextNetwork::new(
+        let generate_text_network = GenerateTextNetworkBuilder::new(
             "generate_text_network",
             Some("QwenV2p5_1p5bChat".to_string()),
             None,
@@ -1035,7 +1035,7 @@ mod tests {
         let (network, session_messages) = network_builder
             .with_subjects(subjects)
             // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
-            .add_session_interface(Some(&[
+            .add_network_interface(Some(&[
                 AvailableOperators::Sort.to_string().as_str(),
                 AvailableOperators::HumanInTheLoop.to_string().as_str(),
             ]))?

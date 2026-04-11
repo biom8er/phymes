@@ -17,7 +17,7 @@ use phymes_schemas::{
 use phymes_task::TaskPlan;
 use serde_json::json;
 
-use crate::CustomAgentsBuilderTrait;
+use crate::NetworkBuilderCustomTrait;
 
 /// A session for gathering analytics based on the session metrics
 ///
@@ -167,7 +167,7 @@ impl Default for DiagnosticNetwork<'_> {
     }
 }
 
-impl CustomAgentsBuilderTrait for DiagnosticNetwork<'_> {
+impl NetworkBuilderCustomTrait for DiagnosticNetwork<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![
             TaskPlan {
@@ -1824,7 +1824,7 @@ mod tests {
     use phymes_task::{SubscriptionTrait, test_task};
 
     use crate::{
-        NetworkBuilderAgentsTrait, NetworkBuilderTrait, NetworkStream,
+        NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream,
         test_network_builder,
     };
 
@@ -1839,7 +1839,7 @@ mod tests {
                 2,
             )?
             .with_diagnostics(true)
-            .add_session_interface(Some(&["state_1"]))?
+            .add_network_interface(Some(&["state_1"]))?
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
@@ -2002,7 +2002,7 @@ mod tests {
             .build()
             .with_name(diagnostic_network.network_name)
             .with_diagnostics(true) // Debugging
-            .add_session_interface(Some(&[
+            .add_network_interface(Some(&[
                 DiagnosticsVisualizations::MetricProcessorTracesGantt
                     .to_string()
                     .as_str(),

@@ -148,7 +148,7 @@ mod tests {
     use phymes_task::SubscriptionTrait;
 
     use crate::{
-        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
         NetworkBuilderTrait, NetworkStream, NetworkStreamStepMinimal,
         NetworkStreamStepTrait,
     };

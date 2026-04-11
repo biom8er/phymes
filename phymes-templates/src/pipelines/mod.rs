@@ -1,13 +1,13 @@
-mod embed_text_network;
-mod extract_ontology_network;
-mod extract_pdf_network;
-mod melt_study_data_network;
-mod retrieve_text_network;
-mod sync_content_network;
+mod embed_text_network_builder;
+mod extract_ontology_network_builder;
+mod extract_pdf_network_builder;
+mod melt_study_data_network_builder;
+mod retrieve_text_network_builder;
+mod sync_content_network_builder;
 
-pub use embed_text_network::EmbedTextNetwork;
-pub use extract_ontology_network::ExtractOntologyNetwork;
-pub use extract_pdf_network::ExtractPDFNetwork;
-pub use melt_study_data_network::MeltStudyDataNetwork;
-pub use retrieve_text_network::RetrieveTextNetwork;
-pub use sync_content_network::SyncContentNetwork;
+pub use embed_text_network_builder::EmbedTextNetworkBuilder;
+pub use extract_ontology_network_builder::ExtractOntologyNetworkBuilder;
+pub use extract_pdf_network_builder::ExtractPDFNetworkBuilder;
+pub use melt_study_data_network_builder::MeltStudyDataNetworkBuilder;
+pub use retrieve_text_network_builder::RetrieveTextNetworkBuilder;
+pub use sync_content_network_builder::SyncContentNetworkBuilder;

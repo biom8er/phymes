@@ -10,7 +10,7 @@ use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
 use phymes_network::{
-    CustomAgentsBuilderTrait, DocumentRAGNetwork, NetworkBuilderAgentsTrait, NetworkStream,
+    NetworkBuilderCustomTrait, DocumentRAGNetwork, NetworkBuilderAppsTrait, NetworkStream,
 };
 use phymes_schemas::{
     AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjects,
@@ -142,7 +142,7 @@ fn benchmark_chat_agent_network(c: &mut Criterion) {
                 let (network, session_messages) = config
                     .build()
                     .with_name(network_name.as_str())
-                    .add_session_interface(None)
+                    .add_network_interface(None)
                     .unwrap()
                     .add_next_tasks()
                     .unwrap()

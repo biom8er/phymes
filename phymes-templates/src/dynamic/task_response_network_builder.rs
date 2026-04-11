@@ -1,4 +1,4 @@
-use crate::dynamic::invoke_task_network::DynamicNetworkTrait;
+use crate::DynamicNetworkBuilderTrait;
 
 /// A session for dynamic tool response summarization
 ///
@@ -7,29 +7,29 @@ use crate::dynamic::invoke_task_network::DynamicNetworkTrait;
 ///   `extend`ing with this session will skip duplicate subjects
 ///   that are already defined in the source session
 /// - Any limits to the row counts should be taken care of prior
-pub struct TaskResponseNetwork<'a> {
+pub struct TaskResponseNetworkBuilder<'a> {
     /// Session
     pub network_name: &'a str,
     /// Subjects to listen for
     pub subject_names: &'a [&'a str],
 }
 
-impl Default for TaskResponseNetwork<'_> {
+impl Default for TaskResponseNetworkBuilder<'_> {
     fn default() -> Self {
-        TaskResponseNetwork {
+        TaskResponseNetworkBuilder {
             network_name: "task_response_network",
             subject_names: &["Bytes"],
         }
     }
 }
 
-impl<'a> DynamicNetworkTrait<'a> for TaskResponseNetwork<'a> {
+impl<'a> DynamicNetworkBuilderTrait for TaskResponseNetworkBuilder<'a> {
     fn subject_names(&self) -> Vec<String> {
         self.subject_names.iter().map(|s| s.to_string()).collect()
     }
 }
 
-impl<'a> TaskResponseNetwork<'a> {
+impl<'a> TaskResponseNetworkBuilder<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
         let subgraphs = self
@@ -118,7 +118,7 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
         NetworkBuilderTrait, NetworkStream,
     };
     use phymes_schemas::{
@@ -132,7 +132,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_task_response_network() -> Result<()> {
         // Initialize the session
-        let task_response_network = TaskResponseNetwork::default();
+        let task_response_network = TaskResponseNetworkBuilder::default();
         dbg!(&task_response_network.as_mermaid_flowchart());
         dbg!(&task_response_network.as_mermaid_erdiagram());
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(

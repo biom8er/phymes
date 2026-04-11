@@ -15,7 +15,7 @@ use phymes_schemas::{
 };
 use phymes_task::TaskPlan;
 
-use crate::{AvailableNetworks, CustomAgentsBuilderTrait, make_example_mermaid_table};
+use crate::{AvailableNetworks, NetworkBuilderCustomTrait, make_example_mermaid_table};
 
 /// A session for all user management tasks
 ///
@@ -101,7 +101,7 @@ impl<'a> UserNetwork<'a> {
     }
 }
 
-impl CustomAgentsBuilderTrait for UserNetwork<'_> {
+impl NetworkBuilderCustomTrait for UserNetwork<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![
             TaskPlan {
@@ -315,7 +315,7 @@ pub(crate) mod user_network_inner {
     use phymes_schemas::create_user_inbox_batch;
 
     use crate::{
-        Network, NetworkBuilderAgentsTrait, NetworkBuilderTrait, NetworkStream,
+        Network, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream,
     };
 
     use super::*;

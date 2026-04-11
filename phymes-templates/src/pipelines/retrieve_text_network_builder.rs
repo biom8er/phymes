@@ -1,12 +1,12 @@
 /// A session for retrieving text via vector search
 ///
 /// # Notes
-pub struct RetrieveTextNetwork<'a> {
+pub struct RetrieveTextNetworkBuilder<'a> {
     /// Session
     pub network_name: &'a str,
 }
 
-impl<'a> Default for RetrieveTextNetwork<'a> {
+impl<'a> Default for RetrieveTextNetworkBuilder<'a> {
     fn default() -> Self {
         Self {
             network_name: "retrieve_text_network",
@@ -14,7 +14,7 @@ impl<'a> Default for RetrieveTextNetwork<'a> {
     }
 }
 
-impl<'a> RetrieveTextNetwork<'a> {
+impl<'a> RetrieveTextNetworkBuilder<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
@@ -239,7 +239,7 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
         NetworkBuilderTrait, NetworkStream,
     };
     use phymes_schemas::{
@@ -253,7 +253,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_retrieve_text_network() -> Result<()> {
         // Initialize the session
-        let retrieve_text_network = RetrieveTextNetwork::default();
+        let retrieve_text_network = RetrieveTextNetworkBuilder::default();
         let retrieve_text_builder = NetworkBuilder::from_mermaid_flowchart(
             retrieve_text_network.as_mermaid_flowchart(),
             false,

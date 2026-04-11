@@ -1,7 +1,7 @@
 /// A session for embedding text querries and documents
 ///
 /// # Notes
-pub struct EmbedTextNetwork<'a> {
+pub struct EmbedTextNetworkBuilder<'a> {
     /// Session
     pub network_name: &'a str,
     /// The Asset to use for Text Generation and related parameters
@@ -16,7 +16,7 @@ pub struct EmbedTextNetwork<'a> {
     pub embed_processor: &'a str,
 }
 
-impl<'a> Default for EmbedTextNetwork<'a> {
+impl<'a> Default for EmbedTextNetworkBuilder<'a> {
     fn default() -> Self {
         let (
             candle_asset,
@@ -88,7 +88,7 @@ impl<'a> Default for EmbedTextNetwork<'a> {
     }
 }
 
-impl<'a> EmbedTextNetwork<'a> {
+impl<'a> EmbedTextNetworkBuilder<'a> {
     fn embed_text_p(&self) -> String {
         let mut lines = Vec::new();
         if let Some(candle_asset) = &self.candle_asset {
@@ -265,7 +265,7 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
         NetworkBuilderTrait, NetworkStreamStep, NetworkStreamStepTrait,
     };
     use phymes_schemas::{
@@ -280,7 +280,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_embed_text_network() -> Result<()> {
         // Initialize the session
-        let embed_text_network = EmbedTextNetwork::default();
+        let embed_text_network = EmbedTextNetworkBuilder::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             &embed_text_network.as_mermaid_flowchart(),
             false,

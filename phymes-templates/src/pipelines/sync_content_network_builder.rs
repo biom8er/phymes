@@ -7,7 +7,7 @@ use serde_json::{Map, Value};
 /// - The syncing direction is unidirectional from remote to local
 /// - Add a second `SyncContentNetwork` and invert local and remote names
 ///   to sync remote with local to achieve bidirectional syncing
-pub struct SyncContentNetwork<'a> {
+pub struct SyncContentNetworkBuilder<'a> {
     /// Session
     pub network_name: &'a str,
     /// Local object store
@@ -22,7 +22,7 @@ pub struct SyncContentNetwork<'a> {
     pub remote_object_store_config: Option<&'a Map<String, Value>>,
 }
 
-impl<'a> Default for SyncContentNetwork<'a> {
+impl<'a> Default for SyncContentNetworkBuilder<'a> {
     fn default() -> Self {
         Self {
             network_name: "sync_content_network",
@@ -38,7 +38,7 @@ impl<'a> Default for SyncContentNetwork<'a> {
     }
 }
 
-impl<'a> SyncContentNetwork<'a> {
+impl<'a> SyncContentNetworkBuilder<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
         let network_name = self.network_name;
@@ -401,7 +401,7 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
         NetworkBuilderTrait, NetworkStream,
     };
     use phymes_schemas::{
@@ -412,7 +412,7 @@ mod tests {
     #[cfg(not(target_family = "wasm"))]
     use tempfile::TempDir;
 
-    use crate::InvokeTaskNetwork;
+    use crate::InvokeTaskNetworkBuilder;
 
     use super::*;
 
@@ -432,7 +432,7 @@ mod tests {
         let _ = std::fs::create_dir(&remote_object_store_bucket);
 
         // Initialize the session
-        let sync_content_network = SyncContentNetwork {
+        let sync_content_network = SyncContentNetworkBuilder {
             network_name: "sync_content_network",
             local_object_store_name,
             local_object_store_backend: local_object_store_backend.clone(),
@@ -885,7 +885,7 @@ mod tests {
         // View task session
         let tool_call_subject = format!("list_{remote_object_store_name}_p");
         let tool_call_subjects = [tool_call_subject.as_str()];
-        let invoke_task_network = InvokeTaskNetwork::new("invoke_task_network", &tool_call_subjects);
+        let invoke_task_network = InvokeTaskNetworkBuilder::new("invoke_task_network", &tool_call_subjects);
         let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
             &invoke_task_network.as_mermaid_flowchart(),
             false,
@@ -898,7 +898,7 @@ mod tests {
         .with_name(invoke_task_network.network_name);
 
         // Initialize the session
-        let sync_content_network = SyncContentNetwork {
+        let sync_content_network = SyncContentNetworkBuilder {
             network_name: "sync_content_network",
             local_object_store_name,
             local_object_store_backend: local_object_store_backend.clone(),

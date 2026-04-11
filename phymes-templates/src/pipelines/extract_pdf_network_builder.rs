@@ -3,12 +3,12 @@
 /// # Notes
 ///
 /// * Does not yet include image and table extraction
-pub struct ExtractPDFNetwork<'a> {
+pub struct ExtractPDFNetworkBuilder<'a> {
     /// Session
     pub network_name: &'a str,
 }
 
-impl<'a> Default for ExtractPDFNetwork<'a> {
+impl<'a> Default for ExtractPDFNetworkBuilder<'a> {
     fn default() -> Self {
         Self {
             network_name: "extract_pdf_session",
@@ -16,7 +16,7 @@ impl<'a> Default for ExtractPDFNetwork<'a> {
     }
 }
 
-impl<'a> ExtractPDFNetwork<'a> {
+impl<'a> ExtractPDFNetworkBuilder<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
@@ -99,7 +99,7 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
         NetworkBuilderTrait, NetworkStreamStep, NetworkStreamStepTrait,
     };
     use phymes_schemas::{
@@ -113,7 +113,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_extract_pdf_network() -> Result<()> {
         // Initialize the session
-        let extract_pdf_session = ExtractPDFNetwork::default();
+        let extract_pdf_session = ExtractPDFNetworkBuilder::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             extract_pdf_session.as_mermaid_flowchart(),
             false,

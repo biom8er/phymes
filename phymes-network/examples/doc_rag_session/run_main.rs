@@ -16,7 +16,7 @@ use phymes_diagnostics::HashMap;
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
 use phymes_network::{
-    CustomAgentsBuilderTrait, DocumentRAGNetwork, NetworkBuilderAgentsTrait, NetworkStream,
+    NetworkBuilderCustomTrait, DocumentRAGNetwork, NetworkBuilderAppsTrait, NetworkStream,
 };
 use phymes_schemas::{
     AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjectsTrait,
@@ -33,7 +33,7 @@ pub async fn run_main() -> Result<()> {
     let (network, session_messages) = doc_rag_network
         .build()
         .with_name(doc_rag_network.network_name)
-        .add_session_interface(None)?
+        .add_network_interface(None)?
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;

@@ -8,10 +8,10 @@ pub use app::{
     ToolAgentNetwork, UserNetwork, make_example_mermaid_table,
 };
 pub use network::{
-    CustomAgentsBuilderTrait, Network, NetworkBuilder,
-    NetworkBuilderAgentsTrait, NetworkBuilderMermaid,
+    NetworkBuilderCustomTrait, Network, NetworkBuilder,
+    NetworkBuilderAppsTrait, NetworkBuilderMermaid,
     NetworkBuilderMermaidTrait, NetworkBuilderTabularTrait,
-    NetworkBuilderTrait, test_network_builder, test_network_builder_agents,
+    NetworkBuilderTrait, test_network_builder, test_network_builder_apps,
 };
 pub use stream::{
     NetworkStream, NetworkStreamStep, NetworkStreamStepMinimal, NetworkStreamStepTrait,

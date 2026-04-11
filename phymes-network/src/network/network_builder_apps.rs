@@ -39,8 +39,8 @@ type NetworkInput = (
     bool,
 );
 
-/// Trait extension for [NetworkBuilderTrait] to facilitate building agentic workflows
-pub trait NetworkBuilderAgentsTrait {
+/// Trait extension for [NetworkBuilderTrait] to facilitate building interactive applications
+pub trait NetworkBuilderAppsTrait {
     fn build_inner_with_tables(self) -> Result<NetworkInput>;
 
     /// Build the [Network] objects along with the [Network] schema tables
@@ -88,7 +88,7 @@ pub trait NetworkBuilderAgentsTrait {
     ///
     /// # Arguments
     /// `subscriptions` - Optional list of subscriptions to listen on in addition to [AvailableInterfaceSubjects]
-    fn add_session_interface(self, subscriptions: Option<&[&str]>) -> Result<Self>
+    fn add_network_interface(self, subscriptions: Option<&[&str]>) -> Result<Self>
     where
         Self: Sized;
 
@@ -117,7 +117,7 @@ pub trait NetworkBuilderAgentsTrait {
         Self: Sized;
 }
 
-impl NetworkBuilderAgentsTrait for NetworkBuilder {
+impl NetworkBuilderAppsTrait for NetworkBuilder {
     fn build_with_tables(self) -> Result<(Network, Option<IPCMessageMap>)> {
         // Check that we can build
         self.check_tasks()?;
@@ -1050,7 +1050,7 @@ impl NetworkBuilderAgentsTrait for NetworkBuilder {
         Ok(self.with_processors(processors))
     }
 
-    fn add_session_interface(mut self, subscriptions: Option<&[&str]>) -> Result<Self>
+    fn add_network_interface(mut self, subscriptions: Option<&[&str]>) -> Result<Self>
     where
         Self: Sized,
     {
@@ -1204,7 +1204,7 @@ impl NetworkBuilderAgentsTrait for NetworkBuilder {
 /// * Users can mix and match custom types with tabular or mermaid.js formats
 ///   as all return values are optional
 /// * Useful for prototyping with static type checking support
-pub trait CustomAgentsBuilderTrait {
+pub trait NetworkBuilderCustomTrait {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         None
     }
@@ -1235,7 +1235,7 @@ pub trait CustomAgentsBuilderTrait {
     }
 }
 
-pub mod test_network_builder_agents {
+pub mod test_network_builder_apps {
     use phymes_subject::{BuildableTrait, BuilderTrait, SubjectBuilderTrait, test_subject};
     use phymes_data::{AvailableOperators, DataConfig, DataJoinOperator};
     use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
@@ -1333,7 +1333,7 @@ pub mod test_network_builder_agents {
     }
 
     #[allow(dead_code)]
-    pub fn make_test_network_builder_agents(name: &str) -> Result<NetworkBuilder> {
+    pub fn make_test_network_builder_apps(name: &str) -> Result<NetworkBuilder> {
         let processor_plans = make_test_processors_agents()?;
         let mut subjects = make_test_state_agents()?;
 
@@ -1384,9 +1384,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_network_builder_agents_build_with_tables_success() -> Result<()> {
+    fn test_network_builder_apps_build_with_tables_success() -> Result<()> {
         let (session, messages) =
-            test_network_builder_agents::make_test_network_builder_agents("session_1")?
+            test_network_builder_apps::make_test_network_builder_apps("session_1")?
                 .build_with_tables()?;
         assert_eq!(session.subjects().len(), 19);
         assert_eq!(session.tasks().len(), 3);
@@ -1423,10 +1423,10 @@ mod tests {
     }
 
     #[test]
-    fn test_network_builder_agents_build_with_tables_add_session_interface() -> Result<()> {
+    fn test_network_builder_apps_build_with_tables_add_session_interface() -> Result<()> {
         let (session, messages) =
-            test_network_builder_agents::make_test_network_builder_agents("session_1")?
-                .add_session_interface(Some(&["state_1"]))?
+            test_network_builder_apps::make_test_network_builder_apps("session_1")?
+                .add_network_interface(Some(&["state_1"]))?
                 .build_with_tables()?;
         assert_eq!(session.subjects().len(), 19);
         assert_eq!(session.tasks().len(), 4);
@@ -1476,10 +1476,10 @@ mod tests {
     }
 
     #[test]
-    fn test_network_builder_agents_build_with_tables_missing_processor_configs_subjects()
+    fn test_network_builder_apps_build_with_tables_missing_processor_configs_subjects()
     -> Result<()> {
         // Check that missing config subscriptions can be identified
-        let mut subjects = test_network_builder_agents::make_test_state_agents()?;
+        let mut subjects = test_network_builder_apps::make_test_state_agents()?;
         let join_config = DataConfig {
             lhs_name: Some("state_1".to_string()),
             rhs_name: Some("state_2".to_string()),
@@ -1510,7 +1510,7 @@ mod tests {
             processor_names: vec!["processor_4".to_string()],
         });
         let mut processor_plans =
-            test_network_builder_agents::make_test_processors_agents()?;
+            test_network_builder_apps::make_test_processors_agents()?;
         processor_plans.push(
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_4"))
@@ -1541,7 +1541,7 @@ mod tests {
 
         // Check that the default processor subjects fix the issue
         let mut processor_plans =
-            test_network_builder_agents::make_test_processors_agents()?;
+            test_network_builder_apps::make_test_processors_agents()?;
         processor_plans.push(
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_4"))
@@ -1598,9 +1598,9 @@ mod tests {
     }
 
     #[test]
-    fn test_network_builder_agents_build_with_tables_missing_data_config_subjects()
+    fn test_network_builder_apps_build_with_tables_missing_data_config_subjects()
     -> Result<()> {
-        let subjects = test_network_builder_agents::make_test_state_agents()?;
+        let subjects = test_network_builder_apps::make_test_state_agents()?;
 
         // Test that mismatches in the lhs/rhs name are identified
         let join_config = DataConfig {
@@ -1628,7 +1628,7 @@ mod tests {
             .with_tasks(
                 test_network_builder::make_test_network_builder_parallel_tasks(),
             )
-            .with_processors(test_network_builder_agents::make_test_processors_agents()?)
+            .with_processors(test_network_builder_apps::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plans)
@@ -1672,7 +1672,7 @@ mod tests {
             .with_tasks(
                 test_network_builder::make_test_network_builder_parallel_tasks(),
             )
-            .with_processors(test_network_builder_agents::make_test_processors_agents()?)
+            .with_processors(test_network_builder_apps::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plans)
@@ -1717,7 +1717,7 @@ mod tests {
             .with_tasks(
                 test_network_builder::make_test_network_builder_parallel_tasks(),
             )
-            .with_processors(test_network_builder_agents::make_test_processors_agents()?)
+            .with_processors(test_network_builder_apps::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plans)
@@ -1735,9 +1735,9 @@ mod tests {
     }
 
     #[test]
-    fn test_network_builder_agents_build_with_tables_failing_processor_config_builds()
+    fn test_network_builder_apps_build_with_tables_failing_processor_config_builds()
     -> Result<()> {
-        let subjects = test_network_builder_agents::make_test_state_agents()?;
+        let subjects = test_network_builder_apps::make_test_state_agents()?;
 
         // Test for mismatch between processor and config types
         let join_config = LimitConfig {
@@ -1762,7 +1762,7 @@ mod tests {
             .with_tasks(
                 test_network_builder::make_test_network_builder_parallel_tasks(),
             )
-            .with_processors(test_network_builder_agents::make_test_processors_agents()?)
+            .with_processors(test_network_builder_apps::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plans)
@@ -1803,7 +1803,7 @@ mod tests {
             .with_tasks(
                 test_network_builder::make_test_network_builder_parallel_tasks(),
             )
-            .with_processors(test_network_builder_agents::make_test_processors_agents()?)
+            .with_processors(test_network_builder_apps::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plans)
@@ -1844,7 +1844,7 @@ mod tests {
             .with_tasks(
                 test_network_builder::make_test_network_builder_parallel_tasks(),
             )
-            .with_processors(test_network_builder_agents::make_test_processors_agents()?)
+            .with_processors(test_network_builder_apps::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plans)

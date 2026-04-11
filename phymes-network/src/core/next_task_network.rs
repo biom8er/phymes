@@ -900,7 +900,7 @@ mod tests {
     use phymes_task::{SubscriptionTrait, test_task};
 
     use crate::{
-        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
         NetworkBuilderTrait, NetworkStream, NetworkStreamStep, NetworkStreamStepTrait,
         test_network_builder,
     };
@@ -943,7 +943,7 @@ mod tests {
                     4,
                 )?
                 .with_diagnostics(false)
-                .add_session_interface(Some(&["state_1"]))?
+                .add_network_interface(Some(&["state_1"]))?
                 .add_next_tasks()? // DM required for 'SessionTasksSubscribePublish' table
                 .add_next_supersteps()?
                 .build_with_tables()?;

@@ -7,13 +7,37 @@ use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
 use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait};
 use phymes_task::TaskPlan;
-use phymes_network::CustomAgentsBuilderTrait;
+use phymes_network::NetworkBuilderCustomTrait;
+
+
+
+/// Helper to create consistent names for subjects, processors, tasks, and neteworks
+#[derive(Clone, Debug)]
+pub enum DynamicTaskNetworkNames<'a> {
+    Subject(&'a str),
+    Task(&'a str),
+    Processor(&'a str),
+    Network(&'a str),
+    RuntimeEnv(&'a str),
+}
+
+impl<'a> std::fmt::Display for DynamicTaskNetworkNames<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Subject(s) => write!(f, "{s}_s"),
+            Self::Task(s) => write!(f, "{s}_t"),
+            Self::Processor(s) => write!(f, "{s}_p"),
+            Self::Network(s) => write!(f, "{s}_n"),
+            Self::RuntimeEnv(s) => write!(f, "{s}_r"),
+        }
+    }
+}
 
 /// Template dynamic (or static) task creation network
 ///   that is intended to be extended with a base network to enable dynamic task invokation
 ///   or extended with a network of the same name to create a static processor pipeline
-pub struct DynamicTaskNetwork {
-    /// Network name (task name)
+pub struct DynamicTaskNetworkBuilder {
+    /// Network name
     pub network_name: String,
     /// Dynamic pipeline (e.g., tool call) or static pipeline
     pub is_dynamic: bool,
@@ -37,7 +61,7 @@ pub struct DynamicTaskNetwork {
     pub subject_processor: SubjectPlan
 }
 
-impl Default for DynamicTaskNetwork {
+impl Default for DynamicTaskNetworkBuilder {
     fn default() -> Self {
         let subject_lhs = SubjectPlan::get_builder()
             .with_subject(AvailableSubjects::Bytes.to_subject(Some("lhs_s"), None).unwrap())
@@ -51,7 +75,7 @@ impl Default for DynamicTaskNetwork {
             .with_subject(AvailableSubjects::Bytes.to_subject(Some("network_p"), None).unwrap())
             .build()
             .unwrap();
-        DynamicTaskNetwork {
+        DynamicTaskNetworkBuilder {
             network_name: "network_t".to_string(),
             is_dynamic: false,
             processor: AvailableProcessors::default(),
@@ -67,20 +91,20 @@ impl Default for DynamicTaskNetwork {
     }
 }
 
-impl DynamicTaskNetwork {
+impl DynamicTaskNetworkBuilder {
     pub fn new_with_network_name(network_name: &str) -> Self {
-        DynamicTaskNetwork {
+        DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
             ..Default::default()
         }
     }
 }
 
-impl CustomAgentsBuilderTrait for DynamicTaskNetwork {
+impl NetworkBuilderCustomTrait for DynamicTaskNetworkBuilder {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![
             TaskPlan {
-                task_name: self.network_name.to_string(),
+                task_name: DynamicTaskNetworkNames::Task(&self.network_name).to_string(),
                 processor_names: vec![self.subject_processor.get_name().to_string()],
             },
         ];

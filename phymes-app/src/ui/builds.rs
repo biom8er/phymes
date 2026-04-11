@@ -7,7 +7,7 @@ use phymes_message::{
     MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait,
 };
 use phymes_network::{
-    AvailableNetworks, NetworkBuilder, NetworkBuilderAgentsTrait,
+    AvailableNetworks, NetworkBuilder, NetworkBuilderAppsTrait,
     NetworkBuilderMermaidTrait,
 };
 use phymes_schemas::{create_session_mermaid_batch, AvailableSubjects, DataFormat};
@@ -310,7 +310,7 @@ pub fn builds_dropdown_view(
                             }
                             let _session = match builder.with_name(&active_session_name())
                                 .add_processor_subjects().unwrap()
-                                .add_session_interface(None).unwrap()
+                                .add_network_interface(None).unwrap()
                                 .build_with_tables()
                             {
                                 Ok(session) => session,

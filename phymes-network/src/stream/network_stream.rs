@@ -108,7 +108,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        NetworkBuilderAgentsTrait, NetworkBuilderTrait, test_network_builder,
+        NetworkBuilderAppsTrait, NetworkBuilderTrait, test_network_builder,
     };
 
     #[tokio::test]
@@ -120,7 +120,7 @@ mod tests {
                 2,
             )?
             .with_diagnostics(true)
-            .add_session_interface(Some(&["state_1"]))?
+            .add_network_interface(Some(&["state_1"]))?
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;

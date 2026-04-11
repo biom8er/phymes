@@ -22,7 +22,7 @@ use phymes_task::TaskPlan;
 
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
 
-use crate::CustomAgentsBuilderTrait;
+use crate::NetworkBuilderCustomTrait;
 
 /// Document Retrieval Augmented Generation (RAG) session plan.
 ///
@@ -143,7 +143,7 @@ impl<'a> DocumentRAGNetwork<'a> {
     }
 }
 
-impl CustomAgentsBuilderTrait for DocumentRAGNetwork<'_> {
+impl NetworkBuilderCustomTrait for DocumentRAGNetwork<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         // DM: `Reqwest` connections break prematurely in `OpenAIChatProcessor`
         //  when chained or nested within other streams.
@@ -1036,7 +1036,7 @@ mod tests {
     use phymes_schemas::AttachmentBuilderTraitExt;
     use phymes_streams::ChatBuilderTraitExt;
 
-    use crate::{NetworkBuilderAgentsTrait, NetworkStream};
+    use crate::{NetworkBuilderAppsTrait, NetworkStream};
 
     use super::*;
 
@@ -1051,7 +1051,7 @@ mod tests {
         let (network, session_messages) = doc_rag_network
             .build()
             .with_name(doc_rag_network.network_name)
-            .add_session_interface(None)?
+            .add_network_interface(None)?
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;

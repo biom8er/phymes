@@ -1,87 +1,33 @@
 use anyhow::Result;
-use phymes_data::items_to_list;
 
-pub trait DynamicNetworkTrait<'a> {
-    /// Subjects to listen for
-    fn subject_names(&self) -> Vec<String>;
-
-    /// ER Diagram subjects as `Bytes`
-    fn erdiagram_subject_subscriptions(&self, subject_names: &[&str]) -> String {
-        let mut subscriptions_vec = Vec::new();
-        for subject_name in subject_names {
-            let line = format!(
-                r#"{subject_name}["{subject_name}"] {{
-        List-UInt8 bytes
-    }}"#
-            );
-            subscriptions_vec.push(line);
-        }
-        subscriptions_vec.join("\n\t")
-    }
-
-    /// List of subjects compatible with List-Utf8
-    fn subject_columns(&self) -> Result<String> {
-        items_to_list(
-            &self
-                .subject_names()
-                .iter()
-                .map(|s| s.as_str())
-                .collect::<Vec<_>>(),
-        )
-    }
-
-    /// Flowchart subjects subscriptions part 1
-    fn flowchart_subject_subscriptions_1(
-        &self,
-        subject_names: &[&str],
-        processor: &str,
-        subscription: &str,
-    ) -> String {
-        let mut subscriptions_vec = Vec::new();
-        for subject_name in subject_names {
-            let line = format!("{subject_name}-subject-.->|{subscription}|{processor}-subscribe");
-            subscriptions_vec.push(line);
-        }
-        subscriptions_vec.join("\n\t\t")
-    }
-
-    /// Flowchart subjects subscriptions part 2
-    fn flowchart_subject_subscriptions_2(&self, subject_names: &[&str]) -> String {
-        let mut subscriptions_vec = Vec::new();
-        for subject_name in subject_names {
-            let line = format!("{subject_name}-subject@{{shape: doc, label: {subject_name}}}");
-            subscriptions_vec.push(line);
-        }
-        subscriptions_vec.join("\n\t")
-    }
-}
+use crate::DynamicNetworkBuilderTrait;
 
 /// A session for dynamic tool calling
-pub struct InvokeTaskNetwork<'a> {
+pub struct InvokeTaskNetworkBuilder<'a> {
     /// Session
     pub network_name: &'a str,
     /// Subjects to listen for
     pub subject_names: &'a [&'a str],
 }
 
-impl Default for InvokeTaskNetwork<'_> {
+impl Default for InvokeTaskNetworkBuilder<'_> {
     fn default() -> Self {
-        InvokeTaskNetwork {
+        InvokeTaskNetworkBuilder {
             network_name: "invoke_task_network",
             subject_names: &["Bytes"],
         }
     }
 }
 
-impl<'a> DynamicNetworkTrait<'a> for InvokeTaskNetwork<'a> {
+impl<'a> DynamicNetworkBuilderTrait for InvokeTaskNetworkBuilder<'a> {
     fn subject_names(&self) -> Vec<String> {
         self.subject_names.iter().map(|s| s.to_string()).collect()
     }
 }
 
-impl<'a> InvokeTaskNetwork<'a> {
+impl<'a> InvokeTaskNetworkBuilder<'a> {
     pub fn new(network_name: &'a str, subject_names: &'a [&'a str]) -> Self {
-        InvokeTaskNetwork {
+        InvokeTaskNetworkBuilder {
             network_name,
             subject_names,
         }
@@ -390,7 +336,7 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
         NetworkBuilderTrait, NetworkStream,
     };
     use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait, create_bytes_record_batch};
@@ -401,7 +347,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_invoke_task_network() -> Result<()> {
         // Initialize the session
-        let invoke_task_network = InvokeTaskNetwork::default();
+        let invoke_task_network = InvokeTaskNetworkBuilder::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             &invoke_task_network.as_mermaid_flowchart(),
             false,

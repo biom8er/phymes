@@ -4,9 +4,9 @@ mod pipelines;
 #[cfg(feature = "api")]
 pub use dynamic::ExecuteWorkspaceNetwork;
 pub use dynamic::{
-    DynamicTaskNetwork, GenerateTextNetwork, PatchWorkspaceNetwork, InvokeTaskNetwork, TaskResponseNetwork,
+    DynamicNetworkBuilderTrait, DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, GenerateTextNetworkBuilder, PatchWorkspaceNetwork, InvokeTaskNetworkBuilder, TaskResponseNetworkBuilder,
 };
 
 pub use pipelines::{
-    EmbedTextNetwork, ExtractOntologyNetwork, ExtractPDFNetwork, MeltStudyDataNetwork, RetrieveTextNetwork, SyncContentNetwork,
+    EmbedTextNetworkBuilder, ExtractOntologyNetworkBuilder, ExtractPDFNetworkBuilder, MeltStudyDataNetworkBuilder, RetrieveTextNetworkBuilder, SyncContentNetworkBuilder,
 };

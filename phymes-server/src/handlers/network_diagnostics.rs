@@ -20,7 +20,7 @@ use phymes_message::{
     SessionInterfaceMessageTrait, create_message_map,
 };
 use phymes_network::{
-    CustomAgentsBuilderTrait, DiagnosticNetwork, NetworkBuilderAgentsTrait,
+    NetworkBuilderCustomTrait, DiagnosticNetwork, NetworkBuilderAppsTrait,
     NetworkBuilderTrait, NetworkStream, NetworkStreamStep, NetworkStreamStepTrait,
 };
 use phymes_schemas::{
@@ -257,7 +257,7 @@ pub async fn session_diagnostics(
                 .build()
                 .with_name(diagnostic_network.network_name)
                 .with_diagnostics(true) // Debugging
-                .add_session_interface(Some(&[
+                .add_network_interface(Some(&[
                     DiagnosticsVisualizations::MetricProcessorTracesGantt
                         .to_string()
                         .as_str(),
