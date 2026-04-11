@@ -1,11 +1,10 @@
 use phymes_processor::AvailableProcessors;
 use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
-use phymes_network::{NetworkBuilderCustomTrait, NetworkBuilder, NetworkBuilderMermaidTrait};
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
 use phymes_streams::{ChatBuilderTraitExt, HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
 
-use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, InvokeTaskNetworkBuilder};
+use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
 
 pub struct GetPdfNetworkBuilderStaticWSubject {
     pub inner: DynamicTaskNetworkBuilder,
@@ -63,14 +62,6 @@ impl Default for GetPdfNetworkBuilderStaticWSubject {
     }
 }
 
-impl GetPdfNetworkBuilderStaticWSubject {
-    pub fn build(&self) -> NetworkBuilder {
-        self.inner
-            .build()
-            .with_name(&DynamicTaskNetworkNames::Network(&self.inner.network_name).to_string())
-    }
-}
-
 pub struct GetPdfNetworkBuilderDynamicWSubject {
     pub inner: DynamicTaskNetworkBuilder,
 }
@@ -120,34 +111,6 @@ impl Default for GetPdfNetworkBuilderDynamicWSubject {
     }
 }
 
-impl GetPdfNetworkBuilderDynamicWSubject {
-    pub fn build(&self) -> NetworkBuilder {
-        // Invoke task session
-        let subject_name = DynamicTaskNetworkNames::Processor(&self.inner.network_name).to_string();
-        let subject_names = &[subject_name.as_str()];
-        let invoke_task_network =
-            InvokeTaskNetworkBuilder::new("invoke_task_network", subject_names);
-        let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &invoke_task_network.as_mermaid_flowchart(),
-            false,
-        )
-        .unwrap()
-        .with_subjects_from_mermaid_erdiagram(
-            &invoke_task_network.as_mermaid_erdiagram().unwrap(),
-            false,
-            true,
-        )
-        .unwrap()
-        .with_name(invoke_task_network.network_name);
-
-        self.inner
-            .build()
-            .with_name(&DynamicTaskNetworkNames::Network(&self.inner.network_name).to_string())
-            .extend(invoke_task_network_builder)
-            .unwrap()
-    }
-}
-
 pub struct GetPdfNetworkBuilderDynamicWOSubject {
     pub inner: DynamicTaskNetworkBuilder,
 }
@@ -192,34 +155,6 @@ impl Default for GetPdfNetworkBuilderDynamicWOSubject {
     }
 }
 
-impl GetPdfNetworkBuilderDynamicWOSubject {
-    pub fn build(&self) -> NetworkBuilder {
-        // Invoke task session
-        let subject_name = DynamicTaskNetworkNames::Processor(&self.inner.network_name).to_string();
-        let subject_names = &[subject_name.as_str()];
-        let invoke_task_network =
-            InvokeTaskNetworkBuilder::new("invoke_task_network", subject_names);
-        let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &invoke_task_network.as_mermaid_flowchart(),
-            false,
-        )
-        .unwrap()
-        .with_subjects_from_mermaid_erdiagram(
-            &invoke_task_network.as_mermaid_erdiagram().unwrap(),
-            false,
-            true,
-        )
-        .unwrap()
-        .with_name(invoke_task_network.network_name);
-
-        self.inner
-            .build()
-            .with_name(&DynamicTaskNetworkNames::Network(&self.inner.network_name).to_string())
-            .extend(invoke_task_network_builder)
-            .unwrap()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -244,8 +179,8 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_pdf_network_static_w_subject() -> Result<()> {
         let get_content_network = GetPdfNetworkBuilderStaticWSubject::default();
-        let (network, session_messages) = get_content_network
-            .build()
+        let (network, session_messages) = get_content_network.inner
+            .build_dynamic()
             .with_runtime_env(RuntimeEnvBuilder::default().with_name(&DynamicTaskNetworkNames::Task(&get_content_network.inner.network_name).to_string()).build_arc()?)
             .with_diagnostics(true)
             .add_processor_subjects()?
@@ -319,8 +254,8 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_pdf_network_dynamic_w_subject() -> Result<()> {
         let get_content_network = GetPdfNetworkBuilderDynamicWSubject::default();
-        let (network, session_messages) = get_content_network
-            .build()
+        let (network, session_messages) = get_content_network.inner
+            .build_dynamic()
             .with_runtime_env(RuntimeEnvBuilder::default().with_name(&DynamicTaskNetworkNames::Task(&get_content_network.inner.network_name).to_string()).build_arc()?)
             .with_diagnostics(true)
             .add_processor_subjects()?
@@ -369,43 +304,6 @@ mod tests {
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionErrors.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        if !batches.is_empty() {
-            let subject = Subject::get_builder()
-                .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
-                .with_record_batches(batches)?
-                .build()?;
-            println!(
-                "{}\n{}",
-                AvailableSubjects::SessionErrors,
-                String::from_utf8(subject.to_csv(b',', true)?)?
-            );
-        }
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTraces.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        if !batches.is_empty() {
-            let subject = Subject::get_builder()
-                .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
-                .with_record_batches(batches)?
-                .build()?;
-            println!(
-                "{}\n{}",
-                AvailableSubjects::SessionTraces,
-                String::from_utf8(subject.to_csv(b',', true)?)?
-            );
-        }
-
         assert_eq!(response.len(), 0);
 
         // Test supsersteps
@@ -442,8 +340,8 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_pdf_network_dynamic_wo_subject() -> Result<()> {
         let get_content_network = GetPdfNetworkBuilderDynamicWSubject::default();
-        let (network, session_messages) = get_content_network
-            .build()
+        let (network, session_messages) = get_content_network.inner
+            .build_dynamic()
             .with_runtime_env(RuntimeEnvBuilder::default().with_name(&DynamicTaskNetworkNames::Task(&get_content_network.inner.network_name).to_string()).build_arc()?)
             .with_diagnostics(true)
             .add_processor_subjects()?

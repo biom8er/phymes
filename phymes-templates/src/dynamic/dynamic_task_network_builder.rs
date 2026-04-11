@@ -7,9 +7,9 @@ use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
 use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait};
 use phymes_task::TaskPlan;
-use phymes_network::NetworkBuilderCustomTrait;
+use phymes_network::{NetworkBuilder, NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait};
 
-
+use crate::InvokeTaskNetworkBuilder;
 
 /// Helper to create consistent names for subjects, processors, tasks, and neteworks
 #[derive(Clone, Debug)]
@@ -96,6 +96,37 @@ impl DynamicTaskNetworkBuilder {
         DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
             ..Default::default()
+        }
+    }
+
+    /// Build for static or dynamic
+    pub fn build_dynamic(&self) -> NetworkBuilder {
+        if self.is_dynamic {
+            // Invoke task session
+            let subject_name = DynamicTaskNetworkNames::Processor(&self.network_name).to_string();
+            let subject_names = &[subject_name.as_str()];
+            let invoke_task_network =
+                InvokeTaskNetworkBuilder::new("invoke_task_network", subject_names);
+            let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
+                &invoke_task_network.as_mermaid_flowchart(),
+                false,
+            )
+            .unwrap()
+            .with_subjects_from_mermaid_erdiagram(
+                &invoke_task_network.as_mermaid_erdiagram().unwrap(),
+                false,
+                true,
+            )
+            .unwrap()
+            .with_name(invoke_task_network.network_name);
+
+            self.build()
+                .with_name(&DynamicTaskNetworkNames::Network(&self.network_name).to_string())
+                .extend(invoke_task_network_builder)
+                .unwrap()
+        } else {
+            self.build()
+                .with_name(&DynamicTaskNetworkNames::Network(&self.network_name).to_string())
         }
     }
 }

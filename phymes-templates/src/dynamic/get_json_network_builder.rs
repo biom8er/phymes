@@ -1,11 +1,10 @@
 use phymes_processor::AvailableProcessors;
 use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
-use phymes_network::{NetworkBuilderCustomTrait, NetworkBuilder, NetworkBuilderMermaidTrait};
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
 use phymes_streams::{ChatBuilderTraitExt, HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
 
-use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, InvokeTaskNetworkBuilder};
+use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
 
 pub struct GetJsonNetworkBuilderStaticWSubject {
     pub inner: DynamicTaskNetworkBuilder,
@@ -60,14 +59,6 @@ impl Default for GetJsonNetworkBuilderStaticWSubject {
         };
 
         Self { inner: builder }
-    }
-}
-
-impl GetJsonNetworkBuilderStaticWSubject {
-    pub fn build(&self) -> NetworkBuilder {
-        self.inner
-            .build()
-            .with_name(&DynamicTaskNetworkNames::Network(&self.inner.network_name).to_string())
     }
 }
 
@@ -132,34 +123,6 @@ impl Default for GetJsonNetworkBuilderDynamicWSubject {
     }
 }
 
-impl GetJsonNetworkBuilderDynamicWSubject {
-    pub fn build(&self) -> NetworkBuilder {
-        // Invoke task session
-        let subject_name = DynamicTaskNetworkNames::Processor(&self.inner.network_name).to_string();
-        let subject_names = &[subject_name.as_str()];
-        let invoke_task_network =
-            InvokeTaskNetworkBuilder::new("invoke_task_network", subject_names);
-        let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &invoke_task_network.as_mermaid_flowchart(),
-            false,
-        )
-        .unwrap()
-        .with_subjects_from_mermaid_erdiagram(
-            &invoke_task_network.as_mermaid_erdiagram().unwrap(),
-            false,
-            true,
-        )
-        .unwrap()
-        .with_name(invoke_task_network.network_name);
-
-        self.inner
-            .build()
-            .with_name(&DynamicTaskNetworkNames::Network(&self.inner.network_name).to_string())
-            .extend(invoke_task_network_builder)
-            .unwrap()
-    }
-}
-
 pub struct GetJsonNetworkBuilderDynamicWOSubject {
     pub inner: DynamicTaskNetworkBuilder,
 }
@@ -204,34 +167,6 @@ impl Default for GetJsonNetworkBuilderDynamicWOSubject {
     }
 }
 
-impl GetJsonNetworkBuilderDynamicWOSubject {
-    pub fn build(&self) -> NetworkBuilder {
-        // Invoke task session
-        let subject_name = DynamicTaskNetworkNames::Processor(&self.inner.network_name).to_string();
-        let subject_names = &[subject_name.as_str()];
-        let invoke_task_network =
-            InvokeTaskNetworkBuilder::new("invoke_task_network", subject_names);
-        let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &invoke_task_network.as_mermaid_flowchart(),
-            false,
-        )
-        .unwrap()
-        .with_subjects_from_mermaid_erdiagram(
-            &invoke_task_network.as_mermaid_erdiagram().unwrap(),
-            false,
-            true,
-        )
-        .unwrap()
-        .with_name(invoke_task_network.network_name);
-
-        self.inner
-            .build()
-            .with_name(&DynamicTaskNetworkNames::Network(&self.inner.network_name).to_string())
-            .extend(invoke_task_network_builder)
-            .unwrap()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -254,8 +189,8 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_json_network_static_w_subject() -> Result<()> {
         let get_content_network = GetJsonNetworkBuilderStaticWSubject::default();
-        let (network, session_messages) = get_content_network
-            .build()
+        let (network, session_messages) = get_content_network.inner
+            .build_dynamic()
             .with_runtime_env(RuntimeEnvBuilder::default().with_name(&DynamicTaskNetworkNames::Task(&get_content_network.inner.network_name).to_string()).build_arc()?)
             .with_diagnostics(true)
             .add_processor_subjects()?
@@ -382,8 +317,8 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_json_network_dynamic_w_subject() -> Result<()> {
         let get_content_network = GetJsonNetworkBuilderDynamicWSubject::default();
-        let (network, session_messages) = get_content_network
-            .build()
+        let (network, session_messages) = get_content_network.inner
+            .build_dynamic()
             .with_runtime_env(RuntimeEnvBuilder::default().with_name(&DynamicTaskNetworkNames::Task(&get_content_network.inner.network_name).to_string()).build_arc()?)
             .with_diagnostics(true)
             .add_processor_subjects()?
@@ -510,8 +445,8 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_json_network_dynamic_wo_subject() -> Result<()> {
         let get_content_network = GetJsonNetworkBuilderDynamicWSubject::default();
-        let (network, session_messages) = get_content_network
-            .build()
+        let (network, session_messages) = get_content_network.inner
+            .build_dynamic()
             .with_runtime_env(RuntimeEnvBuilder::default().with_name(&DynamicTaskNetworkNames::Task(&get_content_network.inner.network_name).to_string()).build_arc()?)
             .with_diagnostics(true)
             .add_processor_subjects()?

@@ -1,12 +1,10 @@
-use phymes_data::{AvailableOperators, DataConfig, DataStreamManager};
+use phymes_data::{AvailableOperators, DataConfig, DataStreamManager, PatchOperator};
 use phymes_processor::AvailableProcessors;
 use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
-use phymes_network::{NetworkBuilderCustomTrait, NetworkBuilder, NetworkBuilderMermaidTrait};
-use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
-use serde_json::json;
+use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait, create_workspace_batch, create_workspace_patch_batch};
 
-use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, InvokeTaskNetworkBuilder};
+use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
 
 pub struct PatchWorkspaceNetworkBuilderStaticWSubject {
     pub inner: DynamicTaskNetworkBuilder,
@@ -16,19 +14,17 @@ impl Default for PatchWorkspaceNetworkBuilderStaticWSubject {
     fn default() -> Self {
         // Initialize the task data
         let network_name = "patch";
-        let subject_name_lhs = "workspace_s";
-        let subject_name_rhs = "patches_s";
-        let subject_name_out = "patched_workspace_s";
+        let subject_name_out = "apply_patch_s";
 
         // Processor subject
         let config = DataConfig {
-            lhs_name: Some(subject_name_lhs.to_string()),
-            rhs_name: Some(subject_name_rhs.to_string()),
+            lhs_name: Some(AvailableSubjects::Workspace.to_string()),
+            rhs_name: Some(AvailableSubjects::WorkspacePatch.to_string()),
             lhs_values: Some(vec!["content".to_string()]),
             rhs_values: Some(vec!["diff".to_string(), "operator".to_string()]),
             lhs_pk: Some("path".to_string()),
             rhs_pk: Some("filename".to_string()),
-            doc_patch: Some(serde_json::to_string(&json!({})).unwrap()),
+            doc_patch: Some("[\"\"]".to_string()), // DM: equivalent of serde_json::to_string(&[serde_json::to_value("")?])?;
             cpu: false,
             operator: AvailableOperators::Patch,
             lhs_stream: DataStreamManager::Accumulate,
@@ -45,11 +41,11 @@ impl Default for PatchWorkspaceNetworkBuilderStaticWSubject {
             .build().unwrap();
 
         // Subscriptions and publications
-        let subject = AvailableSubjects::Workspace.to_subject(Some(subject_name_lhs), None).unwrap();
+        let subject = AvailableSubjects::Workspace.to_subject(None, None).unwrap();
         let subject_lhs = SubjectPlan::get_builder()
             .with_subject(subject)
             .build().unwrap();
-        let subject = AvailableSubjects::WorkspacePatch.to_subject(Some(subject_name_rhs), None).unwrap();
+        let subject = AvailableSubjects::WorkspacePatch.to_subject(None, None).unwrap();
         let subject_rhs = SubjectPlan::get_builder()
             .with_subject(subject)
             .build().unwrap();
@@ -77,14 +73,6 @@ impl Default for PatchWorkspaceNetworkBuilderStaticWSubject {
     }
 }
 
-impl PatchWorkspaceNetworkBuilderStaticWSubject {
-    pub fn build(&self) -> NetworkBuilder {
-        self.inner
-            .build()
-            .with_name(&DynamicTaskNetworkNames::Network(&self.inner.network_name).to_string())
-    }
-}
-
 pub struct PatchWorkspaceNetworkBuilderDynamicWSubject {
     pub inner: DynamicTaskNetworkBuilder,
 }
@@ -92,8 +80,8 @@ pub struct PatchWorkspaceNetworkBuilderDynamicWSubject {
 impl Default for PatchWorkspaceNetworkBuilderDynamicWSubject {
     fn default() -> Self {
         // Initialize the task data
-        let network_name = "get_pdf";
-        let subject_name_lhs = "http_client_request_pdf_s";
+        let network_name = "patch";
+        let subject_name_out = "apply_patch_s";
 
         // Processor subject
         let subject = AvailableSubjects::Bytes.to_subject(Some(&DynamicTaskNetworkNames::Processor(network_name).to_string()), None).unwrap();
@@ -102,195 +90,7 @@ impl Default for PatchWorkspaceNetworkBuilderDynamicWSubject {
             .build().unwrap();
 
         // Subscriptions and publications
-        let id = "2508.18700";
-        let get_url = format!("pdf/{id}");
-        let subject = SubjectBuilder::new()
-            .with_name(subject_name_lhs)
-            .append_new_user_query_str(&get_url, "user").unwrap()
-            .build().unwrap();
-        let subject_lhs = SubjectPlan::get_builder()
-            .with_subject(subject)
-            .build().unwrap();
-        let subject = AvailableSubjects::Workspace.to_subject(None, None).unwrap();
-        let subject_out = SubjectPlan::get_builder()
-            .with_subject(subject)
-            .build().unwrap();
-
-        // Initialize the network
-        let builder = DynamicTaskNetworkBuilder {
-            network_name: network_name.to_string(),
-            is_dynamic: true,
-            processor: AvailableProcessors::Patch,
-            subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
-            publication: Publication::Extend { subject_name: subject_out.get_name().to_string() },
-            subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
-            subject_lhs,
-            subject_out,
-            subject_processor,
-            ..Default::default()
-        };
-
-        Self { inner: builder }
-    }
-}
-
-impl PatchWorkspaceNetworkBuilderDynamicWSubject {
-    pub fn build(&self) -> NetworkBuilder {
-        // Invoke task session
-        let subject_name = DynamicTaskNetworkNames::Processor(&self.inner.network_name).to_string();
-        let subject_names = &[subject_name.as_str()];
-        let invoke_task_network =
-            InvokeTaskNetworkBuilder::new("invoke_task_network", subject_names);
-        let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &invoke_task_network.as_mermaid_flowchart(),
-            false,
-        )
-        .unwrap()
-        .with_subjects_from_mermaid_erdiagram(
-            &invoke_task_network.as_mermaid_erdiagram().unwrap(),
-            false,
-            true,
-        )
-        .unwrap()
-        .with_name(invoke_task_network.network_name);
-
-        self.inner
-            .build()
-            .with_name(&DynamicTaskNetworkNames::Network(&self.inner.network_name).to_string())
-            .extend(invoke_task_network_builder)
-            .unwrap()
-    }
-}
-
-pub struct PatchWorkspaceNetworkBuilderDynamicWOSubject {
-    pub inner: DynamicTaskNetworkBuilder,
-}
-
-impl Default for PatchWorkspaceNetworkBuilderDynamicWOSubject {
-    fn default() -> Self {
-        // Initialize the task data
-        let network_name = "get_pdf";
-        let subject_name_lhs = "http_client_request_pdf_s";
-
-        // Processor subject
-        let subject = AvailableSubjects::Bytes.to_subject(Some(&DynamicTaskNetworkNames::Processor(network_name).to_string()), None).unwrap();
-        let subject_processor = SubjectPlan::get_builder()
-            .with_subject(subject)
-            .build().unwrap();
-
-        // Subscriptions and publications
-        let subject = AvailableInterfaceSubjects::UserMessages.to_subject(Some(subject_name_lhs), None).unwrap();
-        let subject_lhs = SubjectPlan::get_builder()
-            .with_subject(subject)
-            .build().unwrap();
-        let subject = AvailableSubjects::Workspace.to_subject(None, None).unwrap();
-        let subject_out = SubjectPlan::get_builder()
-            .with_subject(subject)
-            .build().unwrap();
-
-        // Initialize the network
-        let builder = DynamicTaskNetworkBuilder {
-            network_name: network_name.to_string(),
-            is_dynamic: true,
-            processor: AvailableProcessors::Patch,
-            subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
-            publication: Publication::Extend { subject_name: subject_out.get_name().to_string() },
-            subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
-            subject_lhs,
-            subject_out,
-            subject_processor,
-            ..Default::default()
-        };
-
-        Self { inner: builder }
-    }
-}
-
-impl PatchWorkspaceNetworkBuilderDynamicWOSubject {
-    pub fn build(&self) -> NetworkBuilder {
-        // Invoke task session
-        let subject_name = DynamicTaskNetworkNames::Processor(&self.inner.network_name).to_string();
-        let subject_names = &[subject_name.as_str()];
-        let invoke_task_network =
-            InvokeTaskNetworkBuilder::new("invoke_task_network", subject_names);
-        let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &invoke_task_network.as_mermaid_flowchart(),
-            false,
-        )
-        .unwrap()
-        .with_subjects_from_mermaid_erdiagram(
-            &invoke_task_network.as_mermaid_erdiagram().unwrap(),
-            false,
-            true,
-        )
-        .unwrap()
-        .with_name(invoke_task_network.network_name);
-
-        self.inner
-            .build()
-            .with_name(&DynamicTaskNetworkNames::Network(&self.inner.network_name).to_string())
-            .extend(invoke_task_network_builder)
-            .unwrap()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::sync::Arc;
-
-    use anyhow::Result;
-    use futures::TryStreamExt;
-    use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
-        SubjectTrait,
-    };
-    use phymes_data::{AvailableOperators, DataConfig, DataStreamManager, PatchOperator};
-    use phymes_diagnostics::HashMap;
-    use phymes_event::{Publication, Subscription};
-    use phymes_message::{IPCMessage, MessageBuilderTrait};
-    use phymes_network::{
-        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, NetworkStream,
-    };
-    use phymes_schemas::{
-        AvailableSubjects, AvailableSubjectsTrait, WorkspacePatchSubject,
-        create_bytes_record_batch, create_workspace_batch, create_workspace_patch_batch,
-    };
-    use phymes_task::SubscriptionTrait;
-
-    use crate::InvokeTaskNetworkBuilder;
-
-    use super::*;
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn test_patch_workspace_network_dynamic_w_subjects() -> Result<()> {
-        // Initialize the session
-        let patch_workspace_network = PatchWorkspaceNetwork {
-            is_dynamic: true,
-            ..Default::default()
-        };
-        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            &patch_workspace_network.as_mermaid_flowchart(),
-            false,
-        )?
-        .with_subjects_from_mermaid_erdiagram(
-            &patch_workspace_network.as_mermaid_erdiagram(),
-            false,
-            true,
-        )?
-        .with_name(patch_workspace_network.network_name)
-        .with_diagnostics(true)
-        .add_processor_subjects()?
-        .add_next_tasks()?
-        .add_next_supersteps()?
-        .build_with_tables()?;
-        let network_arc = Arc::new(network);
-
-        // Make the test data
-        let mut message_map = HashMap::<String, IPCMessage>::new();
-
-        // Apply patch data
-        {
+        let subject = {
             // Create the mock repository
             let path = [
                 "/home/sandbox/Cargo.toml",
@@ -321,20 +121,13 @@ pub use todo::Todo"#,
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-            let batch = create_workspace_batch(path, content)?;
-            let table = AvailableSubjects::Workspace.to_subject(None, Some(vec![batch]))?;
-            let _ = message_map.insert(
-                table.get_name().to_string(),
-                IPCMessage::get_builder()
-                    .with_name(table.get_name())
-                    .with_publisher(patch_workspace_network.network_name)
-                    .with_subject(table.get_name())
-                    .with_update(&Publication::Replace {
-                        subject_name: table.get_name().to_string(),
-                    })
-                    .with_message(table.to_ipc_stream()?)
-                    .build()?,
-            );
+            let batch = create_workspace_batch(path, content).unwrap();
+            AvailableSubjects::Workspace.to_subject(None, Some(vec![batch])).unwrap()
+        };
+        let subject_lhs = SubjectPlan::get_builder()
+            .with_subject(subject)
+            .build().unwrap();
+        let subject = {
 
             // Create the mock patches
             let filename = [
@@ -358,21 +151,125 @@ pub use todo::Todo"#,
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-            let batch = create_workspace_patch_batch(filename, content, operator)?;
-            let table = AvailableSubjects::WorkspacePatch.to_subject(None, Some(vec![batch]))?;
-            let _ = message_map.insert(
-                table.get_name().to_string(),
-                IPCMessage::get_builder()
-                    .with_name(table.get_name())
-                    .with_publisher(patch_workspace_network.network_name)
-                    .with_subject(table.get_name())
-                    .with_update(&Publication::Replace {
-                        subject_name: table.get_name().to_string(),
-                    })
-                    .with_message(table.to_ipc_stream()?)
-                    .build()?,
-            );
+            let batch = create_workspace_patch_batch(filename, content, operator).unwrap();
+            AvailableSubjects::WorkspacePatch.to_subject(None, Some(vec![batch])).unwrap()
+        };
+        let subject_rhs = SubjectPlan::get_builder()
+            .with_subject(subject)
+            .build().unwrap();
+        let subject = AvailableSubjects::Workspace.to_subject(Some(subject_name_out), None).unwrap();
+        let subject_out = SubjectPlan::get_builder()
+            .with_subject(subject)
+            .build().unwrap();
 
+        // Initialize the network
+        let builder = DynamicTaskNetworkBuilder {
+            network_name: network_name.to_string(),
+            is_dynamic: true,
+            processor: AvailableProcessors::Patch,
+            subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
+            subscription_rhs: Some(Subscription::OnUpdateAllRecordBatches { subject_name: subject_rhs.get_name().to_string() }),
+            publication: Publication::Extend { subject_name: subject_out.get_name().to_string() },
+            subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
+            subject_lhs,
+            subject_rhs: Some(subject_rhs),
+            subject_out,
+            subject_processor,
+        };
+
+        Self { inner: builder }
+    }
+}
+
+pub struct PatchWorkspaceNetworkBuilderDynamicWOSubject {
+    pub inner: DynamicTaskNetworkBuilder,
+}
+
+impl Default for PatchWorkspaceNetworkBuilderDynamicWOSubject {
+    fn default() -> Self {
+        // Initialize the task data
+        let network_name = "patch";
+        let subject_name_out = "apply_patch_s";
+
+        // Processor subject
+        let subject = AvailableSubjects::Bytes.to_subject(Some(&DynamicTaskNetworkNames::Processor(network_name).to_string()), None).unwrap();
+        let subject_processor = SubjectPlan::get_builder()
+            .with_subject(subject)
+            .build().unwrap();
+
+        // Subscriptions and publications
+        let subject = AvailableSubjects::Workspace.to_subject(None, None).unwrap();
+        let subject_lhs = SubjectPlan::get_builder()
+            .with_subject(subject)
+            .build().unwrap();
+        let subject = AvailableSubjects::WorkspacePatch.to_subject(None, None).unwrap();
+        let subject_rhs = SubjectPlan::get_builder()
+            .with_subject(subject)
+            .build().unwrap();
+        let subject = AvailableSubjects::Workspace.to_subject(Some(subject_name_out), None).unwrap();
+        let subject_out = SubjectPlan::get_builder()
+            .with_subject(subject)
+            .build().unwrap();
+
+        // Initialize the network
+        let builder = DynamicTaskNetworkBuilder {
+            network_name: network_name.to_string(),
+            is_dynamic: true,
+            processor: AvailableProcessors::Patch,
+            subscription_lhs: Subscription::OnUpdateAllRecordBatches { subject_name: subject_lhs.get_name().to_string() },
+            subscription_rhs: Some(Subscription::OnUpdateAllRecordBatches { subject_name: subject_rhs.get_name().to_string() }),
+            publication: Publication::Extend { subject_name: subject_out.get_name().to_string() },
+            subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
+            subject_lhs,
+            subject_rhs: Some(subject_rhs),
+            subject_out,
+            subject_processor,
+        };
+
+        Self { inner: builder }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use anyhow::Result;
+    use futures::TryStreamExt;
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnvBuilder, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait
+    };
+    use phymes_data::{AvailableOperators, DataConfig, DataStreamManager, PatchOperator};
+    use phymes_diagnostics::HashMap;
+    use phymes_event::{Publication, Subscription};
+    use phymes_message::{IPCMessage, MessageBuilderTrait};
+    use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
+    use phymes_schemas::{
+        AvailableSubjects, AvailableSubjectsTrait, WorkspacePatchSubject,
+        create_bytes_record_batch, create_workspace_batch, create_workspace_patch_batch,
+    };
+    use phymes_task::SubscriptionTrait;
+
+    use super::*;
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_patch_workspace_network_dynamic_w_subjects() -> Result<()> {
+        let patch_workspace_network = PatchWorkspaceNetworkBuilderDynamicWSubject::default();
+        let (network, session_messages) = patch_workspace_network.inner
+            .build_dynamic()
+            .with_runtime_env(RuntimeEnvBuilder::default().with_name(&DynamicTaskNetworkNames::Task(&patch_workspace_network.inner.network_name).to_string()).build_arc()?)
+        .with_diagnostics(true)
+        .add_processor_subjects()?
+        .add_next_tasks()?
+        .add_next_supersteps()?
+        .build_with_tables()?;
+        let network_arc = Arc::new(network);
+
+        // Make the test data
+        let mut message_map = HashMap::<String, IPCMessage>::new();
+
+        // Apply patch data
+        {
             let apply_patch_config = DataConfig {
                 lhs_name: Some(AvailableSubjects::Workspace.to_string()),
                 rhs_name: Some(AvailableSubjects::WorkspacePatch.to_string()),
@@ -391,14 +288,14 @@ pub use todo::Todo"#,
             let apply_patch_config_batch =
                 create_bytes_record_batch(vec![apply_patch_config_json])?;
             let apply_patch_config_table = SubjectBuilder::new()
-                .with_name("apply_patch_p")
+                .with_name(patch_workspace_network.inner.subject_processor.get_name())
                 .with_record_batches(vec![apply_patch_config_batch])?
                 .build()?;
             let _ = message_map.insert(
                 apply_patch_config_table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(apply_patch_config_table.get_name())
-                    .with_publisher(patch_workspace_network.network_name)
+                    .with_publisher(&patch_workspace_network.inner.network_name)
                     .with_subject(apply_patch_config_table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: apply_patch_config_table.get_name().to_string(),
@@ -414,6 +311,43 @@ pub use todo::Todo"#,
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionErrors.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        if !batches.is_empty() {
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            println!(
+                "{}\n{}",
+                AvailableSubjects::SessionErrors,
+                String::from_utf8(subject.to_csv(b',', true)?)?
+            );
+        }
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionTraces.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        if !batches.is_empty() {
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            println!(
+                "{}\n{}",
+                AvailableSubjects::SessionTraces,
+                String::from_utf8(subject.to_csv(b',', true)?)?
+            );
+        }
 
         assert_eq!(response.len(), 0);
 
@@ -456,36 +390,11 @@ pub use todo::Todo"#,
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_patch_workspace_network_dynamic_wo_subjects() -> Result<()> {
-        // View task session
-        let invoke_task_network = InvokeTaskNetworkBuilder::new("invoke_task_network", &["apply_patch_p"]);
-        let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &invoke_task_network.as_mermaid_flowchart(),
-            false,
-        )?
-        .with_subjects_from_mermaid_erdiagram(
-            &invoke_task_network.as_mermaid_erdiagram()?,
-            false,
-            true,
-        )?
-        .with_name(invoke_task_network.network_name);
-
-        // Initialize the session
-        let patch_workspace_network = PatchWorkspaceNetwork {
-            is_dynamic: true,
-            ..Default::default()
-        };
-        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            &patch_workspace_network.as_mermaid_flowchart(),
-            false,
-        )?
-        .with_subjects_from_mermaid_erdiagram(
-            &patch_workspace_network.as_mermaid_erdiagram(),
-            false,
-            true,
-        )?
-        .with_name(patch_workspace_network.network_name)
+        let patch_workspace_network = PatchWorkspaceNetworkBuilderDynamicWOSubject::default();
+        let (network, session_messages) = patch_workspace_network.inner
+            .build_dynamic()
+            .with_runtime_env(RuntimeEnvBuilder::default().with_name(&DynamicTaskNetworkNames::Task(&patch_workspace_network.inner.network_name).to_string()).build_arc()?)
         .with_diagnostics(true)
-        .extend(invoke_task_network_builder)?
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?
@@ -533,7 +442,7 @@ pub use todo::Todo"#,
                 table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(table.get_name())
-                    .with_publisher(patch_workspace_network.network_name)
+                    .with_publisher(&patch_workspace_network.inner.network_name)
                     .with_subject(table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: table.get_name().to_string(),
@@ -597,14 +506,14 @@ pub use todo::Todo"#,
             let apply_patch_config_batch =
                 create_bytes_record_batch(vec![apply_patch_config_json])?;
             let apply_patch_config_table = SubjectBuilder::new()
-                .with_name("apply_patch_p")
+                .with_name(patch_workspace_network.inner.subject_processor.get_name())
                 .with_record_batches(vec![apply_patch_config_batch])?
                 .build()?;
             let _ = message_map.insert(
                 apply_patch_config_table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(apply_patch_config_table.get_name())
-                    .with_publisher(patch_workspace_network.network_name)
+                    .with_publisher(&patch_workspace_network.inner.network_name)
                     .with_subject(apply_patch_config_table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: apply_patch_config_table.get_name().to_string(),
@@ -620,6 +529,43 @@ pub use todo::Todo"#,
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionErrors.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        if !batches.is_empty() {
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            println!(
+                "{}\n{}",
+                AvailableSubjects::SessionErrors,
+                String::from_utf8(subject.to_csv(b',', true)?)?
+            );
+        }
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionTraces.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        if !batches.is_empty() {
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            println!(
+                "{}\n{}",
+                AvailableSubjects::SessionTraces,
+                String::from_utf8(subject.to_csv(b',', true)?)?
+            );
+        }
 
         assert_eq!(response.len(), 0);
 
@@ -662,18 +608,10 @@ pub use todo::Todo"#,
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_patch_workspace_network_static() -> Result<()> {
-        // Initialize the session
-        let patch_workspace_network = PatchWorkspaceNetwork::default();
-        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            &patch_workspace_network.as_mermaid_flowchart(),
-            false,
-        )?
-        .with_subjects_from_mermaid_erdiagram(
-            &patch_workspace_network.as_mermaid_erdiagram(),
-            false,
-            true,
-        )?
-        .with_name(patch_workspace_network.network_name)
+        let patch_workspace_network = PatchWorkspaceNetworkBuilderStaticWSubject::default();
+        let (network, session_messages) = patch_workspace_network.inner
+            .build_dynamic()
+            .with_runtime_env(RuntimeEnvBuilder::default().with_name(&DynamicTaskNetworkNames::Task(&patch_workspace_network.inner.network_name).to_string()).build_arc()?)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
@@ -722,7 +660,7 @@ pub use todo::Todo"#,
                 table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(table.get_name())
-                    .with_publisher(patch_workspace_network.network_name)
+                    .with_publisher(&patch_workspace_network.inner.network_name)
                     .with_subject(table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: table.get_name().to_string(),
@@ -759,7 +697,7 @@ pub use todo::Todo"#,
                 table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(table.get_name())
-                    .with_publisher(patch_workspace_network.network_name)
+                    .with_publisher(&patch_workspace_network.inner.network_name)
                     .with_subject(table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: table.get_name().to_string(),
