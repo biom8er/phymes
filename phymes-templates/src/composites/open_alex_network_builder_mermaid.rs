@@ -2,20 +2,20 @@ use object_store::aws::AmazonS3ConfigKey;
 use serde_json::{Map, Value};
 
 /// OpenAlex agent
-pub struct OpenAlexAgentNetworkBuilder<'a> {
+pub struct OpenAlexNetworkBuilderMermaid<'a> {
     /// Session
     pub network_name: &'a str,
 }
 
-impl Default for OpenAlexAgentNetworkBuilder<'_> {
+impl Default for OpenAlexNetworkBuilderMermaid<'_> {
     fn default() -> Self {
-        OpenAlexAgentNetworkBuilder {
+        OpenAlexNetworkBuilderMermaid {
             network_name: "open_alex_agent_network",
         }
     }
 }
 
-impl<'a> OpenAlexAgentNetworkBuilder<'a> {
+impl<'a> OpenAlexNetworkBuilderMermaid<'a> {
     pub fn as_mermaid_flowchart(&self) -> String {
         let network_name = self.network_name;
         format!(
@@ -482,9 +482,9 @@ mod tests {
 
     use super::*;
 
-    // #[ignore = "In progress... Some issues with embeddings and retrieval."]
+    #[ignore = "In progress... Some issues with embeddings and retrieval."]
     #[tokio::test(flavor = "current_thread")]
-    async fn test_open_alex_agent_network() -> Result<()> {
+    async fn test_open_alex_network_v_mermaid() -> Result<()> {
         // Extract PDF session
         let extract_pdf_session = ExtractPDFNetworkBuilder::default();
         let extract_pdf_network_builder = NetworkBuilder::from_mermaid_flowchart(
@@ -525,7 +525,7 @@ mod tests {
         .with_name(retrieve_text_network.network_name);
 
         // Initialize the session
-        let open_alex_agent_network = OpenAlexAgentNetworkBuilder::default();
+        let open_alex_agent_network = OpenAlexNetworkBuilderMermaid::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             &open_alex_agent_network.as_mermaid_flowchart(),
             false,

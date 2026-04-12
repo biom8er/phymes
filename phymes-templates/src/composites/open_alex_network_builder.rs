@@ -1,34 +1,27 @@
-#[cfg(test)]
-mod tests {
-    use std::{collections::VecDeque, sync::Arc};
+use std::{collections::VecDeque, sync::Arc};
 
-    use anyhow::Result;
-    use arrow::{array::{ArrayRef, RecordBatch, StringArray}, datatypes::{DataType, Field, Fields, Schema}};
-    use futures::TryStreamExt;
-    use object_store::aws::AmazonS3ConfigKey;
-    use phymes_data::{AvailableOperators, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataStreamManager};
-    use phymes_processor::AvailableProcessors;
-    use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait
-    };
-    use phymes_diagnostics::HashMap;
-    use phymes_event::{Publication, Subscription};
-    use phymes_message::{IPCMessage, MessageBuilderTrait};
-    use phymes_network::{NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait, NetworkStream};
-    use phymes_schemas::{
-        AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat, create_object_store_meta_batch,
-    };
-    use phymes_streams::{ChatBuilderTraitExt, HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType, ObjectStoreConfig, ObjectStoreOptsType};
-    use phymes_task::SubscriptionTrait;
-    use serde_json::{Map, Value};
+use arrow::datatypes::{DataType, Field, Fields, Schema};
+use object_store::aws::AmazonS3ConfigKey;
+use phymes_data::{AvailableOperators, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataStreamManager};
+use phymes_processor::AvailableProcessors;
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
+use phymes_event::{Publication, Subscription};
+use phymes_network::{NetworkBuilder, NetworkBuilderMermaidTrait};
+use phymes_schemas::{
+    AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat,
+};
+use phymes_streams::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType, ObjectStoreConfig, ObjectStoreOptsType};
+use serde_json::{Map, Value};
 
-    use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, EmbedTextNetworkBuilder, ExtractPDFNetworkBuilder, RetrieveTextNetworkBuilder};
+use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, EmbedTextNetworkBuilder, ExtractPDFNetworkBuilder, RetrieveTextNetworkBuilder};
 
-    use super::*;
+/// OpenAlex network
+pub struct OpenAlexNetworkBuilder {
+    pub inner: Option<NetworkBuilder>,
+}
 
-    // #[ignore = "In progress... Some issues with embeddings and retrieval."]
-    #[tokio::test(flavor = "current_thread")]
-    async fn test_open_alex_network() -> Result<()> {
+impl Default for OpenAlexNetworkBuilder {
+    fn default() -> Self {
         // OpenAlex download from AWS
         let open_alex_network_builder = {
             let network_name = "get_object";
@@ -182,7 +175,7 @@ mod tests {
             };
             builder.build_dynamic()
         };
-        let open_alex_network_builder = open_alex_network_builder.extend(network_builder)?;
+        let open_alex_network_builder = open_alex_network_builder.extend(network_builder).unwrap();
 
         // OpenAlex search for OpenAccess articles by topic
         let network_builder = {
@@ -337,8 +330,8 @@ mod tests {
                 let subject = Subject::get_builder()
                     .with_name(subject_name_rhs)
                     .with_schema(schema)
-                    .with_record_batches(Vec::new())?
-                    .build()?;
+                    .with_record_batches(Vec::new()).unwrap()
+                    .build().unwrap();
                 let subject_rhs = SubjectPlan::get_builder()
                     .with_subject(subject)
                     .build()
@@ -353,8 +346,8 @@ mod tests {
                 let subject = Subject::get_builder()
                     .with_name(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str())
                     .with_schema(schema)
-                    .with_record_batches(Vec::new())?
-                    .build()?;
+                    .with_record_batches(Vec::new()).unwrap()
+                    .build().unwrap();
                 let subject_out = SubjectPlan::get_builder()
                     .with_subject(subject)
                     .build()
@@ -382,11 +375,11 @@ mod tests {
             }
             let mut network_builder = tasks.pop_front().unwrap().build_dynamic();
             while let Some(task) = tasks.pop_front() {
-                network_builder = network_builder.extend(task.build_dynamic())?;
+                network_builder = network_builder.extend(task.build_dynamic()).unwrap();
             }
             network_builder
         };
-        let open_alex_network_builder = open_alex_network_builder.extend(network_builder)?;
+        let open_alex_network_builder = open_alex_network_builder.extend(network_builder).unwrap();
 
         // OpenAlex search for OpenAccess PDF URLs
         let network_builder = {
@@ -595,8 +588,8 @@ mod tests {
                 let subject = Subject::get_builder()
                     .with_name(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str())
                     .with_schema(schema)
-                    .with_record_batches(Vec::new())?
-                    .build()?;
+                    .with_record_batches(Vec::new()).unwrap()
+                    .build().unwrap();
                 let subject_out = SubjectPlan::get_builder()
                     .with_subject(subject)
                     .build()
@@ -619,11 +612,11 @@ mod tests {
             }
             let mut network_builder = tasks.pop_front().unwrap().build_dynamic();
             while let Some(task) = tasks.pop_front() {
-                network_builder = network_builder.extend(task.build_dynamic())?;
+                network_builder = network_builder.extend(task.build_dynamic()).unwrap();
             }
             network_builder
         };
-        let open_alex_network_builder = open_alex_network_builder.extend(network_builder)?;
+        let open_alex_network_builder = open_alex_network_builder.extend(network_builder).unwrap();
 
         // Get PDF network
         let network_builder = {
@@ -672,55 +665,90 @@ mod tests {
             };
             builder.build_dynamic()
         };
-        let open_alex_network_builder = open_alex_network_builder.extend(network_builder)?;
+        let open_alex_network_builder = open_alex_network_builder.extend(network_builder).unwrap();
 
         // Extract PDF session
         let extract_pdf_session = ExtractPDFNetworkBuilder::default();
         let extract_pdf_network_builder = NetworkBuilder::from_mermaid_flowchart(
             extract_pdf_session.as_mermaid_flowchart(),
             false,
-        )?
+        ).unwrap()
         .with_subjects_from_mermaid_erdiagram(
             extract_pdf_session.as_mermaid_erdiagram(),
             false,
             true,
-        )?
+        ).unwrap()
         .with_name(extract_pdf_session.network_name);
-        let open_alex_network_builder = open_alex_network_builder.extend(extract_pdf_network_builder)?;
+        let open_alex_network_builder = open_alex_network_builder.extend(extract_pdf_network_builder).unwrap();
 
         // Embed text session
         let embed_text_network = EmbedTextNetworkBuilder::default();
         let embed_text_network_builder = NetworkBuilder::from_mermaid_flowchart(
             &embed_text_network.as_mermaid_flowchart(),
             false,
-        )?
+        ).unwrap()
         .with_subjects_from_mermaid_erdiagram(
             &embed_text_network.as_mermaid_erdiagram(),
             false,
             true,
-        )?
+        ).unwrap()
         .with_name(embed_text_network.network_name);
-        let open_alex_network_builder = open_alex_network_builder.extend(embed_text_network_builder)?;
+        let open_alex_network_builder = open_alex_network_builder.extend(embed_text_network_builder).unwrap();
 
         // Retrieve text session
         let retrieve_text_network = RetrieveTextNetworkBuilder::default();
         let retrieve_text_builder = NetworkBuilder::from_mermaid_flowchart(
             retrieve_text_network.as_mermaid_flowchart(),
             false,
-        )?
+        ).unwrap()
         .with_subjects_from_mermaid_erdiagram(
             retrieve_text_network.as_mermaid_erdiagram(),
             false,
             true,
-        )?
+        ).unwrap()
         .with_name(retrieve_text_network.network_name);
-        let open_alex_network_builder = open_alex_network_builder.extend(retrieve_text_builder)?;
+        let open_alex_network_builder = open_alex_network_builder.extend(retrieve_text_builder).unwrap();
 
+        OpenAlexNetworkBuilder {
+            inner: Some(open_alex_network_builder.with_name("open_alex_network")),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use anyhow::Result;
+    use arrow::array::{ArrayRef, RecordBatch, StringArray};
+    use futures::TryStreamExt;
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectTrait
+    };
+    use phymes_diagnostics::HashMap;
+    use phymes_event::{Publication, Subscription};
+    use phymes_message::{IPCMessage, MessageBuilderTrait};
+    use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
+    use phymes_schemas::{
+        AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, create_object_store_meta_batch,
+    };
+    use phymes_streams::ChatBuilderTraitExt;
+    use phymes_task::SubscriptionTrait;
+
+    use crate::DynamicTaskNetworkNames;
+
+    use super::*;
+
+    // #[ignore = "In progress... Some issues with embeddings and retrieval."]
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_open_alex_network_v_rust() -> Result<()> {
         // Initialize the session
-        let network_name = "open_alex";
+        let open_alex_network_builder = OpenAlexNetworkBuilder::default().inner.take().unwrap();
+        let network_name = open_alex_network_builder.name.clone().unwrap();
         let (network, session_messages) = open_alex_network_builder
-            .with_runtime_env(RuntimeEnv::get_builder().with_name(DynamicTaskNetworkNames::RuntimeEnv(network_name).to_string().as_str()).build_arc()?)
-            .with_name(network_name)
+            .with_runtime_env(RuntimeEnv::get_builder()
+                .with_name(DynamicTaskNetworkNames::RuntimeEnv(&network_name).to_string().as_str())
+                .build_arc()?)
             .with_diagnostics(true)
             .add_processor_subjects()?
             .add_next_tasks()?

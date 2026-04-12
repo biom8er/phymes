@@ -2,6 +2,8 @@ mod composites;
 mod dynamic;
 mod pipelines;
 
+#[cfg(feature = "api")]
+pub use composites::{OpenAlexNetworkBuilder, OpenAlexNetworkBuilderMermaid};
 pub use dynamic::{
     DynamicNetworkBuilderTrait, DynamicTaskNetworkBuilder, DynamicTaskNetworkNames,
     GenerateTextNetworkBuilder, InvokeTaskNetworkBuilder,
