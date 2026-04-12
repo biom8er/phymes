@@ -166,7 +166,7 @@ impl<'a> ExecuteWorkspaceNetwork<'a> {
                 .to_string(),
         ];
         if let Some(subject_name_i) = self.subject_name_i.as_ref() {
-            let subject_name_o = self.subject_name_o;
+            let subject_name_o = self.subject_name_o.as_str();
             let flowchart_component = format!(
                 r#"
 	%% ------------------------------------------------------------------------------
@@ -191,7 +191,7 @@ impl<'a> ExecuteWorkspaceNetwork<'a> {
 	%% ------------------------------------------------------------------------------"#);
             flowchart_vec.push(flowchart_component);
         } else {
-            let subject_name_o = self.subject_name_o;
+            let subject_name_o = self.subject_name_o.as_str();
             let flowchart_component = format!(
                 r#"
 	%% ------------------------------------------------------------------------------

@@ -87,9 +87,10 @@ mod tests {
 
     use phymes_schemas::{create_object_store_batch, create_object_store_meta_batch};
     use phymes_streams::{ObjectStoreConfig, ObjectStoreOptsType};
-    use serde_json::{Map, Value};
     #[cfg(not(target_family = "wasm"))]
     use tempfile::TempDir;
+    #[cfg(not(target_family = "wasm"))]
+    use serde_json::{Map, Value};
 
     #[tokio::test]
     async fn test_object_store_processor_put_get_in_memory() -> Result<()> {

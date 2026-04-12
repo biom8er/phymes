@@ -1,0 +1,1277 @@
+#[cfg(test)]
+mod tests {
+    use std::{collections::VecDeque, sync::Arc};
+
+    use anyhow::Result;
+    use arrow::datatypes::{DataType, Field, Fields, Schema};
+    use futures::TryStreamExt;
+    use object_store::aws::AmazonS3ConfigKey;
+    use phymes_data::{AvailableOperators, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataStreamManager};
+    use phymes_processor::AvailableProcessors;
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait
+    };
+    use phymes_diagnostics::HashMap;
+    use phymes_event::{Publication, Subscription};
+    use phymes_message::{IPCMessage, MessageBuilderTrait};
+    use phymes_network::{NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait, NetworkStream};
+    use phymes_schemas::{
+        AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat, create_object_store_meta_batch,
+    };
+    use phymes_streams::{ChatBuilderTraitExt, HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType, ObjectStoreConfig, ObjectStoreOptsType};
+    use phymes_task::SubscriptionTrait;
+    use serde_json::{Map, Value};
+
+    use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, EmbedTextNetworkBuilder, ExtractPDFNetworkBuilder, RetrieveTextNetworkBuilder};
+
+    use super::*;
+
+    // #[ignore = "In progress... Some issues with embeddings and retrieval."]
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_open_alex_network() -> Result<()> {
+        // OpenAlex download from AWS
+        let open_alex_network_builder = {
+            let network_name = "get_object";
+            let mut store_config = Map::<String, Value>::new();
+            let _ = store_config.insert(
+                AmazonS3ConfigKey::SkipSignature.as_ref().to_string(),
+                Value::String("true".to_string()),
+            );
+            let _ = store_config.insert(
+                AmazonS3ConfigKey::Endpoint.as_ref().to_string(),
+                Value::String("https://s3.amazonaws.com".to_string()),
+            );
+            let config = ObjectStoreConfig {
+                timeout: 5,
+                ops_type: ObjectStoreOptsType::Get,
+                backend: ObjectStorageBackend::Aws,
+                bucket: Some("openalex".to_string()),
+                backend_config: Some(serde_json::to_string(&store_config).unwrap()),
+                subject_name: Some(AvailableSubjects::ObjectStoreMeta.to_string()),
+                ..Default::default()
+            };
+            let config_json = serde_json::to_vec(&config).unwrap();
+            let subject = SubjectBuilder::new()
+                .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                .with_json(&config_json, 1)
+                .unwrap()
+                .build()
+                .unwrap();
+            let subject_processor = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let subject = AvailableSubjects::ObjectStoreMeta
+                .to_subject(None, None)
+                .unwrap();
+            let subject_lhs = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let subject = AvailableInterfaceSubjects::UserObject
+                .to_subject(None, None)
+                .unwrap();
+            let subject_out = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let builder = DynamicTaskNetworkBuilder {
+                network_name: network_name.to_string(),
+                is_dynamic: false,
+                processor: AvailableProcessors::ObjectStoreProcessor,
+                subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                    subject_name: subject_lhs.get_name().to_string(),
+                },
+                publication: Publication::Replace {
+                    subject_name: subject_out.get_name().to_string(),
+                },
+                subject_lhs,
+                subject_out,
+                subject_processor,
+                ..Default::default()
+            };
+            builder.build_dynamic()
+        };
+
+        // Extract OpenAlex Works tables
+        let network_builder = {
+            let network_name = "extract_open_alex_aws_bucket";
+            let config = DataConfig {
+                lhs_name: Some(AvailableInterfaceSubjects::UserObject.to_string()),
+                lhs_values: Some(vec!["bytes".to_string()]),
+                encoding: Some(DataEncoding::Gz),
+                format: Some(DataFormat::JsonSchema),
+                schema: Some(AvailableSubjects::OpenAlexResponseWorks),
+                cpu: false,
+                operator: AvailableOperators::ExtractTabular,
+                lhs_stream: DataStreamManager::Accumulate,
+                ..Default::default()
+            };
+            let config_json = serde_json::to_vec(&config).unwrap();
+            let subject = SubjectBuilder::new()
+                .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                .with_json(&config_json, 1)
+                .unwrap()
+                .build()
+                .unwrap();
+            let subject_processor = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let subject = AvailableInterfaceSubjects::UserObject
+                .to_subject(None, None)
+                .unwrap();
+            let subject_lhs = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let subject = AvailableSubjects::Bytes
+                .to_subject(None, None)
+                .unwrap();
+            let subject_out = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let subject_routes = ["WorkTable", 
+                "WorkAwardTable", 
+                "WorkAuthorshipTable", 
+                "WorkFunderTable", 
+                "WorkApcInfoTable", 
+                "WorkLocationTable", 
+                "WorkOpenAccessTable", 
+                "WorkBiblioTable", 
+                "WorkCitationPercentileTable", 
+                "WorkCitedByPercentileYearTable", 
+                "WorkCountsByYearTable", 
+                "WorkConceptTable", 
+                "WorkTopicTable", 
+                "WorkKeywordTable", 
+                "WorkMeshTagTable", 
+                "WorkSdgTagTable",
+                "WorkCorrespondingAuthorTable",
+                "WorkCorrespondingInstitutionTable",
+                "WorkIndexedInTable",
+                "WorkIdsTable",
+                "WorkReferencedWorksTable",
+                "WorkRelatedWorksTable"].into_iter()
+                .map(|s| {
+                    let subject = AvailableSubjects::Bytes
+                        .to_subject(Some(s), None)
+                        .unwrap();
+                    SubjectPlan::get_builder()
+                        .with_subject(subject)
+                        .build()
+                        .unwrap()
+                })
+                .collect::<Vec<_>>();
+            let builder = DynamicTaskNetworkBuilder {
+                network_name: network_name.to_string(),
+                is_dynamic: false,
+                processor: AvailableProcessors::ExtractTabular,
+                subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                    subject_name: subject_lhs.get_name().to_string(),
+                },
+                publication: Publication::Replace {
+                    subject_name: subject_out.get_name().to_string(),
+                },
+                subject_lhs,
+                subject_out,
+                subject_processor,
+                subject_routes: Some(subject_routes),
+                ..Default::default()
+            };
+            builder.build_dynamic()
+        };
+        let open_alex_network_builder = open_alex_network_builder.extend(network_builder)?;
+
+        // OpenAlex search for OpenAccess articles by topic
+        let network_builder = {
+            let task_name = "filter_work_topic_table";
+            let mut tasks = VecDeque::new();
+            {
+                let network_name = "cmp_work_topic_table";
+                let subject_name_lhs = "WorkTopicTable";
+                let config = DataConfig {
+                    lhs_name: Some(subject_name_lhs.to_string()),
+                    lhs_values: Some(["work_id","topic_id","is_primary","score","cmp_is_primary","cmp_score"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    as_columns: Some(["work_id","topic_id","is_primary","score","cmp_is_primary","cmp_score"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    cast_templates: Some(["","","","","1","0.5"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    cast_datatypes: Some([DataType::Utf8, DataType::Utf8, DataType::UInt8, DataType::Float32, DataType::UInt8, DataType::Float32].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    column_operators: Some([DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::Value, DataColumnOperator::Value].into_iter().collect::<Vec<_>>()),
+                    cpu: false,
+                    operator: AvailableOperators::Select,
+                    lhs_stream: DataStreamManager::Stream,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let subject = AvailableSubjects::Bytes
+                    .to_subject(Some(subject_name_lhs), None)
+                    .unwrap();
+                let subject_lhs = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let subject = AvailableSubjects::Bytes
+                    .to_subject(Some(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str()), None)
+                    .unwrap();
+                let subject_out = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: network_name.to_string(),
+                    is_dynamic: false,
+                    processor: AvailableProcessors::Select,
+                    subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                        subject_name: subject_lhs.get_name().to_string(),
+                    },
+                    publication: Publication::Replace {
+                        subject_name: subject_out.get_name().to_string(),
+                    },
+                    subject_lhs,
+                    subject_out,
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);                
+            }
+            {
+                let network_name = "filter_work_topic_table";
+                let config = DataConfig {
+                    lhs_name: Some(tasks.iter().last().unwrap().subject_out.get_name().to_string()),
+                    lhs_values: Some(["is_primary","score"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    cmp_columns: Some(["cmp_is_primary","cmp_score"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    cmp_operators: Some([DataComparatorOperator::Equals, DataComparatorOperator::GreaterThan].into_iter().collect::<Vec<_>>()),
+                    cmp_predicate: Some(DataComparatorPredicate::All),
+                    cpu: false,
+                    operator: AvailableOperators::Filter,
+                    lhs_stream: DataStreamManager::Stream,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let subject = AvailableSubjects::Bytes
+                    .to_subject(Some(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str()), None)
+                    .unwrap();
+                let subject_out = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: task_name.to_string(),
+                    is_dynamic: false,
+                    processor: AvailableProcessors::Filter,
+                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
+                        subject_name: tasks.iter().last().unwrap().subject_out.get_name().to_string(),
+                    },
+                    publication: Publication::Replace {
+                        subject_name: subject_out.get_name().to_string(),
+                    },
+                    subject_lhs: tasks.iter().last().unwrap().subject_out.clone(),
+                    subject_out,
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);                
+            }
+            {
+                let network_name = "select_work_topic_table";
+                let config = DataConfig {
+                    lhs_name: Some(tasks.iter().last().unwrap().subject_out.get_name().to_string()),
+                    lhs_values: Some(["work_id","topic_id","is_primary","score"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    cpu: false,
+                    operator: AvailableOperators::Select,
+                    lhs_stream: DataStreamManager::Stream,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let subject = AvailableSubjects::Bytes
+                    .to_subject(Some(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str()), None)
+                    .unwrap();
+                let subject_out = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: task_name.to_string(),
+                    is_dynamic: false,
+                    processor: AvailableProcessors::Select,
+                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
+                        subject_name: tasks.iter().last().unwrap().subject_out.get_name().to_string(),
+                    },
+                    publication: Publication::Replace {
+                        subject_name: subject_out.get_name().to_string(),
+                    },
+                    subject_lhs: tasks.iter().last().unwrap().subject_out.clone(),
+                    subject_out,
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);                
+            }
+            {
+                let network_name = "join_work_topic_table";
+                let subject_name_rhs = "open_alex_topics_s";
+                let config = DataConfig {
+                    lhs_name: Some(tasks.iter().last().unwrap().subject_out.get_name().to_string()),
+                    rhs_name: Some(subject_name_rhs.to_string()),
+                    lhs_fk: Some("topic_id".to_string()),
+                    rhs_fk: Some("topic_id".to_string()),
+                    lhs_pk: Some("topic_id".to_string()),
+                    rhs_pk: Some("topic_id".to_string()),
+                    join_operators: Some(phymes_data::DataJoinOperator::Inner),
+                    cpu: false,
+                    operator: AvailableOperators::Join,
+                    lhs_stream: DataStreamManager::Accumulate,
+                    rhs_stream: Some(DataStreamManager::Accumulate),
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let fields = Fields::from(vec![Field::new("topic_id", DataType::Utf8, false)]);
+                let schema = Arc::new(Schema::new(fields));
+                let subject = Subject::get_builder()
+                    .with_name(subject_name_rhs)
+                    .with_schema(schema)
+                    .with_record_batches(Vec::new())?
+                    .build()?;
+                let subject_rhs = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let fields = Fields::from(vec![
+                    Field::new("topic_id", DataType::Utf8, false),
+                    Field::new("work_id", DataType::Utf8, false),
+                    Field::new("is_primary", DataType::UInt8, false),
+                    Field::new("score", DataType::Float32, false),
+                ]);
+                let schema = Arc::new(Schema::new(fields));
+                let subject = Subject::get_builder()
+                    .with_name(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str())
+                    .with_schema(schema)
+                    .with_record_batches(Vec::new())?
+                    .build()?;
+                let subject_out = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: task_name.to_string(),
+                    is_dynamic: false,
+                    processor: AvailableProcessors::Join,
+                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
+                        subject_name: tasks.iter().last().unwrap().subject_out.get_name().to_string(),
+                    },
+                    subscription_rhs: Some(Subscription::AlwaysAllRecordBatches {
+                        subject_name: subject_rhs.get_name().to_string(),
+                    }),
+                    publication: Publication::Replace {
+                        subject_name: subject_out.get_name().to_string(),
+                    },
+                    subject_lhs: tasks.iter().last().unwrap().subject_out.clone(),
+                    subject_rhs: Some(subject_rhs),
+                    subject_out,
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);                
+            }
+            let mut network_builder = tasks.pop_front().unwrap().build_dynamic();
+            while let Some(task) = tasks.pop_front() {
+                network_builder = network_builder.extend(task.build_dynamic())?;
+            }
+            network_builder
+        };
+        let open_alex_network_builder = open_alex_network_builder.extend(network_builder)?;
+
+        // OpenAlex search for OpenAccess PDF URLs
+        let network_builder = {
+            let task_name = "select_open_access_pdf_url";
+            let mut tasks = VecDeque::new();
+            {
+                let network_name = "cmp_work_location_table";
+                let subject_name_lhs = "WorkLocationTable";
+                let config = DataConfig {
+                    lhs_name: Some(subject_name_lhs.to_string()),
+                    lhs_values: Some(["work_id","landing_page_url","pdf_url","source_id","license","version","is_best_oa","is_primary","is_oa","cmp_is_best_oa","pdf_url_len","cmp_pdf_url_len"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    as_columns: Some(["work_id","landing_page_url","pdf_url","source_id","license","version","is_best_oa","is_primary","is_oa","cmp_is_best_oa","pdf_url_len","cmp_pdf_url_len"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    cast_templates: Some(["","","","","","","","","","1","",""].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    cast_datatypes: Some([DataType::Utf8, DataType::Utf8, DataType::Utf8, DataType::Utf8, DataType::Utf8, DataType::Utf8, DataType::UInt8, DataType::UInt8, DataType::UInt8, DataType::UInt8, DataType::UInt32, DataType::UInt32].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    column_operators: Some([DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::Value, DataColumnOperator::Len, DataColumnOperator::Zeros].into_iter().collect::<Vec<_>>()),
+                    cpu: false,
+                    operator: AvailableOperators::Select,
+                    lhs_stream: DataStreamManager::Stream,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let subject = AvailableSubjects::Bytes
+                    .to_subject(Some(subject_name_lhs), None)
+                    .unwrap();
+                let subject_lhs = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let subject = AvailableSubjects::Bytes
+                    .to_subject(Some(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str()), None)
+                    .unwrap();
+                let subject_out = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: network_name.to_string(),
+                    is_dynamic: false,
+                    processor: AvailableProcessors::Select,
+                    subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                        subject_name: subject_lhs.get_name().to_string(),
+                    },
+                    publication: Publication::Replace {
+                        subject_name: subject_out.get_name().to_string(),
+                    },
+                    subject_lhs,
+                    subject_out,
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);                
+            }
+            {
+                let network_name = "filter_work_location_table";
+                let config = DataConfig {
+                    lhs_name: Some(tasks.iter().last().unwrap().subject_out.get_name().to_string()),
+                    lhs_values: Some(["is_best_oa","pdf_url_len"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    cmp_columns: Some(["cmp_is_best_oa","cmp_pdf_url_len"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    cmp_operators: Some([DataComparatorOperator::Equals, DataComparatorOperator::GreaterThan].into_iter().collect::<Vec<_>>()),
+                    cmp_predicate: Some(DataComparatorPredicate::All),
+                    cpu: false,
+                    operator: AvailableOperators::Filter,
+                    lhs_stream: DataStreamManager::Stream,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let subject = AvailableSubjects::Bytes
+                    .to_subject(Some(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str()), None)
+                    .unwrap();
+                let subject_out = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: task_name.to_string(),
+                    is_dynamic: false,
+                    processor: AvailableProcessors::Filter,
+                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
+                        subject_name: tasks.iter().last().unwrap().subject_out.get_name().to_string(),
+                    },
+                    publication: Publication::Replace {
+                        subject_name: subject_out.get_name().to_string(),
+                    },
+                    subject_lhs: tasks.iter().last().unwrap().subject_out.clone(),
+                    subject_out,
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);                
+            }
+            {
+                let network_name = "select_work_location_table";
+                let config = DataConfig {
+                    lhs_name: Some(tasks.iter().last().unwrap().subject_out.get_name().to_string()),
+                    lhs_values: Some(["work_id","landing_page_url","pdf_url","source_id","license","version","is_best_oa","is_primary","is_oa"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    cpu: false,
+                    operator: AvailableOperators::Select,
+                    lhs_stream: DataStreamManager::Stream,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let subject = AvailableSubjects::Bytes
+                    .to_subject(Some(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str()), None)
+                    .unwrap();
+                let subject_out = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: task_name.to_string(),
+                    is_dynamic: false,
+                    processor: AvailableProcessors::Select,
+                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
+                        subject_name: tasks.iter().last().unwrap().subject_out.get_name().to_string(),
+                    },
+                    publication: Publication::Replace {
+                        subject_name: subject_out.get_name().to_string(),
+                    },
+                    subject_lhs: tasks.iter().last().unwrap().subject_out.clone(),
+                    subject_out,
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);                
+            }
+            {
+                let network_name = "join_work_location_table";
+                let subject_name_rhs = "join_work_topic_table_s";
+                let config = DataConfig {
+                    lhs_name: Some(tasks.iter().last().unwrap().subject_out.get_name().to_string()),
+                    rhs_name: Some(subject_name_rhs.to_string()),
+                    lhs_fk: Some("work_id".to_string()),
+                    rhs_fk: Some("work_id".to_string()),
+                    lhs_pk: Some("work_id".to_string()),
+                    rhs_pk: Some("work_id".to_string()),
+                    join_operators: Some(phymes_data::DataJoinOperator::Inner),
+                    cpu: false,
+                    operator: AvailableOperators::Join,
+                    lhs_stream: DataStreamManager::Accumulate,
+                    rhs_stream: Some(DataStreamManager::Accumulate),
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let subject = AvailableSubjects::Bytes
+                    .to_subject(Some(DynamicTaskNetworkNames::Subject(subject_name_rhs).to_string().as_str()), None)
+                    .unwrap();
+                let subject_rhs = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let subject = AvailableSubjects::Bytes
+                    .to_subject(Some(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str()), None)
+                    .unwrap();
+                let subject_out = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: task_name.to_string(),
+                    is_dynamic: false,
+                    processor: AvailableProcessors::Join,
+                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
+                        subject_name: tasks.iter().last().unwrap().subject_out.get_name().to_string(),
+                    },
+                    subscription_rhs: Some(Subscription::OnUpdateAllRecordBatches {
+                        subject_name: subject_rhs.get_name().to_string(),
+                    }),
+                    publication: Publication::Replace {
+                        subject_name: subject_out.get_name().to_string(),
+                    },
+                    subject_lhs: tasks.iter().last().unwrap().subject_out.clone(),
+                    subject_rhs: Some(subject_rhs),
+                    subject_out,
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);                
+            }
+            {
+                let network_name = "select_open_acces_pdf_url";
+                let config = DataConfig {
+                    lhs_name: Some(tasks.iter().last().unwrap().subject_out.get_name().to_string()),
+                    as_columns: Some(["","","","content","",""].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    lhs_values: Some(["work_id","topic_id","score","pdf_url","source_id","version"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    cpu: false,
+                    operator: AvailableOperators::Select,
+                    lhs_stream: DataStreamManager::Stream,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let fields = Fields::from(vec![
+                    Field::new("topic_id", DataType::Utf8, false),
+                    Field::new("work_id", DataType::Utf8, false),
+                    Field::new("is_primary", DataType::UInt8, false),
+                    Field::new("score", DataType::Float32, false),
+                ]);
+                let schema = Arc::new(Schema::new(fields));
+                let subject = Subject::get_builder()
+                    .with_name(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str())
+                    .with_schema(schema)
+                    .with_record_batches(Vec::new())?
+                    .build()?;
+                let subject_out = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: task_name.to_string(),
+                    is_dynamic: false,
+                    processor: AvailableProcessors::Select,
+                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
+                        subject_name: tasks.iter().last().unwrap().subject_out.get_name().to_string(),
+                    },
+                    publication: Publication::Replace {
+                        subject_name: subject_out.get_name().to_string(),
+                    },
+                    subject_lhs: tasks.iter().last().unwrap().subject_out.clone(),
+                    subject_out,
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);                
+            }
+            let mut network_builder = tasks.pop_front().unwrap().build_dynamic();
+            while let Some(task) = tasks.pop_front() {
+                network_builder = network_builder.extend(task.build_dynamic())?;
+            }
+            network_builder
+        };
+        let open_alex_network_builder = open_alex_network_builder.extend(network_builder)?;
+
+        // Get PDF network
+        let network_builder = {
+            let network_name = "get_pdf";
+            let subject_name_lhs = "select_open_acces_pdf_url_s";
+            let config = HTTPClientConfig {
+                timeout: 15,
+                request_type: HTTPClientRequestType::Get,
+                user_agent_type: Some("rust-openalex-client/2.0".to_string()),
+                base_url: String::new(),
+                subject_name: Some(subject_name_lhs.to_string()),
+                request_schema: HTTPClientRequestSchemas::Attachments,
+                ..Default::default()
+            };
+            let config_json = serde_json::to_vec(&config).unwrap();
+            let subject = SubjectBuilder::new()
+                .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                .with_json(&config_json, 1)
+                .unwrap()
+                .build()
+                .unwrap();
+            let subject_processor = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let subject = AvailableInterfaceSubjects::UserMessages
+                .to_subject(Some(subject_name_lhs), None)
+                .unwrap();
+            let subject_lhs = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let subject = AvailableInterfaceSubjects::UserPdf
+                .to_subject(None, None)
+                .unwrap();
+            let subject_out = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let builder = DynamicTaskNetworkBuilder {
+                network_name: network_name.to_string(),
+                is_dynamic: false,
+                processor: AvailableProcessors::HTTPClientRequestProcessor,
+                subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                    subject_name: subject_lhs.get_name().to_string(),
+                },
+                publication: Publication::Extend {
+                    subject_name: subject_out.get_name().to_string(),
+                },
+                subject_lhs,
+                subject_out,
+                subject_processor,
+                ..Default::default()
+            };
+            builder.build_dynamic()
+        };
+        let open_alex_network_builder = open_alex_network_builder.extend(network_builder)?;
+
+        // Extract PDF session
+        let extract_pdf_session = ExtractPDFNetworkBuilder::default();
+        let extract_pdf_network_builder = NetworkBuilder::from_mermaid_flowchart(
+            extract_pdf_session.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_subjects_from_mermaid_erdiagram(
+            extract_pdf_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
+        .with_name(extract_pdf_session.network_name);
+        let open_alex_network_builder = open_alex_network_builder.extend(extract_pdf_network_builder)?;
+
+        // Embed text session
+        let embed_text_network = EmbedTextNetworkBuilder::default();
+        let embed_text_network_builder = NetworkBuilder::from_mermaid_flowchart(
+            &embed_text_network.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_subjects_from_mermaid_erdiagram(
+            &embed_text_network.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
+        .with_name(embed_text_network.network_name);
+        let open_alex_network_builder = open_alex_network_builder.extend(embed_text_network_builder)?;
+
+        // Retrieve text session
+        let retrieve_text_network = RetrieveTextNetworkBuilder::default();
+        let retrieve_text_builder = NetworkBuilder::from_mermaid_flowchart(
+            retrieve_text_network.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_subjects_from_mermaid_erdiagram(
+            retrieve_text_network.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
+        .with_name(retrieve_text_network.network_name);
+        let open_alex_network_builder = open_alex_network_builder.extend(retrieve_text_builder)?;
+
+        // Initialize the session
+        let network_name = "open_alex";
+        let (network, session_messages) = open_alex_network_builder
+            .with_runtime_env(RuntimeEnv::get_builder().with_name(DynamicTaskNetworkNames::RuntimeEnv(network_name).to_string().as_str()).build_arc()?)
+            .with_name(network_name)
+            .with_diagnostics(true)
+            .add_processor_subjects()?
+            .add_next_tasks()?
+            .add_next_supersteps()?
+            .build_with_tables()?;
+        let network_arc = Arc::new(network);
+
+        // Make the test session data
+        let mut message_map = HashMap::<String, IPCMessage>::new();
+        let messages = "list_open_alex_aws_bucket_s";
+
+        // // Make the Get config
+        // let bucket_name = "openalex";
+        // let mut store_config = Map::<String, Value>::new();
+        // let _ = store_config.insert(
+        //     AmazonS3ConfigKey::SkipSignature.as_ref().to_string(),
+        //     Value::String("true".to_string()),
+        // );
+        // let _ = store_config.insert(
+        //     AmazonS3ConfigKey::Endpoint.as_ref().to_string(),
+        //     Value::String("https://s3.amazonaws.com".to_string()),
+        // );
+        // let config = ObjectStoreConfig {
+        //     timeout: 5,
+        //     ops_type: ObjectStoreOptsType::Get,
+        //     backend: ObjectStorageBackend::Aws,
+        //     bucket: Some(bucket_name.to_string()),
+        //     backend_config: Some(store_config.clone()),
+        //     locations: None,
+        //     chunk_size: None,
+        //     subject_name: Some(messages.to_string()),
+        //     ..Default::default()
+        // };
+        // let config_json = serde_json::to_vec(&config)?;
+        // let config_batch = create_bytes_record_batch(vec![config_json])?;
+        // let config_table = SubjectBuilder::new()
+        //     .with_name("get_open_alex_aws_bucket_p")
+        //     .with_record_batches(vec![config_batch])?
+        //     .build()?;
+        // let _ = message_map.insert(
+        //     config_table.get_name().to_string(),
+        //     IPCMessage::get_builder()
+        //         .with_name(config_table.get_name())
+        //         .with_publisher(open_alex_agent_network.network_name)
+        //         .with_subject(config_table.get_name())
+        //         .with_update(&Publication::Replace {
+        //             subject_name: config_table.get_name().to_string(),
+        //         })
+        //         .with_message(config_table.to_ipc_stream()?)
+        //         .build()?,
+        // );
+
+        // Make the list of paths to Get
+        // let location = vec!["data/works/updated_date=2018-01-12/part_0000.gz".to_string()];
+        let location = vec!["data/works/updated_date=2026-03-10/part_0005.gz".to_string()];
+        // let location = vec!["data/works/manifest".to_string()];
+        let bucket = vec!["openalex".to_string()];
+        let e_tag = vec![String::new()];
+        let version = vec![String::new()];
+        let size = vec![0_u32];
+        let last_modified = vec![0_i64];
+        let message_batch =
+            create_object_store_meta_batch(location, bucket, e_tag, version, size, last_modified)?;
+        let message_subject = Subject::get_builder()
+            .with_name(&messages)
+            .with_record_batches(vec![message_batch])?
+            .build()?;
+        let _ = message_map.insert(
+            messages.to_string(),
+            IPCMessage::get_builder()
+                .with_name(&messages)
+                .with_publisher(network_arc.get_name())
+                .with_subject(&messages)
+                .with_update(&Publication::Replace {
+                    subject_name: messages.to_string(),
+                })
+                .with_message(message_subject.to_ipc_stream()?)
+                .build()?,
+        );
+
+        let _ = network_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
+
+        // 1. Run the session
+        let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionErrors.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        if !batches.is_empty() {
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            println!(
+                "{}\n{}",
+                AvailableSubjects::SessionErrors,
+                String::from_utf8(subject.to_csv(b',', true)?)?
+            );
+        }
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionEvents.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        if !batches.is_empty() {
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionEvents.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            println!(
+                "{}\n{}",
+                AvailableSubjects::SessionEvents,
+                String::from_utf8(subject.to_csv(b',', true)?)?
+            );
+        }
+
+        assert_eq!(response.len(), 0);
+
+        // Test AWS object store GET
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "WorkTable".to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name("WorkTable")
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 34973);
+        let column = subject.get_column_as_vec_str("work_id");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
+        assert_eq!(column.last().unwrap(), &"https://openalex.org/W4367307220");
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "WorkTopicTable".to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name("WorkTopicTable")
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 91321);
+        let column = subject.get_column_as_vec_str("work_id");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
+        assert_eq!(column.last().unwrap(), &"https://openalex.org/W4367307220");
+        let column = subject.get_column_as_vec_str("topic_id");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
+        assert_eq!(column.last().unwrap(), &"https://openalex.org/T13802");
+        let column = subject.get_column_as_vec_primitive::<f32>("score")?;
+        assert_eq!(column.first().unwrap(), &0.9994);
+        assert_eq!(column.last().unwrap(), &0.2251);
+        let column = subject.get_column_as_vec_primitive::<u8>("is_primary")?;
+        assert_eq!(column.first().unwrap(), &1);
+        assert_eq!(column.last().unwrap(), &1);
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "WorkLocationTable".to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name("WorkLocationTable")
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 48958);
+        let column = subject.get_column_as_vec_str("work_id");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
+        assert_eq!(column.last().unwrap(), &"https://openalex.org/W4367307220");
+        let column = subject.get_column_as_vec_primitive::<u8>("is_best_oa")?;
+        assert_eq!(column.first().unwrap(), &0);
+        assert_eq!(column.last().unwrap(), &0);
+        let column = subject.get_column_as_vec_primitive::<u8>("is_primary")?;
+        assert_eq!(column.first().unwrap(), &1);
+        assert_eq!(column.last().unwrap(), &1);
+        let column = subject.get_column_as_vec_primitive::<u8>("is_oa")?;
+        assert_eq!(column.first().unwrap(), &0);
+        assert_eq!(column.last().unwrap(), &0);
+        let column = subject.get_column_as_vec_str("landing_page_url");
+        assert_eq!(
+            column.first().unwrap(),
+            &"https://doi.org/10.1016/j.str.2014.09.012"
+        );
+        assert_eq!(
+            column.last().unwrap(),
+            &"http://dx.doi.org/10.2307/jj.2430693"
+        );
+        let column = subject.get_column_as_vec_str("pdf_url");
+        assert_eq!(column.first().unwrap(), &"");
+        assert_eq!(column.last().unwrap(), &"");
+        let column = subject.get_column_as_vec_str("source_id");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/S7112016");
+        assert_eq!(column.last().unwrap(), &"");
+        let column = subject.get_column_as_vec_str("license");
+        assert_eq!(column.first().unwrap(), &"");
+        assert_eq!(column.last().unwrap(), &"cc-by");
+        let column = subject.get_column_as_vec_str("version");
+        assert_eq!(column.first().unwrap(), &"publishedVersion");
+        assert_eq!(column.last().unwrap(), &"publishedVersion");
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "extract_open_alex_aws_bucket_s".to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert!(batches.is_empty());
+
+        // Test join work topic with user defined topics
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "join_work_topic_table_s".to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name("join_work_topic_table_s")
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 13);
+        let column = subject.get_column_as_vec_str("work_id");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2036680792");
+        assert_eq!(column.last().unwrap(), &"https://openalex.org/W2037563286");
+        let column = subject.get_column_as_vec_str("topic_id");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
+        assert_eq!(column.last().unwrap(), &"https://openalex.org/T10123");
+        let column = subject.get_column_as_vec_primitive::<u8>("is_primary")?;
+        assert_eq!(column.first().unwrap(), &1);
+        assert_eq!(column.last().unwrap(), &1);
+        let column = subject.get_column_as_vec_primitive::<f32>("score")?;
+        assert_eq!(column.first().unwrap(), &0.9998);
+        assert_eq!(column.last().unwrap(), &0.9998);
+
+        // Test select open access PDF url as content
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "select_open_acces_pdf_url_s".to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name("select_open_acces_pdf_url_s")
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 6);
+        let column = subject.get_column_as_vec_str("work_id");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2036554147");
+        assert_eq!(column.last().unwrap(), &"https://openalex.org/W4408584426");
+        let column = subject.get_column_as_vec_str("topic_id");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
+        assert_eq!(column.last().unwrap(), &"https://openalex.org/T10123");
+        let column = subject.get_column_as_vec_primitive::<f32>("score")?;
+        assert_eq!(column.first().unwrap(), &0.9998);
+        assert_eq!(column.last().unwrap(), &0.9688);
+        let column = subject.get_column_as_vec_str("content");
+        assert_eq!(
+            column.first().unwrap(),
+            &"http://www.jidonline.org/article/S0022202X15321485/pdf"
+        );
+        assert_eq!(
+            column.last().unwrap(),
+            &"https://doi.org/10.37184/jlnh.2959-1805.3.9"
+        );
+        let column = subject.get_column_as_vec_str("source_id");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/S28607811");
+        assert_eq!(column.last().unwrap(), &"https://openalex.org/S4387288081");
+        let column = subject.get_column_as_vec_str("version");
+        assert_eq!(column.first().unwrap(), &"publishedVersion");
+        assert_eq!(column.last().unwrap(), &"publishedVersion");
+
+        // Test HTTP request of open access PDF
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableInterfaceSubjects::UserPdf.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 6);
+        let column = subject.get_column_as_vec_str("filename");
+        assert_eq!(
+            column.first().unwrap(),
+            &"http://www.jidonline.org/article/S0022202X15321485/pdf"
+        );
+        assert_eq!(
+            column.last().unwrap(),
+            &"https://doi.org/10.37184/jlnh.2959-1805.3.9"
+        );
+        let column = subject.get_column_as_vec_str("extension");
+        assert_eq!(column.first().unwrap(), &"text/html; charset=UTF-8");
+        assert_eq!(column.last().unwrap(), &"application/pdf");
+        let column = subject.get_column_as_vec_str("metadata");
+        assert_eq!(column.first().unwrap(), &"tool");
+        assert_eq!(column.last().unwrap(), &"tool");
+        let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+        for c in column {
+            assert!(c > 0);
+        }
+        let column = subject
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        assert!(column.len() > 100);
+
+        // Make the query data
+        let mut message_map = HashMap::<String, IPCMessage>::new();
+        let chat = AvailableInterfaceSubjects::UserMessages
+            .to_subject_builder(None)
+            .append_new_user_query_str(
+                "What are two XPC-causing mutations identified in Chinese patients?",
+                "user",
+            )?
+            .build()?;
+        let _ = message_map.insert(
+            chat.get_name().to_string(),
+            IPCMessage::get_builder()
+                .with_message(chat.to_ipc_stream()?)
+                .with_subject(chat.get_name())
+                .with_update(&Publication::Extend {
+                    subject_name: chat.get_name().to_string(),
+                })
+                .with_publisher(network_arc.get_name())
+                .make_name()?
+                .build()?,
+        );
+
+        // 2. Run the session
+        let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionErrors.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        if !batches.is_empty() {
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            println!(
+                "{}\n{}",
+                AvailableSubjects::SessionErrors,
+                String::from_utf8(subject.to_csv(b',', true)?)?
+            );
+        }
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionEvents.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        if !batches.is_empty() {
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionEvents.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            println!(
+                "{}\n{}",
+                AvailableSubjects::SessionEvents,
+                String::from_utf8(subject.to_csv(b',', true)?)?
+            );
+        }
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionMetrics.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        if !batches.is_empty() {
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            println!(
+                "{}\n{}",
+                AvailableSubjects::SessionTraces,
+                String::from_utf8(subject.to_csv(b',', true)?)?
+            );
+        }
+
+        assert_eq!(response.len(), 0);
+
+        // Test PDF extraction, embedding, and retrieval
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::EmbeddingScores.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::EmbeddingScores.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        dbg!(&subject.count_rows());
+        // assert_eq!(subject.count_rows(), 5);
+        let column = subject.get_column_as_vec_str("chunk_id");
+        dbg!(column.first().unwrap());
+        // assert_eq!(column.first().unwrap(), &""https://doi.org/10.37184/jlnh.2959-1805.3.9_4_1");
+        let column = subject.get_column_as_vec_str("query_id");
+        dbg!(column.first().unwrap());
+        // assert_eq!(column.first().unwrap(), &"1775410537711065");
+        let column = subject.get_column_as_vec_primitive::<f32>("score")?;
+        for t in column {
+            assert!(t > 0.15); // Threshold used for filtering
+        }
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(
+                AvailableInterfaceSubjects::ToolMessages
+                    .to_string()
+                    .as_str(),
+            )
+            .with_record_batches(batches)?
+            .build()?;
+        dbg!(&subject.count_rows());
+        // assert_eq!(subject.count_rows(), 1);
+        let column = subject.get_column_as_vec_str("role");
+        dbg!(column.first().unwrap());
+        // assert_eq!(column.first().unwrap(), &"tool");
+        let column = subject.get_column_as_vec_str("content");
+        dbg!(column.first().unwrap());
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &"[{\"text\":\"Deoxyribonucleic acid (DNA) is a polymer composed of two polynucleotide chains that coil around each other to form a double helix. The polymer carries genetic instructions for the development, functioning, growth and reproduction of all known organisms and many viruses. DNA and ribonucleic acid (RNA) are nucleic acids. Alongside proteins, lipids and complex carbohydrates (polysaccharides), nucleic acids are one of the four major types of macromolecules that are essential for all known forms of life.The two \"}]"
+        // );
+        let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+        for t in column {
+            assert!(t > 0);
+        }
+
+        Ok(())
+    }
+}

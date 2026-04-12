@@ -1,3 +1,4 @@
+mod composites;
 mod dynamic;
 mod pipelines;
 

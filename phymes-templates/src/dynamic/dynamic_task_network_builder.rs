@@ -52,11 +52,16 @@ pub struct DynamicTaskNetworkBuilder {
     /// Subscribe event
     pub subscribe: AvailableSubscribeEvents,
     /// LHS subject
+    // pub subject_lhs: Option<SubjectPlan>,
     pub subject_lhs: SubjectPlan,
     /// RHS subject
+    // pub subject_rhs: Option<SubjectPlan>,
     pub subject_rhs: Option<SubjectPlan>,
     /// Output subject
+    // pub subject_out: Option<SubjectPlan>,
     pub subject_out: SubjectPlan,
+    /// Output subject
+    pub subject_routes: Option<Vec<SubjectPlan>>,
     /// Config data for the processor
     pub subject_processor: SubjectPlan,
 }
@@ -102,6 +107,7 @@ impl Default for DynamicTaskNetworkBuilder {
             subject_lhs,
             subject_rhs: None,
             subject_out,
+            subject_routes: None,
             subject_processor,
         }
     }
@@ -182,11 +188,21 @@ impl NetworkBuilderCustomTrait for DynamicTaskNetworkBuilder {
             subscriptions.push(subscription)
         }
 
+        // Build the publications based on the alternative message routes
+        let mut publications = Vec::new();
+        publications.push(self.publication.clone());
+
+        // Alternative publishing routes
+        for subject in self.subject_routes.as_ref().unwrap_or(&Vec::new()) {
+            let publication = Publication::from_str_fuzzy(self.publication.short_name(), subject.get_name()).unwrap();
+            publications.push(publication);
+        }
+
         // Build the processor
         let processors = vec![
             ProcessorPlanBuilder::default()
                 .with_processor(self.processor.build_arc(self.subject_processor.get_name()))
-                .with_publications(std::slice::from_ref(&self.publication))
+                .with_publications(&publications)
                 .with_subscriptions(&subscriptions)
                 .with_subscribe_policy(self.subscribe.clone().build())
                 .build()
@@ -202,12 +218,21 @@ impl NetworkBuilderCustomTrait for DynamicTaskNetworkBuilder {
     }
 
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
+        // Build the subject plans based on availability of RHS and alternative routes
         let mut subject_plans = Vec::new();
         subject_plans.push(self.subject_lhs.clone());
+
+        // RHS
         if let Some(subject_rhs) = self.subject_rhs.as_ref() {
             subject_plans.push(subject_rhs.clone());
         }
         subject_plans.push(self.subject_out.clone());
+
+        // Alternative publishing routes
+        for subject in self.subject_routes.as_ref().unwrap_or(&Vec::new()) {
+            subject_plans.push(subject.to_owned());
+        }
+
         subject_plans.push(self.subject_processor.clone());
 
         Some(subject_plans)

@@ -88,6 +88,7 @@ impl Default for PatchWorkspaceNetworkBuilderStaticWSubject {
             subject_rhs: Some(subject_rhs),
             subject_out,
             subject_processor,
+            ..Default::default()
         };
 
         Self { inner: builder }
@@ -216,6 +217,7 @@ pub use todo::Todo"#,
             subject_rhs: Some(subject_rhs),
             subject_out,
             subject_processor,
+            ..Default::default()
         };
 
         Self { inner: builder }
@@ -284,6 +286,7 @@ impl Default for PatchWorkspaceNetworkBuilderDynamicWOSubject {
             subject_rhs: Some(subject_rhs),
             subject_out,
             subject_processor,
+            ..Default::default()
         };
 
         Self { inner: builder }

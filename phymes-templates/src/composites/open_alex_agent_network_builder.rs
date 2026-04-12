@@ -468,8 +468,7 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAgentsTrait, NetworkBuilderMermaidTrait,
-        NetworkBuilderTrait, NetworkStream,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait, NetworkStream
     };
     use phymes_schemas::{
         AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait,
@@ -478,14 +477,15 @@ mod tests {
     use phymes_streams::ChatBuilderTraitExt;
     use phymes_task::SubscriptionTrait;
 
-    use super::*;
-    use crate::{EmbedTextNetwork, ExtractPDFNetwork, RetrieveTextNetwork};
+    use crate::{EmbedTextNetworkBuilder, ExtractPDFNetworkBuilder, RetrieveTextNetworkBuilder};
 
-    #[ignore = "In progress... Some issues with embeddings and retrieval."]
+    use super::*;
+
+    // #[ignore = "In progress... Some issues with embeddings and retrieval."]
     #[tokio::test(flavor = "current_thread")]
     async fn test_open_alex_agent_network() -> Result<()> {
         // Extract PDF session
-        let extract_pdf_session = ExtractPDFNetwork::default();
+        let extract_pdf_session = ExtractPDFNetworkBuilder::default();
         let extract_pdf_network_builder = NetworkBuilder::from_mermaid_flowchart(
             extract_pdf_session.as_mermaid_flowchart(),
             false,
@@ -498,7 +498,7 @@ mod tests {
         .with_name(extract_pdf_session.network_name);
 
         // Embed text session
-        let embed_text_network = EmbedTextNetwork::default();
+        let embed_text_network = EmbedTextNetworkBuilder::default();
         let embed_text_network_builder = NetworkBuilder::from_mermaid_flowchart(
             &embed_text_network.as_mermaid_flowchart(),
             false,
@@ -511,7 +511,7 @@ mod tests {
         .with_name(embed_text_network.network_name);
 
         // Retrieve text session
-        let retrieve_text_network = RetrieveTextNetwork::default();
+        let retrieve_text_network = RetrieveTextNetworkBuilder::default();
         let retrieve_text_builder = NetworkBuilder::from_mermaid_flowchart(
             retrieve_text_network.as_mermaid_flowchart(),
             false,
