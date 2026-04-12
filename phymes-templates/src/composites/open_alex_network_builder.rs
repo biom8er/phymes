@@ -3,7 +3,7 @@ mod tests {
     use std::{collections::VecDeque, sync::Arc};
 
     use anyhow::Result;
-    use arrow::datatypes::{DataType, Field, Fields, Schema};
+    use arrow::{array::{ArrayRef, RecordBatch, StringArray}, datatypes::{DataType, Field, Fields, Schema}};
     use futures::TryStreamExt;
     use object_store::aws::AmazonS3ConfigKey;
     use phymes_data::{AvailableOperators, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataStreamManager};
@@ -344,8 +344,8 @@ mod tests {
                     .build()
                     .unwrap();
                 let fields = Fields::from(vec![
-                    Field::new("topic_id", DataType::Utf8, false),
                     Field::new("work_id", DataType::Utf8, false),
+                    Field::new("topic_id", DataType::Utf8, false),
                     Field::new("is_primary", DataType::UInt8, false),
                     Field::new("score", DataType::Float32, false),
                 ]);
@@ -384,7 +384,6 @@ mod tests {
             while let Some(task) = tasks.pop_front() {
                 network_builder = network_builder.extend(task.build_dynamic())?;
             }
-            dbg!(&network_builder);
             network_builder
         };
         let open_alex_network_builder = open_alex_network_builder.extend(network_builder)?;
@@ -398,7 +397,7 @@ mod tests {
                 let subject_name_lhs = "WorkLocationTable";
                 let config = DataConfig {
                     lhs_name: Some(subject_name_lhs.to_string()),
-                    lhs_values: Some(["work_id","landing_page_url","pdf_url","source_id","license","version","is_best_oa","is_primary","is_oa","cmp_is_best_oa","pdf_url_len","cmp_pdf_url_len"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    lhs_values: Some(["work_id","landing_page_url","pdf_url","source_id","license","version","is_best_oa","is_primary","is_oa","cmp_is_best_oa","pdf_url","cmp_pdf_url_len"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     as_columns: Some(["work_id","landing_page_url","pdf_url","source_id","license","version","is_best_oa","is_primary","is_oa","cmp_is_best_oa","pdf_url_len","cmp_pdf_url_len"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     cast_templates: Some(["","","","","","","","","","1","",""].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     cast_datatypes: Some([DataType::Utf8, DataType::Utf8, DataType::Utf8, DataType::Utf8, DataType::Utf8, DataType::Utf8, DataType::UInt8, DataType::UInt8, DataType::UInt8, DataType::UInt8, DataType::UInt32, DataType::UInt32].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
@@ -585,10 +584,12 @@ mod tests {
                     .build()
                     .unwrap();
                 let fields = Fields::from(vec![
-                    Field::new("topic_id", DataType::Utf8, false),
                     Field::new("work_id", DataType::Utf8, false),
-                    Field::new("is_primary", DataType::UInt8, false),
+                    Field::new("topic_id", DataType::Utf8, false),
                     Field::new("score", DataType::Float32, false),
+                    Field::new("content", DataType::Utf8, false),
+                    Field::new("source_id", DataType::Utf8, false),
+                    Field::new("version", DataType::Utf8, false),
                 ]);
                 let schema = Arc::new(Schema::new(fields));
                 let subject = Subject::get_builder()
@@ -620,7 +621,6 @@ mod tests {
             while let Some(task) = tasks.pop_front() {
                 network_builder = network_builder.extend(task.build_dynamic())?;
             }
-            dbg!(&network_builder);
             network_builder
         };
         let open_alex_network_builder = open_alex_network_builder.extend(network_builder)?;
@@ -781,22 +781,41 @@ mod tests {
         let version = vec![String::new()];
         let size = vec![0_u32];
         let last_modified = vec![0_i64];
-        let message_batch =
+        let batch =
             create_object_store_meta_batch(location, bucket, e_tag, version, size, last_modified)?;
-        let message_subject = Subject::get_builder()
+        let subject = Subject::get_builder()
             .with_name(&AvailableSubjects::ObjectStoreMeta.to_string())
-            .with_record_batches(vec![message_batch])?
+            .with_record_batches(vec![batch])?
             .build()?;
         let _ = message_map.insert(
-            AvailableSubjects::ObjectStoreMeta.to_string(),
+            subject.get_name().to_string(),
             IPCMessage::get_builder()
-                .with_name(&AvailableSubjects::ObjectStoreMeta.to_string())
+                .with_name(subject.get_name())
                 .with_publisher(network_arc.get_name())
-                .with_subject(&AvailableSubjects::ObjectStoreMeta.to_string())
+                .with_subject(subject.get_name())
                 .with_update(&Publication::Replace {
-                    subject_name: AvailableSubjects::ObjectStoreMeta.to_string(),
+                    subject_name: subject.get_name().to_string(),
                 })
-                .with_message(message_subject.to_ipc_stream()?)
+                .with_message(subject.to_ipc_stream()?)
+                .build()?,
+        );
+        let topic_ids = vec!["https://openalex.org/T10123".to_string()];
+        let topic_arr: ArrayRef = Arc::new(StringArray::from(topic_ids));
+        let batch = RecordBatch::try_from_iter(vec![("topic_id", topic_arr)])?;
+        let subject = Subject::get_builder()
+            .with_name("open_alex_topics_s")
+            .with_record_batches(vec![batch])?
+            .build()?;
+        let _ = message_map.insert(
+            subject.get_name().to_string(),
+            IPCMessage::get_builder()
+                .with_name(subject.get_name())
+                .with_publisher(network_arc.get_name())
+                .with_subject(subject.get_name())
+                .with_update(&Publication::Replace {
+                    subject_name: subject.get_name().to_string(),
+                })
+                .with_message(subject.to_ipc_stream()?)
                 .build()?,
         );
 

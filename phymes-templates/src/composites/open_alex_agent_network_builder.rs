@@ -358,7 +358,7 @@ impl<'a> OpenAlexAgentNetworkBuilder<'a> {
         Utf8 lhs_stream "Stream"
     }}
     open_alex_topics_s["open_alex_topics_s"] {{
-        Utf8 topic_id "https://openalex.org/T10123"
+        Utf8 topic_id
     }}
     join_work_topic_table_p["join_work_topic_table_p"] {{
         Boolean cpu "false"
@@ -460,6 +460,7 @@ mod tests {
     use std::sync::Arc;
 
     use anyhow::Result;
+    use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use futures::TryStreamExt;
     use phymes_subject::{
         BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
@@ -615,6 +616,25 @@ mod tests {
                     subject_name: messages.to_string(),
                 })
                 .with_message(message_subject.to_ipc_stream()?)
+                .build()?,
+        );
+        let topic_ids = vec!["https://openalex.org/T10123".to_string()];
+        let topic_arr: ArrayRef = Arc::new(StringArray::from(topic_ids));
+        let batch = RecordBatch::try_from_iter(vec![("topic_id", topic_arr)])?;
+        let subject = Subject::get_builder()
+            .with_name("open_alex_topics_s")
+            .with_record_batches(vec![batch])?
+            .build()?;
+        let _ = message_map.insert(
+            subject.get_name().to_string(),
+            IPCMessage::get_builder()
+                .with_name(subject.get_name())
+                .with_publisher(network_arc.get_name())
+                .with_subject(subject.get_name())
+                .with_update(&Publication::Replace {
+                    subject_name: subject.get_name().to_string(),
+                })
+                .with_message(subject.to_ipc_stream()?)
                 .build()?,
         );
 
