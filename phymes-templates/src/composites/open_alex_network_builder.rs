@@ -83,10 +83,10 @@ mod tests {
                     subject_name: subject_lhs.get_name().to_string(),
                 },
                 publication: Publication::Replace {
-                    subject_name: subject_out.get_name().to_string(),
+                    subject_name: AvailableInterfaceSubjects::UserObject.to_string(),
                 },
-                subject_lhs,
-                subject_out,
+                subject_lhs: Some(subject_lhs),
+                subject_out: Some(subject_out),
                 subject_processor,
                 ..Default::default()
             };
@@ -126,7 +126,7 @@ mod tests {
                 .build()
                 .unwrap();
             let subject = AvailableSubjects::Bytes
-                .to_subject(None, None)
+                .to_subject(Some(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str()), None)
                 .unwrap();
             let subject_out = SubjectPlan::get_builder()
                 .with_subject(subject)
@@ -172,10 +172,10 @@ mod tests {
                     subject_name: subject_lhs.get_name().to_string(),
                 },
                 publication: Publication::Replace {
-                    subject_name: subject_out.get_name().to_string(),
+                    subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
                 },
-                subject_lhs,
-                subject_out,
+                subject_lhs: Some(subject_lhs),
+                subject_out: Some(subject_out),
                 subject_processor,
                 subject_routes: Some(subject_routes),
                 ..Default::default()
@@ -214,32 +214,16 @@ mod tests {
                     .with_subject(subject)
                     .build()
                     .unwrap();
-                let subject = AvailableSubjects::Bytes
-                    .to_subject(Some(subject_name_lhs), None)
-                    .unwrap();
-                let subject_lhs = SubjectPlan::get_builder()
-                    .with_subject(subject)
-                    .build()
-                    .unwrap();
-                let subject = AvailableSubjects::Bytes
-                    .to_subject(Some(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str()), None)
-                    .unwrap();
-                let subject_out = SubjectPlan::get_builder()
-                    .with_subject(subject)
-                    .build()
-                    .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
-                    network_name: network_name.to_string(),
+                    network_name: task_name.to_string(),
                     is_dynamic: false,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::OnUpdateAllRecordBatches {
-                        subject_name: subject_lhs.get_name().to_string(),
+                        subject_name: subject_name_lhs.to_string(),
                     },
                     publication: Publication::Replace {
-                        subject_name: subject_out.get_name().to_string(),
+                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
                     },
-                    subject_lhs,
-                    subject_out,
                     subject_processor,
                     ..Default::default()
                 };
@@ -248,7 +232,7 @@ mod tests {
             {
                 let network_name = "filter_work_topic_table";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().subject_out.get_name().to_string()),
+                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
                     lhs_values: Some(["is_primary","score"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     cmp_columns: Some(["cmp_is_primary","cmp_score"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     cmp_operators: Some([DataComparatorOperator::Equals, DataComparatorOperator::GreaterThan].into_iter().collect::<Vec<_>>()),
@@ -269,25 +253,16 @@ mod tests {
                     .with_subject(subject)
                     .build()
                     .unwrap();
-                let subject = AvailableSubjects::Bytes
-                    .to_subject(Some(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str()), None)
-                    .unwrap();
-                let subject_out = SubjectPlan::get_builder()
-                    .with_subject(subject)
-                    .build()
-                    .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
                     is_dynamic: false,
                     processor: AvailableProcessors::Filter,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().subject_out.get_name().to_string(),
+                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
                     },
                     publication: Publication::Replace {
-                        subject_name: subject_out.get_name().to_string(),
+                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
                     },
-                    subject_lhs: tasks.iter().last().unwrap().subject_out.clone(),
-                    subject_out,
                     subject_processor,
                     ..Default::default()
                 };
@@ -296,7 +271,7 @@ mod tests {
             {
                 let network_name = "select_work_topic_table";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().subject_out.get_name().to_string()),
+                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
                     lhs_values: Some(["work_id","topic_id","is_primary","score"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     cpu: false,
                     operator: AvailableOperators::Select,
@@ -314,25 +289,16 @@ mod tests {
                     .with_subject(subject)
                     .build()
                     .unwrap();
-                let subject = AvailableSubjects::Bytes
-                    .to_subject(Some(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str()), None)
-                    .unwrap();
-                let subject_out = SubjectPlan::get_builder()
-                    .with_subject(subject)
-                    .build()
-                    .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
                     is_dynamic: false,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().subject_out.get_name().to_string(),
+                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
                     },
                     publication: Publication::Replace {
-                        subject_name: subject_out.get_name().to_string(),
+                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
                     },
-                    subject_lhs: tasks.iter().last().unwrap().subject_out.clone(),
-                    subject_out,
                     subject_processor,
                     ..Default::default()
                 };
@@ -342,7 +308,7 @@ mod tests {
                 let network_name = "join_work_topic_table";
                 let subject_name_rhs = "open_alex_topics_s";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().subject_out.get_name().to_string()),
+                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
                     rhs_name: Some(subject_name_rhs.to_string()),
                     lhs_fk: Some("topic_id".to_string()),
                     rhs_fk: Some("topic_id".to_string()),
@@ -398,17 +364,17 @@ mod tests {
                     is_dynamic: false,
                     processor: AvailableProcessors::Join,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().subject_out.get_name().to_string(),
+                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
                     },
                     subscription_rhs: Some(Subscription::AlwaysAllRecordBatches {
                         subject_name: subject_rhs.get_name().to_string(),
                     }),
                     publication: Publication::Replace {
-                        subject_name: subject_out.get_name().to_string(),
+                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
                     },
                     subject_lhs: tasks.iter().last().unwrap().subject_out.clone(),
                     subject_rhs: Some(subject_rhs),
-                    subject_out,
+                    subject_out: Some(subject_out),
                     subject_processor,
                     ..Default::default()
                 };
@@ -418,6 +384,7 @@ mod tests {
             while let Some(task) = tasks.pop_front() {
                 network_builder = network_builder.extend(task.build_dynamic())?;
             }
+            dbg!(&network_builder);
             network_builder
         };
         let open_alex_network_builder = open_alex_network_builder.extend(network_builder)?;
@@ -459,25 +426,16 @@ mod tests {
                     .with_subject(subject)
                     .build()
                     .unwrap();
-                let subject = AvailableSubjects::Bytes
-                    .to_subject(Some(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str()), None)
-                    .unwrap();
-                let subject_out = SubjectPlan::get_builder()
-                    .with_subject(subject)
-                    .build()
-                    .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
-                    network_name: network_name.to_string(),
+                    network_name: task_name.to_string(),
                     is_dynamic: false,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                         subject_name: subject_lhs.get_name().to_string(),
                     },
                     publication: Publication::Replace {
-                        subject_name: subject_out.get_name().to_string(),
+                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
                     },
-                    subject_lhs,
-                    subject_out,
                     subject_processor,
                     ..Default::default()
                 };
@@ -486,7 +444,7 @@ mod tests {
             {
                 let network_name = "filter_work_location_table";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().subject_out.get_name().to_string()),
+                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
                     lhs_values: Some(["is_best_oa","pdf_url_len"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     cmp_columns: Some(["cmp_is_best_oa","cmp_pdf_url_len"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     cmp_operators: Some([DataComparatorOperator::Equals, DataComparatorOperator::GreaterThan].into_iter().collect::<Vec<_>>()),
@@ -507,25 +465,16 @@ mod tests {
                     .with_subject(subject)
                     .build()
                     .unwrap();
-                let subject = AvailableSubjects::Bytes
-                    .to_subject(Some(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str()), None)
-                    .unwrap();
-                let subject_out = SubjectPlan::get_builder()
-                    .with_subject(subject)
-                    .build()
-                    .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
                     is_dynamic: false,
                     processor: AvailableProcessors::Filter,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().subject_out.get_name().to_string(),
+                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
                     },
                     publication: Publication::Replace {
-                        subject_name: subject_out.get_name().to_string(),
+                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
                     },
-                    subject_lhs: tasks.iter().last().unwrap().subject_out.clone(),
-                    subject_out,
                     subject_processor,
                     ..Default::default()
                 };
@@ -534,7 +483,7 @@ mod tests {
             {
                 let network_name = "select_work_location_table";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().subject_out.get_name().to_string()),
+                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
                     lhs_values: Some(["work_id","landing_page_url","pdf_url","source_id","license","version","is_best_oa","is_primary","is_oa"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     cpu: false,
                     operator: AvailableOperators::Select,
@@ -552,25 +501,16 @@ mod tests {
                     .with_subject(subject)
                     .build()
                     .unwrap();
-                let subject = AvailableSubjects::Bytes
-                    .to_subject(Some(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str()), None)
-                    .unwrap();
-                let subject_out = SubjectPlan::get_builder()
-                    .with_subject(subject)
-                    .build()
-                    .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
                     is_dynamic: false,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().subject_out.get_name().to_string(),
+                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
                     },
                     publication: Publication::Replace {
-                        subject_name: subject_out.get_name().to_string(),
+                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
                     },
-                    subject_lhs: tasks.iter().last().unwrap().subject_out.clone(),
-                    subject_out,
                     subject_processor,
                     ..Default::default()
                 };
@@ -580,7 +520,7 @@ mod tests {
                 let network_name = "join_work_location_table";
                 let subject_name_rhs = "join_work_topic_table_s";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().subject_out.get_name().to_string()),
+                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
                     rhs_name: Some(subject_name_rhs.to_string()),
                     lhs_fk: Some("work_id".to_string()),
                     rhs_fk: Some("work_id".to_string()),
@@ -604,36 +544,19 @@ mod tests {
                     .with_subject(subject)
                     .build()
                     .unwrap();
-                let subject = AvailableSubjects::Bytes
-                    .to_subject(Some(DynamicTaskNetworkNames::Subject(subject_name_rhs).to_string().as_str()), None)
-                    .unwrap();
-                let subject_rhs = SubjectPlan::get_builder()
-                    .with_subject(subject)
-                    .build()
-                    .unwrap();
-                let subject = AvailableSubjects::Bytes
-                    .to_subject(Some(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str()), None)
-                    .unwrap();
-                let subject_out = SubjectPlan::get_builder()
-                    .with_subject(subject)
-                    .build()
-                    .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
                     is_dynamic: false,
                     processor: AvailableProcessors::Join,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().subject_out.get_name().to_string(),
+                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
                     },
                     subscription_rhs: Some(Subscription::OnUpdateAllRecordBatches {
-                        subject_name: subject_rhs.get_name().to_string(),
+                        subject_name: subject_name_rhs.to_string(),
                     }),
                     publication: Publication::Replace {
-                        subject_name: subject_out.get_name().to_string(),
+                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
                     },
-                    subject_lhs: tasks.iter().last().unwrap().subject_out.clone(),
-                    subject_rhs: Some(subject_rhs),
-                    subject_out,
                     subject_processor,
                     ..Default::default()
                 };
@@ -642,7 +565,7 @@ mod tests {
             {
                 let network_name = "select_open_acces_pdf_url";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().subject_out.get_name().to_string()),
+                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
                     as_columns: Some(["","","","content","",""].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     lhs_values: Some(["work_id","topic_id","score","pdf_url","source_id","version"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     cpu: false,
@@ -682,13 +605,12 @@ mod tests {
                     is_dynamic: false,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().subject_out.get_name().to_string(),
+                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
                     },
                     publication: Publication::Replace {
-                        subject_name: subject_out.get_name().to_string(),
+                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
                     },
-                    subject_lhs: tasks.iter().last().unwrap().subject_out.clone(),
-                    subject_out,
+                    subject_out: Some(subject_out),
                     subject_processor,
                     ..Default::default()
                 };
@@ -698,6 +620,7 @@ mod tests {
             while let Some(task) = tasks.pop_front() {
                 network_builder = network_builder.extend(task.build_dynamic())?;
             }
+            dbg!(&network_builder);
             network_builder
         };
         let open_alex_network_builder = open_alex_network_builder.extend(network_builder)?;
@@ -726,13 +649,6 @@ mod tests {
                 .with_subject(subject)
                 .build()
                 .unwrap();
-            let subject = AvailableInterfaceSubjects::UserMessages
-                .to_subject(Some(subject_name_lhs), None)
-                .unwrap();
-            let subject_lhs = SubjectPlan::get_builder()
-                .with_subject(subject)
-                .build()
-                .unwrap();
             let subject = AvailableInterfaceSubjects::UserPdf
                 .to_subject(None, None)
                 .unwrap();
@@ -745,13 +661,12 @@ mod tests {
                 is_dynamic: false,
                 processor: AvailableProcessors::HTTPClientRequestProcessor,
                 subscription_lhs: Subscription::OnUpdateAllRecordBatches {
-                    subject_name: subject_lhs.get_name().to_string(),
+                    subject_name: subject_name_lhs.to_string(),
                 },
                 publication: Publication::Extend {
-                    subject_name: subject_out.get_name().to_string(),
+                    subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
                 },
-                subject_lhs,
-                subject_out,
+                subject_out: Some(subject_out),
                 subject_processor,
                 ..Default::default()
             };
@@ -815,7 +730,6 @@ mod tests {
 
         // Make the test session data
         let mut message_map = HashMap::<String, IPCMessage>::new();
-        let messages = "list_open_alex_aws_bucket_s";
 
         // // Make the Get config
         // let bucket_name = "openalex";
@@ -870,17 +784,17 @@ mod tests {
         let message_batch =
             create_object_store_meta_batch(location, bucket, e_tag, version, size, last_modified)?;
         let message_subject = Subject::get_builder()
-            .with_name(&messages)
+            .with_name(&AvailableSubjects::ObjectStoreMeta.to_string())
             .with_record_batches(vec![message_batch])?
             .build()?;
         let _ = message_map.insert(
-            messages.to_string(),
+            AvailableSubjects::ObjectStoreMeta.to_string(),
             IPCMessage::get_builder()
-                .with_name(&messages)
+                .with_name(&AvailableSubjects::ObjectStoreMeta.to_string())
                 .with_publisher(network_arc.get_name())
-                .with_subject(&messages)
+                .with_subject(&AvailableSubjects::ObjectStoreMeta.to_string())
                 .with_update(&Publication::Replace {
-                    subject_name: messages.to_string(),
+                    subject_name: AvailableSubjects::ObjectStoreMeta.to_string(),
                 })
                 .with_message(message_subject.to_ipc_stream()?)
                 .build()?,

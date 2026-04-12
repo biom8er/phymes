@@ -52,14 +52,11 @@ pub struct DynamicTaskNetworkBuilder {
     /// Subscribe event
     pub subscribe: AvailableSubscribeEvents,
     /// LHS subject
-    // pub subject_lhs: Option<SubjectPlan>,
-    pub subject_lhs: SubjectPlan,
+    pub subject_lhs: Option<SubjectPlan>,
     /// RHS subject
-    // pub subject_rhs: Option<SubjectPlan>,
     pub subject_rhs: Option<SubjectPlan>,
     /// Output subject
-    // pub subject_out: Option<SubjectPlan>,
-    pub subject_out: SubjectPlan,
+    pub subject_out: Option<SubjectPlan>,
     /// Output subject
     pub subject_routes: Option<Vec<SubjectPlan>>,
     /// Config data for the processor
@@ -104,9 +101,9 @@ impl Default for DynamicTaskNetworkBuilder {
                 subject_name: subject_out.get_name().to_string(),
             },
             subscribe: AvailableSubscribeEvents::default(),
-            subject_lhs,
+            subject_lhs: None,
             subject_rhs: None,
-            subject_out,
+            subject_out: None,
             subject_routes: None,
             subject_processor,
         }
@@ -220,19 +217,18 @@ impl NetworkBuilderCustomTrait for DynamicTaskNetworkBuilder {
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
         // Build the subject plans based on availability of RHS and alternative routes
         let mut subject_plans = Vec::new();
-        subject_plans.push(self.subject_lhs.clone());
-
-        // RHS
-        if let Some(subject_rhs) = self.subject_rhs.as_ref() {
-            subject_plans.push(subject_rhs.clone());
+        if let Some(subject) = self.subject_lhs.as_ref() {
+            subject_plans.push(subject.clone());
         }
-        subject_plans.push(self.subject_out.clone());
-
-        // Alternative publishing routes
+        if let Some(subject) = self.subject_rhs.as_ref() {
+            subject_plans.push(subject.clone());
+        }
+        if let Some(subject) = self.subject_out.as_ref() {
+            subject_plans.push(subject.clone());
+        }
         for subject in self.subject_routes.as_ref().unwrap_or(&Vec::new()) {
             subject_plans.push(subject.to_owned());
         }
-
         subject_plans.push(self.subject_processor.clone());
 
         Some(subject_plans)

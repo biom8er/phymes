@@ -84,9 +84,9 @@ impl Default for PatchWorkspaceNetworkBuilderStaticWSubject {
                 subject_name: subject_out.get_name().to_string(),
             },
             subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
-            subject_lhs,
+            subject_lhs: Some(subject_lhs),
             subject_rhs: Some(subject_rhs),
-            subject_out,
+            subject_out: Some(subject_out),
             subject_processor,
             ..Default::default()
         };
@@ -213,9 +213,9 @@ pub use todo::Todo"#,
                 subject_name: subject_out.get_name().to_string(),
             },
             subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
-            subject_lhs,
+            subject_lhs: Some(subject_lhs),
             subject_rhs: Some(subject_rhs),
-            subject_out,
+            subject_out: Some(subject_out),
             subject_processor,
             ..Default::default()
         };
@@ -282,9 +282,9 @@ impl Default for PatchWorkspaceNetworkBuilderDynamicWOSubject {
                 subject_name: subject_out.get_name().to_string(),
             },
             subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
-            subject_lhs,
+            subject_lhs: Some(subject_lhs),
             subject_rhs: Some(subject_rhs),
-            subject_out,
+            subject_out: Some(subject_out),
             subject_processor,
             ..Default::default()
         };

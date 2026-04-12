@@ -70,8 +70,8 @@ impl Default for GetJsonNetworkBuilderStaticWSubject {
             publication: Publication::Extend {
                 subject_name: subject_out.get_name().to_string(),
             },
-            subject_lhs,
-            subject_out,
+            subject_lhs: Some(subject_lhs),
+            subject_out: Some(subject_out),
             subject_processor,
             ..Default::default()
         };
@@ -147,8 +147,8 @@ impl Default for GetJsonNetworkBuilderDynamicWSubject {
                 subject_name: subject_out.get_name().to_string(),
             },
             subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
-            subject_lhs,
-            subject_out,
+            subject_lhs: Some(subject_lhs),
+            subject_out: Some(subject_out),
             subject_processor,
             ..Default::default()
         };
@@ -207,8 +207,8 @@ impl Default for GetJsonNetworkBuilderDynamicWOSubject {
                 subject_name: subject_out.get_name().to_string(),
             },
             subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
-            subject_lhs,
-            subject_out,
+            subject_lhs: Some(subject_lhs),
+            subject_out: Some(subject_out),
             subject_processor,
             ..Default::default()
         };
@@ -282,16 +282,16 @@ mod tests {
             year_to
         );
         let message_builder = SubjectBuilder::new()
-            .with_name(get_content_network.inner.subject_lhs.get_name())
+            .with_name(get_content_network.inner.subscription_lhs.subject_name())
             .append_new_user_query_str(&esearch_url, "user")?;
         let _ = message_map.insert(
-            get_content_network.inner.subject_lhs.get_name().to_string(),
+            get_content_network.inner.subscription_lhs.subject_name().to_string(),
             IPCMessage::get_builder()
-                .with_name(get_content_network.inner.subject_lhs.get_name())
+                .with_name(get_content_network.inner.subscription_lhs.subject_name())
                 .with_publisher(&get_content_network.inner.network_name)
-                .with_subject(get_content_network.inner.subject_lhs.get_name())
+                .with_subject(get_content_network.inner.subscription_lhs.subject_name())
                 .with_update(&Publication::Replace {
-                    subject_name: get_content_network.inner.subject_lhs.get_name().to_string(),
+                    subject_name: get_content_network.inner.subscription_lhs.subject_name().to_string(),
                 })
                 .with_message(message_builder.clone().build()?.to_ipc_stream()?)
                 .build()?,
@@ -407,7 +407,7 @@ mod tests {
             request_type: HTTPClientRequestType::Get,
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?".to_string(),
-            subject_name: Some(get_content_network.inner.subject_lhs.get_name().to_string()),
+            subject_name: Some(get_content_network.inner.subscription_lhs.subject_name().to_string()),
             request_schema: HTTPClientRequestSchemas::Attachments,
             ..Default::default()
         };
