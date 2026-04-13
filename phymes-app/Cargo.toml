@@ -30,7 +30,7 @@ phymes-schemas = { path = "../phymes-schemas", default-features = false, optiona
 phymes-event = { path = "../phymes-event", default-features = false, optional = true }
 phymes-message = { path = "../phymes-message", default-features = false, optional = true }
 phymes-streams = { path = "../phymes-streams", default-features = false, optional = true }
-clap = {version = "4.5.40", optional = true}
+clap = {version = "4.2.4", optional = true}
 tokio = { version = "1.49.0", default-features = false, optional = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
