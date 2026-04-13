@@ -16,8 +16,8 @@ mkl-dynamic = ["dep:intel-mkl-src", "intel-mkl-src/mkl-dynamic-lp64-iomp", "cand
 cuda = ["candle-core/cuda"]
 cudnn = ["candle-core/cudnn"]
 nccl = ["cuda", "cudarc/nccl"]
-wasip2 = ["phymes-subject/wasip2", "phymes-diagnostics/wasip2", "phymes-schemas/wasip2", "lopdf/wasm_js", "dep:quick-xml"]
-wsl = ["phymes-subject/wsl", "phymes-diagnostics/wsl", "phymes-schemas/wsl", "lopdf/async", "lopdf/rayon", "quick-xml/tokio", "dep:tempfile"]
+wasip2 = ["phymes-subject/wasip2", "phymes-diagnostics/wasip2", "phymes-schemas/wasip2", "lopdf/wasm_js", "dep:quick-xml", "tree-sitter/wasm", "dep:tree-sitter-python", "dep:tree-sitter-html", "dep:tree-sitter-rust", "dep:regex"]
+wsl = ["phymes-subject/wsl", "phymes-diagnostics/wsl", "phymes-schemas/wsl", "lopdf/async", "lopdf/rayon", "quick-xml/tokio", "dep:tempfile", "tree-sitter/std", "dep:tree-sitter-python", "dep:tree-sitter-html", "dep:tree-sitter-rust", "regex/std"]
 gpu = ["cuda", "cudnn", "nccl"]
 api = ["phymes-subject/api", "phymes-schemas/api", "quick-xml/serialize",]
 candle = [] # force use of candle models when api is available
@@ -52,6 +52,11 @@ flate2 = { version = "1.1.9" }
 diff-match-patch-rs = "0.5.1"
 minijinja = { workspace = true }
 minijinja-contrib = { workspace = true }
+tree-sitter = { version = "0.26.8", default-features = false, optional = true }
+tree-sitter-html = { version = "0.23.2", default-features = false, optional = true }
+tree-sitter-python = { version = "0.23.2", default-features = false, optional = true }
+tree-sitter-rust = { version = "0.23.2", default-features = false, optional = true }
+regex = { version = "1.12.3", default-features = false, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

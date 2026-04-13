@@ -8,6 +8,8 @@ pub struct ExtractOntologyNetworkBuilder<'a> {
     pub network_name: &'a str,
     /// Is the output Documents or Queries?
     pub as_documents: bool,
+    /// Include the extraction from UserScript to ParseOwl task
+    pub include_extract_owl: bool,
 }
 
 impl<'a> Default for ExtractOntologyNetworkBuilder<'a> {
@@ -15,6 +17,7 @@ impl<'a> Default for ExtractOntologyNetworkBuilder<'a> {
         Self {
             network_name: "extract_ontology_network",
             as_documents: true,
+            include_extract_owl: true,
         }
     }
 }
@@ -27,7 +30,8 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         } else {
             "Queries"
         };
-        format!(r#"flowchart TD
+        let extract_owl = if self. include_extract_owl {
+            r#"
 	%% ------------------------------------------------------------------------------
 	%% OWL ontology extraction
 	%% ------------------------------------------------------------------------------
@@ -37,13 +41,15 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    extract_owl_p-processor-->extract_owl_p-publish
 	    extract_owl_p-publish-->|Extend|ParseOwl-subject
 	end
-	extract_owl_r-rt@{{shape: subproc, label: extract_owl_r}}
 	extract_owl_r-rt-->extract_owl_t
-	UserScript-subject@{{shape: doc, label: UserScript}}
-	extract_owl_p-processor@{{shape: rect, label: ExtractXML}}
-	extract_owl_p-publish@{{shape: fork}}
-	extract_owl_p-subscribe@{{shape: diamond, label: All}}
-	ParseOwl-subject@{{shape: doc, label: ParseOwl}}
+	UserScript-subject@{shape: doc, label: UserScript}}
+	extract_owl_p-processor@{shape: rect, label: ExtractXML}
+	extract_owl_p-publish@{shape: fork}
+	extract_owl_p-subscribe@{shape: diamond, label: All}"#
+        } else {
+            ""
+        };
+        format!(r#"flowchart TD{extract_owl}
 	%% ------------------------------------------------------------------------------
 	%% Filter on Owl:Ontology entities
 	%% ------------------------------------------------------------------------------
@@ -62,6 +68,8 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_ontology_entity_p-publish-->|Extend|select_ontology_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_ontology_entity_t
+	extract_owl_r-rt@{{shape: subproc, label: extract_owl_r}}
+	ParseOwl-subject@{{shape: doc, label: ParseOwl}}
 	comparator_ontology_entity_p-processor@{{shape: rect, label: Select}}
 	comparator_ontology_entity_p-publish@{{shape: fork}}
 	comparator_ontology_entity_p-subscribe@{{shape: diamond, label: All}}
@@ -932,14 +940,27 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         Utf8 text
 	}"#
         };
-        format!(r#"erDiagram
-    UserScript["UserScript"] {{
+        let extract_owl = if self. include_extract_owl {
+            r#"
+    UserScript["UserScript"] {
         Utf8 filename
         Utf8 extension
         List-UInt8 bytes
         Utf8 metadata
         Int64 timestamp
-    }}
+    }
+    extract_owl_p["extract_owl_p"] {
+        Boolean cpu "false"
+        Utf8 format "Owl"
+        Utf8 lhs_name "UserScript"
+        List-Utf8 lhs_values "['bytes']"
+        Utf8 operator "ExtractXML"
+        Utf8 lhs_stream "Accumulate"
+    }"#
+        } else {
+            ""
+        };
+        format!(r#"erDiagram{extract_owl}
     ParseOwl["ParseOwl"] {{
         Utf8 entity
         Utf8 subject
@@ -947,14 +968,6 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         Utf8 object
         Utf8 graph
         Utf8 dataset
-    }}
-    extract_owl_p["extract_owl_p"] {{
-        Boolean cpu "false"
-        Utf8 format "Owl"
-        Utf8 lhs_name "UserScript"
-        List-Utf8 lhs_values "['bytes']"
-        Utf8 operator "ExtractXML"
-        Utf8 lhs_stream "Accumulate"
     }}
     comparator_ontology_entity_p["comparator_ontology_entity_p"] {{
 	    List-Utf8 as_columns "['','','','','','','cmp']"

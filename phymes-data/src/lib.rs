@@ -1,4 +1,5 @@
 mod operators;
+mod parser;
 mod patch;
 mod template;
 mod tensor;
@@ -11,6 +12,7 @@ pub use operators::{
     load_pdf_document, make_pdf_document, pack_tabular, sort,
     table_and_data_format_to_record_batch, test_candle_ops, test_extract_tabular_data,
 };
+pub use parser::create_parser;
 #[cfg(feature = "api")]
 pub use patch::WorkspaceEditor;
 pub use patch::{
