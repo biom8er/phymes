@@ -667,6 +667,20 @@ impl Default for OpenAlexNetworkBuilder {
         };
         let open_alex_network_builder = open_alex_network_builder.extend(network_builder).unwrap();
 
+        // Extract PDF session
+        let extract_pdf_session = ExtractPDFNetworkBuilder::default();
+        let extract_pdf_network_builder = NetworkBuilder::from_mermaid_flowchart(
+            extract_pdf_session.as_mermaid_flowchart(),
+            false,
+        ).unwrap()
+        .with_subjects_from_mermaid_erdiagram(
+            extract_pdf_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        ).unwrap()
+        .with_name(extract_pdf_session.network_name);
+        let open_alex_network_builder = open_alex_network_builder.extend(extract_pdf_network_builder).unwrap();
+
         // Get Owl ontology network
         let network_builder = {
             let network_name = "get_owl";
@@ -716,34 +730,190 @@ impl Default for OpenAlexNetworkBuilder {
         };
         let open_alex_network_builder = open_alex_network_builder.extend(network_builder).unwrap();
 
-        // Extract PDF session
-        let extract_pdf_session = ExtractPDFNetworkBuilder::default();
-        let extract_pdf_network_builder = NetworkBuilder::from_mermaid_flowchart(
-            extract_pdf_session.as_mermaid_flowchart(),
-            false,
-        ).unwrap()
-        .with_subjects_from_mermaid_erdiagram(
-            extract_pdf_session.as_mermaid_erdiagram(),
-            false,
-            true,
-        ).unwrap()
-        .with_name(extract_pdf_session.network_name);
-        let open_alex_network_builder = open_alex_network_builder.extend(extract_pdf_network_builder).unwrap();
+        // Extract Owl ontology with filtering of predicates
+        let network_builder = {
+            let task_name = "extract_owl";
+            let mut tasks = VecDeque::new();
+            {
+                let network_name = "extract_owl";
+                let config = DataConfig {
+                    lhs_name: Some(AvailableInterfaceSubjects::UserScript.to_string()),
+                    lhs_values: Some(["bytes"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    format: Some(DataFormat::Owl),
+                    cpu: false,
+                    operator: AvailableOperators::ExtractXML,
+                    lhs_stream: DataStreamManager::Stream,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: task_name.to_string(),
+                    is_dynamic: false,
+                    processor: AvailableProcessors::Select,
+                    subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                        subject_name: AvailableInterfaceSubjects::UserScript.to_string(),
+                    },
+                    publication: Publication::Replace {
+                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
+                    },
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);                
+            }
+            let schema_cols = ["entity","subject","predicate","object","graph","dataset"];
+            let cmp_cols = ["dataset","hasDbXref","creation_date","id","seeAlso","contributor","OMO_0002000","date"];
+            {
+                let network_name = "cmp_owl_predicates";
+                let lhs_values = schema_cols.iter().chain(cmp_cols.iter()).map(|s|s.to_string()).collect::<Vec<_>>();
+                let config = DataConfig {
+                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
+                    lhs_values: Some(lhs_values.clone()),
+                    as_columns: Some(lhs_values.clone()),
+                    cast_templates: Some(["","","","","","","http://www.geneontology.org/formats/oboInOwl#hasDbXref","http://www.geneontology.org/formats/oboInOwl#creation_date","http://www.geneontology.org/formats/oboInOwl#id","http://www.w3.org/2000/01/rdf-schema#seeAlso","http://purl.org/dc/terms/contributor","http://purl.obolibrary.org/obo/OMO_0002000","http://purl.org/dc/terms/date"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    cast_datatypes: Some(lhs_values.iter().map(|_| DataType::Utf8.to_string()).collect::<Vec<_>>()),
+                    column_operators: Some([DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::Value, DataColumnOperator::Value, DataColumnOperator::Value, DataColumnOperator::Value, DataColumnOperator::Value, DataColumnOperator::Value].into_iter().collect::<Vec<_>>()),
+                    cpu: false,
+                    operator: AvailableOperators::Select,
+                    lhs_stream: DataStreamManager::Stream,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: task_name.to_string(),
+                    is_dynamic: false,
+                    processor: AvailableProcessors::Select,
+                    subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                    },
+                    publication: Publication::Replace {
+                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
+                    },
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);                
+            }
+            {
+                let network_name = "filter_owl_predicates";
+                let config = DataConfig {
+                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
+                    lhs_values: Some(cmp_cols.iter().map(|_| "predicate".to_string()).collect::<Vec<_>>()),
+                    cmp_columns: Some(cmp_cols.iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    cmp_operators: Some(cmp_cols.iter().map(|_| DataComparatorOperator::NotLike).collect::<Vec<_>>()),
+                    cmp_predicate: Some(DataComparatorPredicate::All),
+                    cpu: false,
+                    operator: AvailableOperators::Filter,
+                    lhs_stream: DataStreamManager::Stream,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: task_name.to_string(),
+                    is_dynamic: false,
+                    processor: AvailableProcessors::Filter,
+                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
+                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                    },
+                    publication: Publication::Replace {
+                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
+                    },
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);                
+            }
+            {
+                let network_name = "select_owl_predicates";
+                let config = DataConfig {
+                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
+                    lhs_values: Some(schema_cols.iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    cpu: false,
+                    operator: AvailableOperators::Select,
+                    lhs_stream: DataStreamManager::Stream,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: task_name.to_string(),
+                    is_dynamic: false,
+                    processor: AvailableProcessors::Select,
+                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
+                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                    },
+                    publication: Publication::Replace {
+                        subject_name: AvailableSubjects::ParseOwl.to_string(),
+                    },
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);                
+            }
+            let mut network_builder = tasks.pop_front().unwrap().build_dynamic();
+            while let Some(task) = tasks.pop_front() {
+                network_builder = network_builder.extend(task.build_dynamic()).unwrap();
+            }
+            network_builder
+        };
+        let open_alex_network_builder = open_alex_network_builder.extend(network_builder).unwrap();
 
-        // Extract OWL session
+        // Apply embedding templates to OWL session
         // DM, todo!(): Both PDF and Ontology extraction -> Documents!
         //              Need to change the name of one or add a filter step!
-        let extract_owl_session = ExtractOntologyNetworkBuilder::default();
+
+        // Extract OWL network
+        // DM: the previous networks will overwrite the defaults in this network
+        let extract_owl_network = ExtractOntologyNetworkBuilder { network_name: "extract_ontology_network", as_documents: false };
         let extract_owl_network_builder = NetworkBuilder::from_mermaid_flowchart(
-            extract_owl_session.as_mermaid_flowchart(),
+            &extract_owl_network.as_mermaid_flowchart(),
             false,
         ).unwrap()
         .with_subjects_from_mermaid_erdiagram(
-            extract_owl_session.as_mermaid_erdiagram(),
+            &extract_owl_network.as_mermaid_erdiagram(),
             false,
             true,
         ).unwrap()
-        .with_name(extract_owl_session.network_name);
+        .with_name(extract_owl_network.network_name);
         let open_alex_network_builder = open_alex_network_builder.extend(extract_owl_network_builder).unwrap();
 
         // Embed text session

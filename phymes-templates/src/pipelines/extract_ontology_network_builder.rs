@@ -1,4 +1,4 @@
-/// A session for melting a `Study Dataset` from a single workflow step
+/// A newtork for extracting, parsing, and preparing ontology entities for text embedding
 ///
 /// # Notes
 ///
@@ -6,20 +6,28 @@
 pub struct ExtractOntologyNetworkBuilder<'a> {
     /// Session
     pub network_name: &'a str,
+    /// Is the output Documents or Queries?
+    pub as_documents: bool,
 }
 
 impl<'a> Default for ExtractOntologyNetworkBuilder<'a> {
     fn default() -> Self {
         Self {
             network_name: "extract_ontology_network",
+            as_documents: true,
         }
     }
 }
 
 impl<'a> ExtractOntologyNetworkBuilder<'a> {
     /// Return the Mermaid.js flowchart representation of the session
-    pub fn as_mermaid_flowchart(&self) -> &str {
-        r#"flowchart TD
+    pub fn as_mermaid_flowchart(&self) -> String {
+        let subject_o = if self.as_documents {
+            "Documents"
+        } else {
+            "Queries"
+        };
+        format!(r#"flowchart TD
 	%% ------------------------------------------------------------------------------
 	%% OWL ontology extraction
 	%% ------------------------------------------------------------------------------
@@ -29,13 +37,13 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    extract_owl_p-processor-->extract_owl_p-publish
 	    extract_owl_p-publish-->|Extend|ParseOwl-subject
 	end
-	extract_owl_r-rt@{shape: subproc, label: extract_owl_r}
+	extract_owl_r-rt@{{shape: subproc, label: extract_owl_r}}
 	extract_owl_r-rt-->extract_owl_t
-	UserScript-subject@{shape: doc, label: UserScript}
-	extract_owl_p-processor@{shape: rect, label: ExtractXML}
-	extract_owl_p-publish@{shape: fork}
-	extract_owl_p-subscribe@{shape: diamond, label: All}
-	ParseOwl-subject@{shape: doc, label: ParseOwl}
+	UserScript-subject@{{shape: doc, label: UserScript}}
+	extract_owl_p-processor@{{shape: rect, label: ExtractXML}}
+	extract_owl_p-publish@{{shape: fork}}
+	extract_owl_p-subscribe@{{shape: diamond, label: All}}
+	ParseOwl-subject@{{shape: doc, label: ParseOwl}}
 	%% ------------------------------------------------------------------------------
 	%% Filter on Owl:Ontology entities
 	%% ------------------------------------------------------------------------------
@@ -54,18 +62,18 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_ontology_entity_p-publish-->|Extend|select_ontology_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_ontology_entity_t
-	comparator_ontology_entity_p-processor@{shape: rect, label: Select}
-	comparator_ontology_entity_p-publish@{shape: fork}
-	comparator_ontology_entity_p-subscribe@{shape: diamond, label: All}
-	comparator_ontology_entity_s-subject@{shape: doc, label: comparator_ontology_entity_s}
-	filter_ontology_entity_p-processor@{shape: rect, label: Filter}
-	filter_ontology_entity_p-publish@{shape: fork}
-	filter_ontology_entity_p-subscribe@{shape: diamond, label: All}
-	filter_ontology_entity_s-subject@{shape: doc, label: filter_ontology_entity_s}
-	select_ontology_entity_p-processor@{shape: rect, label: Select}
-	select_ontology_entity_p-publish@{shape: fork}
-	select_ontology_entity_p-subscribe@{shape: diamond, label: All}
-	select_ontology_entity_s-subject@{shape: doc, label: select_ontology_entity_s}
+	comparator_ontology_entity_p-processor@{{shape: rect, label: Select}}
+	comparator_ontology_entity_p-publish@{{shape: fork}}
+	comparator_ontology_entity_p-subscribe@{{shape: diamond, label: All}}
+	comparator_ontology_entity_s-subject@{{shape: doc, label: comparator_ontology_entity_s}}
+	filter_ontology_entity_p-processor@{{shape: rect, label: Filter}}
+	filter_ontology_entity_p-publish@{{shape: fork}}
+	filter_ontology_entity_p-subscribe@{{shape: diamond, label: All}}
+	filter_ontology_entity_s-subject@{{shape: doc, label: filter_ontology_entity_s}}
+	select_ontology_entity_p-processor@{{shape: rect, label: Select}}
+	select_ontology_entity_p-publish@{{shape: fork}}
+	select_ontology_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_ontology_entity_s-subject@{{shape: doc, label: select_ontology_entity_s}}
 	%% ------------------------------------------------------------------------------
 	%% Filter on Owl:AnnotationProperty entities
 	%% ------------------------------------------------------------------------------
@@ -84,18 +92,18 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_annotation_property_entity_p-publish-->|Extend|select_annotation_property_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_annotation_property_entity_t
-	comparator_annotation_property_entity_p-processor@{shape: rect, label: Select}
-	comparator_annotation_property_entity_p-publish@{shape: fork}
-	comparator_annotation_property_entity_p-subscribe@{shape: diamond, label: All}
-	comparator_annotation_property_entity_s-subject@{shape: doc, label: comparator_annotation_property_entity_s}
-	filter_annotation_property_entity_p-processor@{shape: rect, label: Filter}
-	filter_annotation_property_entity_p-publish@{shape: fork}
-	filter_annotation_property_entity_p-subscribe@{shape: diamond, label: All}
-	filter_annotation_property_entity_s-subject@{shape: doc, label: filter_annotation_property_entity_s}
-	select_annotation_property_entity_p-processor@{shape: rect, label: Select}
-	select_annotation_property_entity_p-publish@{shape: fork}
-	select_annotation_property_entity_p-subscribe@{shape: diamond, label: All}
-	select_annotation_property_entity_s-subject@{shape: doc, label: select_annotation_property_entity_s}
+	comparator_annotation_property_entity_p-processor@{{shape: rect, label: Select}}
+	comparator_annotation_property_entity_p-publish@{{shape: fork}}
+	comparator_annotation_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	comparator_annotation_property_entity_s-subject@{{shape: doc, label: comparator_annotation_property_entity_s}}
+	filter_annotation_property_entity_p-processor@{{shape: rect, label: Filter}}
+	filter_annotation_property_entity_p-publish@{{shape: fork}}
+	filter_annotation_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	filter_annotation_property_entity_s-subject@{{shape: doc, label: filter_annotation_property_entity_s}}
+	select_annotation_property_entity_p-processor@{{shape: rect, label: Select}}
+	select_annotation_property_entity_p-publish@{{shape: fork}}
+	select_annotation_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_annotation_property_entity_s-subject@{{shape: doc, label: select_annotation_property_entity_s}}
 	%% ------------------------------------------------------------------------------
 	%% Filter on Owl:DatatypeProperty entities
 	%% ------------------------------------------------------------------------------
@@ -114,18 +122,18 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_datatype_property_entity_p-publish-->|Extend|select_datatype_property_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_datatype_property_entity_t
-	comparator_datatype_property_entity_p-processor@{shape: rect, label: Select}
-	comparator_datatype_property_entity_p-publish@{shape: fork}
-	comparator_datatype_property_entity_p-subscribe@{shape: diamond, label: All}
-	comparator_datatype_property_entity_s-subject@{shape: doc, label: comparator_datatype_property_entity_s}
-	filter_datatype_property_entity_p-processor@{shape: rect, label: Filter}
-	filter_datatype_property_entity_p-publish@{shape: fork}
-	filter_datatype_property_entity_p-subscribe@{shape: diamond, label: All}
-	filter_datatype_property_entity_s-subject@{shape: doc, label: filter_datatype_property_entity_s}
-	select_datatype_property_entity_p-processor@{shape: rect, label: Select}
-	select_datatype_property_entity_p-publish@{shape: fork}
-	select_datatype_property_entity_p-subscribe@{shape: diamond, label: All}
-	select_datatype_property_entity_s-subject@{shape: doc, label: select_datatype_property_entity_s}
+	comparator_datatype_property_entity_p-processor@{{shape: rect, label: Select}}
+	comparator_datatype_property_entity_p-publish@{{shape: fork}}
+	comparator_datatype_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	comparator_datatype_property_entity_s-subject@{{shape: doc, label: comparator_datatype_property_entity_s}}
+	filter_datatype_property_entity_p-processor@{{shape: rect, label: Filter}}
+	filter_datatype_property_entity_p-publish@{{shape: fork}}
+	filter_datatype_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	filter_datatype_property_entity_s-subject@{{shape: doc, label: filter_datatype_property_entity_s}}
+	select_datatype_property_entity_p-processor@{{shape: rect, label: Select}}
+	select_datatype_property_entity_p-publish@{{shape: fork}}
+	select_datatype_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_datatype_property_entity_s-subject@{{shape: doc, label: select_datatype_property_entity_s}}
 	%% ------------------------------------------------------------------------------
 	%% Filter on Owl:Class entities
 	%% ------------------------------------------------------------------------------
@@ -144,18 +152,18 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_class_entity_p-publish-->|Extend|select_class_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_class_entity_t
-	comparator_class_entity_p-processor@{shape: rect, label: Select}
-	comparator_class_entity_p-publish@{shape: fork}
-	comparator_class_entity_p-subscribe@{shape: diamond, label: All}
-	comparator_class_entity_s-subject@{shape: doc, label: comparator_class_entity_s}
-	filter_class_entity_p-processor@{shape: rect, label: Filter}
-	filter_class_entity_p-publish@{shape: fork}
-	filter_class_entity_p-subscribe@{shape: diamond, label: All}
-	filter_class_entity_s-subject@{shape: doc, label: filter_class_entity_s}
-	select_class_entity_p-processor@{shape: rect, label: Select}
-	select_class_entity_p-publish@{shape: fork}
-	select_class_entity_p-subscribe@{shape: diamond, label: All}
-	select_class_entity_s-subject@{shape: doc, label: select_class_entity_s}
+	comparator_class_entity_p-processor@{{shape: rect, label: Select}}
+	comparator_class_entity_p-publish@{{shape: fork}}
+	comparator_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	comparator_class_entity_s-subject@{{shape: doc, label: comparator_class_entity_s}}
+	filter_class_entity_p-processor@{{shape: rect, label: Filter}}
+	filter_class_entity_p-publish@{{shape: fork}}
+	filter_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	filter_class_entity_s-subject@{{shape: doc, label: filter_class_entity_s}}
+	select_class_entity_p-processor@{{shape: rect, label: Select}}
+	select_class_entity_p-publish@{{shape: fork}}
+	select_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_class_entity_s-subject@{{shape: doc, label: select_class_entity_s}}
 	%% ------------------------------------------------------------------------------
 	%% Filter on Owl:ObjectProperty entities
 	%% ------------------------------------------------------------------------------
@@ -174,18 +182,18 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_object_property_entity_p-publish-->|Extend|select_object_property_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_object_property_entity_t
-	comparator_object_property_entity_p-processor@{shape: rect, label: Select}
-	comparator_object_property_entity_p-publish@{shape: fork}
-	comparator_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	comparator_object_property_entity_s-subject@{shape: doc, label: comparator_object_property_entity_s}
-	filter_object_property_entity_p-processor@{shape: rect, label: Filter}
-	filter_object_property_entity_p-publish@{shape: fork}
-	filter_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	filter_object_property_entity_s-subject@{shape: doc, label: filter_object_property_entity_s}
-	select_object_property_entity_p-processor@{shape: rect, label: Select}
-	select_object_property_entity_p-publish@{shape: fork}
-	select_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	select_object_property_entity_s-subject@{shape: doc, label: select_object_property_entity_s}
+	comparator_object_property_entity_p-processor@{{shape: rect, label: Select}}
+	comparator_object_property_entity_p-publish@{{shape: fork}}
+	comparator_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	comparator_object_property_entity_s-subject@{{shape: doc, label: comparator_object_property_entity_s}}
+	filter_object_property_entity_p-processor@{{shape: rect, label: Filter}}
+	filter_object_property_entity_p-publish@{{shape: fork}}
+	filter_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	filter_object_property_entity_s-subject@{{shape: doc, label: filter_object_property_entity_s}}
+	select_object_property_entity_p-processor@{{shape: rect, label: Select}}
+	select_object_property_entity_p-publish@{{shape: fork}}
+	select_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_object_property_entity_s-subject@{{shape: doc, label: select_object_property_entity_s}}
 	%% ------------------------------------------------------------------------------
 	%% Filter on Owl:NamedIndividual entities
 	%% ------------------------------------------------------------------------------
@@ -204,18 +212,18 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_named_individual_entity_p-publish-->|Extend|select_named_individual_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_named_individual_entity_t
-	comparator_named_individual_entity_p-processor@{shape: rect, label: Select}
-	comparator_named_individual_entity_p-publish@{shape: fork}
-	comparator_named_individual_entity_p-subscribe@{shape: diamond, label: All}
-	comparator_named_individual_entity_s-subject@{shape: doc, label: comparator_named_individual_entity_s}
-	filter_named_individual_entity_p-processor@{shape: rect, label: Filter}
-	filter_named_individual_entity_p-publish@{shape: fork}
-	filter_named_individual_entity_p-subscribe@{shape: diamond, label: All}
-	filter_named_individual_entity_s-subject@{shape: doc, label: filter_named_individual_entity_s}
-	select_named_individual_entity_p-processor@{shape: rect, label: Select}
-	select_named_individual_entity_p-publish@{shape: fork}
-	select_named_individual_entity_p-subscribe@{shape: diamond, label: All}
-	select_named_individual_entity_s-subject@{shape: doc, label: select_named_individual_entity_s}
+	comparator_named_individual_entity_p-processor@{{shape: rect, label: Select}}
+	comparator_named_individual_entity_p-publish@{{shape: fork}}
+	comparator_named_individual_entity_p-subscribe@{{shape: diamond, label: All}}
+	comparator_named_individual_entity_s-subject@{{shape: doc, label: comparator_named_individual_entity_s}}
+	filter_named_individual_entity_p-processor@{{shape: rect, label: Filter}}
+	filter_named_individual_entity_p-publish@{{shape: fork}}
+	filter_named_individual_entity_p-subscribe@{{shape: diamond, label: All}}
+	filter_named_individual_entity_s-subject@{{shape: doc, label: filter_named_individual_entity_s}}
+	select_named_individual_entity_p-processor@{{shape: rect, label: Select}}
+	select_named_individual_entity_p-publish@{{shape: fork}}
+	select_named_individual_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_named_individual_entity_s-subject@{{shape: doc, label: select_named_individual_entity_s}}
 	%% ------------------------------------------------------------------------------
 	%% Filter on Owl:Axiom entities
 	%% ------------------------------------------------------------------------------
@@ -234,18 +242,18 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_axiom_entity_p-publish-->|Extend|select_axiom_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_axiom_entity_t
-	comparator_axiom_entity_p-processor@{shape: rect, label: Select}
-	comparator_axiom_entity_p-publish@{shape: fork}
-	comparator_axiom_entity_p-subscribe@{shape: diamond, label: All}
-	comparator_axiom_entity_s-subject@{shape: doc, label: comparator_axiom_entity_s}
-	filter_axiom_entity_p-processor@{shape: rect, label: Filter}
-	filter_axiom_entity_p-publish@{shape: fork}
-	filter_axiom_entity_p-subscribe@{shape: diamond, label: All}
-	filter_axiom_entity_s-subject@{shape: doc, label: filter_axiom_entity_s}
-	select_axiom_entity_p-processor@{shape: rect, label: Select}
-	select_axiom_entity_p-publish@{shape: fork}
-	select_axiom_entity_p-subscribe@{shape: diamond, label: All}
-	select_axiom_entity_s-subject@{shape: doc, label: select_axiom_entity_s}
+	comparator_axiom_entity_p-processor@{{shape: rect, label: Select}}
+	comparator_axiom_entity_p-publish@{{shape: fork}}
+	comparator_axiom_entity_p-subscribe@{{shape: diamond, label: All}}
+	comparator_axiom_entity_s-subject@{{shape: doc, label: comparator_axiom_entity_s}}
+	filter_axiom_entity_p-processor@{{shape: rect, label: Filter}}
+	filter_axiom_entity_p-publish@{{shape: fork}}
+	filter_axiom_entity_p-subscribe@{{shape: diamond, label: All}}
+	filter_axiom_entity_s-subject@{{shape: doc, label: filter_axiom_entity_s}}
+	select_axiom_entity_p-processor@{{shape: rect, label: Select}}
+	select_axiom_entity_p-publish@{{shape: fork}}
+	select_axiom_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_axiom_entity_s-subject@{{shape: doc, label: select_axiom_entity_s}}
 	%% ------------------------------------------------------------------------------
 	%% Pivot Owl:AnnotationProperty on rdfs:label (or skos:prefLabel)
 	%% ------------------------------------------------------------------------------
@@ -272,26 +280,26 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    pivot_annotation_property_entity_p-publish-->|Replace|pivot_annotation_property_entity_s-subject
 	end
 	extract_owl_r-rt-->pivot_annotation_property_t
-	coalesce_annotation_property_entity_p-processor@{shape: rect, label: CoalesceProcessor}
-	coalesce_annotation_property_entity_p-publish@{shape: fork}
-	coalesce_annotation_property_entity_p-subscribe@{shape: diamond, label: All}
-	coalesce_annotation_property_entity_s-subject@{shape: doc, label: coalesce_annotation_property_entity_s}
-	comparator_predicate_annotation_property_entity_p-processor@{shape: rect, label: Select}
-	comparator_predicate_annotation_property_entity_p-publish@{shape: fork}
-	comparator_predicate_annotation_property_entity_p-subscribe@{shape: diamond, label: All}
-	comparator_predicate_annotation_property_entity_s-subject@{shape: doc, label: comparator_predicate_annotation_property_entity_s}
-	filter_predicate_annotation_property_entity_p-processor@{shape: rect, label: Filter}
-	filter_predicate_annotation_property_entity_p-publish@{shape: fork}
-	filter_predicate_annotation_property_entity_p-subscribe@{shape: diamond, label: All}
-	filter_predicate_annotation_property_entity_s-subject@{shape: doc, label: filter_predicate_annotation_property_entity_s}
-	select_predicate_annotation_property_entity_p-processor@{shape: rect, label: Select}
-	select_predicate_annotation_property_entity_p-publish@{shape: fork}
-	select_predicate_annotation_property_entity_p-subscribe@{shape: diamond, label: All}
-	select_predicate_annotation_property_entity_s-subject@{shape: doc, label: select_predicate_annotation_property_entity_s}
-	pivot_annotation_property_entity_p-processor@{shape: rect, label: Pivot}
-	pivot_annotation_property_entity_p-publish@{shape: fork}
-	pivot_annotation_property_entity_p-subscribe@{shape: diamond, label: All}
-	pivot_annotation_property_entity_s-subject@{shape: doc, label: pivot_annotation_property_entity_s}
+	coalesce_annotation_property_entity_p-processor@{{shape: rect, label: CoalesceProcessor}}
+	coalesce_annotation_property_entity_p-publish@{{shape: fork}}
+	coalesce_annotation_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	coalesce_annotation_property_entity_s-subject@{{shape: doc, label: coalesce_annotation_property_entity_s}}
+	comparator_predicate_annotation_property_entity_p-processor@{{shape: rect, label: Select}}
+	comparator_predicate_annotation_property_entity_p-publish@{{shape: fork}}
+	comparator_predicate_annotation_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	comparator_predicate_annotation_property_entity_s-subject@{{shape: doc, label: comparator_predicate_annotation_property_entity_s}}
+	filter_predicate_annotation_property_entity_p-processor@{{shape: rect, label: Filter}}
+	filter_predicate_annotation_property_entity_p-publish@{{shape: fork}}
+	filter_predicate_annotation_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	filter_predicate_annotation_property_entity_s-subject@{{shape: doc, label: filter_predicate_annotation_property_entity_s}}
+	select_predicate_annotation_property_entity_p-processor@{{shape: rect, label: Select}}
+	select_predicate_annotation_property_entity_p-publish@{{shape: fork}}
+	select_predicate_annotation_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_predicate_annotation_property_entity_s-subject@{{shape: doc, label: select_predicate_annotation_property_entity_s}}
+	pivot_annotation_property_entity_p-processor@{{shape: rect, label: Pivot}}
+	pivot_annotation_property_entity_p-publish@{{shape: fork}}
+	pivot_annotation_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	pivot_annotation_property_entity_s-subject@{{shape: doc, label: pivot_annotation_property_entity_s}}
 	%% ------------------------------------------------------------------------------
 	%% Owl:AnnotationProperty post-pivot cleanup
 	%% ------------------------------------------------------------------------------
@@ -310,18 +318,18 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_annotation_property_pivot_p-publish-->|Replace|select_annotation_property_pivot_s-subject
 	end
 	extract_owl_r-rt-->post_pivot_annotation_property_t
-	coalesce_annotation_property_pivot_p-processor@{shape: rect, label: CoalesceProcessor}
-	coalesce_annotation_property_pivot_p-publish@{shape: fork}
-	coalesce_annotation_property_pivot_p-subscribe@{shape: diamond, label: All}
-	coalesce_annotation_property_pivot_s-subject@{shape: doc, label: coalesce_annotation_property_pivot_s}
-	group_by_annotation_property_pivot_p-processor@{shape: rect, label: GroupBy}
-	group_by_annotation_property_pivot_p-publish@{shape: fork}
-	group_by_annotation_property_pivot_p-subscribe@{shape: diamond, label: All}
-	group_by_annotation_property_pivot_s-subject@{shape: doc, label: group_by_annotation_property_pivot_s}
-	select_annotation_property_pivot_p-processor@{shape: rect, label: Select}
-	select_annotation_property_pivot_p-publish@{shape: fork}
-	select_annotation_property_pivot_p-subscribe@{shape: diamond, label: All}
-	select_annotation_property_pivot_s-subject@{shape: doc, label: select_annotation_property_pivot_s}
+	coalesce_annotation_property_pivot_p-processor@{{shape: rect, label: CoalesceProcessor}}
+	coalesce_annotation_property_pivot_p-publish@{{shape: fork}}
+	coalesce_annotation_property_pivot_p-subscribe@{{shape: diamond, label: All}}
+	coalesce_annotation_property_pivot_s-subject@{{shape: doc, label: coalesce_annotation_property_pivot_s}}
+	group_by_annotation_property_pivot_p-processor@{{shape: rect, label: GroupBy}}
+	group_by_annotation_property_pivot_p-publish@{{shape: fork}}
+	group_by_annotation_property_pivot_p-subscribe@{{shape: diamond, label: All}}
+	group_by_annotation_property_pivot_s-subject@{{shape: doc, label: group_by_annotation_property_pivot_s}}
+	select_annotation_property_pivot_p-processor@{{shape: rect, label: Select}}
+	select_annotation_property_pivot_p-publish@{{shape: fork}}
+	select_annotation_property_pivot_p-subscribe@{{shape: diamond, label: All}}
+	select_annotation_property_pivot_s-subject@{{shape: doc, label: select_annotation_property_pivot_s}}
 	%% ------------------------------------------------------------------------------
 	%% Pivot Owl:Class on rdfs:label (or skos:prefLabel)
 	%% ------------------------------------------------------------------------------
@@ -348,26 +356,26 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    pivot_class_entity_p-publish-->|Replace|pivot_class_entity_s-subject
 	end
 	extract_owl_r-rt-->pivot_class_entity_t
-	coalesce_class_entity_p-processor@{shape: rect, label: CoalesceProcessor}
-	coalesce_class_entity_p-publish@{shape: fork}
-	coalesce_class_entity_p-subscribe@{shape: diamond, label: All}
-	coalesce_class_entity_s-subject@{shape: doc, label: coalesce_class_entity_s}
-	comparator_predicate_class_entity_p-processor@{shape: rect, label: Select}
-	comparator_predicate_class_entity_p-publish@{shape: fork}
-	comparator_predicate_class_entity_p-subscribe@{shape: diamond, label: All}
-	comparator_predicate_class_entity_s-subject@{shape: doc, label: comparator_predicate_class_entity_s}
-	filter_predicate_class_entity_p-processor@{shape: rect, label: Filter}
-	filter_predicate_class_entity_p-publish@{shape: fork}
-	filter_predicate_class_entity_p-subscribe@{shape: diamond, label: All}
-	filter_predicate_class_entity_s-subject@{shape: doc, label: filter_predicate_class_entity_s}
-	select_predicate_class_entity_p-processor@{shape: rect, label: Select}
-	select_predicate_class_entity_p-publish@{shape: fork}
-	select_predicate_class_entity_p-subscribe@{shape: diamond, label: All}
-	select_predicate_class_entity_s-subject@{shape: doc, label: select_predicate_class_entity_s}
-	pivot_class_entity_p-processor@{shape: rect, label: Pivot}
-	pivot_class_entity_p-publish@{shape: fork}
-	pivot_class_entity_p-subscribe@{shape: diamond, label: All}
-	pivot_class_entity_s-subject@{shape: doc, label: pivot_class_entity_s}
+	coalesce_class_entity_p-processor@{{shape: rect, label: CoalesceProcessor}}
+	coalesce_class_entity_p-publish@{{shape: fork}}
+	coalesce_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	coalesce_class_entity_s-subject@{{shape: doc, label: coalesce_class_entity_s}}
+	comparator_predicate_class_entity_p-processor@{{shape: rect, label: Select}}
+	comparator_predicate_class_entity_p-publish@{{shape: fork}}
+	comparator_predicate_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	comparator_predicate_class_entity_s-subject@{{shape: doc, label: comparator_predicate_class_entity_s}}
+	filter_predicate_class_entity_p-processor@{{shape: rect, label: Filter}}
+	filter_predicate_class_entity_p-publish@{{shape: fork}}
+	filter_predicate_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	filter_predicate_class_entity_s-subject@{{shape: doc, label: filter_predicate_class_entity_s}}
+	select_predicate_class_entity_p-processor@{{shape: rect, label: Select}}
+	select_predicate_class_entity_p-publish@{{shape: fork}}
+	select_predicate_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_predicate_class_entity_s-subject@{{shape: doc, label: select_predicate_class_entity_s}}
+	pivot_class_entity_p-processor@{{shape: rect, label: Pivot}}
+	pivot_class_entity_p-publish@{{shape: fork}}
+	pivot_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	pivot_class_entity_s-subject@{{shape: doc, label: pivot_class_entity_s}}
 	%% ------------------------------------------------------------------------------
 	%% Owl:Class post-pivot cleanup
 	%% ------------------------------------------------------------------------------
@@ -386,18 +394,18 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_class_pivot_p-publish-->|Extend|merge_object_property_class_named_individual_pivot_s-subject
 	end
 	extract_owl_r-rt-->post_pivot_class_entity_t
-	coalesce_class_pivot_p-processor@{shape: rect, label: CoalesceProcessor}
-	coalesce_class_pivot_p-publish@{shape: fork}
-	coalesce_class_pivot_p-subscribe@{shape: diamond, label: All}
-	coalesce_class_pivot_s-subject@{shape: doc, label: coalesce_class_pivot_s}
-	group_by_class_pivot_p-processor@{shape: rect, label: GroupBy}
-	group_by_class_pivot_p-publish@{shape: fork}
-	group_by_class_pivot_p-subscribe@{shape: diamond, label: All}
-	group_by_class_pivot_s-subject@{shape: doc, label: group_by_class_pivot_s}
-	select_class_pivot_p-processor@{shape: rect, label: Select}
-	select_class_pivot_p-publish@{shape: fork}
-	select_class_pivot_p-subscribe@{shape: diamond, label: All}
-	merge_object_property_class_named_individual_pivot_s-subject@{shape: doc, label: merge_object_property_class_named_individual_pivot_s}
+	coalesce_class_pivot_p-processor@{{shape: rect, label: CoalesceProcessor}}
+	coalesce_class_pivot_p-publish@{{shape: fork}}
+	coalesce_class_pivot_p-subscribe@{{shape: diamond, label: All}}
+	coalesce_class_pivot_s-subject@{{shape: doc, label: coalesce_class_pivot_s}}
+	group_by_class_pivot_p-processor@{{shape: rect, label: GroupBy}}
+	group_by_class_pivot_p-publish@{{shape: fork}}
+	group_by_class_pivot_p-subscribe@{{shape: diamond, label: All}}
+	group_by_class_pivot_s-subject@{{shape: doc, label: group_by_class_pivot_s}}
+	select_class_pivot_p-processor@{{shape: rect, label: Select}}
+	select_class_pivot_p-publish@{{shape: fork}}
+	select_class_pivot_p-subscribe@{{shape: diamond, label: All}}
+	merge_object_property_class_named_individual_pivot_s-subject@{{shape: doc, label: merge_object_property_class_named_individual_pivot_s}}
 	%% ------------------------------------------------------------------------------
 	%% Pivot Owl:ObjectProperty on rdfs:label (or skos:prefLabel)
 	%% ------------------------------------------------------------------------------
@@ -424,26 +432,26 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    pivot_object_property_entity_p-publish-->|Replace|pivot_object_property_entity_s-subject
 	end
 	extract_owl_r-rt-->pivot_object_property_t
-	coalesce_object_property_entity_p-processor@{shape: rect, label: CoalesceProcessor}
-	coalesce_object_property_entity_p-publish@{shape: fork}
-	coalesce_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	coalesce_object_property_entity_s-subject@{shape: doc, label: coalesce_object_property_entity_s}
-	comparator_predicate_object_property_entity_p-processor@{shape: rect, label: Select}
-	comparator_predicate_object_property_entity_p-publish@{shape: fork}
-	comparator_predicate_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	comparator_predicate_object_property_entity_s-subject@{shape: doc, label: comparator_predicate_object_property_entity_s}
-	filter_predicate_object_property_entity_p-processor@{shape: rect, label: Filter}
-	filter_predicate_object_property_entity_p-publish@{shape: fork}
-	filter_predicate_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	filter_predicate_object_property_entity_s-subject@{shape: doc, label: filter_predicate_object_property_entity_s}
-	select_predicate_object_property_entity_p-processor@{shape: rect, label: Select}
-	select_predicate_object_property_entity_p-publish@{shape: fork}
-	select_predicate_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	select_predicate_object_property_entity_s-subject@{shape: doc, label: select_predicate_object_property_entity_s}
-	pivot_object_property_entity_p-processor@{shape: rect, label: Pivot}
-	pivot_object_property_entity_p-publish@{shape: fork}
-	pivot_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	pivot_object_property_entity_s-subject@{shape: doc, label: pivot_object_property_entity_s}
+	coalesce_object_property_entity_p-processor@{{shape: rect, label: CoalesceProcessor}}
+	coalesce_object_property_entity_p-publish@{{shape: fork}}
+	coalesce_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	coalesce_object_property_entity_s-subject@{{shape: doc, label: coalesce_object_property_entity_s}}
+	comparator_predicate_object_property_entity_p-processor@{{shape: rect, label: Select}}
+	comparator_predicate_object_property_entity_p-publish@{{shape: fork}}
+	comparator_predicate_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	comparator_predicate_object_property_entity_s-subject@{{shape: doc, label: comparator_predicate_object_property_entity_s}}
+	filter_predicate_object_property_entity_p-processor@{{shape: rect, label: Filter}}
+	filter_predicate_object_property_entity_p-publish@{{shape: fork}}
+	filter_predicate_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	filter_predicate_object_property_entity_s-subject@{{shape: doc, label: filter_predicate_object_property_entity_s}}
+	select_predicate_object_property_entity_p-processor@{{shape: rect, label: Select}}
+	select_predicate_object_property_entity_p-publish@{{shape: fork}}
+	select_predicate_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_predicate_object_property_entity_s-subject@{{shape: doc, label: select_predicate_object_property_entity_s}}
+	pivot_object_property_entity_p-processor@{{shape: rect, label: Pivot}}
+	pivot_object_property_entity_p-publish@{{shape: fork}}
+	pivot_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	pivot_object_property_entity_s-subject@{{shape: doc, label: pivot_object_property_entity_s}}
 	%% ------------------------------------------------------------------------------
 	%% Owl:ObjectProperty post-pivot cleanup
 	%% ------------------------------------------------------------------------------
@@ -462,17 +470,17 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_object_property_pivot_p-publish-->|Extend|merge_object_property_class_named_individual_pivot_s-subject
 	end
 	extract_owl_r-rt-->post_pivot_object_property_t
-	coalesce_object_property_pivot_p-processor@{shape: rect, label: CoalesceProcessor}
-	coalesce_object_property_pivot_p-publish@{shape: fork}
-	coalesce_object_property_pivot_p-subscribe@{shape: diamond, label: All}
-	coalesce_object_property_pivot_s-subject@{shape: doc, label: coalesce_object_property_pivot_s}
-	group_by_object_property_pivot_p-processor@{shape: rect, label: GroupBy}
-	group_by_object_property_pivot_p-publish@{shape: fork}
-	group_by_object_property_pivot_p-subscribe@{shape: diamond, label: All}
-	group_by_object_property_pivot_s-subject@{shape: doc, label: group_by_object_property_pivot_s}
-	select_object_property_pivot_p-processor@{shape: rect, label: Select}
-	select_object_property_pivot_p-publish@{shape: fork}
-	select_object_property_pivot_p-subscribe@{shape: diamond, label: All}
+	coalesce_object_property_pivot_p-processor@{{shape: rect, label: CoalesceProcessor}}
+	coalesce_object_property_pivot_p-publish@{{shape: fork}}
+	coalesce_object_property_pivot_p-subscribe@{{shape: diamond, label: All}}
+	coalesce_object_property_pivot_s-subject@{{shape: doc, label: coalesce_object_property_pivot_s}}
+	group_by_object_property_pivot_p-processor@{{shape: rect, label: GroupBy}}
+	group_by_object_property_pivot_p-publish@{{shape: fork}}
+	group_by_object_property_pivot_p-subscribe@{{shape: diamond, label: All}}
+	group_by_object_property_pivot_s-subject@{{shape: doc, label: group_by_object_property_pivot_s}}
+	select_object_property_pivot_p-processor@{{shape: rect, label: Select}}
+	select_object_property_pivot_p-publish@{{shape: fork}}
+	select_object_property_pivot_p-subscribe@{{shape: diamond, label: All}}
 	%% ------------------------------------------------------------------------------
 	%% Pivot Owl:NamedIndividual on rdfs:label (or skos:prefLabel)
 	%% ------------------------------------------------------------------------------
@@ -499,26 +507,26 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    pivot_named_individual_entity_p-publish-->|Replace|pivot_named_individual_entity_s-subject
 	end
 	extract_owl_r-rt-->pivot_named_individual_t
-	coalesce_named_individual_entity_p-processor@{shape: rect, label: CoalesceProcessor}
-	coalesce_named_individual_entity_p-publish@{shape: fork}
-	coalesce_named_individual_entity_p-subscribe@{shape: diamond, label: All}
-	coalesce_named_individual_entity_s-subject@{shape: doc, label: coalesce_named_individual_entity_s}
-	comparator_predicate_named_individual_entity_p-processor@{shape: rect, label: Select}
-	comparator_predicate_named_individual_entity_p-publish@{shape: fork}
-	comparator_predicate_named_individual_entity_p-subscribe@{shape: diamond, label: All}
-	comparator_predicate_named_individual_entity_s-subject@{shape: doc, label: comparator_predicate_named_individual_entity_s}
-	filter_predicate_named_individual_entity_p-processor@{shape: rect, label: Filter}
-	filter_predicate_named_individual_entity_p-publish@{shape: fork}
-	filter_predicate_named_individual_entity_p-subscribe@{shape: diamond, label: All}
-	filter_predicate_named_individual_entity_s-subject@{shape: doc, label: filter_predicate_named_individual_entity_s}
-	select_predicate_named_individual_entity_p-processor@{shape: rect, label: Select}
-	select_predicate_named_individual_entity_p-publish@{shape: fork}
-	select_predicate_named_individual_entity_p-subscribe@{shape: diamond, label: All}
-	select_predicate_named_individual_entity_s-subject@{shape: doc, label: select_predicate_named_individual_entity_s}
-	pivot_named_individual_entity_p-processor@{shape: rect, label: Pivot}
-	pivot_named_individual_entity_p-publish@{shape: fork}
-	pivot_named_individual_entity_p-subscribe@{shape: diamond, label: All}
-	pivot_named_individual_entity_s-subject@{shape: doc, label: pivot_named_individual_entity_s}
+	coalesce_named_individual_entity_p-processor@{{shape: rect, label: CoalesceProcessor}}
+	coalesce_named_individual_entity_p-publish@{{shape: fork}}
+	coalesce_named_individual_entity_p-subscribe@{{shape: diamond, label: All}}
+	coalesce_named_individual_entity_s-subject@{{shape: doc, label: coalesce_named_individual_entity_s}}
+	comparator_predicate_named_individual_entity_p-processor@{{shape: rect, label: Select}}
+	comparator_predicate_named_individual_entity_p-publish@{{shape: fork}}
+	comparator_predicate_named_individual_entity_p-subscribe@{{shape: diamond, label: All}}
+	comparator_predicate_named_individual_entity_s-subject@{{shape: doc, label: comparator_predicate_named_individual_entity_s}}
+	filter_predicate_named_individual_entity_p-processor@{{shape: rect, label: Filter}}
+	filter_predicate_named_individual_entity_p-publish@{{shape: fork}}
+	filter_predicate_named_individual_entity_p-subscribe@{{shape: diamond, label: All}}
+	filter_predicate_named_individual_entity_s-subject@{{shape: doc, label: filter_predicate_named_individual_entity_s}}
+	select_predicate_named_individual_entity_p-processor@{{shape: rect, label: Select}}
+	select_predicate_named_individual_entity_p-publish@{{shape: fork}}
+	select_predicate_named_individual_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_predicate_named_individual_entity_s-subject@{{shape: doc, label: select_predicate_named_individual_entity_s}}
+	pivot_named_individual_entity_p-processor@{{shape: rect, label: Pivot}}
+	pivot_named_individual_entity_p-publish@{{shape: fork}}
+	pivot_named_individual_entity_p-subscribe@{{shape: diamond, label: All}}
+	pivot_named_individual_entity_s-subject@{{shape: doc, label: pivot_named_individual_entity_s}}
 	%% ------------------------------------------------------------------------------
 	%% Owl:NamedIndividual post-pivot cleanup
 	%% ------------------------------------------------------------------------------
@@ -537,17 +545,17 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_named_individual_pivot_p-publish-->|Extend|merge_object_property_class_named_individual_pivot_s-subject
 	end
 	extract_owl_r-rt-->post_pivot_named_individual_t
-	coalesce_named_individual_pivot_p-processor@{shape: rect, label: CoalesceProcessor}
-	coalesce_named_individual_pivot_p-publish@{shape: fork}
-	coalesce_named_individual_pivot_p-subscribe@{shape: diamond, label: All}
-	coalesce_named_individual_pivot_s-subject@{shape: doc, label: coalesce_named_individual_pivot_s}
-	group_by_named_individual_pivot_p-processor@{shape: rect, label: GroupBy}
-	group_by_named_individual_pivot_p-publish@{shape: fork}
-	group_by_named_individual_pivot_p-subscribe@{shape: diamond, label: All}
-	group_by_named_individual_pivot_s-subject@{shape: doc, label: group_by_named_individual_pivot_s}
-	select_named_individual_pivot_p-processor@{shape: rect, label: Select}
-	select_named_individual_pivot_p-publish@{shape: fork}
-	select_named_individual_pivot_p-subscribe@{shape: diamond, label: All}
+	coalesce_named_individual_pivot_p-processor@{{shape: rect, label: CoalesceProcessor}}
+	coalesce_named_individual_pivot_p-publish@{{shape: fork}}
+	coalesce_named_individual_pivot_p-subscribe@{{shape: diamond, label: All}}
+	coalesce_named_individual_pivot_s-subject@{{shape: doc, label: coalesce_named_individual_pivot_s}}
+	group_by_named_individual_pivot_p-processor@{{shape: rect, label: GroupBy}}
+	group_by_named_individual_pivot_p-publish@{{shape: fork}}
+	group_by_named_individual_pivot_p-subscribe@{{shape: diamond, label: All}}
+	group_by_named_individual_pivot_s-subject@{{shape: doc, label: group_by_named_individual_pivot_s}}
+	select_named_individual_pivot_p-processor@{{shape: rect, label: Select}}
+	select_named_individual_pivot_p-publish@{{shape: fork}}
+	select_named_individual_pivot_p-subscribe@{{shape: diamond, label: All}}
 	%% ------------------------------------------------------------------------------
 	%% Join Owl:AnnotationProperty with Owl:Class on predicates
 	%% ------------------------------------------------------------------------------
@@ -563,14 +571,14 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_predicates_class_entity_p-publish-->|Replace|select_predicates_class_entity_s-subject
 	end
 	extract_owl_r-rt-->join_class_on_predicates_t
-	join_predicates_class_entity_p-processor@{shape: rect, label: Join}
-	join_predicates_class_entity_p-publish@{shape: fork}
-	join_predicates_class_entity_p-subscribe@{shape: diamond, label: All}
-	join_predicates_class_entity_s-subject@{shape: doc, label: join_predicates_class_entity_s}
-	select_predicates_class_entity_p-processor@{shape: rect, label: Select}
-	select_predicates_class_entity_p-publish@{shape: fork}
-	select_predicates_class_entity_p-subscribe@{shape: diamond, label: All}
-	select_predicates_class_entity_s-subject@{shape: doc, label: select_predicates_class_entity_s}
+	join_predicates_class_entity_p-processor@{{shape: rect, label: Join}}
+	join_predicates_class_entity_p-publish@{{shape: fork}}
+	join_predicates_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	join_predicates_class_entity_s-subject@{{shape: doc, label: join_predicates_class_entity_s}}
+	select_predicates_class_entity_p-processor@{{shape: rect, label: Select}}
+	select_predicates_class_entity_p-publish@{{shape: fork}}
+	select_predicates_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_predicates_class_entity_s-subject@{{shape: doc, label: select_predicates_class_entity_s}}
 	%% ------------------------------------------------------------------------------
 	%% Filter Owl:Class for rdf:resource objects
 	%% ------------------------------------------------------------------------------
@@ -589,18 +597,18 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_resource_class_entity_p-publish-->|Replace|select_resource_class_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_resources_class_entity_t
-	comparator_resource_class_entity_p-processor@{shape: rect, label: Select}
-	comparator_resource_class_entity_p-publish@{shape: fork}
-	comparator_resource_class_entity_p-subscribe@{shape: diamond, label: All}
-	comparator_resource_class_entity_s-subject@{shape: doc, label: comparator_resource_class_entity_s}
-	filter_resource_class_entity_p-processor@{shape: rect, label: Filter}
-	filter_resource_class_entity_p-publish@{shape: fork}
-	filter_resource_class_entity_p-subscribe@{shape: diamond, label: All}
-	filter_resource_class_entity_s-subject@{shape: doc, label: filter_resource_class_entity_s}
-	select_resource_class_entity_p-processor@{shape: rect, label: Select}
-	select_resource_class_entity_p-publish@{shape: fork}
-	select_resource_class_entity_p-subscribe@{shape: diamond, label: All}
-	select_resource_class_entity_s-subject@{shape: doc, label: select_resource_class_entity_s}
+	comparator_resource_class_entity_p-processor@{{shape: rect, label: Select}}
+	comparator_resource_class_entity_p-publish@{{shape: fork}}
+	comparator_resource_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	comparator_resource_class_entity_s-subject@{{shape: doc, label: comparator_resource_class_entity_s}}
+	filter_resource_class_entity_p-processor@{{shape: rect, label: Filter}}
+	filter_resource_class_entity_p-publish@{{shape: fork}}
+	filter_resource_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	filter_resource_class_entity_s-subject@{{shape: doc, label: filter_resource_class_entity_s}}
+	select_resource_class_entity_p-processor@{{shape: rect, label: Select}}
+	select_resource_class_entity_p-publish@{{shape: fork}}
+	select_resource_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_resource_class_entity_s-subject@{{shape: doc, label: select_resource_class_entity_s}}
 	%% ------------------------------------------------------------------------------
 	%% Join Owl:Class with Owl:Class on objects
 	%% ------------------------------------------------------------------------------
@@ -616,14 +624,14 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_objects_class_entity_p-publish-->|Extend|select_objects_class_entity_s-subject
 	end
 	extract_owl_r-rt-->join_class_on_objects_t
-	join_objects_class_entity_p-processor@{shape: rect, label: Join}
-	join_objects_class_entity_p-publish@{shape: fork}
-	join_objects_class_entity_p-subscribe@{shape: diamond, label: All}
-	join_objects_class_entity_s-subject@{shape: doc, label: join_objects_class_entity_s}
-	select_objects_class_entity_p-processor@{shape: rect, label: Select}
-	select_objects_class_entity_p-publish@{shape: fork}
-	select_objects_class_entity_p-subscribe@{shape: diamond, label: All}
-	select_objects_class_entity_s-subject@{shape: doc, label: select_objects_class_entity_s}
+	join_objects_class_entity_p-processor@{{shape: rect, label: Join}}
+	join_objects_class_entity_p-publish@{{shape: fork}}
+	join_objects_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	join_objects_class_entity_s-subject@{{shape: doc, label: join_objects_class_entity_s}}
+	select_objects_class_entity_p-processor@{{shape: rect, label: Select}}
+	select_objects_class_entity_p-publish@{{shape: fork}}
+	select_objects_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_objects_class_entity_s-subject@{{shape: doc, label: select_objects_class_entity_s}}
 	%% ------------------------------------------------------------------------------
 	%% Filter Owl:Class for rdf:literal objects
 	%% ------------------------------------------------------------------------------
@@ -647,21 +655,21 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_literal_class_entity_p-publish-->|Extend|select_objects_class_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_literals_class_entity_t
-	pause_filter_literals_class_entity_p-processor@{shape: rect, label: ProcessorEcho}
-	pause_filter_literals_class_entity_p-publish@{shape: fork}
-	pause_filter_literals_class_entity_p-subscribe@{shape: diamond, label: Any}
-	pause_filter_literals_class_entity_s-subject@{shape: doc, label: pause_filter_literals_class_entity_s}
-	comparator_literal_class_entity_p-processor@{shape: rect, label: Select}
-	comparator_literal_class_entity_p-publish@{shape: fork}
-	comparator_literal_class_entity_p-subscribe@{shape: diamond, label: All}
-	comparator_literal_class_entity_s-subject@{shape: doc, label: comparator_literal_class_entity_s}
-	filter_literal_class_entity_p-processor@{shape: rect, label: Filter}
-	filter_literal_class_entity_p-publish@{shape: fork}
-	filter_literal_class_entity_p-subscribe@{shape: diamond, label: All}
-	filter_literal_class_entity_s-subject@{shape: doc, label: filter_literal_class_entity_s}
-	select_literal_class_entity_p-processor@{shape: rect, label: Select}
-	select_literal_class_entity_p-publish@{shape: fork}
-	select_literal_class_entity_p-subscribe@{shape: diamond, label: All}
+	pause_filter_literals_class_entity_p-processor@{{shape: rect, label: ProcessorEcho}}
+	pause_filter_literals_class_entity_p-publish@{{shape: fork}}
+	pause_filter_literals_class_entity_p-subscribe@{{shape: diamond, label: Any}}
+	pause_filter_literals_class_entity_s-subject@{{shape: doc, label: pause_filter_literals_class_entity_s}}
+	comparator_literal_class_entity_p-processor@{{shape: rect, label: Select}}
+	comparator_literal_class_entity_p-publish@{{shape: fork}}
+	comparator_literal_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	comparator_literal_class_entity_s-subject@{{shape: doc, label: comparator_literal_class_entity_s}}
+	filter_literal_class_entity_p-processor@{{shape: rect, label: Filter}}
+	filter_literal_class_entity_p-publish@{{shape: fork}}
+	filter_literal_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	filter_literal_class_entity_s-subject@{{shape: doc, label: filter_literal_class_entity_s}}
+	select_literal_class_entity_p-processor@{{shape: rect, label: Select}}
+	select_literal_class_entity_p-publish@{{shape: fork}}
+	select_literal_class_entity_p-subscribe@{{shape: diamond, label: All}}
 	%% ------------------------------------------------------------------------------
 	%% Join Owl:AnnotationProperty with Owl:ObjectProperty on predicates
 	%% ------------------------------------------------------------------------------
@@ -677,14 +685,14 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_predicates_object_property_entity_p-publish-->|Replace|select_predicates_object_property_entity_s-subject
 	end
 	extract_owl_r-rt-->join_object_property_on_predicates_t
-	join_predicates_object_property_entity_p-processor@{shape: rect, label: Join}
-	join_predicates_object_property_entity_p-publish@{shape: fork}
-	join_predicates_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	join_predicates_object_property_entity_s-subject@{shape: doc, label: join_predicates_object_property_entity_s}
-	select_predicates_object_property_entity_p-processor@{shape: rect, label: Select}
-	select_predicates_object_property_entity_p-publish@{shape: fork}
-	select_predicates_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	select_predicates_object_property_entity_s-subject@{shape: doc, label: select_predicates_object_property_entity_s}
+	join_predicates_object_property_entity_p-processor@{{shape: rect, label: Join}}
+	join_predicates_object_property_entity_p-publish@{{shape: fork}}
+	join_predicates_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	join_predicates_object_property_entity_s-subject@{{shape: doc, label: join_predicates_object_property_entity_s}}
+	select_predicates_object_property_entity_p-processor@{{shape: rect, label: Select}}
+	select_predicates_object_property_entity_p-publish@{{shape: fork}}
+	select_predicates_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_predicates_object_property_entity_s-subject@{{shape: doc, label: select_predicates_object_property_entity_s}}
 	%% ------------------------------------------------------------------------------
 	%% Filter Owl:ObjectProperty for rdf:resource objects
 	%% ------------------------------------------------------------------------------
@@ -703,18 +711,18 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_resource_object_property_entity_p-publish-->|Replace|select_resource_object_property_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_resources_object_property_entity_t
-	comparator_resource_object_property_entity_p-processor@{shape: rect, label: Select}
-	comparator_resource_object_property_entity_p-publish@{shape: fork}
-	comparator_resource_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	comparator_resource_object_property_entity_s-subject@{shape: doc, label: comparator_resource_object_property_entity_s}
-	filter_resource_object_property_entity_p-processor@{shape: rect, label: Filter}
-	filter_resource_object_property_entity_p-publish@{shape: fork}
-	filter_resource_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	filter_resource_object_property_entity_s-subject@{shape: doc, label: filter_resource_object_property_entity_s}
-	select_resource_object_property_entity_p-processor@{shape: rect, label: Select}
-	select_resource_object_property_entity_p-publish@{shape: fork}
-	select_resource_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	select_resource_object_property_entity_s-subject@{shape: doc, label: select_resource_object_property_entity_s}
+	comparator_resource_object_property_entity_p-processor@{{shape: rect, label: Select}}
+	comparator_resource_object_property_entity_p-publish@{{shape: fork}}
+	comparator_resource_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	comparator_resource_object_property_entity_s-subject@{{shape: doc, label: comparator_resource_object_property_entity_s}}
+	filter_resource_object_property_entity_p-processor@{{shape: rect, label: Filter}}
+	filter_resource_object_property_entity_p-publish@{{shape: fork}}
+	filter_resource_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	filter_resource_object_property_entity_s-subject@{{shape: doc, label: filter_resource_object_property_entity_s}}
+	select_resource_object_property_entity_p-processor@{{shape: rect, label: Select}}
+	select_resource_object_property_entity_p-publish@{{shape: fork}}
+	select_resource_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_resource_object_property_entity_s-subject@{{shape: doc, label: select_resource_object_property_entity_s}}
 	%% ------------------------------------------------------------------------------
 	%% Join Owl:Class with Owl:ObjectProperty on objects
 	%% ------------------------------------------------------------------------------
@@ -730,14 +738,14 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_objects_object_property_entity_p-publish-->|Extend|select_objects_object_property_entity_s-subject
 	end
 	extract_owl_r-rt-->join_object_property_on_objects_t
-	join_objects_object_property_entity_p-processor@{shape: rect, label: Join}
-	join_objects_object_property_entity_p-publish@{shape: fork}
-	join_objects_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	join_objects_object_property_entity_s-subject@{shape: doc, label: join_objects_object_property_entity_s}
-	select_objects_object_property_entity_p-processor@{shape: rect, label: Select}
-	select_objects_object_property_entity_p-publish@{shape: fork}
-	select_objects_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	select_objects_object_property_entity_s-subject@{shape: doc, label: select_objects_object_property_entity_s}
+	join_objects_object_property_entity_p-processor@{{shape: rect, label: Join}}
+	join_objects_object_property_entity_p-publish@{{shape: fork}}
+	join_objects_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	join_objects_object_property_entity_s-subject@{{shape: doc, label: join_objects_object_property_entity_s}}
+	select_objects_object_property_entity_p-processor@{{shape: rect, label: Select}}
+	select_objects_object_property_entity_p-publish@{{shape: fork}}
+	select_objects_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_objects_object_property_entity_s-subject@{{shape: doc, label: select_objects_object_property_entity_s}}
 	%% ------------------------------------------------------------------------------
 	%% Merge Owl:OjectProperty rdf:literal and rdf:resource tables
 	%% ------------------------------------------------------------------------------
@@ -761,21 +769,21 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_literal_object_property_entity_p-publish-->|Extend|select_objects_object_property_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_literals_object_property_entity_t
-	pause_filter_literals_object_property_entity_p-processor@{shape: rect, label: ProcessorEcho}
-	pause_filter_literals_object_property_entity_p-publish@{shape: fork}
-	pause_filter_literals_object_property_entity_p-subscribe@{shape: diamond, label: Any}
-	pause_filter_literals_object_property_entity_s-subject@{shape: doc, label: pause_filter_literals_object_property_entity_s}
-	comparator_literal_object_property_entity_p-processor@{shape: rect, label: Select}
-	comparator_literal_object_property_entity_p-publish@{shape: fork}
-	comparator_literal_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	comparator_literal_object_property_entity_s-subject@{shape: doc, label: comparator_literal_object_property_entity_s}
-	filter_literal_object_property_entity_p-processor@{shape: rect, label: Filter}
-	filter_literal_object_property_entity_p-publish@{shape: fork}
-	filter_literal_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	filter_literal_object_property_entity_s-subject@{shape: doc, label: filter_literal_object_property_entity_s}
-	select_literal_object_property_entity_p-processor@{shape: rect, label: Select}
-	select_literal_object_property_entity_p-publish@{shape: fork}
-	select_literal_object_property_entity_p-subscribe@{shape: diamond, label: All}
+	pause_filter_literals_object_property_entity_p-processor@{{shape: rect, label: ProcessorEcho}}
+	pause_filter_literals_object_property_entity_p-publish@{{shape: fork}}
+	pause_filter_literals_object_property_entity_p-subscribe@{{shape: diamond, label: Any}}
+	pause_filter_literals_object_property_entity_s-subject@{{shape: doc, label: pause_filter_literals_object_property_entity_s}}
+	comparator_literal_object_property_entity_p-processor@{{shape: rect, label: Select}}
+	comparator_literal_object_property_entity_p-publish@{{shape: fork}}
+	comparator_literal_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	comparator_literal_object_property_entity_s-subject@{{shape: doc, label: comparator_literal_object_property_entity_s}}
+	filter_literal_object_property_entity_p-processor@{{shape: rect, label: Filter}}
+	filter_literal_object_property_entity_p-publish@{{shape: fork}}
+	filter_literal_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	filter_literal_object_property_entity_s-subject@{{shape: doc, label: filter_literal_object_property_entity_s}}
+	select_literal_object_property_entity_p-processor@{{shape: rect, label: Select}}
+	select_literal_object_property_entity_p-publish@{{shape: fork}}
+	select_literal_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
 	%% ------------------------------------------------------------------------------
 	%% Apply embedding template to Owl:Class
 	%% ------------------------------------------------------------------------------
@@ -799,29 +807,29 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_rows_class_entity_s-subject-->|AllRecordBatches|apply_template_class_entity_p-subscribe
 	    apply_template_class_entity_p-subscribe-->apply_template_class_entity_p-processor
 	    apply_template_class_entity_p-processor-->apply_template_class_entity_p-publish
-	    apply_template_class_entity_p-publish-->|Extend|Documents-subject
+	    apply_template_class_entity_p-publish-->|Extend|{subject_o}-subject
 	end
 	extract_owl_r-rt-->apply_embedding_template_class_t
-	concat_cols_class_entity_p-processor@{shape: rect, label: Select}
-	concat_cols_class_entity_p-publish@{shape: fork}
-	concat_cols_class_entity_p-subscribe@{shape: diamond, label: All}
-	concat_cols_class_entity_s-subject@{shape: doc, label: concat_cols_class_entity_s}
-	select_cols_class_entity_p-processor@{shape: rect, label: Select}
-	select_cols_class_entity_p-publish@{shape: fork}
-	select_cols_class_entity_p-subscribe@{shape: diamond, label: All}
-	select_cols_class_entity_s-subject@{shape: doc, label: select_cols_class_entity_s}
-	list_rows_class_entity_p-processor@{shape: rect, label: GroupBy}
-	list_rows_class_entity_p-publish@{shape: fork}
-	list_rows_class_entity_p-subscribe@{shape: diamond, label: All}
-	list_rows_class_entity_s-subject@{shape: doc, label: list_rows_class_entity_s}
-	select_rows_class_entity_p-processor@{shape: rect, label: Select}
-	select_rows_class_entity_p-publish@{shape: fork}
-	select_rows_class_entity_p-subscribe@{shape: diamond, label: All}
-	select_rows_class_entity_s-subject@{shape: doc, label: select_rows_class_entity_s}
-	apply_template_class_entity_p-processor@{shape: rect, label: Select}
-	apply_template_class_entity_p-publish@{shape: fork}
-	apply_template_class_entity_p-subscribe@{shape: diamond, label: All}
-	Documents-subject@{shape: doc, label: Documents}
+	concat_cols_class_entity_p-processor@{{shape: rect, label: Select}}
+	concat_cols_class_entity_p-publish@{{shape: fork}}
+	concat_cols_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	concat_cols_class_entity_s-subject@{{shape: doc, label: concat_cols_class_entity_s}}
+	select_cols_class_entity_p-processor@{{shape: rect, label: Select}}
+	select_cols_class_entity_p-publish@{{shape: fork}}
+	select_cols_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_cols_class_entity_s-subject@{{shape: doc, label: select_cols_class_entity_s}}
+	list_rows_class_entity_p-processor@{{shape: rect, label: GroupBy}}
+	list_rows_class_entity_p-publish@{{shape: fork}}
+	list_rows_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	list_rows_class_entity_s-subject@{{shape: doc, label: list_rows_class_entity_s}}
+	select_rows_class_entity_p-processor@{{shape: rect, label: Select}}
+	select_rows_class_entity_p-publish@{{shape: fork}}
+	select_rows_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_rows_class_entity_s-subject@{{shape: doc, label: select_rows_class_entity_s}}
+	apply_template_class_entity_p-processor@{{shape: rect, label: Select}}
+	apply_template_class_entity_p-publish@{{shape: fork}}
+	apply_template_class_entity_p-subscribe@{{shape: diamond, label: All}}
+	{subject_o}-subject@{{shape: doc, label: {subject_o}}}
 	%% ------------------------------------------------------------------------------
 	%% Apply embedding template to Owl:ObjectProperty 
 	%% ------------------------------------------------------------------------------
@@ -845,991 +853,39 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    select_rows_object_property_entity_s-subject-->|AllRecordBatches|apply_template_object_property_entity_p-subscribe
 	    apply_template_object_property_entity_p-subscribe-->apply_template_object_property_entity_p-processor
 	    apply_template_object_property_entity_p-processor-->apply_template_object_property_entity_p-publish
-	    apply_template_object_property_entity_p-publish-->|Extend|Documents-subject
+	    apply_template_object_property_entity_p-publish-->|Extend|{subject_o}-subject
 	end
 	extract_owl_r-rt-->apply_embedding_template_object_property_t
-	concat_cols_object_property_entity_p-processor@{shape: rect, label: Select}
-	concat_cols_object_property_entity_p-publish@{shape: fork}
-	concat_cols_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	concat_cols_object_property_entity_s-subject@{shape: doc, label: concat_cols_object_property_entity_s}
-	select_cols_object_property_entity_p-processor@{shape: rect, label: Select}
-	select_cols_object_property_entity_p-publish@{shape: fork}
-	select_cols_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	select_cols_object_property_entity_s-subject@{shape: doc, label: select_cols_object_property_entity_s}
-	list_rows_object_property_entity_p-processor@{shape: rect, label: GroupBy}
-	list_rows_object_property_entity_p-publish@{shape: fork}
-	list_rows_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	list_rows_object_property_entity_s-subject@{shape: doc, label: list_rows_object_property_entity_s}
-	select_rows_object_property_entity_p-processor@{shape: rect, label: Select}
-	select_rows_object_property_entity_p-publish@{shape: fork}
-	select_rows_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	select_rows_object_property_entity_s-subject@{shape: doc, label: select_rows_object_property_entity_s}
-	apply_template_object_property_entity_p-processor@{shape: rect, label: Select}
-	apply_template_object_property_entity_p-publish@{shape: fork}
-	apply_template_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	%% ------------------------------------------------------------------------------"#
-    }
-    pub fn as_mermaid_erdiagram(&self) -> &str {
-        r#"erDiagram
-    UserScript["UserScript"] {
-        Utf8 filename
-        Utf8 extension
-        List-UInt8 bytes
-        Utf8 metadata
-        Int64 timestamp
-    }
-    ParseOwl["ParseOwl"] {
-        Utf8 entity
-        Utf8 subject
-        Utf8 predicate
-        Utf8 object
-        Utf8 graph
-        Utf8 dataset
-    }
-    extract_owl_p["extract_owl_p"] {
-        Boolean cpu "false"
-        Utf8 format "Owl"
-        Utf8 lhs_name "UserScript"
-        List-Utf8 lhs_values "['bytes']"
-        Utf8 operator "ExtractXML"
-        Utf8 lhs_stream "Accumulate"
-    }
-    comparator_ontology_entity_p["comparator_ontology_entity_p"] {
-	    List-Utf8 as_columns "['','','','','','','cmp']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
-	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#Ontology']"
-	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
-	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
-        Boolean cpu "false"
-        Utf8 lhs_name "ParseOwl"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
-    }
-    filter_ontology_entity_p["filter_ontology_entity_p"] {
-        List-Utf8 cmp_columns "['cmp']"
-        List-Utf8 cmp_operators "['Like']"
-        Utf8 cmp_predicate "All"
-        Boolean cpu "false"
-        Utf8 lhs_name "comparator_ontology_entity_s"
-        List-Utf8 lhs_values "['entity']"
-        Utf8 operator "Filter"
-        Utf8 lhs_stream "Accumulate"
-    }
-    select_ontology_entity_p["select_ontology_entity_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "filter_ontology_entity_s"
-        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
-    }
-    select_ontology_entity_s["select_ontology_entity_s"] {
-        Utf8 entity
-        Utf8 subject
-        Utf8 predicate
-        Utf8 object
-        Utf8 graph
-        Utf8 dataset
-    }
-    comparator_annotation_property_entity_p["comparator_annotation_property_entity_p"] {
-	    List-Utf8 as_columns "['','','','','','','cmp']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
-	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#AnnotationProperty']"
-	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
-	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
-        Boolean cpu "false"
-        Utf8 lhs_name "ParseOwl"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
-    }
-    filter_annotation_property_entity_p["filter_annotation_property_entity_p"] {
-        List-Utf8 cmp_columns "['cmp']"
-        List-Utf8 cmp_operators "['Like']"
-        Utf8 cmp_predicate "All"
-        Boolean cpu "false"
-        Utf8 lhs_name "comparator_annotation_property_entity_s"
-        List-Utf8 lhs_values "['entity']"
-        Utf8 operator "Filter"
-        Utf8 lhs_stream "Accumulate"
-    }
-    select_annotation_property_entity_p["select_annotation_property_entity_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "filter_annotation_property_entity_s"
-        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
-    }
-    select_annotation_property_entity_s["select_annotation_property_entity_s"] {
-        Utf8 entity
-        Utf8 subject
-        Utf8 predicate
-        Utf8 object
-        Utf8 graph
-        Utf8 dataset
-    }
-    comparator_datatype_property_entity_p["comparator_datatype_property_entity_p"] {
-	    List-Utf8 as_columns "['','','','','','','cmp']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
-	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#DatatypeProperty']"
-	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
-	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
-        Boolean cpu "false"
-        Utf8 lhs_name "ParseOwl"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
-    }
-    filter_datatype_property_entity_p["filter_datatype_property_entity_p"] {
-        List-Utf8 cmp_columns "['cmp']"
-        List-Utf8 cmp_operators "['Like']"
-        Utf8 cmp_predicate "All"
-        Boolean cpu "false"
-        Utf8 lhs_name "comparator_datatype_property_entity_s"
-        List-Utf8 lhs_values "['entity']"
-        Utf8 operator "Filter"
-        Utf8 lhs_stream "Accumulate"
-    }
-    select_datatype_property_entity_p["select_datatype_property_entity_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "filter_datatype_property_entity_s"
-        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
-    }
-    select_datatype_property_entity_s["select_datatype_property_entity_s"] {
-        Utf8 entity
-        Utf8 subject
-        Utf8 predicate
-        Utf8 object
-        Utf8 graph
-        Utf8 dataset
-    }
-    comparator_class_entity_p["comparator_class_entity_p"] {
-	    List-Utf8 as_columns "['','','','','','','cmp']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
-	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#Class']"
-	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
-	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
-        Boolean cpu "false"
-        Utf8 lhs_name "ParseOwl"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
-    }
-    filter_class_entity_p["filter_class_entity_p"] {
-        List-Utf8 cmp_columns "['cmp']"
-        List-Utf8 cmp_operators "['Like']"
-        Utf8 cmp_predicate "All"
-        Boolean cpu "false"
-        Utf8 lhs_name "comparator_class_entity_s"
-        List-Utf8 lhs_values "['entity']"
-        Utf8 operator "Filter"
-        Utf8 lhs_stream "Accumulate"
-    }
-    select_class_entity_p["select_class_entity_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "filter_class_entity_s"
-        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
-    }
-    select_class_entity_s["select_class_entity_s"] {
-        Utf8 entity
-        Utf8 subject
-        Utf8 predicate
-        Utf8 object
-        Utf8 graph
-        Utf8 dataset
-    }
-    comparator_object_property_entity_p["comparator_object_property_entity_p"] {
-	    List-Utf8 as_columns "['','','','','','','cmp']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
-	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#ObjectProperty']"
-	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
-	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
-        Boolean cpu "false"
-        Utf8 lhs_name "ParseOwl"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
-    }
-    filter_object_property_entity_p["filter_object_property_entity_p"] {
-        List-Utf8 cmp_columns "['cmp']"
-        List-Utf8 cmp_operators "['Like']"
-        Utf8 cmp_predicate "All"
-        Boolean cpu "false"
-        Utf8 lhs_name "comparator_object_property_entity_s"
-        List-Utf8 lhs_values "['entity']"
-        Utf8 operator "Filter"
-        Utf8 lhs_stream "Accumulate"
-    }
-    select_object_property_entity_p["select_object_property_entity_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "filter_object_property_entity_s"
-        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
-    }
-    select_object_property_entity_s["select_object_property_entity_s"] {
-        Utf8 entity
-        Utf8 subject
-        Utf8 predicate
-        Utf8 object
-        Utf8 graph
-        Utf8 dataset
-    }
-    comparator_named_individual_entity_p["comparator_named_individual_entity_p"] {
-	    List-Utf8 as_columns "['','','','','','','cmp']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
-	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#NamedIndividual']"
-	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
-	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
-        Boolean cpu "false"
-        Utf8 lhs_name "ParseOwl"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
-    }
-    filter_named_individual_entity_p["filter_named_individual_entity_p"] {
-        List-Utf8 cmp_columns "['cmp']"
-        List-Utf8 cmp_operators "['Like']"
-        Utf8 cmp_predicate "All"
-        Boolean cpu "false"
-        Utf8 lhs_name "comparator_named_individual_entity_s"
-        List-Utf8 lhs_values "['entity']"
-        Utf8 operator "Filter"
-        Utf8 lhs_stream "Accumulate"
-    }
-    select_named_individual_entity_p["select_named_individual_entity_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "filter_named_individual_entity_s"
-        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
-    }
-    select_named_individual_entity_s["select_named_individual_entity_s"] {
-        Utf8 entity
-        Utf8 subject
-        Utf8 predicate
-        Utf8 object
-        Utf8 graph
-        Utf8 dataset
-    }
-    comparator_axiom_entity_p["comparator_axiom_entity_p"] {
-	    List-Utf8 as_columns "['','','','','','','cmp']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
-	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#Axiom']"
-	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
-	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
-        Boolean cpu "false"
-        Utf8 lhs_name "ParseOwl"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
-    }
-    filter_axiom_entity_p["filter_axiom_entity_p"] {
-        List-Utf8 cmp_columns "['cmp']"
-        List-Utf8 cmp_operators "['Like']"
-        Utf8 cmp_predicate "All"
-        Boolean cpu "false"
-        Utf8 lhs_name "comparator_axiom_entity_s"
-        List-Utf8 lhs_values "['entity']"
-        Utf8 operator "Filter"
-        Utf8 lhs_stream "Accumulate"
-    }
-    select_axiom_entity_p["select_axiom_entity_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "filter_axiom_entity_s"
-        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
-    }
-    select_axiom_entity_s["select_axiom_entity_s"] {
-        Utf8 entity
-        Utf8 subject
-        Utf8 predicate
-        Utf8 object
-        Utf8 graph
-        Utf8 dataset
-    }
-    coalesce_annotation_property_entity_p["coalesce_annotation_property_entity_p"] {
-        Int64 fetch "512"
-        Utf8 summary_format "None"
-    }
-    comparator_predicate_annotation_property_entity_p["comparator_predicate_annotation_property_entity_p"] {
-	    List-Utf8 as_columns "['','','','','','','rdfs_label','obo_IAO_0000115']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
-	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2000/01/rdf-schema#label','http://purl.obolibrary.org/obo/IAO_0000115']"
-	    List-Utf8 column_operators "['None','None','None','None','None','None','Value','Value']"
-	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label','obo_IAO_0000115']"
-        Boolean cpu "false"
-        Utf8 lhs_name "coalesce_annotation_property_entity_s"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    filter_predicate_annotation_property_entity_p["filter_predicate_annotation_property_entity_p"] {
-        List-Utf8 cmp_columns "['rdfs_label','obo_IAO_0000115']"
-        List-Utf8 cmp_operators "['Like','Like']"
-        Utf8 cmp_predicate "Any"
-        Boolean cpu "false"
-        Utf8 lhs_name "comparator_predicate_annotation_property_entity_s"
-        List-Utf8 lhs_values "['predicate','predicate']"
-        Utf8 operator "Filter"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    select_predicate_annotation_property_entity_p["select_predicate_annotation_property_entity_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "filter_predicate_annotation_property_entity_s"
-        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-	pivot_annotation_property_entity_p["pivot_annotation_property_entity_p"] {
-	    List-Utf8 agg_columns "['object']"
-	    List-Utf8 agg_operators "['First']"
-	    Boolean cpu "false"
-	    List-Utf8 default_values "['']"
-	    Utf8 lhs_name "select_predicate_annotation_property_entity_s"
-	    List-Utf8 lhs_values "['subject']"
-	    Utf8 operator "Pivot"
-	    List-Utf8 pvt_columns "['predicate']"
-	    Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-	}
-	pivot_annotation_property_entity_s["pivot_annotation_property_entity_s"] {
-	    Utf8 subject
-	    Utf8 http://purl.obolibrary.org/obo/IAO_0000115-object-First
-	    Utf8 http://www.w3.org/2000/01/rdf-schema#label-object-First
-	}
-    coalesce_annotation_property_pivot_p["coalesce_annotation_property_pivot_p"] {
-        Int64 fetch "512"
-        Utf8 summary_format "None"
-    }
-	group_by_annotation_property_pivot_p["group_by_annotation_property_pivot_p"] {
-	    List-Utf8 agg_columns "['http://www.w3.org/2000/01/rdf-schema#label-object-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First']"
-	    List-Utf8 agg_operators "['First','First']"
-	    Boolean cpu "false"
-	    Utf8 lhs_name "coalesce_annotation_property_pivot_s"
-	    List-Utf8 lhs_values "['subject']"
-	    Utf8 operator "GroupBy"
-	    Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-	}
-	group_by_annotation_property_pivot_s["group_by_annotation_property_pivot_s"] {
-	    Utf8 subject
-	    Utf8 http://www.w3.org/2000/01/rdf-schema#label-object-First-First
-	    Utf8 http://purl.obolibrary.org/obo/IAO_0000115-object-First-First
-	}
-    select_annotation_property_pivot_p["select_annotation_property_pivot_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "group_by_annotation_property_pivot_s"
-        List-Utf8 as_columns "['uri','rdfs_label','obo_IAO_0000115']"
-        List-Utf8 lhs_values "['subject','http://www.w3.org/2000/01/rdf-schema#label-object-First-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First-First']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-	select_annotation_property_pivot_s["select_annotation_property_pivot_s"] {
-	    Utf8 uri
-	    Utf8 rdfs_label
-	    Utf8 obo_IAO_0000115
-	}
-    comparator_predicate_class_entity_p["comparator_predicate_class_entity_p"] {
-	    List-Utf8 as_columns "['','','','','','','rdfs_label','obo_IAO_0000115']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
-	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2000/01/rdf-schema#label','http://purl.obolibrary.org/obo/IAO_0000115']"
-	    List-Utf8 column_operators "['None','None','None','None','None','None','Value','Value']"
-	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label','obo_IAO_0000115']"
-        Boolean cpu "false"
-        Utf8 lhs_name "coalesce_class_entity_s"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    filter_predicate_class_entity_p["filter_predicate_class_entity_p"] {
-        List-Utf8 cmp_columns "['rdfs_label','obo_IAO_0000115']"
-        List-Utf8 cmp_operators "['Like','Like']"
-        Utf8 cmp_predicate "Any"
-        Boolean cpu "false"
-        Utf8 lhs_name "comparator_predicate_class_entity_s"
-        List-Utf8 lhs_values "['predicate','predicate']"
-        Utf8 operator "Filter"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    select_predicate_class_entity_p["select_predicate_class_entity_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "filter_predicate_class_entity_s"
-        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-	pivot_class_entity_p["pivot_class_entity_p"] {
-	    List-Utf8 agg_columns "['object']"
-	    List-Utf8 agg_operators "['First']"
-	    Boolean cpu "false"
-	    List-Utf8 default_values "['']"
-	    Utf8 lhs_name "select_predicate_class_entity_s"
-	    List-Utf8 lhs_values "['subject']"
-	    Utf8 operator "Pivot"
-	    List-Utf8 pvt_columns "['predicate']"
-	    Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-	}
-	pivot_class_entity_s["pivot_class_entity_s"] {
-	    Utf8 subject
-	    Utf8 http://purl.obolibrary.org/obo/IAO_0000115-object-First
-	    Utf8 http://www.w3.org/2000/01/rdf-schema#label-object-First
-	}
-    coalesce_class_pivot_p["coalesce_class_pivot_p"] {
-        Int64 fetch "512"
-        Utf8 summary_format "None"
-    }
-	group_by_class_pivot_p["group_by_class_pivot_p"] {
-	    List-Utf8 agg_columns "['http://www.w3.org/2000/01/rdf-schema#label-object-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First']"
-	    List-Utf8 agg_operators "['First','First']"
-	    Boolean cpu "false"
-	    Utf8 lhs_name "coalesce_class_pivot_s"
-	    List-Utf8 lhs_values "['subject']"
-	    Utf8 operator "GroupBy"
-	    Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-	}
-	group_by_class_pivot_s["group_by_class_pivot_s"] {
-	    Utf8 subject
-	    Utf8 http://www.w3.org/2000/01/rdf-schema#label-object-First-First
-	    Utf8 http://purl.obolibrary.org/obo/IAO_0000115-object-First-First
-	}
-    select_class_pivot_p["select_class_pivot_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "group_by_class_pivot_s"
-        List-Utf8 as_columns "['uri','rdfs_label','obo_IAO_0000115']"
-        List-Utf8 lhs_values "['subject','http://www.w3.org/2000/01/rdf-schema#label-object-First-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First-First']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    coalesce_object_property_entity_p["coalesce_object_property_entity_p"] {
-        Int64 fetch "512"
-        Utf8 summary_format "None"
-    }
-    comparator_predicate_object_property_entity_p["comparator_predicate_object_property_entity_p"] {
-	    List-Utf8 as_columns "['','','','','','','rdfs_label','obo_IAO_0000115']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
-	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2000/01/rdf-schema#label','http://purl.obolibrary.org/obo/IAO_0000115']"
-	    List-Utf8 column_operators "['None','None','None','None','None','None','Value','Value']"
-	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label','obo_IAO_0000115']"
-        Boolean cpu "false"
-        Utf8 lhs_name "coalesce_object_property_entity_s"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    filter_predicate_object_property_entity_p["filter_predicate_object_property_entity_p"] {
-        List-Utf8 cmp_columns "['rdfs_label','obo_IAO_0000115']"
-        List-Utf8 cmp_operators "['Like','Like']"
-        Utf8 cmp_predicate "Any"
-        Boolean cpu "false"
-        Utf8 lhs_name "comparator_predicate_object_property_entity_s"
-        List-Utf8 lhs_values "['predicate','predicate']"
-        Utf8 operator "Filter"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    select_predicate_object_property_entity_p["select_predicate_object_property_entity_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "filter_predicate_object_property_entity_s"
-        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-	pivot_object_property_entity_p["pivot_object_property_entity_p"] {
-	    List-Utf8 agg_columns "['object']"
-	    List-Utf8 agg_operators "['First']"
-	    Boolean cpu "false"
-	    List-Utf8 default_values "['']"
-	    Utf8 lhs_name "select_predicate_object_property_entity_s"
-	    List-Utf8 lhs_values "['subject']"
-	    Utf8 operator "Pivot"
-	    List-Utf8 pvt_columns "['predicate']"
-	    Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-	}
-	pivot_object_property_entity_s["pivot_object_property_entity_s"] {
-	    Utf8 subject
-	    Utf8 http://purl.obolibrary.org/obo/IAO_0000115-object-First
-	    Utf8 http://www.w3.org/2000/01/rdf-schema#label-object-First
-	}
-    coalesce_object_property_pivot_p["coalesce_object_property_pivot_p"] {
-        Int64 fetch "512"
-        Utf8 summary_format "None"
-    }
-	group_by_object_property_pivot_p["group_by_object_property_pivot_p"] {
-	    List-Utf8 agg_columns "['http://www.w3.org/2000/01/rdf-schema#label-object-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First']"
-	    List-Utf8 agg_operators "['First','First']"
-	    Boolean cpu "false"
-	    Utf8 lhs_name "coalesce_object_property_pivot_s"
-	    List-Utf8 lhs_values "['subject']"
-	    Utf8 operator "GroupBy"
-	    Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-	}
-	group_by_object_property_pivot_s["group_by_object_property_pivot_s"] {
-	    Utf8 subject
-	    Utf8 http://www.w3.org/2000/01/rdf-schema#label-object-First-First
-	    Utf8 http://purl.obolibrary.org/obo/IAO_0000115-object-First-First
-	}
-    select_object_property_pivot_p["select_object_property_pivot_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "group_by_object_property_pivot_s"
-        List-Utf8 as_columns "['uri','rdfs_label','obo_IAO_0000115']"
-        List-Utf8 lhs_values "['subject','http://www.w3.org/2000/01/rdf-schema#label-object-First-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First-First']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    coalesce_named_individual_entity_p["coalesce_named_individual_entity_p"] {
-        Int64 fetch "512"
-        Utf8 summary_format "None"
-    }
-    comparator_predicate_named_individual_entity_p["comparator_predicate_named_individual_entity_p"] {
-	    List-Utf8 as_columns "['','','','','','','rdfs_label']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
-	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2000/01/rdf-schema#label']"
-	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
-	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label']"
-        Boolean cpu "false"
-        Utf8 lhs_name "coalesce_named_individual_entity_s"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    filter_predicate_named_individual_entity_p["filter_predicate_named_individual_entity_p"] {
-        List-Utf8 cmp_columns "['rdfs_label']"
-        List-Utf8 cmp_operators "['Like']"
-        Utf8 cmp_predicate "Any"
-        Boolean cpu "false"
-        Utf8 lhs_name "comparator_predicate_named_individual_entity_s"
-        List-Utf8 lhs_values "['predicate']"
-        Utf8 operator "Filter"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    select_predicate_named_individual_entity_p["select_predicate_named_individual_entity_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "filter_predicate_named_individual_entity_s"
-        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-	pivot_named_individual_entity_p["pivot_named_individual_entity_p"] {
-	    List-Utf8 agg_columns "['object']"
-	    List-Utf8 agg_operators "['First']"
-	    Boolean cpu "false"
-	    List-Utf8 default_values "['']"
-	    Utf8 lhs_name "select_predicate_named_individual_entity_s"
-	    List-Utf8 lhs_values "['subject']"
-	    Utf8 operator "Pivot"
-	    List-Utf8 pvt_columns "['predicate']"
-	    Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-	}
-	pivot_named_individual_entity_s["pivot_named_individual_entity_s"] {
-	    Utf8 subject
-	    Utf8 http://www.w3.org/2000/01/rdf-schema#label-object-First
-	}
-    coalesce_named_individual_pivot_p["coalesce_named_individual_pivot_p"] {
-        Int64 fetch "512"
-        Utf8 summary_format "None"
-    }
-	group_by_named_individual_pivot_p["group_by_named_individual_pivot_p"] {
-	    List-Utf8 agg_columns "['http://www.w3.org/2000/01/rdf-schema#label-object-First']"
-	    List-Utf8 agg_operators "['First']"
-	    Boolean cpu "false"
-	    Utf8 lhs_name "coalesce_named_individual_pivot_s"
-	    List-Utf8 lhs_values "['subject']"
-	    Utf8 operator "GroupBy"
-	    Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-	}
-	group_by_named_individual_pivot_s["group_by_named_individual_pivot_s"] {
-	    Utf8 subject
-	    Utf8 http://www.w3.org/2000/01/rdf-schema#label-object-First-First
-	}
-    select_named_individual_pivot_p["select_named_individual_pivot_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "group_by_named_individual_pivot_s"
-	    List-Utf8 as_columns "['uri','rdfs_label','obo_IAO_0000115']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8']"
-	    List-Utf8 column_operators "['None','None','String']"
-        List-Utf8 lhs_values "['subject','http://www.w3.org/2000/01/rdf-schema#label-object-First-First','obo_IAO_0000115']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-	merge_object_property_class_named_individual_pivot_s["merge_object_property_class_named_individual_pivot_s"] {
-	    Utf8 uri
-	    Utf8 rdfs_label
-	    Utf8 obo_IAO_0000115
-	}
-	join_predicates_class_entity_p["join_predicates_class_entity_p"] {
-	    Boolean cpu "false"
-	    Utf8 operator "Join"
-	    Utf8 lhs_name "select_class_entity_s"
-	    Utf8 lhs_fk "predicate"
-	    Utf8 lhs_pk "predicate"
-	    Utf8 rhs_name "select_annotation_property_pivot_s"
-	    Utf8 rhs_fk "uri"
-	    Utf8 rhs_pk "uri"
-	    Utf8 lhs_stream "Accumulate"
-        Utf8 rhs_stream "Accumulate"
-        Utf8 join_operators "Inner"
-	}
-    select_predicates_class_entity_p["select_predicates_class_entity_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "join_predicates_class_entity_s"
-        List-Utf8 as_columns "['','','','','','','predicate_rdfs_label','predicate_obo_IAO_0000115']"
-        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label','obo_IAO_0000115']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-	select_predicates_class_entity_s["select_predicates_class_entity_s"] {
-        Utf8 entity
-        Utf8 subject
-        Utf8 predicate
-        Utf8 object
-        Utf8 graph
-        Utf8 dataset
-	    Utf8 predicate_rdfs_label
-	    Utf8 predicate_obo_IAO_0000115
-	}
-    comparator_resource_class_entity_p["comparator_resource_class_entity_p"] {
-	    List-Utf8 as_columns "['','','','','','','','','resource']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
-	    List-Utf8 cast_templates "['','','','','','','','','http://%']"
-	    List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Value']"
-	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','resource']"
-        Boolean cpu "false"
-        Utf8 lhs_name "select_predicates_class_entity_s"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    filter_resource_class_entity_p["filter_resource_class_entity_p"] {
-        List-Utf8 cmp_columns "['resource']"
-        List-Utf8 cmp_operators "['Like']"
-        Utf8 cmp_predicate "Any"
-        Boolean cpu "false"
-        Utf8 lhs_name "comparator_resource_class_entity_s"
-        List-Utf8 lhs_values "['object']"
-        Utf8 operator "Filter"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    select_resource_class_entity_p["select_resource_class_entity_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "filter_resource_class_entity_s"
-        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    select_resource_class_entity_s["select_resource_class_entity_s"] {
-        Utf8 entity
-        Utf8 subject
-        Utf8 predicate
-        Utf8 object
-        Utf8 graph
-        Utf8 dataset
-	    Utf8 predicate_rdfs_label
-	    Utf8 predicate_obo_IAO_0000115
-	}
-	join_objects_class_entity_p["join_objects_class_entity_p"] {
-	    Boolean cpu "false"
-	    Utf8 operator "Join"
-	    Utf8 lhs_name "select_resource_class_entity_s"
-	    Utf8 lhs_fk "object"
-	    Utf8 lhs_pk "object"
-	    Utf8 rhs_name "merge_object_property_class_named_individual_pivot_s"
-	    Utf8 rhs_fk "uri"
-	    Utf8 rhs_pk "uri"
-	    Utf8 lhs_stream "Accumulate"
-        Utf8 rhs_stream "Accumulate"
-        Utf8 join_operators "Inner"
-	}
-    select_objects_class_entity_p["select_objects_class_entity_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "join_objects_class_entity_s"
-        List-Utf8 as_columns "['','','','','','','object_rdfs_label','object_obo_IAO_0000115']"
-        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','rdfs_label','obo_IAO_0000115']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-	select_objects_class_entity_s["select_objects_class_entity_s"] {
-        Utf8 entity
-        Utf8 subject
-        Utf8 graph
-        Utf8 dataset
-	    Utf8 predicate_rdfs_label
-	    Utf8 predicate_obo_IAO_0000115
-	    Utf8 object_rdfs_label
-	    Utf8 object_obo_IAO_0000115
-	}
-    comparator_literal_class_entity_p["comparator_literal_class_entity_p"] {
-	    List-Utf8 as_columns "['','','','','','','','','resource']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
-	    List-Utf8 cast_templates "['','','','','','','','','http://%']"
-	    List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Value']"
-	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','resource']"
-        Boolean cpu "false"
-        Utf8 lhs_name "select_predicates_class_entity_s"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    filter_literal_class_entity_p["filter_literal_class_entity_p"] {
-        List-Utf8 cmp_columns "['resource']"
-        List-Utf8 cmp_operators "['NotLike']"
-        Utf8 cmp_predicate "Any"
-        Boolean cpu "false"
-        Utf8 lhs_name "comparator_literal_class_entity_s"
-        List-Utf8 lhs_values "['object']"
-        Utf8 operator "Filter"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    select_literal_class_entity_p["select_literal_class_entity_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "filter_literal_class_entity_s"
-        List-Utf8 as_columns "['','','','','','','object_rdfs_label','']"
-	    List-Utf8 column_operators "['None','None','None','None','None','None','None','String']"
-        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','object','object_obo_IAO_0000115']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-	join_predicates_object_property_entity_p["join_predicates_object_property_entity_p"] {
-	    Boolean cpu "false"
-	    Utf8 operator "Join"
-	    Utf8 lhs_name "select_object_property_entity_s"
-	    Utf8 lhs_fk "predicate"
-	    Utf8 lhs_pk "predicate"
-	    Utf8 rhs_name "select_annotation_property_pivot_s"
-	    Utf8 rhs_fk "uri"
-	    Utf8 rhs_pk "uri"
-	    Utf8 lhs_stream "Accumulate"
-        Utf8 rhs_stream "Accumulate"
-        Utf8 join_operators "Inner"
-	}
-    select_predicates_object_property_entity_p["select_predicates_object_property_entity_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "join_predicates_object_property_entity_s"
-        List-Utf8 as_columns "['','','','','','','predicate_rdfs_label','predicate_obo_IAO_0000115']"
-        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label','obo_IAO_0000115']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-	select_predicates_object_property_entity_s["select_predicates_object_property_entity_s"] {
-        Utf8 entity
-        Utf8 subject
-        Utf8 predicate
-        Utf8 object
-        Utf8 graph
-        Utf8 dataset
-	    Utf8 predicate_rdfs_label
-	    Utf8 predicate_obo_IAO_0000115
-	}
-    comparator_resource_object_property_entity_p["comparator_resource_object_property_entity_p"] {
-	    List-Utf8 as_columns "['','','','','','','','','resource']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
-	    List-Utf8 cast_templates "['','','','','','','','','http://%']"
-	    List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Value']"
-	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','resource']"
-        Boolean cpu "false"
-        Utf8 lhs_name "select_predicates_object_property_entity_s"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    filter_resource_object_property_entity_p["filter_resource_object_property_entity_p"] {
-        List-Utf8 cmp_columns "['resource']"
-        List-Utf8 cmp_operators "['Like']"
-        Utf8 cmp_predicate "Any"
-        Boolean cpu "false"
-        Utf8 lhs_name "comparator_resource_object_property_entity_s"
-        List-Utf8 lhs_values "['object']"
-        Utf8 operator "Filter"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    select_resource_object_property_entity_p["select_resource_object_property_entity_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "filter_resource_object_property_entity_s"
-        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    select_resource_object_property_entity_s["select_resource_object_property_entity_s"] {
-        Utf8 entity
-        Utf8 subject
-        Utf8 predicate
-        Utf8 object
-        Utf8 graph
-        Utf8 dataset
-	    Utf8 predicate_rdfs_label
-	    Utf8 predicate_obo_IAO_0000115
-	}
-	join_objects_object_property_entity_p["join_objects_object_property_entity_p"] {
-	    Boolean cpu "false"
-	    Utf8 operator "Join"
-	    Utf8 lhs_name "select_resource_object_property_entity_s"
-	    Utf8 lhs_fk "object"
-	    Utf8 lhs_pk "object"
-	    Utf8 rhs_name "merge_object_property_class_named_individual_pivot_s"
-	    Utf8 rhs_fk "uri"
-	    Utf8 rhs_pk "uri"
-	    Utf8 lhs_stream "Accumulate"
-        Utf8 rhs_stream "Accumulate"
-        Utf8 join_operators "Inner"
-	}
-    select_objects_object_property_entity_p["select_objects_object_property_entity_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "join_objects_object_property_entity_s"
-        List-Utf8 as_columns "['','','','','','','object_rdfs_label','object_obo_IAO_0000115']"
-        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','rdfs_label','obo_IAO_0000115']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-	select_objects_object_property_entity_s["select_objects_object_property_entity_s"] {
-        Utf8 entity
-        Utf8 subject
-        Utf8 graph
-        Utf8 dataset
-	    Utf8 predicate_rdfs_label
-	    Utf8 predicate_obo_IAO_0000115
-	    Utf8 object_rdfs_label
-	    Utf8 object_obo_IAO_0000115
-	}
-    comparator_literal_object_property_entity_p["comparator_literal_object_property_entity_p"] {
-	    List-Utf8 as_columns "['','','','','','','','','resource']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
-	    List-Utf8 cast_templates "['','','','','','','','','http://%']"
-	    List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Value']"
-	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','resource']"
-        Boolean cpu "false"
-        Utf8 lhs_name "select_predicates_object_property_entity_s"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    filter_literal_object_property_entity_p["filter_literal_object_property_entity_p"] {
-        List-Utf8 cmp_columns "['resource']"
-        List-Utf8 cmp_operators "['NotLike']"
-        Utf8 cmp_predicate "Any"
-        Boolean cpu "false"
-        Utf8 lhs_name "comparator_literal_object_property_entity_s"
-        List-Utf8 lhs_values "['object']"
-        Utf8 operator "Filter"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    select_literal_object_property_entity_p["select_literal_object_property_entity_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "filter_literal_object_property_entity_s"
-        List-Utf8 as_columns "['','','','','','','object_rdfs_label','']"
-	    List-Utf8 column_operators "['None','None','None','None','None','None','None','String']"
-        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','object','object_obo_IAO_0000115']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    concat_cols_class_entity_p["concat_cols_class_entity_p"] {
-        List-Utf8 as_columns "['','','','','predicate_rdfs_label-Cast','object_obo_IAO_0000115-Cast','object-Concat','text']"
-        List-Utf8 cast_templates "['','','','','**{{ predicate_rdfs_label }}** ','{% if object_obo_IAO_0000115 %} with definition {{ object_obo_IAO_0000115 }}{% endif %}','','']"
-        List-Utf8 column_operators "['None','None','None','None','None','None','Concat','Concat']"
-        List-Utf8 rhs_values "['','','','','','','object_obo_IAO_0000115-Cast','object-Concat']"
-        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','object_obo_IAO_0000115','object_rdfs_label','predicate_rdfs_label-Cast']"
-        Boolean cpu "false"
-        Utf8 lhs_name "select_objects_class_entity_s"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    select_cols_class_entity_p["select_cols_class_entity_p"] {
-        List-Utf8 lhs_values "['entity','subject','graph','dataset','text']"
-        Boolean cpu "false"
-        Utf8 lhs_name "concat_cols_class_entity_s"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    list_rows_class_entity_p["list_rows_class_entity_p"] {
-	    List-Utf8 agg_columns "['text']"
-	    List-Utf8 agg_operators "['List']"
-	    List-Utf8 lhs_values "['subject','dataset']"
-        Boolean cpu "false"
-        Utf8 lhs_name "select_cols_class_entity_s"
-        Utf8 operator "GroupBy"
-        Utf8 lhs_stream "Accumulate"
-    }
-    select_rows_class_entity_p["select_rows_class_entity_p"] {
-        List-Utf8 as_columns "['subject','dataset','text_List']"
-        List-Utf8 lhs_values "['subject','dataset','text-List']"
-        Boolean cpu "false"
-        Utf8 lhs_name "list_rows_class_entity_s"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
+	concat_cols_object_property_entity_p-processor@{{shape: rect, label: Select}}
+	concat_cols_object_property_entity_p-publish@{{shape: fork}}
+	concat_cols_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	concat_cols_object_property_entity_s-subject@{{shape: doc, label: concat_cols_object_property_entity_s}}
+	select_cols_object_property_entity_p-processor@{{shape: rect, label: Select}}
+	select_cols_object_property_entity_p-publish@{{shape: fork}}
+	select_cols_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_cols_object_property_entity_s-subject@{{shape: doc, label: select_cols_object_property_entity_s}}
+	list_rows_object_property_entity_p-processor@{{shape: rect, label: GroupBy}}
+	list_rows_object_property_entity_p-publish@{{shape: fork}}
+	list_rows_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	list_rows_object_property_entity_s-subject@{{shape: doc, label: list_rows_object_property_entity_s}}
+	select_rows_object_property_entity_p-processor@{{shape: rect, label: Select}}
+	select_rows_object_property_entity_p-publish@{{shape: fork}}
+	select_rows_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	select_rows_object_property_entity_s-subject@{{shape: doc, label: select_rows_object_property_entity_s}}
+	apply_template_object_property_entity_p-processor@{{shape: rect, label: Select}}
+	apply_template_object_property_entity_p-publish@{{shape: fork}}
+	apply_template_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
+	%% ------------------------------------------------------------------------------"#)
+    }
+    pub fn as_mermaid_erdiagram(&self) -> String {
+        let subject_o = if self.as_documents {
+            r#"
     apply_template_class_entity_p["apply_template_class_entity_p"] {
         List-Utf8 as_columns "['chunk_id','document_id','text']"
         List-Utf8 cast_templates "['','','{% for item in text_List %}{{ item }}{% if not loop.last %}\n{% endif %}{% endfor %}']"
         List-Utf8 lhs_values "['subject','dataset','text_List']"
         Boolean cpu "false"
         Utf8 lhs_name "select_rows_class_entity_s"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    concat_cols_object_property_entity_p["concat_cols_object_property_entity_p"] {
-        List-Utf8 as_columns "['','','','','predicate_rdfs_label-Cast','object_obo_IAO_0000115-Cast','object-Concat','text']"
-        List-Utf8 cast_templates "['','','','','**{{ predicate_rdfs_label }}** ','{% if object_obo_IAO_0000115 %} with definition {{ object_obo_IAO_0000115 }}{% endif %}','','']"
-        List-Utf8 column_operators "['None','None','None','None','None','None','Concat','Concat']"
-        List-Utf8 rhs_values "['','','','','','','object_obo_IAO_0000115-Cast','object-Concat']"
-        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','object_obo_IAO_0000115','object_rdfs_label','predicate_rdfs_label-Cast']"
-        Boolean cpu "false"
-        Utf8 lhs_name "select_objects_object_property_entity_s"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    select_cols_object_property_entity_p["select_cols_object_property_entity_p"] {
-        List-Utf8 lhs_values "['entity','subject','graph','dataset','text']"
-        Boolean cpu "false"
-        Utf8 lhs_name "concat_cols_object_property_entity_s"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Stream"
-        Utf8 rhs_stream "Stream"
-    }
-    list_rows_object_property_entity_p["list_rows_object_property_entity_p"] {
-	    List-Utf8 agg_columns "['text']"
-	    List-Utf8 agg_operators "['List']"
-	    List-Utf8 lhs_values "['subject','dataset']"
-        Boolean cpu "false"
-        Utf8 lhs_name "select_cols_object_property_entity_s"
-        Utf8 operator "GroupBy"
-        Utf8 lhs_stream "Accumulate"
-    }
-    select_rows_object_property_entity_p["select_rows_object_property_entity_p"] {
-        List-Utf8 as_columns "['subject','dataset','text_List']"
-        List-Utf8 lhs_values "['subject','dataset','text-List']"
-        Boolean cpu "false"
-        Utf8 lhs_name "list_rows_object_property_entity_s"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
         Utf8 rhs_stream "Stream"
@@ -1849,6 +905,987 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         Utf8 document_id
         Utf8 text
 	}"#
+        } else {
+            r#"
+    apply_template_class_entity_p["apply_template_class_entity_p"] {
+        List-Utf8 as_columns "['query_id','text']"
+        List-Utf8 cast_templates "['','{% for item in text_List %}{{ item }}{% if not loop.last %}\n{% endif %}{% endfor %}']"
+        List-Utf8 lhs_values "['subject','text_List']"
+        Boolean cpu "false"
+        Utf8 lhs_name "select_rows_class_entity_s"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }
+    apply_template_object_property_entity_p["apply_template_object_property_entity_p"] {
+        List-Utf8 as_columns "['query_id','text']"
+        List-Utf8 cast_templates "['','{% for item in text_List %}{{ item }}{% if not loop.last %}\n{% endif %}{% endfor %}']"
+        List-Utf8 lhs_values "['subject','text_List']"
+        Boolean cpu "false"
+        Utf8 lhs_name "select_rows_object_property_entity_s"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }
+	Queries["Queries"] {
+        Utf8 query_id
+        Utf8 text
+	}"#
+        };
+        format!(r#"erDiagram
+    UserScript["UserScript"] {{
+        Utf8 filename
+        Utf8 extension
+        List-UInt8 bytes
+        Utf8 metadata
+        Int64 timestamp
+    }}
+    ParseOwl["ParseOwl"] {{
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+    }}
+    extract_owl_p["extract_owl_p"] {{
+        Boolean cpu "false"
+        Utf8 format "Owl"
+        Utf8 lhs_name "UserScript"
+        List-Utf8 lhs_values "['bytes']"
+        Utf8 operator "ExtractXML"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    comparator_ontology_entity_p["comparator_ontology_entity_p"] {{
+	    List-Utf8 as_columns "['','','','','','','cmp']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#Ontology']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
+        Boolean cpu "false"
+        Utf8 lhs_name "ParseOwl"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    filter_ontology_entity_p["filter_ontology_entity_p"] {{
+        List-Utf8 cmp_columns "['cmp']"
+        List-Utf8 cmp_operators "['Like']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_ontology_entity_s"
+        List-Utf8 lhs_values "['entity']"
+        Utf8 operator "Filter"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_ontology_entity_p["select_ontology_entity_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_ontology_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_ontology_entity_s["select_ontology_entity_s"] {{
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+    }}
+    comparator_annotation_property_entity_p["comparator_annotation_property_entity_p"] {{
+	    List-Utf8 as_columns "['','','','','','','cmp']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#AnnotationProperty']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
+        Boolean cpu "false"
+        Utf8 lhs_name "ParseOwl"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    filter_annotation_property_entity_p["filter_annotation_property_entity_p"] {{
+        List-Utf8 cmp_columns "['cmp']"
+        List-Utf8 cmp_operators "['Like']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_annotation_property_entity_s"
+        List-Utf8 lhs_values "['entity']"
+        Utf8 operator "Filter"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_annotation_property_entity_p["select_annotation_property_entity_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_annotation_property_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_annotation_property_entity_s["select_annotation_property_entity_s"] {{
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+    }}
+    comparator_datatype_property_entity_p["comparator_datatype_property_entity_p"] {{
+	    List-Utf8 as_columns "['','','','','','','cmp']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#DatatypeProperty']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
+        Boolean cpu "false"
+        Utf8 lhs_name "ParseOwl"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    filter_datatype_property_entity_p["filter_datatype_property_entity_p"] {{
+        List-Utf8 cmp_columns "['cmp']"
+        List-Utf8 cmp_operators "['Like']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_datatype_property_entity_s"
+        List-Utf8 lhs_values "['entity']"
+        Utf8 operator "Filter"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_datatype_property_entity_p["select_datatype_property_entity_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_datatype_property_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_datatype_property_entity_s["select_datatype_property_entity_s"] {{
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+    }}
+    comparator_class_entity_p["comparator_class_entity_p"] {{
+	    List-Utf8 as_columns "['','','','','','','cmp']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#Class']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
+        Boolean cpu "false"
+        Utf8 lhs_name "ParseOwl"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    filter_class_entity_p["filter_class_entity_p"] {{
+        List-Utf8 cmp_columns "['cmp']"
+        List-Utf8 cmp_operators "['Like']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_class_entity_s"
+        List-Utf8 lhs_values "['entity']"
+        Utf8 operator "Filter"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_class_entity_p["select_class_entity_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_class_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_class_entity_s["select_class_entity_s"] {{
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+    }}
+    comparator_object_property_entity_p["comparator_object_property_entity_p"] {{
+	    List-Utf8 as_columns "['','','','','','','cmp']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#ObjectProperty']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
+        Boolean cpu "false"
+        Utf8 lhs_name "ParseOwl"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    filter_object_property_entity_p["filter_object_property_entity_p"] {{
+        List-Utf8 cmp_columns "['cmp']"
+        List-Utf8 cmp_operators "['Like']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_object_property_entity_s"
+        List-Utf8 lhs_values "['entity']"
+        Utf8 operator "Filter"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_object_property_entity_p["select_object_property_entity_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_object_property_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_object_property_entity_s["select_object_property_entity_s"] {{
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+    }}
+    comparator_named_individual_entity_p["comparator_named_individual_entity_p"] {{
+	    List-Utf8 as_columns "['','','','','','','cmp']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#NamedIndividual']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
+        Boolean cpu "false"
+        Utf8 lhs_name "ParseOwl"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    filter_named_individual_entity_p["filter_named_individual_entity_p"] {{
+        List-Utf8 cmp_columns "['cmp']"
+        List-Utf8 cmp_operators "['Like']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_named_individual_entity_s"
+        List-Utf8 lhs_values "['entity']"
+        Utf8 operator "Filter"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_named_individual_entity_p["select_named_individual_entity_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_named_individual_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_named_individual_entity_s["select_named_individual_entity_s"] {{
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+    }}
+    comparator_axiom_entity_p["comparator_axiom_entity_p"] {{
+	    List-Utf8 as_columns "['','','','','','','cmp']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#Axiom']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
+        Boolean cpu "false"
+        Utf8 lhs_name "ParseOwl"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    filter_axiom_entity_p["filter_axiom_entity_p"] {{
+        List-Utf8 cmp_columns "['cmp']"
+        List-Utf8 cmp_operators "['Like']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_axiom_entity_s"
+        List-Utf8 lhs_values "['entity']"
+        Utf8 operator "Filter"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_axiom_entity_p["select_axiom_entity_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_axiom_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_axiom_entity_s["select_axiom_entity_s"] {{
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+    }}
+    coalesce_annotation_property_entity_p["coalesce_annotation_property_entity_p"] {{
+        Int64 fetch "512"
+        Utf8 summary_format "None"
+    }}
+    comparator_predicate_annotation_property_entity_p["comparator_predicate_annotation_property_entity_p"] {{
+	    List-Utf8 as_columns "['','','','','','','rdfs_label','obo_IAO_0000115']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2000/01/rdf-schema#label','http://purl.obolibrary.org/obo/IAO_0000115']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label','obo_IAO_0000115']"
+        Boolean cpu "false"
+        Utf8 lhs_name "coalesce_annotation_property_entity_s"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    filter_predicate_annotation_property_entity_p["filter_predicate_annotation_property_entity_p"] {{
+        List-Utf8 cmp_columns "['rdfs_label','obo_IAO_0000115']"
+        List-Utf8 cmp_operators "['Like','Like']"
+        Utf8 cmp_predicate "Any"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_predicate_annotation_property_entity_s"
+        List-Utf8 lhs_values "['predicate','predicate']"
+        Utf8 operator "Filter"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    select_predicate_annotation_property_entity_p["select_predicate_annotation_property_entity_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_predicate_annotation_property_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+	pivot_annotation_property_entity_p["pivot_annotation_property_entity_p"] {{
+	    List-Utf8 agg_columns "['object']"
+	    List-Utf8 agg_operators "['First']"
+	    Boolean cpu "false"
+	    List-Utf8 default_values "['']"
+	    Utf8 lhs_name "select_predicate_annotation_property_entity_s"
+	    List-Utf8 lhs_values "['subject']"
+	    Utf8 operator "Pivot"
+	    List-Utf8 pvt_columns "['predicate']"
+	    Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+	}}
+	pivot_annotation_property_entity_s["pivot_annotation_property_entity_s"] {{
+	    Utf8 subject
+	    Utf8 http://purl.obolibrary.org/obo/IAO_0000115-object-First
+	    Utf8 http://www.w3.org/2000/01/rdf-schema#label-object-First
+	}}
+    coalesce_annotation_property_pivot_p["coalesce_annotation_property_pivot_p"] {{
+        Int64 fetch "512"
+        Utf8 summary_format "None"
+    }}
+	group_by_annotation_property_pivot_p["group_by_annotation_property_pivot_p"] {{
+	    List-Utf8 agg_columns "['http://www.w3.org/2000/01/rdf-schema#label-object-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First']"
+	    List-Utf8 agg_operators "['First','First']"
+	    Boolean cpu "false"
+	    Utf8 lhs_name "coalesce_annotation_property_pivot_s"
+	    List-Utf8 lhs_values "['subject']"
+	    Utf8 operator "GroupBy"
+	    Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+	}}
+	group_by_annotation_property_pivot_s["group_by_annotation_property_pivot_s"] {{
+	    Utf8 subject
+	    Utf8 http://www.w3.org/2000/01/rdf-schema#label-object-First-First
+	    Utf8 http://purl.obolibrary.org/obo/IAO_0000115-object-First-First
+	}}
+    select_annotation_property_pivot_p["select_annotation_property_pivot_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "group_by_annotation_property_pivot_s"
+        List-Utf8 as_columns "['uri','rdfs_label','obo_IAO_0000115']"
+        List-Utf8 lhs_values "['subject','http://www.w3.org/2000/01/rdf-schema#label-object-First-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First-First']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+	select_annotation_property_pivot_s["select_annotation_property_pivot_s"] {{
+	    Utf8 uri
+	    Utf8 rdfs_label
+	    Utf8 obo_IAO_0000115
+	}}
+    comparator_predicate_class_entity_p["comparator_predicate_class_entity_p"] {{
+	    List-Utf8 as_columns "['','','','','','','rdfs_label','obo_IAO_0000115']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2000/01/rdf-schema#label','http://purl.obolibrary.org/obo/IAO_0000115']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label','obo_IAO_0000115']"
+        Boolean cpu "false"
+        Utf8 lhs_name "coalesce_class_entity_s"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    filter_predicate_class_entity_p["filter_predicate_class_entity_p"] {{
+        List-Utf8 cmp_columns "['rdfs_label','obo_IAO_0000115']"
+        List-Utf8 cmp_operators "['Like','Like']"
+        Utf8 cmp_predicate "Any"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_predicate_class_entity_s"
+        List-Utf8 lhs_values "['predicate','predicate']"
+        Utf8 operator "Filter"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    select_predicate_class_entity_p["select_predicate_class_entity_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_predicate_class_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+	pivot_class_entity_p["pivot_class_entity_p"] {{
+	    List-Utf8 agg_columns "['object']"
+	    List-Utf8 agg_operators "['First']"
+	    Boolean cpu "false"
+	    List-Utf8 default_values "['']"
+	    Utf8 lhs_name "select_predicate_class_entity_s"
+	    List-Utf8 lhs_values "['subject']"
+	    Utf8 operator "Pivot"
+	    List-Utf8 pvt_columns "['predicate']"
+	    Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+	}}
+	pivot_class_entity_s["pivot_class_entity_s"] {{
+	    Utf8 subject
+	    Utf8 http://purl.obolibrary.org/obo/IAO_0000115-object-First
+	    Utf8 http://www.w3.org/2000/01/rdf-schema#label-object-First
+	}}
+    coalesce_class_pivot_p["coalesce_class_pivot_p"] {{
+        Int64 fetch "512"
+        Utf8 summary_format "None"
+    }}
+	group_by_class_pivot_p["group_by_class_pivot_p"] {{
+	    List-Utf8 agg_columns "['http://www.w3.org/2000/01/rdf-schema#label-object-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First']"
+	    List-Utf8 agg_operators "['First','First']"
+	    Boolean cpu "false"
+	    Utf8 lhs_name "coalesce_class_pivot_s"
+	    List-Utf8 lhs_values "['subject']"
+	    Utf8 operator "GroupBy"
+	    Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+	}}
+	group_by_class_pivot_s["group_by_class_pivot_s"] {{
+	    Utf8 subject
+	    Utf8 http://www.w3.org/2000/01/rdf-schema#label-object-First-First
+	    Utf8 http://purl.obolibrary.org/obo/IAO_0000115-object-First-First
+	}}
+    select_class_pivot_p["select_class_pivot_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "group_by_class_pivot_s"
+        List-Utf8 as_columns "['uri','rdfs_label','obo_IAO_0000115']"
+        List-Utf8 lhs_values "['subject','http://www.w3.org/2000/01/rdf-schema#label-object-First-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First-First']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    coalesce_object_property_entity_p["coalesce_object_property_entity_p"] {{
+        Int64 fetch "512"
+        Utf8 summary_format "None"
+    }}
+    comparator_predicate_object_property_entity_p["comparator_predicate_object_property_entity_p"] {{
+	    List-Utf8 as_columns "['','','','','','','rdfs_label','obo_IAO_0000115']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2000/01/rdf-schema#label','http://purl.obolibrary.org/obo/IAO_0000115']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label','obo_IAO_0000115']"
+        Boolean cpu "false"
+        Utf8 lhs_name "coalesce_object_property_entity_s"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    filter_predicate_object_property_entity_p["filter_predicate_object_property_entity_p"] {{
+        List-Utf8 cmp_columns "['rdfs_label','obo_IAO_0000115']"
+        List-Utf8 cmp_operators "['Like','Like']"
+        Utf8 cmp_predicate "Any"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_predicate_object_property_entity_s"
+        List-Utf8 lhs_values "['predicate','predicate']"
+        Utf8 operator "Filter"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    select_predicate_object_property_entity_p["select_predicate_object_property_entity_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_predicate_object_property_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+	pivot_object_property_entity_p["pivot_object_property_entity_p"] {{
+	    List-Utf8 agg_columns "['object']"
+	    List-Utf8 agg_operators "['First']"
+	    Boolean cpu "false"
+	    List-Utf8 default_values "['']"
+	    Utf8 lhs_name "select_predicate_object_property_entity_s"
+	    List-Utf8 lhs_values "['subject']"
+	    Utf8 operator "Pivot"
+	    List-Utf8 pvt_columns "['predicate']"
+	    Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+	}}
+	pivot_object_property_entity_s["pivot_object_property_entity_s"] {{
+	    Utf8 subject
+	    Utf8 http://purl.obolibrary.org/obo/IAO_0000115-object-First
+	    Utf8 http://www.w3.org/2000/01/rdf-schema#label-object-First
+	}}
+    coalesce_object_property_pivot_p["coalesce_object_property_pivot_p"] {{
+        Int64 fetch "512"
+        Utf8 summary_format "None"
+    }}
+	group_by_object_property_pivot_p["group_by_object_property_pivot_p"] {{
+	    List-Utf8 agg_columns "['http://www.w3.org/2000/01/rdf-schema#label-object-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First']"
+	    List-Utf8 agg_operators "['First','First']"
+	    Boolean cpu "false"
+	    Utf8 lhs_name "coalesce_object_property_pivot_s"
+	    List-Utf8 lhs_values "['subject']"
+	    Utf8 operator "GroupBy"
+	    Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+	}}
+	group_by_object_property_pivot_s["group_by_object_property_pivot_s"] {{
+	    Utf8 subject
+	    Utf8 http://www.w3.org/2000/01/rdf-schema#label-object-First-First
+	    Utf8 http://purl.obolibrary.org/obo/IAO_0000115-object-First-First
+	}}
+    select_object_property_pivot_p["select_object_property_pivot_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "group_by_object_property_pivot_s"
+        List-Utf8 as_columns "['uri','rdfs_label','obo_IAO_0000115']"
+        List-Utf8 lhs_values "['subject','http://www.w3.org/2000/01/rdf-schema#label-object-First-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First-First']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    coalesce_named_individual_entity_p["coalesce_named_individual_entity_p"] {{
+        Int64 fetch "512"
+        Utf8 summary_format "None"
+    }}
+    comparator_predicate_named_individual_entity_p["comparator_predicate_named_individual_entity_p"] {{
+	    List-Utf8 as_columns "['','','','','','','rdfs_label']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2000/01/rdf-schema#label']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label']"
+        Boolean cpu "false"
+        Utf8 lhs_name "coalesce_named_individual_entity_s"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    filter_predicate_named_individual_entity_p["filter_predicate_named_individual_entity_p"] {{
+        List-Utf8 cmp_columns "['rdfs_label']"
+        List-Utf8 cmp_operators "['Like']"
+        Utf8 cmp_predicate "Any"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_predicate_named_individual_entity_s"
+        List-Utf8 lhs_values "['predicate']"
+        Utf8 operator "Filter"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    select_predicate_named_individual_entity_p["select_predicate_named_individual_entity_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_predicate_named_individual_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+	pivot_named_individual_entity_p["pivot_named_individual_entity_p"] {{
+	    List-Utf8 agg_columns "['object']"
+	    List-Utf8 agg_operators "['First']"
+	    Boolean cpu "false"
+	    List-Utf8 default_values "['']"
+	    Utf8 lhs_name "select_predicate_named_individual_entity_s"
+	    List-Utf8 lhs_values "['subject']"
+	    Utf8 operator "Pivot"
+	    List-Utf8 pvt_columns "['predicate']"
+	    Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+	}}
+	pivot_named_individual_entity_s["pivot_named_individual_entity_s"] {{
+	    Utf8 subject
+	    Utf8 http://www.w3.org/2000/01/rdf-schema#label-object-First
+	}}
+    coalesce_named_individual_pivot_p["coalesce_named_individual_pivot_p"] {{
+        Int64 fetch "512"
+        Utf8 summary_format "None"
+    }}
+	group_by_named_individual_pivot_p["group_by_named_individual_pivot_p"] {{
+	    List-Utf8 agg_columns "['http://www.w3.org/2000/01/rdf-schema#label-object-First']"
+	    List-Utf8 agg_operators "['First']"
+	    Boolean cpu "false"
+	    Utf8 lhs_name "coalesce_named_individual_pivot_s"
+	    List-Utf8 lhs_values "['subject']"
+	    Utf8 operator "GroupBy"
+	    Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+	}}
+	group_by_named_individual_pivot_s["group_by_named_individual_pivot_s"] {{
+	    Utf8 subject
+	    Utf8 http://www.w3.org/2000/01/rdf-schema#label-object-First-First
+	}}
+    select_named_individual_pivot_p["select_named_individual_pivot_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "group_by_named_individual_pivot_s"
+	    List-Utf8 as_columns "['uri','rdfs_label','obo_IAO_0000115']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8']"
+	    List-Utf8 column_operators "['None','None','String']"
+        List-Utf8 lhs_values "['subject','http://www.w3.org/2000/01/rdf-schema#label-object-First-First','obo_IAO_0000115']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+	merge_object_property_class_named_individual_pivot_s["merge_object_property_class_named_individual_pivot_s"] {{
+	    Utf8 uri
+	    Utf8 rdfs_label
+	    Utf8 obo_IAO_0000115
+	}}
+	join_predicates_class_entity_p["join_predicates_class_entity_p"] {{
+	    Boolean cpu "false"
+	    Utf8 operator "Join"
+	    Utf8 lhs_name "select_class_entity_s"
+	    Utf8 lhs_fk "predicate"
+	    Utf8 lhs_pk "predicate"
+	    Utf8 rhs_name "select_annotation_property_pivot_s"
+	    Utf8 rhs_fk "uri"
+	    Utf8 rhs_pk "uri"
+	    Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
+	}}
+    select_predicates_class_entity_p["select_predicates_class_entity_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "join_predicates_class_entity_s"
+        List-Utf8 as_columns "['','','','','','','predicate_rdfs_label','predicate_obo_IAO_0000115']"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label','obo_IAO_0000115']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+	select_predicates_class_entity_s["select_predicates_class_entity_s"] {{
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+	    Utf8 predicate_rdfs_label
+	    Utf8 predicate_obo_IAO_0000115
+	}}
+    comparator_resource_class_entity_p["comparator_resource_class_entity_p"] {{
+	    List-Utf8 as_columns "['','','','','','','','','resource']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','','','http://%']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','resource']"
+        Boolean cpu "false"
+        Utf8 lhs_name "select_predicates_class_entity_s"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    filter_resource_class_entity_p["filter_resource_class_entity_p"] {{
+        List-Utf8 cmp_columns "['resource']"
+        List-Utf8 cmp_operators "['Like']"
+        Utf8 cmp_predicate "Any"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_resource_class_entity_s"
+        List-Utf8 lhs_values "['object']"
+        Utf8 operator "Filter"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    select_resource_class_entity_p["select_resource_class_entity_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_resource_class_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    select_resource_class_entity_s["select_resource_class_entity_s"] {{
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+	    Utf8 predicate_rdfs_label
+	    Utf8 predicate_obo_IAO_0000115
+	}}
+	join_objects_class_entity_p["join_objects_class_entity_p"] {{
+	    Boolean cpu "false"
+	    Utf8 operator "Join"
+	    Utf8 lhs_name "select_resource_class_entity_s"
+	    Utf8 lhs_fk "object"
+	    Utf8 lhs_pk "object"
+	    Utf8 rhs_name "merge_object_property_class_named_individual_pivot_s"
+	    Utf8 rhs_fk "uri"
+	    Utf8 rhs_pk "uri"
+	    Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
+	}}
+    select_objects_class_entity_p["select_objects_class_entity_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "join_objects_class_entity_s"
+        List-Utf8 as_columns "['','','','','','','object_rdfs_label','object_obo_IAO_0000115']"
+        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','rdfs_label','obo_IAO_0000115']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+	select_objects_class_entity_s["select_objects_class_entity_s"] {{
+        Utf8 entity
+        Utf8 subject
+        Utf8 graph
+        Utf8 dataset
+	    Utf8 predicate_rdfs_label
+	    Utf8 predicate_obo_IAO_0000115
+	    Utf8 object_rdfs_label
+	    Utf8 object_obo_IAO_0000115
+	}}
+    comparator_literal_class_entity_p["comparator_literal_class_entity_p"] {{
+	    List-Utf8 as_columns "['','','','','','','','','resource']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','','','http://%']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','resource']"
+        Boolean cpu "false"
+        Utf8 lhs_name "select_predicates_class_entity_s"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    filter_literal_class_entity_p["filter_literal_class_entity_p"] {{
+        List-Utf8 cmp_columns "['resource']"
+        List-Utf8 cmp_operators "['NotLike']"
+        Utf8 cmp_predicate "Any"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_literal_class_entity_s"
+        List-Utf8 lhs_values "['object']"
+        Utf8 operator "Filter"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    select_literal_class_entity_p["select_literal_class_entity_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_literal_class_entity_s"
+        List-Utf8 as_columns "['','','','','','','object_rdfs_label','']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','None','String']"
+        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','object','object_obo_IAO_0000115']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+	join_predicates_object_property_entity_p["join_predicates_object_property_entity_p"] {{
+	    Boolean cpu "false"
+	    Utf8 operator "Join"
+	    Utf8 lhs_name "select_object_property_entity_s"
+	    Utf8 lhs_fk "predicate"
+	    Utf8 lhs_pk "predicate"
+	    Utf8 rhs_name "select_annotation_property_pivot_s"
+	    Utf8 rhs_fk "uri"
+	    Utf8 rhs_pk "uri"
+	    Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
+	}}
+    select_predicates_object_property_entity_p["select_predicates_object_property_entity_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "join_predicates_object_property_entity_s"
+        List-Utf8 as_columns "['','','','','','','predicate_rdfs_label','predicate_obo_IAO_0000115']"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label','obo_IAO_0000115']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+	select_predicates_object_property_entity_s["select_predicates_object_property_entity_s"] {{
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+	    Utf8 predicate_rdfs_label
+	    Utf8 predicate_obo_IAO_0000115
+	}}
+    comparator_resource_object_property_entity_p["comparator_resource_object_property_entity_p"] {{
+	    List-Utf8 as_columns "['','','','','','','','','resource']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','','','http://%']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','resource']"
+        Boolean cpu "false"
+        Utf8 lhs_name "select_predicates_object_property_entity_s"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    filter_resource_object_property_entity_p["filter_resource_object_property_entity_p"] {{
+        List-Utf8 cmp_columns "['resource']"
+        List-Utf8 cmp_operators "['Like']"
+        Utf8 cmp_predicate "Any"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_resource_object_property_entity_s"
+        List-Utf8 lhs_values "['object']"
+        Utf8 operator "Filter"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    select_resource_object_property_entity_p["select_resource_object_property_entity_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_resource_object_property_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    select_resource_object_property_entity_s["select_resource_object_property_entity_s"] {{
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+	    Utf8 predicate_rdfs_label
+	    Utf8 predicate_obo_IAO_0000115
+	}}
+	join_objects_object_property_entity_p["join_objects_object_property_entity_p"] {{
+	    Boolean cpu "false"
+	    Utf8 operator "Join"
+	    Utf8 lhs_name "select_resource_object_property_entity_s"
+	    Utf8 lhs_fk "object"
+	    Utf8 lhs_pk "object"
+	    Utf8 rhs_name "merge_object_property_class_named_individual_pivot_s"
+	    Utf8 rhs_fk "uri"
+	    Utf8 rhs_pk "uri"
+	    Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
+	}}
+    select_objects_object_property_entity_p["select_objects_object_property_entity_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "join_objects_object_property_entity_s"
+        List-Utf8 as_columns "['','','','','','','object_rdfs_label','object_obo_IAO_0000115']"
+        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','rdfs_label','obo_IAO_0000115']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+	select_objects_object_property_entity_s["select_objects_object_property_entity_s"] {{
+        Utf8 entity
+        Utf8 subject
+        Utf8 graph
+        Utf8 dataset
+	    Utf8 predicate_rdfs_label
+	    Utf8 predicate_obo_IAO_0000115
+	    Utf8 object_rdfs_label
+	    Utf8 object_obo_IAO_0000115
+	}}
+    comparator_literal_object_property_entity_p["comparator_literal_object_property_entity_p"] {{
+	    List-Utf8 as_columns "['','','','','','','','','resource']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','','','http://%']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','resource']"
+        Boolean cpu "false"
+        Utf8 lhs_name "select_predicates_object_property_entity_s"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    filter_literal_object_property_entity_p["filter_literal_object_property_entity_p"] {{
+        List-Utf8 cmp_columns "['resource']"
+        List-Utf8 cmp_operators "['NotLike']"
+        Utf8 cmp_predicate "Any"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_literal_object_property_entity_s"
+        List-Utf8 lhs_values "['object']"
+        Utf8 operator "Filter"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    select_literal_object_property_entity_p["select_literal_object_property_entity_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_literal_object_property_entity_s"
+        List-Utf8 as_columns "['','','','','','','object_rdfs_label','']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','None','String']"
+        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','object','object_obo_IAO_0000115']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    concat_cols_class_entity_p["concat_cols_class_entity_p"] {{
+        List-Utf8 as_columns "['','','','','predicate_rdfs_label-Cast','object_obo_IAO_0000115-Cast','object-Concat','text']"
+        List-Utf8 cast_templates "['','','','','**{{{{ predicate_rdfs_label }}}}** ','{{% if object_obo_IAO_0000115 %}} with definition {{{{ object_obo_IAO_0000115 }}}}{{% endif %}}','','']"
+        List-Utf8 column_operators "['None','None','None','None','None','None','Concat','Concat']"
+        List-Utf8 rhs_values "['','','','','','','object_obo_IAO_0000115-Cast','object-Concat']"
+        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','object_obo_IAO_0000115','object_rdfs_label','predicate_rdfs_label-Cast']"
+        Boolean cpu "false"
+        Utf8 lhs_name "select_objects_class_entity_s"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    select_cols_class_entity_p["select_cols_class_entity_p"] {{
+        List-Utf8 lhs_values "['entity','subject','graph','dataset','text']"
+        Boolean cpu "false"
+        Utf8 lhs_name "concat_cols_class_entity_s"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    list_rows_class_entity_p["list_rows_class_entity_p"] {{
+	    List-Utf8 agg_columns "['text']"
+	    List-Utf8 agg_operators "['List']"
+	    List-Utf8 lhs_values "['subject','dataset']"
+        Boolean cpu "false"
+        Utf8 lhs_name "select_cols_class_entity_s"
+        Utf8 operator "GroupBy"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_rows_class_entity_p["select_rows_class_entity_p"] {{
+        List-Utf8 as_columns "['subject','dataset','text_List']"
+        List-Utf8 lhs_values "['subject','dataset','text-List']"
+        Boolean cpu "false"
+        Utf8 lhs_name "list_rows_class_entity_s"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    concat_cols_object_property_entity_p["concat_cols_object_property_entity_p"] {{
+        List-Utf8 as_columns "['','','','','predicate_rdfs_label-Cast','object_obo_IAO_0000115-Cast','object-Concat','text']"
+        List-Utf8 cast_templates "['','','','','**{{{{ predicate_rdfs_label }}}}** ','{{% if object_obo_IAO_0000115 %}} with definition {{{{ object_obo_IAO_0000115 }}}}{{% endif %}}','','']"
+        List-Utf8 column_operators "['None','None','None','None','None','None','Concat','Concat']"
+        List-Utf8 rhs_values "['','','','','','','object_obo_IAO_0000115-Cast','object-Concat']"
+        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','object_obo_IAO_0000115','object_rdfs_label','predicate_rdfs_label-Cast']"
+        Boolean cpu "false"
+        Utf8 lhs_name "select_objects_object_property_entity_s"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    select_cols_object_property_entity_p["select_cols_object_property_entity_p"] {{
+        List-Utf8 lhs_values "['entity','subject','graph','dataset','text']"
+        Boolean cpu "false"
+        Utf8 lhs_name "concat_cols_object_property_entity_s"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}
+    list_rows_object_property_entity_p["list_rows_object_property_entity_p"] {{
+	    List-Utf8 agg_columns "['text']"
+	    List-Utf8 agg_operators "['List']"
+	    List-Utf8 lhs_values "['subject','dataset']"
+        Boolean cpu "false"
+        Utf8 lhs_name "select_cols_object_property_entity_s"
+        Utf8 operator "GroupBy"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_rows_object_property_entity_p["select_rows_object_property_entity_p"] {{
+        List-Utf8 as_columns "['subject','dataset','text_List']"
+        List-Utf8 lhs_values "['subject','dataset','text-List']"
+        Boolean cpu "false"
+        Utf8 lhs_name "list_rows_object_property_entity_s"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
+    }}{subject_o}"#)
     }
 }
 
@@ -1878,11 +1915,11 @@ mod tests {
         // Initialize the session
         let extract_onto_session = ExtractOntologyNetworkBuilder::default();
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            extract_onto_session.as_mermaid_flowchart(),
+            &extract_onto_session.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            extract_onto_session.as_mermaid_erdiagram(),
+            &extract_onto_session.as_mermaid_erdiagram(),
             false,
             true,
         )?
