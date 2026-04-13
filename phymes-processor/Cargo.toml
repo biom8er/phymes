@@ -29,11 +29,11 @@ phymes-streams = { path = "../phymes-streams", default-features = false, optiona
 phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
 phymes-event = { path = "../phymes-event", default-features = false, optional = true }
 phymes-message = { path = "../phymes-message", default-features = false, optional = true }
-arrow = { version = "58.0.0", default-features = false, features = ["csv", "json", "ipc"] }
+arrow = { workspace = true }
 tokio = { version = "1.49.0", default-features = false, optional = true}
 futures = { version = "0.3.31", default-features = false }
 clap = { version = "4.2.4", features = ["derive"] }
-anyhow = { version = "1", default-features = false }
+anyhow = { workspace = true }
 parking_lot = "0.12.3"
 tracing = "0.1.41"
 tracing-chrome = "0.7.1"

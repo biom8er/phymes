@@ -13,7 +13,7 @@ use phymes_schemas::{
 use phymes_streams::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType, ObjectStoreConfig, ObjectStoreOptsType};
 use serde_json::{Map, Value};
 
-use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, EmbedTextNetworkBuilder, ExtractPDFNetworkBuilder, RetrieveTextNetworkBuilder};
+use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, EmbedTextNetworkBuilder, ExtractOntologyNetworkBuilder, ExtractPDFNetworkBuilder, RetrieveTextNetworkBuilder};
 
 /// OpenAlex network
 pub struct OpenAlexNetworkBuilder {
@@ -657,7 +657,56 @@ impl Default for OpenAlexNetworkBuilder {
                     subject_name: subject_name_lhs.to_string(),
                 },
                 publication: Publication::Extend {
-                    subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
+                    subject_name: subject_out.get_name().to_string(),
+                },
+                subject_out: Some(subject_out),
+                subject_processor,
+                ..Default::default()
+            };
+            builder.build_dynamic()
+        };
+        let open_alex_network_builder = open_alex_network_builder.extend(network_builder).unwrap();
+
+        // Get Owl ontology network
+        let network_builder = {
+            let network_name = "get_owl";
+            let subject_name_lhs = "http_request_owl_s";
+            let config = HTTPClientConfig {
+                timeout: 15,
+                request_type: HTTPClientRequestType::Get,
+                user_agent_type: Some("rust-openalex-client/2.0".to_string()),
+                base_url: String::new(),
+                subject_name: Some(subject_name_lhs.to_string()),
+                request_schema: HTTPClientRequestSchemas::Attachments,
+                ..Default::default()
+            };
+            let config_json = serde_json::to_vec(&config).unwrap();
+            let subject = SubjectBuilder::new()
+                .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                .with_json(&config_json, 1)
+                .unwrap()
+                .build()
+                .unwrap();
+            let subject_processor = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let subject = AvailableInterfaceSubjects::UserScript
+                .to_subject(None, None)
+                .unwrap();
+            let subject_out = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let builder = DynamicTaskNetworkBuilder {
+                network_name: network_name.to_string(),
+                is_dynamic: false,
+                processor: AvailableProcessors::HTTPClientRequestProcessor,
+                subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                    subject_name: subject_name_lhs.to_string(),
+                },
+                publication: Publication::Extend {
+                    subject_name: subject_out.get_name().to_string(),
                 },
                 subject_out: Some(subject_out),
                 subject_processor,
@@ -680,6 +729,22 @@ impl Default for OpenAlexNetworkBuilder {
         ).unwrap()
         .with_name(extract_pdf_session.network_name);
         let open_alex_network_builder = open_alex_network_builder.extend(extract_pdf_network_builder).unwrap();
+
+        // Extract OWL session
+        // DM, todo!(): Both PDF and Ontology extraction -> Documents!
+        //              Need to change the name of one or add a filter step!
+        let extract_owl_session = ExtractOntologyNetworkBuilder::default();
+        let extract_owl_network_builder = NetworkBuilder::from_mermaid_flowchart(
+            extract_owl_session.as_mermaid_flowchart(),
+            false,
+        ).unwrap()
+        .with_subjects_from_mermaid_erdiagram(
+            extract_owl_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        ).unwrap()
+        .with_name(extract_owl_session.network_name);
+        let open_alex_network_builder = open_alex_network_builder.extend(extract_owl_network_builder).unwrap();
 
         // Embed text session
         let embed_text_network = EmbedTextNetworkBuilder::default();
@@ -832,6 +897,25 @@ mod tests {
         let batch = RecordBatch::try_from_iter(vec![("topic_id", topic_arr)])?;
         let subject = Subject::get_builder()
             .with_name("open_alex_topics_s")
+            .with_record_batches(vec![batch])?
+            .build()?;
+        let _ = message_map.insert(
+            subject.get_name().to_string(),
+            IPCMessage::get_builder()
+                .with_name(subject.get_name())
+                .with_publisher(network_arc.get_name())
+                .with_subject(subject.get_name())
+                .with_update(&Publication::Replace {
+                    subject_name: subject.get_name().to_string(),
+                })
+                .with_message(subject.to_ipc_stream()?)
+                .build()?,
+        );
+        let cl_urls = vec!["http://purl.obolibrary.org/obo/cl.owl".to_string()];
+        let cl_arr: ArrayRef = Arc::new(StringArray::from(cl_urls));
+        let batch = RecordBatch::try_from_iter(vec![("content", cl_arr)])?;
+        let subject = Subject::get_builder()
+            .with_name("http_request_owl_s")
             .with_record_batches(vec![batch])?
             .build()?;
         let _ = message_map.insert(

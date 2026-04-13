@@ -5865,13 +5865,10 @@ version = "0.3.0"
 dependencies = [
  "anyhow",
  "arrow",
- "async-trait",
  "bytes",
  "chrono",
  "clap",
  "futures",
- "getrandom 0.3.4",
- "hashbrown 0.15.5",
  "num-traits",
  "object_store",
  "parking_lot",
@@ -5884,7 +5881,6 @@ dependencies = [
  "tracing",
  "tracing-chrome",
  "tracing-subscriber",
- "web-time",
 ]
 
 [[package]]

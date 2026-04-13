@@ -29,8 +29,7 @@ candle = [] # for compatibility with agents
 phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
 arrow = { version = "58.0.0", default-features = false, features = ["csv", "json", "ipc", "prettyprint"] }
 pin-project-lite = "0.2.16"
-async-trait = "0.1.88"
-anyhow = { version = "1", default-features = false }
+anyhow = { workspace = true }
 clap = { version = "4.2.4", features = ["derive"] }
 futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
 tokio = { version = "1.49.0", default-features = false, features = [], optional = true}
@@ -41,10 +40,7 @@ serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.135"
 tempfile = { version = "3.25.0", optional = true }
 parking_lot = "0.12.3"
-web-time = "1.1.0"
-hashbrown = "0.15.4"
 chrono = { version = "0.4.41", features = ["wasmbind"] }
 bytes = "1.11.1"
-getrandom = { version = "0.3.1", features = ["wasm_js"] }
 num-traits = { version = "0.2", default-features = false }
 object_store = { version = "0.13.1", optional = true }
