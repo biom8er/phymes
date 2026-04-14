@@ -1,6 +1,6 @@
 // src/node_parser/token_text.rs
 use std::sync::Arc;
-use crate::parser::{Document, NodeParser, TextNode, default_tokenizer};
+use crate::parser::{Document, NodeParserTrait, TextNode, default_tokenizer};
 
 #[derive(Clone)]
 pub struct TokenTextSplitter {
@@ -149,7 +149,7 @@ impl TokenTextSplitter {
     }
 }
 
-impl NodeParser for TokenTextSplitter {
+impl NodeParserTrait for TokenTextSplitter {
     fn parse(&self, text: &str) -> Vec<TextNode> {
         self.get_nodes_from_documents(&[Document { text: text.to_string(), metadata: None }])
     }

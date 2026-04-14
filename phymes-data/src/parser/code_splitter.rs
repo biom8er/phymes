@@ -1,7 +1,7 @@
 // src/node_parser/code_splitter.rs
 use std::sync::Arc;
 use tree_sitter::{Parser, Tree};
-use crate::parser::{Document, NodeParser, TextNode, default_tokenizer};
+use crate::parser::{Document, NodeParserTrait, TextNode, default_tokenizer, parser_trait::TextParserTrait};
 
 pub struct CodeSplitter {
     language: String,
@@ -159,7 +159,7 @@ fn tree_sitter_language(lang: &str) -> Option<tree_sitter::Language> {
     }
 }
 
-impl NodeParser for CodeSplitter {
+impl NodeParserTrait for CodeSplitter {
     fn parse(&self, text: &str) -> Vec<TextNode> {
         let mut splitter = CodeSplitter::new(
             &self.language, 

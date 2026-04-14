@@ -2,7 +2,7 @@
 use regex::Regex;
 use std::sync::Arc;
 
-use crate::parser::{default_tokenizer, interface::NodeParser};
+use crate::parser::{default_tokenizer, parser_trait::{NodeParserTrait, TextParserTrait}};
 
 #[derive(Clone)]
 pub struct SentenceSplitter {
@@ -15,7 +15,7 @@ pub struct SentenceSplitter {
 }
 
 #[derive(Clone)]
-struct Split {
+pub struct Split {
     text: String,
     is_sentence: bool,
     token_size: usize,
@@ -182,7 +182,6 @@ impl SentenceSplitter {
             }
         }
 
-        dbg!(&text);
         let word_splits: Vec<String> = text.split(&self.separator).map(|s| [s, &self.separator].join("")).collect();
         (word_splits, false)
     }
@@ -247,7 +246,11 @@ fn join_text(chunks: &[(String, usize)]) -> String {
     chunks.iter().map(|(t, _)| t).cloned().collect::<Vec<_>>().join("")
 }
 
-impl NodeParser for SentenceSplitter {
+impl TextParserTrait for SentenceSplitter {
+
+}
+
+impl NodeParserTrait for SentenceSplitter {
     fn parse(&self, text: &str) -> Vec<TextNode> {
         self.get_nodes_from_documents(&[Document { text: text.to_string(), metadata: None }])
     }
@@ -316,9 +319,12 @@ mod tests {
 
         let text = "foo ".repeat(200);
         let chunks = splitter.split_text_metadata_aware(&text, &metadata_str);
+        dbg!(&chunks);
+        dbg!(&chunks.len());
         for chunk in chunks {
             let combined = format!("{}{}", chunk, metadata_str);
             let token_count = (splitter.tokenizer)(&combined).len();
+            dbg!(&token_count);
             assert!(token_count <= chunk_size);
         }
     }

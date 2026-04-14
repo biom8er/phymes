@@ -11,28 +11,28 @@
 //!     }
 //! }
 
-mod interface;
+mod parser_trait;
 mod code_splitter;
 mod sentence;
 mod token_text;
 
-use interface::NodeParser;
+use parser_trait::{NodeParserTrait, TextParserTrait};
 use code_splitter::{CodeSplitter, CountMode};
-use sentence::{SentenceSplitter, TextNode, Document};
+use sentence::{SentenceSplitter, TextNode, Document, Split};
 use token_text::TokenTextSplitter;
 
 /// Factory function to create a parser by name.
 /// Returns a boxed trait object implementing `NodeParser`.
-pub fn create_parser(name: &str) -> Option<Box<dyn NodeParser>> {
+pub fn create_parser(name: &str) -> Option<Box<dyn NodeParserTrait>> {
     match name.to_lowercase().as_str() {
         "codesplitter" | "code" => {
-            Some(Box::new(CodeSplitter::new("python", 40, 15, 1500, CountMode::Char, 512, None, None)) as Box<dyn NodeParser>)
+            Some(Box::new(CodeSplitter::new("python", 40, 15, 1500, CountMode::Char, 512, None, None)) as Box<dyn NodeParserTrait>)
         }
         "sentencesplitter" | "sentence" => {
-            Some(Box::new(SentenceSplitter::new(512, 64, " ", "\n\n\n", None, None)) as Box<dyn NodeParser>)
+            Some(Box::new(SentenceSplitter::new(512, 64, " ", "\n\n\n", None, None)) as Box<dyn NodeParserTrait>)
         }
         "tokentextsplitter" | "token" => {
-            Some(Box::new(TokenTextSplitter::new(512, 64, " ", None, true, None)) as Box<dyn NodeParser>)
+            Some(Box::new(TokenTextSplitter::new(512, 64, " ", None, true, None)) as Box<dyn NodeParserTrait>)
         }
         _ => None,
     }
