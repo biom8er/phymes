@@ -1,5 +1,6 @@
 // src/node_parser/code_splitter.rs
 use std::sync::Arc;
+use phymes_subject::MappableTrait;
 use tree_sitter::{Parser, Tree};
 use crate::parser::{Document, NodeParserTrait, TextNode, default_tokenizer, parser_trait::TextParserTrait};
 
@@ -199,11 +200,14 @@ impl NodeParserTrait for CodeSplitter {
             })
             .collect()
     }
+}
 
-    fn class_name(&self) -> &'static str {
-        "CodeSplitter"
+impl MappableTrait for CodeSplitter {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;

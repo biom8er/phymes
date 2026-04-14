@@ -1,6 +1,8 @@
 // src/node_parser/token_text.rs
 use std::sync::Arc;
-use crate::parser::{Document, NodeParserTrait, TextNode, default_tokenizer};
+use phymes_subject::MappableTrait;
+
+use crate::parser::{Document, NodeParserTrait, TextNode, default_tokenizer, parser_trait::TextParserTrait, sentence::Split};
 
 #[derive(Clone)]
 pub struct TokenTextSplitter {
@@ -37,37 +39,24 @@ impl TokenTextSplitter {
             tokenizer,
         }
     }
+}
 
-    pub fn from_defaults() -> Self {
-        Self::new(512, 200, " ", Some(vec!["\n".to_string()]), false, None)
+impl Default for TokenTextSplitter {
+    fn default() -> Self {
+        let tokenizer = Arc::new(default_tokenizer);
+        Self { chunk_size: 512, chunk_overlap: 64, separator: " ".to_string(), backup_separators: vec!["\n".to_string()], keep_whitespaces: false, tokenizer }
     }
+}
 
-    pub fn split_text(&self, text: &str) -> Vec<String> {
-        self.split_text_with_chunk_size(text, self.chunk_size)
-    }
-
-    pub fn split_text_metadata_aware(&self, text: &str, metadata_str: &str) -> Vec<String> {
-        let metadata_len = (self.tokenizer)(metadata_str).len() + 2; // reserve for metadata format
-        let effective_chunk_size = self.chunk_size.saturating_sub(metadata_len);
-        if effective_chunk_size == 0 {
-            panic!("Metadata length exceeds chunk size");
-        }
-        self.split_text_with_chunk_size(text, effective_chunk_size)
-    }
-
-    fn split_text_with_chunk_size(&self, text: &str, chunk_size: usize) -> Vec<String> {
-        if text.is_empty() {
-            return vec![String::new()];
-        }
-
-        let splits = self.split(text, chunk_size);
-        self.merge(splits, chunk_size)
-    }
-
-    fn split(&self, text: &str, chunk_size: usize) -> Vec<String> {
-        let token_count = (self.tokenizer)(text).len();
-        if token_count <= chunk_size {
-            return vec![text.to_string()];
+impl TextParserTrait for TokenTextSplitter {
+    fn split(&self, text: &str, chunk_size: usize) -> Vec<Split> {
+        let token_size = self.token_size(text);
+        if token_size <= chunk_size {
+            return vec![Split {
+                text: text.to_string(),
+                is_sentence: false,
+                token_size,
+            }];
         }
 
         let mut splits = Vec::new();
@@ -78,25 +67,35 @@ impl TokenTextSplitter {
             }
         }
 
-        let mut new_splits = Vec::new();
-        for split in splits {
-            let len = (self.tokenizer)(&split).len();
-            if len <= chunk_size {
-                new_splits.push(split);
+        let mut result = Vec::new();
+
+        for s in splits {
+            let size = self.token_size(&s);
+            if size <= chunk_size {
+                result.push(Split {
+                    text: s,
+                    is_sentence: false,
+                    token_size: size,
+                });
             } else {
-                new_splits.extend(self.split(&split, chunk_size));
+                result.extend(self.split(&s, chunk_size));
             }
         }
-        new_splits
+
+        result
     }
 
-    fn merge(&self, splits: Vec<String>, chunk_size: usize) -> Vec<String> {
+    fn split_text(&self, text: &str) -> Vec<String> {
+        self.split_text_with_chunk_size(text, self.chunk_size)
+    }
+
+    fn merge(&self, splits: Vec<Split>, chunk_size: usize) -> Vec<String> {
         let mut chunks = Vec::new();
         let mut cur_chunk = Vec::<String>::new();
         let mut cur_len = 0usize;
 
-        for split in splits {
-            let split_len = (self.tokenizer)(&split).len();
+        for split in splits.into_iter().map(|s| s.text) {
+            let split_len = self.token_size(&split);
             if cur_len + split_len > chunk_size {
                 let chunk = if self.keep_whitespaces {
                     cur_chunk.join("")
@@ -109,7 +108,7 @@ impl TokenTextSplitter {
 
                 while cur_len > self.chunk_overlap || cur_len + split_len > chunk_size {
                     let first = cur_chunk.remove(0);
-                    cur_len -= (self.tokenizer)(&first).len();
+                    cur_len -= self.token_size(&first);
                 }
             }
 
@@ -129,7 +128,20 @@ impl TokenTextSplitter {
         chunks
     }
 
-    pub fn get_nodes_from_documents(&self, docs: &[Document]) -> Vec<TextNode> {
+    fn split_text_metadata_aware(&self, text: &str, metadata_str: &str) -> Vec<String> {
+        let metadata_len = (self.tokenizer)(metadata_str).len() + 2; // reserve for metadata format
+        let effective_chunk_size = self.chunk_size.saturating_sub(metadata_len);
+        if effective_chunk_size == 0 {
+            panic!("Metadata length exceeds chunk size");
+        }
+        self.split_text_with_chunk_size(text, effective_chunk_size)
+    }
+
+    fn token_size(&self, text: &str) -> usize {
+        (self.tokenizer)(text).len()
+    }
+
+    fn get_nodes_from_documents(&self, docs: &[Document]) -> Vec<TextNode> {
         let mut nodes = Vec::new();
         for doc in docs {
             let chunks = self.split_text(&doc.text);
@@ -171,9 +183,11 @@ impl NodeParserTrait for TokenTextSplitter {
             })
             .collect()
     }
+}
 
-    fn class_name(&self) -> &'static str {
-        "TokenTextSplitter"
+impl MappableTrait for TokenTextSplitter {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
     }
 }
 
