@@ -1,8 +1,8 @@
 // src/node_parser/code_splitter.rs
 use std::sync::Arc;
 use phymes_subject::MappableTrait;
-use tree_sitter::{Parser, Tree};
-use crate::parser::{Document, NodeParserTrait, TextNode, default_tokenizer, parser_trait::TextParserTrait};
+use tree_sitter::Parser;
+use crate::parser::{Document, NodeParserTrait, TextNode, default_tokenizer};
 
 pub struct CodeSplitter {
     language: String,

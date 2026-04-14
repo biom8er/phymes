@@ -25,6 +25,7 @@ impl Default for GetPdfNetworkBuilderStaticWSubject {
         let config = HTTPClientConfig {
             timeout: 5,
             request_type: HTTPClientRequestType::Get,
+            poll_error: true,
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: "https://arxiv.org/".to_string(),
             subject_name: Some(subject_name_lhs.to_string()),
@@ -338,6 +339,7 @@ mod tests {
         let http_client_config = HTTPClientConfig {
             timeout: 5,
             request_type: HTTPClientRequestType::Get,
+            poll_error: true,
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: "https://arxiv.org/".to_string(),
             subject_name: Some(get_content_network.inner.subscription_lhs.get_name().to_string()),
@@ -436,6 +438,7 @@ mod tests {
         let http_client_config = HTTPClientConfig {
             timeout: 5,
             request_type: HTTPClientRequestType::Get,
+            poll_error: true,
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: "https://arxiv.org/".to_string(),
             subject_name: None,

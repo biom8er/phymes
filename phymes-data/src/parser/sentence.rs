@@ -100,7 +100,6 @@ impl TextParserTrait for SentenceSplitter {
         let mut chunks = Vec::new();
         let mut cur_chunk = Vec::new();
         let mut cur_len = 0usize;
-        let mut last_chunk = Vec::new();
 
         let mut new_chunk = true;
         let mut idx = 0;
@@ -113,7 +112,7 @@ impl TextParserTrait for SentenceSplitter {
 
             if cur_len + s.token_size > chunk_size && !new_chunk {
                 chunks.push(join_text(&cur_chunk));
-                last_chunk = cur_chunk.clone();
+                let last_chunk = cur_chunk.clone();
                 cur_chunk.clear();
                 cur_len = 0;
                 new_chunk = true;

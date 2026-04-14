@@ -529,6 +529,7 @@ fn chunk_documents(
 ///
 /// # Returns
 /// A vector of strings representing the chunks
+#[allow(dead_code)]
 pub fn chunk_str(text: &str, chunk_size: usize, chunk_overlap: usize) -> Vec<String> {
     let mut chunks = Vec::new();
     let mut doc = text.to_string();

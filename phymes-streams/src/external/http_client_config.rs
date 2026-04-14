@@ -73,6 +73,10 @@ pub struct HTTPClientConfig {
     #[arg(long, default_value_t = HTTPClientRequestType::Get)]
     pub request_type: HTTPClientRequestType,
 
+    /// Send an error poll when an error is encountered or ignore and continue polling
+    #[arg(long, default_value_t = true)]
+    pub poll_error: bool,
+
     /// The request header user agent type
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -139,6 +143,7 @@ impl Default for HTTPClientConfig {
         Self {
             timeout: 15,
             request_type: HTTPClientRequestType::Get,
+            poll_error: true,
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             content_type: Some("application/json".to_string()),
             bearer_auth: None,
@@ -173,7 +178,7 @@ impl DataConfigTrait for HTTPClientConfig {
             }
         } else {
             // Check for the required fields
-            let required_fields = &["timeout", "request_type", "request_schema"];
+            let required_fields = &["timeout", "request_type", "poll_error", "request_schema"];
             let column_names = subject
                 .get_schema()
                 .fields()

@@ -325,8 +325,13 @@ impl Stream for HTTPClientRequestStream {
                     }
                 }
                 Err(err) => {
-                    self.state = HTTPClientRequestState::Done;
-                    Poll::Ready(Some(Err(anyhow!(error_report(&err)))))
+                    if self.config.as_ref().unwrap().poll_error {
+                        self.state = HTTPClientRequestState::Done;
+                        Poll::Ready(Some(Err(anyhow!(error_report(&err)))))
+                    } else {
+                        self.state = HTTPClientRequestState::NotStarted;
+                        self.poll_next(cx)
+                    }
                 }
             },
             HTTPClientRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
@@ -368,9 +373,13 @@ impl Stream for HTTPClientRequestStream {
                     self.poll_next(cx)
                 }
                 Err(err) => {
-                    // self.state = HTTPClientRequestState::Done;
-                    self.state = HTTPClientRequestState::NotStarted;
-                    Poll::Ready(Some(Err(anyhow!(error_report(&err)))))
+                    if self.config.as_ref().unwrap().poll_error {
+                        self.state = HTTPClientRequestState::Done;
+                        Poll::Ready(Some(Err(anyhow!(error_report(&err)))))
+                    } else {
+                        self.state = HTTPClientRequestState::NotStarted;
+                        self.poll_next(cx)
+                    }
                 }
             },
             HTTPClientRequestState::ToBytes(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
@@ -421,9 +430,13 @@ impl Stream for HTTPClientRequestStream {
                     self.poll_next(cx)
                 }
                 Err(err) => {
-                    // self.state = HTTPClientRequestState::Done;
-                    self.state = HTTPClientRequestState::NotStarted;
-                    Poll::Ready(Some(Err(anyhow!(error_report(&err)))))
+                    if self.config.as_ref().unwrap().poll_error {
+                        self.state = HTTPClientRequestState::Done;
+                        Poll::Ready(Some(Err(anyhow!(error_report(&err)))))
+                    } else {
+                        self.state = HTTPClientRequestState::NotStarted;
+                        self.poll_next(cx)
+                    }
                 }
             },
             HTTPClientRequestState::Ready(batches) => {

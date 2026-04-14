@@ -4,10 +4,7 @@ use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
 use phymes_data::{
-    AvailableJinja2Templates, AvailableOperators, DataAggregatorOperator, DataCastOperator,
-    DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig,
-    DataConfigTrait, DataDistanceOperator, DataJoinOperator, DataStreamManager, DiffType,
-    ToolTrait,
+    AvailableJinja2Templates, AvailableOperators, AvailableParsers, DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataJoinOperator, DataStreamManager, DiffType, ToolTrait
 };
 #[cfg(feature = "api")]
 use phymes_ml::AvailableOpenAIAssets;
@@ -230,8 +227,7 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_name: Some("lhs_name".to_string()),
                 lhs_pk: Some("lhs_pk".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
-                chunk_size: Some(512),
-                chunk_overlap: Some(64),
+                parser: Some(AvailableParsers::SentenceSplitter),
                 cpu: false,
                 operator: AvailableOperators::ChunkDocuments,
                 lhs_stream: DataStreamManager::Accumulate,
@@ -501,6 +497,7 @@ impl DataConfigTrait for AvailableProcessors {
             Self::HTTPClientRequestProcessor => serde_json::to_vec(&HTTPClientConfig {
                 timeout: 5,
                 request_type: HTTPClientRequestType::Get,
+                poll_error: true,
                 user_agent_type: Some("rust-openalex-client/2.0".to_string()),
                 base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?".to_string(),
                 subject_name: Some("messages".to_string()),

@@ -75,6 +75,7 @@ impl<'a> ExtractPDFNetworkBuilder<'a> {
         Utf8 lhs_name "extract_pdf_s"
         Utf8 lhs_pk "chunk_id"
         List-Utf8 lhs_values "['text']"
+        Utf8 parser "SentenceSplitter"
         Utf8 operator "ChunkDocuments"
         Utf8 lhs_stream "Accumulate"
     }

@@ -70,8 +70,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
         //     rhs_pk: Some("id".to_string()),
         //     rhs_fk: Some("title".to_string()),
         //     rhs_values: Some(vec!["text".to_string()]),
-        //     chunk_size: Some(512),
-        //     chunk_overlap: Some(64),
+        //     parser: Some(AvailableParsers::SentenceSplitter),
         //     ..Default::default()
         // },
         DataConfig {

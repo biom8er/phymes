@@ -439,6 +439,7 @@ impl<'a> OpenAlexNetworkBuilderMermaid<'a> {
     download_open_access_pdf_p["download_open_access_pdf_p"] {{
         UInt32 timeout "15"
         Utf8 request_type "Get"
+        Boolean poll_error "false"
         Utf8 user_agent_type "rust-openalex-client/2.0"
         Utf8 subject_name "select_open_acces_pdf_url_s"
         Utf8 request_schema "Attachments"
@@ -482,7 +483,7 @@ mod tests {
 
     use super::*;
 
-    #[ignore = "In progress... Some issues with embeddings and retrieval."]
+    // #[ignore = "In progress... Some issues with embeddings and retrieval."]
     #[tokio::test(flavor = "current_thread")]
     async fn test_open_alex_network_v_mermaid() -> Result<()> {
         // Extract PDF session
