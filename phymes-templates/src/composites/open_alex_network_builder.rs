@@ -989,7 +989,7 @@ mod tests {
     use super::*;
 
     // #[ignore = "In progress... Some issues with embeddings and retrieval."]
-    #[tokio::test(flavor = "current_thread")]
+    #[tokio::test]
     async fn test_open_alex_network_v_rust() -> Result<()> {
         // Initialize the session
         let open_alex_network_builder = OpenAlexNetworkBuilder::default().inner.take().unwrap();
@@ -1008,57 +1008,19 @@ mod tests {
         // Make the test session data
         let mut message_map = HashMap::<String, IPCMessage>::new();
 
-        // Make the list of paths to Get
-        // let location = vec!["data/works/updated_date=2018-01-12/part_0000.gz".to_string()];
-        let location = vec!["data/works/updated_date=2026-03-10/part_0005.gz".to_string()];
-        // let location = vec!["data/works/manifest".to_string()];
-        let bucket = vec!["openalex".to_string()];
-        let e_tag = vec![String::new()];
-        let version = vec![String::new()];
-        let size = vec![0_u32];
-        let last_modified = vec![0_i64];
-        let batch =
-            create_object_store_meta_batch(location, bucket, e_tag, version, size, last_modified)?;
-        let subject = Subject::get_builder()
-            .with_name(&AvailableSubjects::ObjectStoreMeta.to_string())
-            .with_record_batches(vec![batch])?
-            .build()?;
-        let _ = message_map.insert(
-            subject.get_name().to_string(),
-            IPCMessage::get_builder()
-                .with_name(subject.get_name())
-                .with_publisher(network_arc.get_name())
-                .with_subject(subject.get_name())
-                .with_update(&Publication::Replace {
-                    subject_name: subject.get_name().to_string(),
-                })
-                .with_message(subject.to_ipc_stream()?)
-                .build()?,
-        );
-        let topic_ids = vec!["https://openalex.org/T10123".to_string()];
-        let topic_arr: ArrayRef = Arc::new(StringArray::from(topic_ids));
-        let batch = RecordBatch::try_from_iter(vec![("topic_id", topic_arr)])?;
-        let subject = Subject::get_builder()
-            .with_name("open_alex_topics_s")
-            .with_record_batches(vec![batch])?
-            .build()?;
-        let _ = message_map.insert(
-            subject.get_name().to_string(),
-            IPCMessage::get_builder()
-                .with_name(subject.get_name())
-                .with_publisher(network_arc.get_name())
-                .with_subject(subject.get_name())
-                .with_update(&Publication::Replace {
-                    subject_name: subject.get_name().to_string(),
-                })
-                .with_message(subject.to_ipc_stream()?)
-                .build()?,
-        );
-        // let cl_urls = vec!["http://purl.obolibrary.org/obo/cl.owl".to_string()];
-        // let cl_arr: ArrayRef = Arc::new(StringArray::from(cl_urls));
-        // let batch = RecordBatch::try_from_iter(vec![("content", cl_arr)])?;
+        // // Make the list of paths to Get
+        // // let location = vec!["data/works/updated_date=2018-01-12/part_0000.gz".to_string()];
+        // let location = vec!["data/works/updated_date=2026-03-10/part_0005.gz".to_string()];
+        // // let location = vec!["data/works/manifest".to_string()];
+        // let bucket = vec!["openalex".to_string()];
+        // let e_tag = vec![String::new()];
+        // let version = vec![String::new()];
+        // let size = vec![0_u32];
+        // let last_modified = vec![0_i64];
+        // let batch =
+        //     create_object_store_meta_batch(location, bucket, e_tag, version, size, last_modified)?;
         // let subject = Subject::get_builder()
-        //     .with_name("http_request_owl_s")
+        //     .with_name(&AvailableSubjects::ObjectStoreMeta.to_string())
         //     .with_record_batches(vec![batch])?
         //     .build()?;
         // let _ = message_map.insert(
@@ -1073,6 +1035,44 @@ mod tests {
         //         .with_message(subject.to_ipc_stream()?)
         //         .build()?,
         // );
+        // let topic_ids = vec!["https://openalex.org/T10123".to_string()];
+        // let topic_arr: ArrayRef = Arc::new(StringArray::from(topic_ids));
+        // let batch = RecordBatch::try_from_iter(vec![("topic_id", topic_arr)])?;
+        // let subject = Subject::get_builder()
+        //     .with_name("open_alex_topics_s")
+        //     .with_record_batches(vec![batch])?
+        //     .build()?;
+        // let _ = message_map.insert(
+        //     subject.get_name().to_string(),
+        //     IPCMessage::get_builder()
+        //         .with_name(subject.get_name())
+        //         .with_publisher(network_arc.get_name())
+        //         .with_subject(subject.get_name())
+        //         .with_update(&Publication::Replace {
+        //             subject_name: subject.get_name().to_string(),
+        //         })
+        //         .with_message(subject.to_ipc_stream()?)
+        //         .build()?,
+        // );
+        let cl_urls = vec!["http://purl.obolibrary.org/obo/cl.owl".to_string()];
+        let cl_arr: ArrayRef = Arc::new(StringArray::from(cl_urls));
+        let batch = RecordBatch::try_from_iter(vec![("content", cl_arr)])?;
+        let subject = Subject::get_builder()
+            .with_name("http_request_owl_s")
+            .with_record_batches(vec![batch])?
+            .build()?;
+        let _ = message_map.insert(
+            subject.get_name().to_string(),
+            IPCMessage::get_builder()
+                .with_name(subject.get_name())
+                .with_publisher(network_arc.get_name())
+                .with_subject(subject.get_name())
+                .with_update(&Publication::Replace {
+                    subject_name: subject.get_name().to_string(),
+                })
+                .with_message(subject.to_ipc_stream()?)
+                .build()?,
+        );
 
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
@@ -1139,242 +1139,196 @@ mod tests {
 
         assert_eq!(response.len(), 0);
 
-        // Test AWS object store GET
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: "WorkTable".to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name("WorkTable")
-            .with_record_batches(batches)?
-            .build()?;
-        assert_eq!(subject.count_rows(), 34973);
-        let column = subject.get_column_as_vec_str("work_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
-        assert_eq!(column.last().unwrap(), &"https://openalex.org/W4367307220");
-
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: "WorkTopicTable".to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name("WorkTopicTable")
-            .with_record_batches(batches)?
-            .build()?;
-        assert_eq!(subject.count_rows(), 91321);
-        let column = subject.get_column_as_vec_str("work_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
-        assert_eq!(column.last().unwrap(), &"https://openalex.org/W4367307220");
-        let column = subject.get_column_as_vec_str("topic_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
-        assert_eq!(column.last().unwrap(), &"https://openalex.org/T13802");
-        let column = subject.get_column_as_vec_primitive::<f32>("score")?;
-        assert_eq!(column.first().unwrap(), &0.9994);
-        assert_eq!(column.last().unwrap(), &0.2251);
-        let column = subject.get_column_as_vec_primitive::<u8>("is_primary")?;
-        assert_eq!(column.first().unwrap(), &1);
-        assert_eq!(column.last().unwrap(), &1);
-
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: "WorkLocationTable".to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name("WorkLocationTable")
-            .with_record_batches(batches)?
-            .build()?;
-        assert_eq!(subject.count_rows(), 48958);
-        let column = subject.get_column_as_vec_str("work_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
-        assert_eq!(column.last().unwrap(), &"https://openalex.org/W4367307220");
-        let column = subject.get_column_as_vec_primitive::<u8>("is_best_oa")?;
-        assert_eq!(column.first().unwrap(), &0);
-        assert_eq!(column.last().unwrap(), &0);
-        let column = subject.get_column_as_vec_primitive::<u8>("is_primary")?;
-        assert_eq!(column.first().unwrap(), &1);
-        assert_eq!(column.last().unwrap(), &1);
-        let column = subject.get_column_as_vec_primitive::<u8>("is_oa")?;
-        assert_eq!(column.first().unwrap(), &0);
-        assert_eq!(column.last().unwrap(), &0);
-        let column = subject.get_column_as_vec_str("landing_page_url");
-        assert_eq!(
-            column.first().unwrap(),
-            &"https://doi.org/10.1016/j.str.2014.09.012"
-        );
-        assert_eq!(
-            column.last().unwrap(),
-            &"http://dx.doi.org/10.2307/jj.2430693"
-        );
-        let column = subject.get_column_as_vec_str("pdf_url");
-        assert_eq!(column.first().unwrap(), &"");
-        assert_eq!(column.last().unwrap(), &"");
-        let column = subject.get_column_as_vec_str("source_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/S7112016");
-        assert_eq!(column.last().unwrap(), &"");
-        let column = subject.get_column_as_vec_str("license");
-        assert_eq!(column.first().unwrap(), &"");
-        assert_eq!(column.last().unwrap(), &"cc-by");
-        let column = subject.get_column_as_vec_str("version");
-        assert_eq!(column.first().unwrap(), &"publishedVersion");
-        assert_eq!(column.last().unwrap(), &"publishedVersion");
-
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: "extract_open_alex_aws_bucket_s".to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        assert!(batches.is_empty());
-
-        // Test join work topic with user defined topics
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: "join_work_topic_table_s".to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name("join_work_topic_table_s")
-            .with_record_batches(batches)?
-            .build()?;
-        assert_eq!(subject.count_rows(), 13);
-        let column = subject.get_column_as_vec_str("work_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2036680792");
-        assert_eq!(column.last().unwrap(), &"https://openalex.org/W2037563286");
-        let column = subject.get_column_as_vec_str("topic_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
-        assert_eq!(column.last().unwrap(), &"https://openalex.org/T10123");
-        let column = subject.get_column_as_vec_primitive::<u8>("is_primary")?;
-        assert_eq!(column.first().unwrap(), &1);
-        assert_eq!(column.last().unwrap(), &1);
-        let column = subject.get_column_as_vec_primitive::<f32>("score")?;
-        assert_eq!(column.first().unwrap(), &0.9998);
-        assert_eq!(column.last().unwrap(), &0.9998);
-
-        // Test select open access PDF url as content
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: "select_open_acces_pdf_url_s".to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name("select_open_acces_pdf_url_s")
-            .with_record_batches(batches)?
-            .build()?;
-        assert_eq!(subject.count_rows(), 6);
-        let column = subject.get_column_as_vec_str("work_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2036554147");
-        assert_eq!(column.last().unwrap(), &"https://openalex.org/W4408584426");
-        let column = subject.get_column_as_vec_str("topic_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
-        assert_eq!(column.last().unwrap(), &"https://openalex.org/T10123");
-        let column = subject.get_column_as_vec_primitive::<f32>("score")?;
-        assert_eq!(column.first().unwrap(), &0.9998);
-        assert_eq!(column.last().unwrap(), &0.9688);
-        let column = subject.get_column_as_vec_str("content");
-        assert_eq!(
-            column.first().unwrap(),
-            &"http://www.jidonline.org/article/S0022202X15321485/pdf"
-        );
-        assert_eq!(
-            column.last().unwrap(),
-            &"https://doi.org/10.37184/jlnh.2959-1805.3.9"
-        );
-        let column = subject.get_column_as_vec_str("source_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/S28607811");
-        assert_eq!(column.last().unwrap(), &"https://openalex.org/S4387288081");
-        let column = subject.get_column_as_vec_str("version");
-        assert_eq!(column.first().unwrap(), &"publishedVersion");
-        assert_eq!(column.last().unwrap(), &"publishedVersion");
-
-        // Test HTTP request of open access PDF
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name(AvailableInterfaceSubjects::UserPdf.to_string().as_str())
-            .with_record_batches(batches)?
-            .build()?;
-        dbg!(subject.count_rows());
-        // assert_eq!(subject.count_rows(), 6);
-        let column = subject.get_column_as_vec_str("filename");
-        assert_eq!(
-            column.first().unwrap(),
-            &"http://www.jidonline.org/article/S0022202X15321485/pdf"
-        );
-        assert_eq!(
-            column.last().unwrap(),
-            &"https://doi.org/10.37184/jlnh.2959-1805.3.9"
-        );
-        let column = subject.get_column_as_vec_str("extension");
-        assert_eq!(column.first().unwrap(), &"text/html; charset=UTF-8");
-        assert_eq!(column.last().unwrap(), &"application/pdf");
-        let column = subject.get_column_as_vec_str("metadata");
-        assert_eq!(column.first().unwrap(), &"tool");
-        assert_eq!(column.last().unwrap(), &"tool");
-        let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-        for c in column {
-            assert!(c > 0);
-        }
-        let column = subject
-            .get_column_as_vec_nested_primitive::<u8>("bytes")?
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
-        assert!(column.len() > 100);
-
-        // // Test HTTP request of ontologies
+        // // Test AWS object store GET
         // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-        //     subject_name: AvailableInterfaceSubjects::UserScript.to_string(),
+        //     subject_name: "WorkTable".to_string(),
         // }
         // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         // .unwrap()
         // .try_collect()
         // .await?;
         // let subject = Subject::get_builder()
-        //     .with_name(AvailableInterfaceSubjects::UserScript.to_string().as_str())
+        //     .with_name("WorkTable")
+        //     .with_record_batches(batches)?
+        //     .build()?;
+        // assert_eq!(subject.count_rows(), 34973);
+        // let column = subject.get_column_as_vec_str("work_id");
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
+        // assert_eq!(column.last().unwrap(), &"https://openalex.org/W4367307220");
+
+        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+        //     subject_name: "WorkTopicTable".to_string(),
+        // }
+        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        // .unwrap()
+        // .try_collect()
+        // .await?;
+        // let subject = Subject::get_builder()
+        //     .with_name("WorkTopicTable")
+        //     .with_record_batches(batches)?
+        //     .build()?;
+        // assert_eq!(subject.count_rows(), 91321);
+        // let column = subject.get_column_as_vec_str("work_id");
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
+        // assert_eq!(column.last().unwrap(), &"https://openalex.org/W4367307220");
+        // let column = subject.get_column_as_vec_str("topic_id");
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
+        // assert_eq!(column.last().unwrap(), &"https://openalex.org/T13802");
+        // let column = subject.get_column_as_vec_primitive::<f32>("score")?;
+        // assert_eq!(column.first().unwrap(), &0.9994);
+        // assert_eq!(column.last().unwrap(), &0.2251);
+        // let column = subject.get_column_as_vec_primitive::<u8>("is_primary")?;
+        // assert_eq!(column.first().unwrap(), &1);
+        // assert_eq!(column.last().unwrap(), &1);
+
+        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+        //     subject_name: "WorkLocationTable".to_string(),
+        // }
+        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        // .unwrap()
+        // .try_collect()
+        // .await?;
+        // let subject = Subject::get_builder()
+        //     .with_name("WorkLocationTable")
+        //     .with_record_batches(batches)?
+        //     .build()?;
+        // assert_eq!(subject.count_rows(), 48958);
+        // let column = subject.get_column_as_vec_str("work_id");
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
+        // assert_eq!(column.last().unwrap(), &"https://openalex.org/W4367307220");
+        // let column = subject.get_column_as_vec_primitive::<u8>("is_best_oa")?;
+        // assert_eq!(column.first().unwrap(), &0);
+        // assert_eq!(column.last().unwrap(), &0);
+        // let column = subject.get_column_as_vec_primitive::<u8>("is_primary")?;
+        // assert_eq!(column.first().unwrap(), &1);
+        // assert_eq!(column.last().unwrap(), &1);
+        // let column = subject.get_column_as_vec_primitive::<u8>("is_oa")?;
+        // assert_eq!(column.first().unwrap(), &0);
+        // assert_eq!(column.last().unwrap(), &0);
+        // let column = subject.get_column_as_vec_str("landing_page_url");
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &"https://doi.org/10.1016/j.str.2014.09.012"
+        // );
+        // assert_eq!(
+        //     column.last().unwrap(),
+        //     &"http://dx.doi.org/10.2307/jj.2430693"
+        // );
+        // let column = subject.get_column_as_vec_str("pdf_url");
+        // assert_eq!(column.first().unwrap(), &"");
+        // assert_eq!(column.last().unwrap(), &"");
+        // let column = subject.get_column_as_vec_str("source_id");
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/S7112016");
+        // assert_eq!(column.last().unwrap(), &"");
+        // let column = subject.get_column_as_vec_str("license");
+        // assert_eq!(column.first().unwrap(), &"");
+        // assert_eq!(column.last().unwrap(), &"cc-by");
+        // let column = subject.get_column_as_vec_str("version");
+        // assert_eq!(column.first().unwrap(), &"publishedVersion");
+        // assert_eq!(column.last().unwrap(), &"publishedVersion");
+
+        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+        //     subject_name: "extract_open_alex_aws_bucket_s".to_string(),
+        // }
+        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        // .unwrap()
+        // .try_collect()
+        // .await?;
+        // assert!(batches.is_empty());
+
+        // // Test join work topic with user defined topics
+        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+        //     subject_name: "join_work_topic_table_s".to_string(),
+        // }
+        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        // .unwrap()
+        // .try_collect()
+        // .await?;
+        // let subject = Subject::get_builder()
+        //     .with_name("join_work_topic_table_s")
+        //     .with_record_batches(batches)?
+        //     .build()?;
+        // assert_eq!(subject.count_rows(), 13);
+        // let column = subject.get_column_as_vec_str("work_id");
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/W2036680792");
+        // assert_eq!(column.last().unwrap(), &"https://openalex.org/W2037563286");
+        // let column = subject.get_column_as_vec_str("topic_id");
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
+        // assert_eq!(column.last().unwrap(), &"https://openalex.org/T10123");
+        // let column = subject.get_column_as_vec_primitive::<u8>("is_primary")?;
+        // assert_eq!(column.first().unwrap(), &1);
+        // assert_eq!(column.last().unwrap(), &1);
+        // let column = subject.get_column_as_vec_primitive::<f32>("score")?;
+        // assert_eq!(column.first().unwrap(), &0.9998);
+        // assert_eq!(column.last().unwrap(), &0.9998);
+
+        // // Test select open access PDF url as content
+        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+        //     subject_name: "select_open_acces_pdf_url_s".to_string(),
+        // }
+        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        // .unwrap()
+        // .try_collect()
+        // .await?;
+        // let subject = Subject::get_builder()
+        //     .with_name("select_open_acces_pdf_url_s")
+        //     .with_record_batches(batches)?
+        //     .build()?;
+        // assert_eq!(subject.count_rows(), 6);
+        // let column = subject.get_column_as_vec_str("work_id");
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/W2036554147");
+        // assert_eq!(column.last().unwrap(), &"https://openalex.org/W4408584426");
+        // let column = subject.get_column_as_vec_str("topic_id");
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
+        // assert_eq!(column.last().unwrap(), &"https://openalex.org/T10123");
+        // let column = subject.get_column_as_vec_primitive::<f32>("score")?;
+        // assert_eq!(column.first().unwrap(), &0.9998);
+        // assert_eq!(column.last().unwrap(), &0.9688);
+        // let column = subject.get_column_as_vec_str("content");
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &"http://www.jidonline.org/article/S0022202X15321485/pdf"
+        // );
+        // assert_eq!(
+        //     column.last().unwrap(),
+        //     &"https://doi.org/10.37184/jlnh.2959-1805.3.9"
+        // );
+        // let column = subject.get_column_as_vec_str("source_id");
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/S28607811");
+        // assert_eq!(column.last().unwrap(), &"https://openalex.org/S4387288081");
+        // let column = subject.get_column_as_vec_str("version");
+        // assert_eq!(column.first().unwrap(), &"publishedVersion");
+        // assert_eq!(column.last().unwrap(), &"publishedVersion");
+
+        // // Test HTTP request of open access PDF
+        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+        //     subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
+        // }
+        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        // .unwrap()
+        // .try_collect()
+        // .await?;
+        // let subject = Subject::get_builder()
+        //     .with_name(AvailableInterfaceSubjects::UserPdf.to_string().as_str())
         //     .with_record_batches(batches)?
         //     .build()?;
         // dbg!(subject.count_rows());
         // // assert_eq!(subject.count_rows(), 6);
         // let column = subject.get_column_as_vec_str("filename");
-        // dbg!(column.first().unwrap());
-        // dbg!(column.last().unwrap());
-        // // assert_eq!(
-        // //     column.first().unwrap(),
-        // //     &"http://www.jidonline.org/article/S0022202X15321485/pdf"
-        // // );
-        // // assert_eq!(
-        // //     column.last().unwrap(),
-        // //     &"https://doi.org/10.37184/jlnh.2959-1805.3.9"
-        // // );
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &"http://www.jidonline.org/article/S0022202X15321485/pdf"
+        // );
+        // assert_eq!(
+        //     column.last().unwrap(),
+        //     &"https://doi.org/10.37184/jlnh.2959-1805.3.9"
+        // );
         // let column = subject.get_column_as_vec_str("extension");
-        // dbg!(column.first().unwrap());
-        // dbg!(column.last().unwrap());
-        // // assert_eq!(column.first().unwrap(), &"text/html; charset=UTF-8");
-        // // assert_eq!(column.last().unwrap(), &"application/pdf");
+        // assert_eq!(column.first().unwrap(), &"text/html; charset=UTF-8");
+        // assert_eq!(column.last().unwrap(), &"application/pdf");
         // let column = subject.get_column_as_vec_str("metadata");
-        // dbg!(column.first().unwrap());
-        // dbg!(column.last().unwrap());
-        // // assert_eq!(column.first().unwrap(), &"tool");
-        // // assert_eq!(column.last().unwrap(), &"tool");
+        // assert_eq!(column.first().unwrap(), &"tool");
+        // assert_eq!(column.last().unwrap(), &"tool");
         // let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
         // for c in column {
         //     assert!(c > 0);
@@ -1385,247 +1339,293 @@ mod tests {
         //     .flatten()
         //     .collect::<Vec<_>>();
         // assert!(column.len() > 100);
-        
-        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-        //     subject_name: AvailableSubjects::ParseOwl.to_string(),
-        // }
-        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        // .unwrap()
-        // .try_collect()
-        // .await?;
-        // let subject = Subject::get_builder()
-        //     .with_name(AvailableSubjects::ParseOwl.to_string().as_str())
-        //     .with_record_batches(batches)?
-        //     .build()?;
-        // dbg!(subject.count_rows());
-        // // assert_eq!(subject.count_rows(), 30);
-        // let column = subject.get_column_as_vec_str("entity");
-        // dbg!(column.first().unwrap());
-        // dbg!(column.last().unwrap());
-        // // assert_eq!(
-        // //     column.first().unwrap(),
-        // //     &"http://www.w3.org/2002/07/owl#AnnotationProperty"
-        // // );
-        // // assert_eq!(
-        // //     column.last().unwrap(),
-        // //     &"http://www.w3.org/2002/07/owl#Ontology"
-        // // );
-        // let column = subject.get_column_as_vec_str("subject");
-        // dbg!(column.first().unwrap());
-        // dbg!(column.last().unwrap());
-        // // assert_eq!(
-        // //     column.first().unwrap(),
-        // //     &"http://purl.obolibrary.org/obo/IAO_0000115"
-        // // );
-        // // assert_eq!(
-        // //     column.last().unwrap(),
-        // //     &"http://purl.obolibrary.org/obo/ro.owl"
-        // // );
-        // let column = subject.get_column_as_vec_str("predicate");
-        // dbg!(column.first().unwrap());
-        // dbg!(column.last().unwrap());
-        // // assert_eq!(
-        // //     column.first().unwrap(),
-        // //     &"http://purl.obolibrary.org/obo/IAO_0000115"
-        // // );
-        // // assert_eq!(column.last().unwrap(), &"http://purl.org/dc/terms/title");
-        // let column = subject.get_column_as_vec_str("object");
-        // dbg!(column.first().unwrap());
-        // dbg!(column.last().unwrap());
-        // // assert_eq!(
-        // //     column.first().unwrap(),
-        // //     &""
-        // // );
-        // assert_eq!(column.last().unwrap(), &"OBO Relations Ontology");
-        // let column = subject.get_column_as_vec_str("graph");
-        // dbg!(column.first().unwrap());
-        // dbg!(column.last().unwrap());
-        // // assert_eq!(
-        // //     column.first().unwrap(),
-        // //     &""
-        // // );
-        // // assert_eq!(
-        // //     column.last().unwrap(),
-        // //     &""
-        // // );
-        // let column = subject.get_column_as_vec_str("dataset");
-        // dbg!(column.first().unwrap());
-        // dbg!(column.last().unwrap());
-        // // assert_eq!(column.first().unwrap(), &"UserScript");
-        // // assert_eq!(column.last().unwrap(), &"UserScript");
-        
-        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-        //     subject_name: AvailableSubjects::Queries.to_string(),
-        // }
-        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        // .unwrap()
-        // .try_collect()
-        // .await?;
-        // let subject = Subject::get_builder()
-        //     .with_name(AvailableSubjects::Queries.to_string().as_str())
-        //     .with_record_batches(batches)?
-        //     .build()?;
-        // dbg!(subject.count_rows());
-        // // assert_eq!(subject.count_rows(), 3);
-        // let mut column = subject.get_column_as_vec_str("query_id");
-        // column.sort();
-        // dbg!(column.first().unwrap());
-        // dbg!(column.last().unwrap());
-        // // assert_eq!(
-        // //     column.first().unwrap(),
-        // //     &"http://purl.obolibrary.org/obo/BFO_0000003"
-        // // );
-        // // assert_eq!(
-        // //     column.last().unwrap(),
-        // //     &"http://purl.obolibrary.org/obo/RO_0002131"
-        // // );
-        // let mut column = subject.get_column_as_vec_str("text");
-        // column.sort();
-        // dbg!(column.first().unwrap());
-        // dbg!(column.last().unwrap());
-        // // assert_eq!(
-        // //     column.first().unwrap(),
-        // //     &"**definition** An entity that has temporal parts and that happens, unfolds or develops through time.\n**has exact synonym** has temporal part\n**has exact synonym** through time\n**has exact synonym** unfolds in time\n**label** occurrent"
-        // // );
 
-        // Make the query data
-        let mut message_map = HashMap::<String, IPCMessage>::new();
-        let chat = AvailableInterfaceSubjects::UserMessages
-            .to_subject_builder(None)
-            .append_new_user_query_str(
-                "What is Fanconi Anemia?",
-                "user",
-            )?
-            .build()?;
-        let _ = message_map.insert(
-            chat.get_name().to_string(),
-            IPCMessage::get_builder()
-                .with_message(chat.to_ipc_stream()?)
-                .with_subject(chat.get_name())
-                .with_update(&Publication::Extend {
-                    subject_name: chat.get_name().to_string(),
-                })
-                .with_publisher(network_arc.get_name())
-                .make_name()?
-                .build()?,
-        );
-
-        // 2. Run the session
-        let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
-
+        // Test HTTP request of ontologies
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionErrors.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        if !batches.is_empty() {
-            let subject = Subject::get_builder()
-                .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
-                .with_record_batches(batches)?
-                .build()?;
-            println!(
-                "{}\n{}",
-                AvailableSubjects::SessionErrors,
-                String::from_utf8(subject.to_csv(b',', true)?)?
-            );
-        }
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionEvents.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        if !batches.is_empty() {
-            let subject = Subject::get_builder()
-                .with_name(AvailableSubjects::SessionEvents.to_string().as_str())
-                .with_record_batches(batches)?
-                .build()?;
-            println!(
-                "{}\n{}",
-                AvailableSubjects::SessionEvents,
-                String::from_utf8(subject.to_csv(b',', true)?)?
-            );
-        }
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionMetrics.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        if !batches.is_empty() {
-            let subject = Subject::get_builder()
-                .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
-                .with_record_batches(batches)?
-                .build()?;
-            println!(
-                "{}\n{}",
-                AvailableSubjects::SessionTraces,
-                String::from_utf8(subject.to_csv(b',', true)?)?
-            );
-        }
-
-        assert_eq!(response.len(), 0);
-
-        // Test PDF extraction, embedding, and retrieval
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::EmbeddingScores.to_string(),
+            subject_name: AvailableInterfaceSubjects::UserScript.to_string(),
         }
         .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
         let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::EmbeddingScores.to_string().as_str())
+            .with_name(AvailableInterfaceSubjects::UserScript.to_string().as_str())
             .with_record_batches(batches)?
             .build()?;
-        dbg!(&subject.count_rows());
-        // assert_eq!(subject.count_rows(), 5);
-        let column = subject.get_column_as_vec_str("chunk_id");
+        dbg!(subject.count_rows());
+        // assert_eq!(subject.count_rows(), 6);
+        let column = subject.get_column_as_vec_str("filename");
         dbg!(column.first().unwrap());
-        // assert_eq!(column.first().unwrap(), &""https://doi.org/10.37184/jlnh.2959-1805.3.9_4_1");
-        let column = subject.get_column_as_vec_str("query_id");
-        dbg!(column.first().unwrap());
-        // assert_eq!(column.first().unwrap(), &"1775410537711065");
-        let column = subject.get_column_as_vec_primitive::<f32>("score")?;
-        for t in column {
-            assert!(t > 0.15); // Threshold used for filtering
-        }
-
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name(
-                AvailableInterfaceSubjects::ToolMessages
-                    .to_string()
-                    .as_str(),
-            )
-            .with_record_batches(batches)?
-            .build()?;
-        dbg!(&subject.count_rows());
-        // assert_eq!(subject.count_rows(), 1);
-        let column = subject.get_column_as_vec_str("role");
-        dbg!(column.first().unwrap());
-        // assert_eq!(column.first().unwrap(), &"tool");
-        let column = subject.get_column_as_vec_str("content");
-        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
         // assert_eq!(
         //     column.first().unwrap(),
-        //     &"[{\"text\":\"Deoxyribonucleic acid (DNA) is a polymer composed of two polynucleotide chains that coil around each other to form a double helix. The polymer carries genetic instructions for the development, functioning, growth and reproduction of all known organisms and many viruses. DNA and ribonucleic acid (RNA) are nucleic acids. Alongside proteins, lipids and complex carbohydrates (polysaccharides), nucleic acids are one of the four major types of macromolecules that are essential for all known forms of life.The two \"}]"
+        //     &"http://www.jidonline.org/article/S0022202X15321485/pdf"
         // );
+        // assert_eq!(
+        //     column.last().unwrap(),
+        //     &"https://doi.org/10.37184/jlnh.2959-1805.3.9"
+        // );
+        let column = subject.get_column_as_vec_str("extension");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"text/html; charset=UTF-8");
+        // assert_eq!(column.last().unwrap(), &"application/pdf");
+        let column = subject.get_column_as_vec_str("metadata");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"tool");
+        // assert_eq!(column.last().unwrap(), &"tool");
         let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-        for t in column {
-            assert!(t > 0);
+        for c in column {
+            assert!(c > 0);
         }
+        let column = subject
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        assert!(column.len() > 100);
+        
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::ParseOwl.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::ParseOwl.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        dbg!(subject.count_rows());
+        // assert_eq!(subject.count_rows(), 30);
+        let column = subject.get_column_as_vec_str("entity");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &"http://www.w3.org/2002/07/owl#AnnotationProperty"
+        // );
+        // assert_eq!(
+        //     column.last().unwrap(),
+        //     &"http://www.w3.org/2002/07/owl#Ontology"
+        // );
+        let column = subject.get_column_as_vec_str("subject");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &"http://purl.obolibrary.org/obo/IAO_0000115"
+        // );
+        // assert_eq!(
+        //     column.last().unwrap(),
+        //     &"http://purl.obolibrary.org/obo/ro.owl"
+        // );
+        let column = subject.get_column_as_vec_str("predicate");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &"http://purl.obolibrary.org/obo/IAO_0000115"
+        // );
+        // assert_eq!(column.last().unwrap(), &"http://purl.org/dc/terms/title");
+        let column = subject.get_column_as_vec_str("object");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &""
+        // );
+        assert_eq!(column.last().unwrap(), &"OBO Relations Ontology");
+        let column = subject.get_column_as_vec_str("graph");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &""
+        // );
+        // assert_eq!(
+        //     column.last().unwrap(),
+        //     &""
+        // );
+        let column = subject.get_column_as_vec_str("dataset");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"UserScript");
+        // assert_eq!(column.last().unwrap(), &"UserScript");
+        
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::Queries.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::Queries.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        dbg!(subject.count_rows());
+        // assert_eq!(subject.count_rows(), 3);
+        let mut column = subject.get_column_as_vec_str("query_id");
+        column.sort();
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &"http://purl.obolibrary.org/obo/BFO_0000003"
+        // );
+        // assert_eq!(
+        //     column.last().unwrap(),
+        //     &"http://purl.obolibrary.org/obo/RO_0002131"
+        // );
+        let mut column = subject.get_column_as_vec_str("text");
+        column.sort();
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &"**definition** An entity that has temporal parts and that happens, unfolds or develops through time.\n**has exact synonym** has temporal part\n**has exact synonym** through time\n**has exact synonym** unfolds in time\n**label** occurrent"
+        // );
+
+        // // Make the query data
+        // let mut message_map = HashMap::<String, IPCMessage>::new();
+        // let chat = AvailableInterfaceSubjects::UserMessages
+        //     .to_subject_builder(None)
+        //     .append_new_user_query_str(
+        //         "Fanconi Anemia",
+        //         "user",
+        //     )?
+        //     .build()?;
+        // let _ = message_map.insert(
+        //     chat.get_name().to_string(),
+        //     IPCMessage::get_builder()
+        //         .with_message(chat.to_ipc_stream()?)
+        //         .with_subject(chat.get_name())
+        //         .with_update(&Publication::Extend {
+        //             subject_name: chat.get_name().to_string(),
+        //         })
+        //         .with_publisher(network_arc.get_name())
+        //         .make_name()?
+        //         .build()?,
+        // );
+
+        // // 2. Run the session
+        // let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+        // let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
+
+        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+        //     subject_name: AvailableSubjects::SessionErrors.to_string(),
+        // }
+        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        // .unwrap()
+        // .try_collect()
+        // .await?;
+        // if !batches.is_empty() {
+        //     let subject = Subject::get_builder()
+        //         .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+        //         .with_record_batches(batches)?
+        //         .build()?;
+        //     println!(
+        //         "{}\n{}",
+        //         AvailableSubjects::SessionErrors,
+        //         String::from_utf8(subject.to_csv(b',', true)?)?
+        //     );
+        // }
+        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+        //     subject_name: AvailableSubjects::SessionEvents.to_string(),
+        // }
+        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        // .unwrap()
+        // .try_collect()
+        // .await?;
+        // if !batches.is_empty() {
+        //     let subject = Subject::get_builder()
+        //         .with_name(AvailableSubjects::SessionEvents.to_string().as_str())
+        //         .with_record_batches(batches)?
+        //         .build()?;
+        //     println!(
+        //         "{}\n{}",
+        //         AvailableSubjects::SessionEvents,
+        //         String::from_utf8(subject.to_csv(b',', true)?)?
+        //     );
+        // }
+        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+        //     subject_name: AvailableSubjects::SessionMetrics.to_string(),
+        // }
+        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        // .unwrap()
+        // .try_collect()
+        // .await?;
+        // if !batches.is_empty() {
+        //     let subject = Subject::get_builder()
+        //         .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
+        //         .with_record_batches(batches)?
+        //         .build()?;
+        //     println!(
+        //         "{}\n{}",
+        //         AvailableSubjects::SessionTraces,
+        //         String::from_utf8(subject.to_csv(b',', true)?)?
+        //     );
+        // }
+
+        // assert_eq!(response.len(), 0);
+
+        // // Test PDF extraction, embedding, and retrieval
+        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+        //     subject_name: AvailableSubjects::EmbeddingScores.to_string(),
+        // }
+        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        // .unwrap()
+        // .try_collect()
+        // .await?;
+        // let subject = Subject::get_builder()
+        //     .with_name(AvailableSubjects::EmbeddingScores.to_string().as_str())
+        //     .with_record_batches(batches)?
+        //     .build()?;
+        // dbg!(&subject.count_rows());
+        // // assert_eq!(subject.count_rows(), 5);
+        // let column = subject.get_column_as_vec_str("chunk_id");
+        // dbg!(column.first().unwrap());
+        // // assert_eq!(column.first().unwrap(), &""https://doi.org/10.37184/jlnh.2959-1805.3.9_4_1");
+        // let column = subject.get_column_as_vec_str("query_id");
+        // dbg!(column.first().unwrap());
+        // // assert_eq!(column.first().unwrap(), &"1775410537711065");
+        // let column = subject.get_column_as_vec_primitive::<f32>("score")?;
+        // for t in column {
+        //     assert!(t > 0.15); // Threshold used for filtering
+        // }
+
+        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+        //     subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
+        // }
+        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        // .unwrap()
+        // .try_collect()
+        // .await?;
+        // let subject = Subject::get_builder()
+        //     .with_name(
+        //         AvailableInterfaceSubjects::ToolMessages
+        //             .to_string()
+        //             .as_str(),
+        //     )
+        //     .with_record_batches(batches)?
+        //     .build()?;
+        // dbg!(&subject.count_rows());
+        // // assert_eq!(subject.count_rows(), 1);
+        // let column = subject.get_column_as_vec_str("role");
+        // dbg!(column.first().unwrap());
+        // // assert_eq!(column.first().unwrap(), &"tool");
+        // let column = subject.get_column_as_vec_str("content");
+        // dbg!(column.first().unwrap());
+        // // assert_eq!(
+        // //     column.first().unwrap(),
+        // //     &"[{\"text\":\"Deoxyribonucleic acid (DNA) is a polymer composed of two polynucleotide chains that coil around each other to form a double helix. The polymer carries genetic instructions for the development, functioning, growth and reproduction of all known organisms and many viruses. DNA and ribonucleic acid (RNA) are nucleic acids. Alongside proteins, lipids and complex carbohydrates (polysaccharides), nucleic acids are one of the four major types of macromolecules that are essential for all known forms of life.The two \"}]"
+        // // );
+        // let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+        // for t in column {
+        //     assert!(t > 0);
+        // }
 
         Ok(())
     }

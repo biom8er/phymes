@@ -483,8 +483,8 @@ mod tests {
 
     use super::*;
 
-    // #[ignore = "In progress... Some issues with embeddings and retrieval."]
-    #[tokio::test(flavor = "current_thread")]
+    #[ignore = "In progress... Some issues with embeddings and retrieval."]
+    #[tokio::test]
     async fn test_open_alex_network_v_mermaid() -> Result<()> {
         // Extract PDF session
         let extract_pdf_session = ExtractPDFNetworkBuilder::default();

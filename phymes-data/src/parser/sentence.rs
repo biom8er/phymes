@@ -227,7 +227,7 @@ impl Default for SentenceSplitter {
     fn default() -> Self {
         let regex = Regex::new("[^,.;。？！]+[,.;。？！]?|[,.;。？！]").unwrap();
         let tokenizer = Arc::new(default_tokenizer);
-        Self { chunk_size: 20, chunk_overlap: 0, separator: " ".to_string(), paragraph_separator: "\n\n\n".to_string(), secondary_chunking_regex: Some(regex), tokenizer }
+        Self { chunk_size: 512, chunk_overlap: 0, separator: " ".to_string(), paragraph_separator: "\n\n\n".to_string(), secondary_chunking_regex: Some(regex), tokenizer }
     }
 }
 
