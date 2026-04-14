@@ -9,7 +9,7 @@ use phymes_schemas::{
 use phymes_subject::{MappableTrait, Subject, SubjectTrait};
 use serde::{Deserialize, Serialize};
 
-use crate::{AvailableJinja2Templates, AvailableOperators, DiffType};
+use crate::{AvailableJinja2Templates, AvailableOperators, AvailableParsers, DiffType};
 
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
 pub enum DataStreamManager {
@@ -709,12 +709,7 @@ pub struct DataConfig {
     /// The length of the document chunks
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub chunk_size: Option<usize>,
-
-    /// The length of overlap between document chunks
-    #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub chunk_overlap: Option<usize>,
+    pub parser: Option<AvailableParsers>,
 
     /// The data format to extract
     #[arg(long)]

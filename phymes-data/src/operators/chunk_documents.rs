@@ -16,15 +16,14 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
-use crate::{DataConfig, DataOperatorTrait, ToolTrait};
+use crate::{AvailableParsers, DataConfig, DataOperatorTrait, NodeParserTrait, ToolTrait};
 
 /// Chunk documents by splitting a StringArray column in a [RecordBatch] into multiple rows based on a defined criteria
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ChunkDocuments {
     lhs_pk: String,
     lhs_values: String,
-    chunk_size: usize,
-    chunk_overlap: usize,
+    parser: AvailableParsers,
 }
 
 impl MappableTrait for ChunkDocuments {
@@ -108,14 +107,15 @@ impl DataOperatorTrait for ChunkDocuments {
                 "`lhs_values` is empty for `{}`.",
                 Self::get_static_name()
             ))?;
-        let chunk_size = config.chunk_size.unwrap_or(512);
-        let chunk_overlap = config.chunk_overlap.unwrap_or(64);
+        let parser = config.parser.ok_or(anyhow!(
+                "Missing `parser` for `{}`.",
+                Self::get_static_name()
+            ))?;
 
         Ok(ChunkDocuments {
             lhs_pk,
             lhs_values,
-            chunk_size,
-            chunk_overlap,
+            parser,
         })
     }
     fn forward(
@@ -124,12 +124,12 @@ impl DataOperatorTrait for ChunkDocuments {
         _rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
+        let parser = self.parser.build();
         chunk_documents(
             &self.lhs_pk,
             &self.lhs_values,
             lhs_args,
-            self.chunk_size,
-            self.chunk_overlap,
+            parser,
             device,
         )
     }
@@ -140,8 +140,6 @@ Chunk documents by splitting a StringArray column in a [RecordBatch]
   into multiple rows based on a defined criteria
 
 # Notes
-* inspired by <https://python.langchain.com/api_reference/_modules/langchain_text_splitters/character.html#RecursiveCharacterTextSplitter>
-* inspired by <https://python.langchain.com/api_reference/_modules/langchain_text_splitters/character.html#CharacterTextSplitter>
 * A column named `chunk_id` of type UInt32 is added to ensure uniqueness with lhs_pk and chunk_id
 
 # Arguments
@@ -149,18 +147,16 @@ Chunk documents by splitting a StringArray column in a [RecordBatch]
 * `lhs` - `RecordBatch`
 * `lhs_pk` - Left hand side primary key
 * `lhs_value` - Left hand value key
-* `chunk_size` - the length of the document chunks
-* `chunk_overlap` - the length of overlap between document chunks
+* `parser` - the parser to chunk the documents with
 * `device` - The compute device
 
 */
-#[instrument(skip(lhs_pk, lhs_values, lhs_args, chunk_size, chunk_overlap, _device))]
+#[instrument(skip(lhs_pk, lhs_values, lhs_args, parser, _device))]
 fn chunk_documents(
     lhs_pk: &str,
     lhs_values: &str,
     lhs_args: &[RecordBatch],
-    chunk_size: usize,
-    chunk_overlap: usize,
+    parser: Box<dyn NodeParserTrait>,
     _device: &Device,
 ) -> Result<RecordBatch> {
     // Wrap the lhs into an ArrowTable
@@ -184,7 +180,7 @@ fn chunk_documents(
                 .map(|s| s.unwrap_or_default())
                 .collect::<Vec<_>>()
         })
-        .map(|s| chunk_str(s, chunk_size, chunk_overlap))
+        .map(|s| parser.parse(s).into_iter().map(|s| s.content).collect::<Vec<_>>())
         .collect::<Vec<_>>();
 
     // Wrap the output into a record batch
@@ -528,7 +524,7 @@ fn chunk_documents(
 ///
 /// # Arguments
 /// * `text` - The text to chunk
-/// * `chunk_size` - The size of each chunk
+/// * `parser` - The size of each chunk
 /// * `chunk_overlap` - The overlap between chunks
 ///
 /// # Returns
@@ -578,7 +574,7 @@ pub fn chunk_str(text: &str, chunk_size: usize, chunk_overlap: usize) -> Vec<Str
 
 #[cfg(test)]
 mod tests {
-    use crate::device;
+    use crate::{TokenTextSplitter, device};
 
     use super::*;
 
@@ -600,7 +596,7 @@ mod tests {
         let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_1));
         let lhs_metadata_vec_1: Vec<u32> = vec![1, 2];
         let lhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(lhs_metadata_vec_1));
-        let lhs_text_vec_1 = vec!["01234597890123456789", "0123459789"];
+        let lhs_text_vec_1 = vec!["0 1 2 3 4 5 9 7 8 9 0 1 2 3 4 5 6 7 8 9", "0 1 2 3 4 5 9 7 8 9"];
         let lhs_text_array: ArrayRef = Arc::new(StringArray::from(lhs_text_vec_1));
         let batch_1 = RecordBatch::try_from_iter(vec![
             ("lhs_pk", lhs_ids_array),
@@ -611,7 +607,7 @@ mod tests {
         let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_2));
         let lhs_metadata_vec_2: Vec<u32> = vec![3, 4];
         let lhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(lhs_metadata_vec_2));
-        let lhs_text_vec_2 = vec!["01234597890123456789", "0123459789"];
+        let lhs_text_vec_2 = vec!["0 1 2 3 4 5 9 7 8 9 0 1 2 3 4 5 6 7 8 9", "0 1 2 3 4 5 9 7 8 9"];
         let lhs_text_array: ArrayRef = Arc::new(StringArray::from(lhs_text_vec_2));
         let batch_2 = RecordBatch::try_from_iter(vec![
             ("lhs_pk", lhs_ids_array),
@@ -623,7 +619,8 @@ mod tests {
         let device = device(false)?;
 
         // Chunk the documents
-        let result = chunk_documents("lhs_pk", "text", &[batch_1, batch_2], 10, 2, &device)?;
+        let parser = Box::new(TokenTextSplitter::new(10, 2, " ", None, false, None)) as Box<dyn NodeParserTrait>;
+        let result = chunk_documents("lhs_pk", "text", &[batch_1, batch_2], parser, &device)?;
 
         let lhs_id = result
             .column_by_name("lhs_pk")
@@ -657,14 +654,14 @@ mod tests {
         assert_eq!(
             text,
             vec![
-                "0123459789",
-                "8901234567",
-                "6789",
-                "0123459789",
-                "0123459789",
-                "8901234567",
-                "6789",
-                "0123459789"
+                "0 1 2 3 4 5 9 7 8 9",
+                "8 9 0 1 2 3 4 5 6 7",
+                "6 7 8 9",
+                "0 1 2 3 4 5 9 7 8 9",
+                "0 1 2 3 4 5 9 7 8 9",
+                "8 9 0 1 2 3 4 5 6 7",
+                "6 7 8 9",
+                "0 1 2 3 4 5 9 7 8 9"
             ]
         );
         let chunk_id = result

@@ -18,10 +18,10 @@ mod sentence;
 mod token_text;
 
 pub use available_parsers::AvailableParsers;
-use parser_trait::{NodeParserTrait, TextParserTrait};
-use code_splitter::{CodeSplitter, CountMode};
-use sentence::{SentenceSplitter, TextNode, Document, Split};
-use token_text::TokenTextSplitter;
+pub use parser_trait::{NodeParserTrait, TextParserTrait};
+pub use code_splitter::{CodeSplitter};
+pub use sentence::{SentenceSplitter, TextNode, Document};
+pub use token_text::TokenTextSplitter;
 
 fn default_tokenizer(text: &str) -> Vec<String> {
     text.split_whitespace().map(|s| s.to_string()).collect()
