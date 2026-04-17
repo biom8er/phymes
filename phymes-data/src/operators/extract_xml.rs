@@ -322,12 +322,7 @@ fn parse_xml(bytes: &[u8]) -> Result<HashMap<String, Vec<(XMLType, String)>>> {
 /// Helper function to join multi-line text children
 fn join_text_children(children: Vec<(XMLType, String)>) -> (Vec<XMLType>, Vec<String>) {
     // Preview the children
-    let mut type_tmp = Vec::new();
-    let mut children_tmp = Vec::new();
-    for (t, c) in children {
-        type_tmp.push(t);
-        children_tmp.push(c);
-    }
+    let (mut type_tmp, mut children_tmp): (Vec<XMLType>, Vec<String>) = children.into_iter().unzip();
 
     // Join all text children for the case of multi-line text
     if type_tmp
@@ -415,16 +410,17 @@ fn xml_to_parsed_xml_record_batch(
 
 /// Helper function to parse OWL children
 fn parse_owl_children(
-    relations: &mut HashMap<String, Vec<(XMLType, String)>>,
+    relations: &HashMap<String, Vec<(XMLType, String)>>,
     children: Vec<(XMLType, String)>,
 ) -> Result<(Vec<String>, Vec<String>)> {
-    // Join all text children for the case of multi-line text
-    let (type_tmp, children_tmp) = join_text_children(children);
+    // // Join all text children for the case of multi-line text
+    // let (type_tmp, children_tmp) = join_text_children(children);
 
     // Parse out the predicates and objects
     let mut predicate_vec = Vec::new();
     let mut object_vec = Vec::new();
-    for (t, c) in type_tmp.into_iter().zip(children_tmp) {
+    for (t, c) in children {
+    // for (t, c) in type_tmp.into_iter().zip(children_tmp) {
         match t {
             XMLType::Text => {}
             XMLType::Element => {
@@ -440,7 +436,7 @@ fn parse_owl_children(
 
 /// Helper function to lookup and extract out the children of an XML child element
 fn children_to_po(
-    relations: &mut HashMap<String, Vec<(XMLType, String)>>,
+    relations: &HashMap<String, Vec<(XMLType, String)>>,
     child: &str,
 ) -> Result<Option<(String, String)>> {
     let child_element: XMLElement = serde_json::from_str(child)?;
@@ -448,7 +444,8 @@ fn children_to_po(
         Some((child_element.tag, resource.to_string()))
     } else {
         // Retrieve the child element from the relations
-        let element = relations.remove(child).ok_or(anyhow!(
+        let element = relations.get(child).ok_or(anyhow!(
+        // let element = relations.remove(child).ok_or(anyhow!(
             "Child `{child}` not found in parsed relations `{:?}`.",
             relations.keys()
         ))?;
@@ -494,10 +491,12 @@ fn xml_to_parsed_owl_record_batch(
     dbg!(&attributes.len());
 
     // Fold into N-Quad arrays
-    let (dataset_vec, entity_vec, graph_vec, subject_vec, predicate_vec, object_vec) = entities.into_iter()
-        .filter_map(|(element, children)| {
-            let mut acc = (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new());
-
+    let (dataset_vec, entity_vec, graph_vec, subject_vec, predicate_vec, object_vec, _counts) = entities
+        .into_par_iter()
+        .fold( || (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new(), 0),
+            |mut acc, (element, children)| {
+            acc.6 += 1;
+            println!("Iter: {}",  acc.6);
             // Deserialize XML elements
             let xml_element: XMLElement = serde_json::from_str(&element).unwrap();
 
@@ -509,7 +508,7 @@ fn xml_to_parsed_owl_record_batch(
             || xml_element.tag == "http://www.w3.org/2002/07/owl#ObjectProperty" 
             || xml_element.tag == "http://www.w3.org/2002/07/owl#NamedIndividual" {
                 if let Some(subject) = xml_element.attributes.get("rdf:about") {
-                    let (predicates, objects) = parse_owl_children(&mut attributes, children).unwrap();
+                    let (predicates, objects) = parse_owl_children(&attributes, children).unwrap();
                     for (predicate, object) in predicates.into_iter().zip(objects) {
                         acc.0.push(lhs_name.to_string());
                         acc.1.push(xml_element.tag.to_string());
@@ -519,12 +518,9 @@ fn xml_to_parsed_owl_record_batch(
                         acc.4.push(predicate);
                         acc.5.push(object);
                     }
-                    Some((acc.0, acc.1, acc.2, acc.3, acc.4, acc.5))
-                } else {
-                    None
                 }
             } else if xml_element.tag == "http://www.w3.org/2002/07/owl#Axiom" {
-                let (predicates, objects) = parse_owl_children(&mut attributes, children).unwrap();
+                let (predicates, objects) = parse_owl_children(&attributes, children).unwrap();
 
                 // Determine the subject of the axium
                 let subject_triple = predicates
@@ -563,33 +559,107 @@ fn xml_to_parsed_owl_record_batch(
                     acc.4.push(predicate);
                     acc.5.push(object);
                 }
-                Some((acc.0, acc.1, acc.2, acc.3, acc.4, acc.5))
-            } else {
-                None
             }
+            acc
         })
-        .reduce(|mut acc1, acc2| {
-            acc1.0.extend(acc2.0);
-            acc1.1.extend(acc2.1);
-            acc1.2.extend(acc2.2);
-            acc1.3.extend(acc2.3);
-            acc1.4.extend(acc2.4);
-            acc1.5.extend(acc2.5);
-            acc1
-        })
-        .unwrap();
-        // .reduce(
-        //     || (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new()), // identity value for reduction
-        //     |mut acc1, acc2| {
-        //         acc1.0.extend(acc2.0);
-        //         acc1.1.extend(acc2.1);
-        //         acc1.2.extend(acc2.2);
-        //         acc1.3.extend(acc2.3);
-        //         acc1.4.extend(acc2.4);
-        //         acc1.5.extend(acc2.5);
-        //         acc1
-        //     },
-        // );
+        .reduce(
+            || (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new(), 0), // identity value for reduction
+            |mut acc1, acc2| {
+                acc1.0.extend(acc2.0);
+                acc1.1.extend(acc2.1);
+                acc1.2.extend(acc2.2);
+                acc1.3.extend(acc2.3);
+                acc1.4.extend(acc2.4);
+                acc1.5.extend(acc2.5);
+                acc1
+            },
+        );
+        // .into_iter()
+        // .enumerate()
+        // .filter_map(|(i, (element, children))| {
+        //     println!("Iter: {i}, attributes len: {}", attributes.len());
+        //     let mut acc = (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new());
+
+        //     // Deserialize XML elements
+        //     let xml_element: XMLElement = serde_json::from_str(&element).unwrap();
+
+        //     // Parse the primary OWL Entities
+        //     if xml_element.tag == "http://www.w3.org/2002/07/owl#Ontology"
+        //     || xml_element.tag == "http://www.w3.org/2002/07/owl#AnnotationProperty" 
+        //     || xml_element.tag == "http://www.w3.org/2002/07/owl#DatatypeProperty" 
+        //     || xml_element.tag == "http://www.w3.org/2002/07/owl#Class" 
+        //     || xml_element.tag == "http://www.w3.org/2002/07/owl#ObjectProperty" 
+        //     || xml_element.tag == "http://www.w3.org/2002/07/owl#NamedIndividual" {
+        //         if let Some(subject) = xml_element.attributes.get("rdf:about") {
+        //             let (predicates, objects) = parse_owl_children(&mut attributes, children).unwrap();
+        //             for (predicate, object) in predicates.into_iter().zip(objects) {
+        //                 acc.0.push(lhs_name.to_string());
+        //                 acc.1.push(xml_element.tag.to_string());
+        //                 let graph = format!("{subject}-{predicate}-{object}");
+        //                 acc.2.push(graph.to_string());
+        //                 acc.3.push(subject.to_string());
+        //                 acc.4.push(predicate);
+        //                 acc.5.push(object);
+        //             }
+        //             Some((acc.0, acc.1, acc.2, acc.3, acc.4, acc.5))
+        //         } else {
+        //             None
+        //         }
+        //     } else if xml_element.tag == "http://www.w3.org/2002/07/owl#Axiom" {
+        //         let (predicates, objects) = parse_owl_children(&mut attributes, children).unwrap();
+
+        //         // Determine the subject of the axium
+        //         let subject_triple = predicates
+        //             .iter()
+        //             .zip(objects.iter())
+        //             .filter_map(|(t, c)| {
+        //                 if t == "http://www.w3.org/2002/07/owl#annotatedSource"
+        //                     || t == "http://www.w3.org/2002/07/owl#annotatedProperty"
+        //                     || t == "http://www.w3.org/2002/07/owl#annotatedTarget"
+        //                     // || t == "http://purl.obolibrary.org/obo/RO_0002582"
+        //                     // || t == "http://purl.obolibrary.org/obo/RO_0002581"
+        //                 {
+        //                     Some((t.to_string(), c.to_string()))
+        //                 } else {
+        //                     None
+        //                 }
+        //             })
+        //             .collect::<HashMap<_, _>>();
+        //         let subject = if subject_triple.len() == 3 {
+        //             format!("{}-{}-{}",
+        //                 subject_triple.get("http://www.w3.org/2002/07/owl#annotatedSource").ok_or(anyhow!("Key `source` missing from Owl:Axiom extracted annotation triples `{:?}`. Available predicates are `{predicates:?}`.", subject_triple.keys())).unwrap(),
+        //                 subject_triple.get("http://www.w3.org/2002/07/owl#annotatedProperty").ok_or(anyhow!("Key `property` missing from Owl:Axiom extracted annotation triples `{:?}`. Available predicates are `{predicates:?}`.", subject_triple.keys())).unwrap(),
+        //                 subject_triple.get("http://www.w3.org/2002/07/owl#annotatedTarget").ok_or(anyhow!("Key `target` missing from Owl:Axiom extracted annotation triples `{:?}`. Available predicates are `{predicates:?}`.", subject_triple.keys())).unwrap()
+        //             )
+        //         } else {
+        //             subject_triple.into_iter().map(|(_k, v)| v).collect::<Vec<_>>().join("-")
+        //         };
+
+        //         // Continue extracting the predicate/object pairs
+        //         for (predicate, object) in predicates.into_iter().zip(objects) {
+        //             acc.0.push(lhs_name.to_string());
+        //             acc.1.push("http://www.w3.org/2002/07/owl#Axiom".to_string());
+        //             let graph = format!("{subject}-{predicate}-{object}");
+        //             acc.2.push(graph.to_string());
+        //             acc.3.push(subject.to_string());
+        //             acc.4.push(predicate);
+        //             acc.5.push(object);
+        //         }
+        //         Some((acc.0, acc.1, acc.2, acc.3, acc.4, acc.5))
+        //     } else {
+        //         None
+        //     }
+        // })
+        // .reduce(|mut acc1, acc2| {
+        //     acc1.0.extend(acc2.0);
+        //     acc1.1.extend(acc2.1);
+        //     acc1.2.extend(acc2.2);
+        //     acc1.3.extend(acc2.3);
+        //     acc1.4.extend(acc2.4);
+        //     acc1.5.extend(acc2.5);
+        //     acc1
+        // })
+        // .unwrap();
 
     // Build the batch
     let mut batch = create_parse_owl_batch(

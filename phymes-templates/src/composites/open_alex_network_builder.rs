@@ -686,14 +686,15 @@ impl Default for OpenAlexNetworkBuilder {
         let network_builder = {
             let network_name = "get_owl";
             let subject_name_lhs = "http_request_owl_s";
-            let config = HTTPClientConfig {
-                timeout: 15,
-                request_type: HTTPClientRequestType::Get,
-                poll_error: true,
-                user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-                base_url: String::new(),
+            // DM: for compatibility with downstream task
+            let subject_name_o = AvailableInterfaceSubjects::UserScript.to_string();
+            let config = ObjectStoreConfig {
+                timeout: 5,
+                ops_type: ObjectStoreOptsType::Get,
+                backend: ObjectStorageBackend::LocalFs,
+                bucket: Some("/mnt/c".to_string()),
+                backend_config: None,
                 subject_name: Some(subject_name_lhs.to_string()),
-                request_schema: HTTPClientRequestSchemas::Attachments,
                 ..Default::default()
             };
             let config_json = serde_json::to_vec(&config).unwrap();
@@ -707,7 +708,7 @@ impl Default for OpenAlexNetworkBuilder {
                 .with_subject(subject)
                 .build()
                 .unwrap();
-            let fields = Fields::from(vec![Field::new("content", DataType::Utf8, false)]);
+            let fields = Fields::from(vec![Field::new("location", DataType::Utf8, false)]);
             let schema = Arc::new(Schema::new(fields));
             let subject = Subject::get_builder()
                 .with_name(subject_name_lhs)
@@ -718,8 +719,8 @@ impl Default for OpenAlexNetworkBuilder {
                 .with_subject(subject)
                 .build()
                 .unwrap();
-            let subject = AvailableInterfaceSubjects::UserScript
-                .to_subject(None, None)
+            let subject = AvailableInterfaceSubjects::UserObject
+                .to_subject(Some(subject_name_o.as_str()), None)
                 .unwrap();
             let subject_out = SubjectPlan::get_builder()
                 .with_subject(subject)
@@ -728,11 +729,11 @@ impl Default for OpenAlexNetworkBuilder {
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
                 is_dynamic: false,
-                processor: AvailableProcessors::HTTPClientRequestProcessor,
+                processor: AvailableProcessors::ObjectStoreProcessor,
                 subscription_lhs: Subscription::OnUpdateAllRecordBatches {
-                    subject_name: subject_name_lhs.to_string(),
+                    subject_name: subject_lhs.get_name().to_string(),
                 },
-                publication: Publication::Extend {
+                publication: Publication::Replace {
                     subject_name: subject_out.get_name().to_string(),
                 },
                 subject_lhs: Some(subject_lhs),
@@ -742,6 +743,66 @@ impl Default for OpenAlexNetworkBuilder {
             };
             builder.build_dynamic()
         };
+        // DM: unstable HTTP client from bioportal...
+        // let network_builder = {
+        //     let network_name = "get_owl";
+        //     let subject_name_lhs = "http_request_owl_s";
+        //     let config = HTTPClientConfig {
+        //         timeout: 15,
+        //         request_type: HTTPClientRequestType::Get,
+        //         poll_error: true,
+        //         user_agent_type: Some("rust-openalex-client/3.0".to_string()),
+        //         base_url: String::new(),
+        //         subject_name: Some(subject_name_lhs.to_string()),
+        //         request_schema: HTTPClientRequestSchemas::Attachments,
+        //         ..Default::default()
+        //     };
+        //     let config_json = serde_json::to_vec(&config).unwrap();
+        //     let subject = SubjectBuilder::new()
+        //         .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+        //         .with_json(&config_json, 1)
+        //         .unwrap()
+        //         .build()
+        //         .unwrap();
+        //     let subject_processor = SubjectPlan::get_builder()
+        //         .with_subject(subject)
+        //         .build()
+        //         .unwrap();
+        //     let fields = Fields::from(vec![Field::new("content", DataType::Utf8, false)]);
+        //     let schema = Arc::new(Schema::new(fields));
+        //     let subject = Subject::get_builder()
+        //         .with_name(subject_name_lhs)
+        //         .with_schema(schema)
+        //         .with_record_batches(Vec::new()).unwrap()
+        //         .build().unwrap();
+        //     let subject_lhs = SubjectPlan::get_builder()
+        //         .with_subject(subject)
+        //         .build()
+        //         .unwrap();
+        //     let subject = AvailableInterfaceSubjects::UserScript
+        //         .to_subject(None, None)
+        //         .unwrap();
+        //     let subject_out = SubjectPlan::get_builder()
+        //         .with_subject(subject)
+        //         .build()
+        //         .unwrap();
+        //     let builder = DynamicTaskNetworkBuilder {
+        //         network_name: network_name.to_string(),
+        //         is_dynamic: false,
+        //         processor: AvailableProcessors::HTTPClientRequestProcessor,
+        //         subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+        //             subject_name: subject_name_lhs.to_string(),
+        //         },
+        //         publication: Publication::Extend {
+        //             subject_name: subject_out.get_name().to_string(),
+        //         },
+        //         subject_lhs: Some(subject_lhs),
+        //         subject_out: Some(subject_out),
+        //         subject_processor,
+        //         ..Default::default()
+        //     };
+        //     builder.build_dynamic()
+        // };
         let open_alex_network_builder = open_alex_network_builder.extend(network_builder).unwrap();
 
         // Extract Owl ontology with filtering of predicates
@@ -1054,24 +1115,26 @@ mod tests {
         //         .with_message(subject.to_ipc_stream()?)
         //         .build()?,
         // );
-        let cl_urls = vec![
-            "http://purl.obolibrary.org/obo/ro.owl".to_string(),
-            "http://purl.obolibrary.org/obo/eco.owl".to_string(),
-            // "http://purl.obolibrary.org/obo/cl.owl".to_string(),
-            // "http://purl.obolibrary.org/obo/mondo/mondo-simple.owl".to_string(),
-            // "http://purl.obolibrary.org/obo/uberon/releases/2025-08-15/uberon.owl".to_string(),
-            // "http://purl.obolibrary.org/obo/chebi.owl".to_string(),
-            // "http://purl.obolibrary.org/obo/go.owl".to_string(),
-            // "http://purl.obolibrary.org/obo/pr.owl".to_string(),
-            // "http://purl.obolibrary.org/obo/hp/releases/2026-02-16/hp-international.owl".to_string(),
-            // "".to_string(),
-            // "".to_string(),
-            // "".to_string(),
-            // "".to_string(),
-            // "".to_string(),
-            ];
+        // let cl_urls = vec![
+        //     // "http://purl.obolibrary.org/obo/ro.owl".to_string(),
+        //     // "http://purl.obolibrary.org/obo/eco.owl".to_string(),
+        //     "http://purl.obolibrary.org/obo/cl.owl".to_string(),
+        //     // "http://purl.obolibrary.org/obo/mondo/mondo-simple.owl".to_string(),
+        //     // "http://purl.obolibrary.org/obo/uberon/releases/2025-08-15/uberon.owl".to_string(),
+        //     // "http://purl.obolibrary.org/obo/chebi.owl".to_string(),
+        //     // "http://purl.obolibrary.org/obo/go.owl".to_string(),
+        //     // "http://purl.obolibrary.org/obo/pr.owl".to_string(),
+        //     // "http://purl.obolibrary.org/obo/hp/releases/2026-02-16/hp-international.owl".to_string(),
+        //     // "".to_string(),
+        //     // "".to_string(),
+        //     // "".to_string(),
+        //     // "".to_string(),
+        //     // "".to_string(),
+        //     ];
+        let cl_urls = vec!["Users/dmccl/Downloads/ontologies/cl.owl"];
         let cl_arr: ArrayRef = Arc::new(StringArray::from(cl_urls));
-        let batch = RecordBatch::try_from_iter(vec![("content", cl_arr)])?;
+        // let batch = RecordBatch::try_from_iter(vec![("content", cl_arr)])?;
+        let batch = RecordBatch::try_from_iter(vec![("location", cl_arr)])?;
         let subject = Subject::get_builder()
             .with_name("http_request_owl_s")
             .with_record_batches(vec![batch])?
