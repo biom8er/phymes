@@ -54,7 +54,7 @@ jobs:
       # - name: Setup Pages
       #   uses: actions/configure-pages@v4
       # - name: Upload artifact
-      #   uses: actions/upload-pages-artifact@v4
+      #   uses: actions/upload-pages-artifact@v5
       #   with:
       #     name: mdbook
       #     path: target/book
@@ -96,7 +96,7 @@ jobs:
               echo "::warning title=Invalid file permissions automatically fixed::$line"
           done
       - name: Upload cargo docs artifacts
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           name: crate-docs
           path: target/doc
