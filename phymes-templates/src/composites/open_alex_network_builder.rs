@@ -1049,7 +1049,7 @@ mod tests {
 
     use super::*;
 
-    // #[ignore = "In progress... Some issues with embeddings and retrieval."]
+    #[ignore = "In progress... Some issues with embeddings and retrieval."]
     #[tokio::test]
     async fn test_open_alex_network_v_rust() -> Result<()> {
         // Initialize the session

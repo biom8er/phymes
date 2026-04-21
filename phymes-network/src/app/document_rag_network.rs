@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use phymes_data::{
-    AvailableOperators, DataCastOperator, DataColumnOperator, DataConfig, DataDistanceOperator,
-    DataJoinOperator, DataStreamManager,
+    AvailableOperators, AvailableParsers, DataCastOperator, DataColumnOperator, DataConfig, DataDistanceOperator, DataJoinOperator, DataStreamManager
 };
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 #[cfg(all(not(feature = "candle"), feature = "api"))]
@@ -795,6 +794,7 @@ impl NetworkBuilderCustomTrait for DocumentRAGNetwork<'_> {
             lhs_fk: Some("document_id".to_string()),
             lhs_values: Some(vec!["text".to_string()]),
             operator: AvailableOperators::ChunkDocuments,
+            parser: Some(AvailableParsers::SentenceSplitter),
             ..Default::default()
         };
         let chunk_document_config_json = serde_json::to_vec(&chunk_document_config).unwrap();
