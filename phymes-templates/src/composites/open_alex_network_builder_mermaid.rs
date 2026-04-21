@@ -604,15 +604,15 @@ mod tests {
         let message_batch =
             create_object_store_meta_batch(location, bucket, e_tag, version, size, last_modified)?;
         let message_subject = Subject::get_builder()
-            .with_name(&messages)
+            .with_name(messages)
             .with_record_batches(vec![message_batch])?
             .build()?;
         let _ = message_map.insert(
             messages.to_string(),
             IPCMessage::get_builder()
-                .with_name(&messages)
+                .with_name(messages)
                 .with_publisher(open_alex_agent_network.network_name)
-                .with_subject(&messages)
+                .with_subject(messages)
                 .with_update(&Publication::Replace {
                     subject_name: messages.to_string(),
                 })

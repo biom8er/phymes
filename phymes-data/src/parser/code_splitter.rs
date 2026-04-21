@@ -2,8 +2,7 @@
 use std::sync::Arc;
 use phymes_subject::MappableTrait;
 use tree_sitter::Parser;
-use crate::parser::{Document, NodeParserTrait, TextNode, default_tokenizer};
-
+use crate::parser::{Document, NodeParserTrait, TextNode, TokenizerType, default_tokenizer};
 pub struct CodeSplitter {
     language: String,
     chunk_lines: usize,
@@ -11,7 +10,7 @@ pub struct CodeSplitter {
     max_chars: usize,
     count_mode: CountMode,
     max_tokens: usize,
-    tokenizer: Arc<dyn Fn(&str) -> Vec<String> + Send + Sync>,
+    tokenizer: TokenizerType,
     parser: Parser,
 }
 
@@ -22,6 +21,7 @@ pub enum CountMode {
 }
 
 impl CodeSplitter {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         language: &str,
         chunk_lines: usize,
@@ -29,14 +29,14 @@ impl CodeSplitter {
         max_chars: usize,
         count_mode: CountMode,
         max_tokens: usize,
-        tokenizer: Option<Arc<dyn Fn(&str) -> Vec<String> + Send + Sync>>,
+        tokenizer: Option<TokenizerType>,
         parser: Option<Parser>,
     ) -> Self {
         let tokenizer = tokenizer.unwrap_or_else(|| Arc::new(default_tokenizer));
         let parser = parser.unwrap_or_else(|| {
             let mut p = Parser::new();
             let language_obj = tree_sitter_language(language)
-                .unwrap_or_else(|| panic!("Unsupported language: {}", language));
+                .unwrap_or_else(|| panic!("Unsupported language: {language}"));
             p.set_language(&language_obj).unwrap();
             p
         });
@@ -87,7 +87,7 @@ impl CodeSplitter {
                 }
                 chunks.extend(self.chunk_node(child, text_bytes));
             } else {
-                let new_chunk = format!("{}{}", current_chunk, child_str);
+                let new_chunk = format!("{current_chunk}{child_str}");
                 let new_size = match self.count_mode {
                     CountMode::Char => new_chunk.len(),
                     CountMode::Token => (self.tokenizer)(&new_chunk).len(),

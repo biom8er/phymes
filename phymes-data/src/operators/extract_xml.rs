@@ -477,6 +477,7 @@ fn xml_to_parsed_owl_record_batch(
     device: &Device,
 ) -> Result<RecordBatch> {
     // Partition into entities and their attributes
+    #[allow(clippy::type_complexity)]
     let (entities, mut attributes): (HashMap<String, Vec<(XMLType, String)>>, HashMap<String, Vec<(XMLType, String)>>) = relations.into_par_iter().partition(|(k, _v)| {
         let xml_element: XMLElement = serde_json::from_str(k).unwrap();
         (xml_element.tag == "http://www.w3.org/2002/07/owl#Ontology" && xml_element.attributes.contains_key("rdf:about"))
@@ -546,7 +547,7 @@ fn xml_to_parsed_owl_record_batch(
                         subject_triple.get("http://www.w3.org/2002/07/owl#annotatedTarget").ok_or(anyhow!("Key `target` missing from Owl:Axiom extracted annotation triples `{:?}`. Available predicates are `{predicates:?}`.", subject_triple.keys())).unwrap()
                     )
                 } else {
-                    subject_triple.into_iter().map(|(_k, v)| v).collect::<Vec<_>>().join("-")
+                    subject_triple.into_values().collect::<Vec<_>>().join("-")
                 };
 
                 // Continue extracting the predicate/object pairs

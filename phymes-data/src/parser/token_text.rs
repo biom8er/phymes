@@ -2,7 +2,7 @@
 use std::sync::Arc;
 use phymes_subject::MappableTrait;
 
-use crate::parser::{Document, NodeParserTrait, TextNode, default_tokenizer, parser_trait::TextParserTrait, sentence::Split};
+use crate::parser::{Document, NodeParserTrait, TextNode, TokenizerType, default_tokenizer, parser_trait::TextParserTrait, sentence::Split};
 
 #[derive(Clone)]
 pub struct TokenTextSplitter {
@@ -11,7 +11,7 @@ pub struct TokenTextSplitter {
     separator: String,
     backup_separators: Vec<String>,
     keep_whitespaces: bool,
-    tokenizer: Arc<dyn Fn(&str) -> Vec<String> + Send + Sync>,
+    tokenizer: TokenizerType,
 }
 
 impl TokenTextSplitter {
@@ -21,7 +21,7 @@ impl TokenTextSplitter {
         separator: &str,
         backup_separators: Option<Vec<String>>,
         keep_whitespaces: bool,
-        tokenizer: Option<Arc<dyn Fn(&str) -> Vec<String> + Send + Sync>>,
+        tokenizer: Option<TokenizerType>,
     ) -> Self {
         if chunk_overlap > chunk_size {
             panic!("chunk_overlap must be smaller than chunk_size");

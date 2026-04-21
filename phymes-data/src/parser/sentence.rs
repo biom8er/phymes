@@ -3,7 +3,7 @@ use phymes_subject::MappableTrait;
 use regex::Regex;
 use std::sync::Arc;
 
-use crate::parser::{default_tokenizer, parser_trait::{NodeParserTrait, TextParserTrait}};
+use crate::parser::{TokenizerType, default_tokenizer, parser_trait::{NodeParserTrait, TextParserTrait}};
 
 #[derive(Clone)]
 pub struct SentenceSplitter {
@@ -12,7 +12,7 @@ pub struct SentenceSplitter {
     separator: String,
     paragraph_separator: String,
     secondary_chunking_regex: Option<Regex>,
-    tokenizer: Arc<dyn Fn(&str) -> Vec<String> + Send + Sync>,
+    tokenizer: TokenizerType,
 }
 
 #[derive(Clone)]
@@ -42,7 +42,7 @@ impl SentenceSplitter {
         separator: &str,
         paragraph_separator: &str,
         secondary_chunking_regex: Option<&str>,
-        tokenizer: Option<Arc<dyn Fn(&str) -> Vec<String> + Send + Sync>>,
+        tokenizer: Option<TokenizerType>,
     ) -> Self {
         if chunk_overlap > chunk_size {
             panic!("chunk_overlap must be smaller than chunk_size");
@@ -303,7 +303,7 @@ mod tests {
         let text = "foo ".repeat(200);
         let chunks = splitter.split_text_metadata_aware(&text, &metadata_str);
         for chunk in chunks {
-            let combined = format!("{}{}", chunk, metadata_str);
+            let combined = format!("{chunk}{metadata_str}");
             let token_count = (splitter.tokenizer)(&combined).len();
             assert!(token_count <= chunk_size);
         }
@@ -337,9 +337,7 @@ mod tests {
             let content_length = (splitter.tokenizer)(&node.content).len();
             assert!(
                 content_length <= 512,
-                "Node {} has {} tokens, exceeds chunk_size of 512",
-                i,
-                content_length
+                "Node {i} has {content_length} tokens, exceeds chunk_size of 512",
             );
         }
     }
