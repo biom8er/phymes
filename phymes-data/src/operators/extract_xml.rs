@@ -478,7 +478,7 @@ fn xml_to_parsed_owl_record_batch(
 ) -> Result<RecordBatch> {
     // Partition into entities and their attributes
     #[allow(clippy::type_complexity)]
-    let (entities, mut attributes): (HashMap<String, Vec<(XMLType, String)>>, HashMap<String, Vec<(XMLType, String)>>) = relations.into_par_iter().partition(|(k, _v)| {
+    let (entities, attributes): (HashMap<String, Vec<(XMLType, String)>>, HashMap<String, Vec<(XMLType, String)>>) = relations.into_par_iter().partition(|(k, _v)| {
         let xml_element: XMLElement = serde_json::from_str(k).unwrap();
         (xml_element.tag == "http://www.w3.org/2002/07/owl#Ontology" && xml_element.attributes.contains_key("rdf:about"))
         || (xml_element.tag == "http://www.w3.org/2002/07/owl#AnnotationProperty" && xml_element.attributes.contains_key("rdf:about"))

@@ -256,16 +256,16 @@ mod tests {
         let id = "2508.18700";
         let get_url = format!("pdf/{id}");
         let message_builder = SubjectBuilder::new()
-            .with_name(get_content_network.inner.subscription_lhs.get_name())
+            .with_name(get_content_network.inner.subscription_lhs.subject_name())
             .append_new_user_query_str(&get_url, "user")?;
         let _ = message_map.insert(
-            get_content_network.inner.subscription_lhs.get_name().to_string(),
+            get_content_network.inner.subscription_lhs.subject_name().to_string(),
             IPCMessage::get_builder()
-                .with_name(get_content_network.inner.subscription_lhs.get_name())
+                .with_name(get_content_network.inner.subscription_lhs.subject_name())
                 .with_publisher(&get_content_network.inner.network_name)
-                .with_subject(get_content_network.inner.subscription_lhs.get_name())
+                .with_subject(get_content_network.inner.subscription_lhs.subject_name())
                 .with_update(&Publication::Replace {
-                    subject_name: get_content_network.inner.subscription_lhs.get_name().to_string(),
+                    subject_name: get_content_network.inner.subscription_lhs.subject_name().to_string(),
                 })
                 .with_message(message_builder.clone().build()?.to_ipc_stream()?)
                 .build()?,
@@ -397,7 +397,7 @@ mod tests {
             poll_error: true,
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: "https://arxiv.org/".to_string(),
-            subject_name: Some(get_content_network.inner.subscription_lhs.get_name().to_string()),
+            subject_name: Some(get_content_network.inner.subscription_lhs.subject_name().to_string()),
             request_schema: HTTPClientRequestSchemas::Attachments,
             ..Default::default()
         };
