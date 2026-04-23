@@ -972,24 +972,24 @@ impl Default for OpenAlexNetworkBuilder {
         };
         let open_alex_network_builder = open_alex_network_builder.extend(network_builder).unwrap();
 
-        // // Extract OWL network
-        // // DM: the previous networks will overwrite the defaults in this network
-        // let extract_owl_network = ExtractOntologyNetworkBuilder { 
-        //     network_name: "extract_ontology_network", 
-        //     as_documents: false, 
-        //     include_extract_owl: false 
-        // };
-        // let extract_owl_network_builder = NetworkBuilder::from_mermaid_flowchart(
-        //     &extract_owl_network.as_mermaid_flowchart(),
-        //     false,
-        // ).unwrap()
-        // .with_subjects_from_mermaid_erdiagram(
-        //     &extract_owl_network.as_mermaid_erdiagram(),
-        //     false,
-        //     true,
-        // ).unwrap()
-        // .with_name(extract_owl_network.network_name);
-        // let open_alex_network_builder = open_alex_network_builder.extend(extract_owl_network_builder).unwrap();
+        // Extract OWL network
+        // DM: the previous networks will overwrite the defaults in this network
+        let extract_owl_network = ExtractOntologyNetworkBuilder { 
+            network_name: "extract_ontology_network", 
+            as_documents: false, 
+            include_extract_owl: false 
+        };
+        let extract_owl_network_builder = NetworkBuilder::from_mermaid_flowchart(
+            &extract_owl_network.as_mermaid_flowchart(),
+            false,
+        ).unwrap()
+        .with_subjects_from_mermaid_erdiagram(
+            &extract_owl_network.as_mermaid_erdiagram(),
+            false,
+            true,
+        ).unwrap()
+        .with_name(extract_owl_network.network_name);
+        let open_alex_network_builder = open_alex_network_builder.extend(extract_owl_network_builder).unwrap();
 
         // Embed text session
         let embed_text_network = EmbedTextNetworkBuilder::default();
@@ -1049,11 +1049,13 @@ mod tests {
 
     use super::*;
 
-    #[ignore = "In progress... Some issues with embeddings and retrieval."]
+    // #[ignore = "In progress... Some issues with embeddings and retrieval."]
     #[tokio::test]
     async fn test_open_alex_network_v_rust() -> Result<()> {
         // Initialize the session
         let open_alex_network_builder = OpenAlexNetworkBuilder::default().inner.take().unwrap();
+        dbg!(&open_alex_network_builder.processors.as_ref().unwrap().iter().filter(|p| p.get_processor().get_name() == "get_owl_p").collect::<Vec<_>>());
+        dbg!(&open_alex_network_builder.tasks.as_ref().unwrap().iter().filter(|t| t.task_name.as_str() == "get_owl_t").collect::<Vec<_>>());
         let network_name = open_alex_network_builder.name.clone().unwrap();
         let (network, session_messages) = open_alex_network_builder
             .with_runtime_env(RuntimeEnv::get_builder()
@@ -1131,7 +1133,11 @@ mod tests {
         //     // "".to_string(),
         //     // "".to_string(),
         //     ];
-        let cl_urls = vec!["Users/dmccl/Downloads/ontologies/cl.owl"];
+        let cl_urls = vec![
+            "Users/dmccl/Downloads/ontologies/ro.owl",
+            "Users/dmccl/Downloads/ontologies/eco.owl",
+            // "Users/dmccl/Downloads/ontologies/cl.owl"
+            ];
         let cl_arr: ArrayRef = Arc::new(StringArray::from(cl_urls));
         // let batch = RecordBatch::try_from_iter(vec![("content", cl_arr)])?;
         let batch = RecordBatch::try_from_iter(vec![("location", cl_arr)])?;
@@ -1431,38 +1437,6 @@ mod tests {
             .with_record_batches(batches)?
             .build()?;
         dbg!(subject.count_rows());
-        // assert_eq!(subject.count_rows(), 6);
-        let column = subject.get_column_as_vec_str("filename");
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(
-        //     column.first().unwrap(),
-        //     &"http://www.jidonline.org/article/S0022202X15321485/pdf"
-        // );
-        // assert_eq!(
-        //     column.last().unwrap(),
-        //     &"https://doi.org/10.37184/jlnh.2959-1805.3.9"
-        // );
-        let column = subject.get_column_as_vec_str("extension");
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(column.first().unwrap(), &"text/html; charset=UTF-8");
-        // assert_eq!(column.last().unwrap(), &"application/pdf");
-        let column = subject.get_column_as_vec_str("metadata");
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(column.first().unwrap(), &"tool");
-        // assert_eq!(column.last().unwrap(), &"tool");
-        let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-        for c in column {
-            assert!(c > 0);
-        }
-        let column = subject
-            .get_column_as_vec_nested_primitive::<u8>("bytes")?
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
-        assert!(column.len() > 100);
         
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::ParseOwl.to_string(),

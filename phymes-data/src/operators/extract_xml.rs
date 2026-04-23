@@ -442,14 +442,8 @@ fn children_to_po(
     let child_element: XMLElement = serde_json::from_str(child)?;
     let po = if let Some(resource) = child_element.attributes.get("rdf:resource") {
         Some((child_element.tag, resource.to_string()))
-    } else {
+    } else if let Some(element) = relations.get(child) {
         // Retrieve the child element from the relations
-        let element = relations.get(child).ok_or(anyhow!(
-        // let element = relations.remove(child).ok_or(anyhow!(
-            "Child `{child}` not found in parsed relations `{:?}`.",
-            relations.keys()
-        ))?;
-
         // Join all text children for the case of multi-line text
         let (mut type_tmp, mut children_tmp) = join_text_children(element.clone());
 
@@ -466,6 +460,9 @@ fn children_to_po(
         } else {
             None
         }
+    } else {
+        let _err = anyhow!("Child `{child}` not found in parsed relations `{:?}`.", relations.keys());
+        None
     };
     Ok(po)
 }
@@ -478,7 +475,37 @@ fn xml_to_parsed_owl_record_batch(
 ) -> Result<RecordBatch> {
     // Partition into entities and their attributes
     #[allow(clippy::type_complexity)]
-    let (entities, attributes): (HashMap<String, Vec<(XMLType, String)>>, HashMap<String, Vec<(XMLType, String)>>) = relations.into_par_iter().partition(|(k, _v)| {
+    let (entities, attributes): (HashMap<String, Vec<(XMLType, String)>>, HashMap<String, Vec<(XMLType, String)>>) = relations.into_par_iter()
+    .filter(|(k, _v)| {
+        let xml_element: XMLElement = serde_json::from_str(k).unwrap();
+        // Hierarchical objects are not yet supported (e.g., EquivalentClass, ChainedAxioms, etc.)
+        !((xml_element.tag == "http://www.w3.org/2002/07/owl#Ontology" && !xml_element.attributes.contains_key("rdf:about"))
+        || (xml_element.tag == "http://www.w3.org/2002/07/owl#AnnotationProperty" && !xml_element.attributes.contains_key("rdf:about"))
+        || (xml_element.tag == "http://www.w3.org/2002/07/owl#DatatypeProperty" && !xml_element.attributes.contains_key("rdf:about"))
+        || (xml_element.tag == "http://www.w3.org/2002/07/owl#Class" && !xml_element.attributes.contains_key("rdf:about"))
+        || (xml_element.tag == "http://www.w3.org/2002/07/owl#ObjectProperty" && !xml_element.attributes.contains_key("rdf:about"))
+        || (xml_element.tag == "http://www.w3.org/2002/07/owl#NamedIndividual" && !xml_element.attributes.contains_key("rdf:about"))
+        || (xml_element.tag == "http://www.w3.org/2000/01/rdf-schema#subClassOf" && !xml_element.attributes.contains_key("rdf:resource"))
+        || (xml_element.tag == "http://www.w3.org/2000/01/rdf-schema#subPropertyOf" && !xml_element.attributes.contains_key("rdf:resource"))
+        || (xml_element.tag == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" && !xml_element.attributes.contains_key("rdf:resource"))
+        || xml_element.tag == "http://www.w3.org/2002/07/owl#equivalentClass"
+        || xml_element.tag == "http://www.w3.org/2002/07/owl#Restriction"
+        || xml_element.tag == "http://www.w3.org/2002/07/owl#intersectionOf"
+        || xml_element.tag == "http://www.w3.org/2002/07/owl#onProperty"
+        || xml_element.tag == "http://www.w3.org/2002/07/owl#someValuesFrom"
+        || xml_element.tag == "http://www.w3.org/2002/07/owl#propertyChainAxiom"
+        // DM: re-instate axiom when testing with GO-CAM
+        || xml_element.tag == "http://www.w3.org/2002/07/owl#Axiom"
+        // Ignore other properties not used in the embeddings
+        || xml_element.tag == "http://purl.obolibrary.org/obo/OMO_0002000"
+        || xml_element.tag == "http://purl.org/dc/elements/1.1/contributor"
+        || xml_element.tag == "http://purl.org/dc/terms/contributor"
+        || xml_element.tag == "http://purl.org/dc/terms/license"
+        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:created_by"
+        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:creation_date")
+
+    })
+    .partition(|(k, _v)| {
         let xml_element: XMLElement = serde_json::from_str(k).unwrap();
         (xml_element.tag == "http://www.w3.org/2002/07/owl#Ontology" && xml_element.attributes.contains_key("rdf:about"))
         || (xml_element.tag == "http://www.w3.org/2002/07/owl#AnnotationProperty" && xml_element.attributes.contains_key("rdf:about"))

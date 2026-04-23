@@ -1923,7 +1923,7 @@ mod tests {
 
     use super::*;
 
-    #[tokio::test(flavor = "current_thread")]
+    #[tokio::test]
     async fn test_extract_ontology_network() -> Result<()> {
         // Initialize the session
         let extract_onto_session = ExtractOntologyNetworkBuilder::default();
