@@ -1,0 +1,70 @@
+use anyhow::Result;
+use futures::TryStreamExt;
+use phymes_diagnostics::create_timestamp_str;
+use phymes_event::Subscription;
+use phymes_schemas::AvailableSubjects;
+use phymes_subject::{BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_task::SubscriptionTrait;
+use tempfile::TempDir;
+
+/// Default diagnostic subjects for Errors, Events, Traces, and Metrics
+pub fn default_diagnostic_subjects() -> Vec<String> {
+    vec![
+        AvailableSubjects::SessionErrors.to_string(),
+        AvailableSubjects::SessionEvents.to_string(),
+        AvailableSubjects::SessionTraces.to_string(),
+        AvailableSubjects::SessionMetrics.to_string()
+    ]
+}
+
+/// Extended diagnostic subjects including task and subject change logs
+pub fn extended_diagnostic_subjects() -> Vec<String> {
+    let mut subjects = default_diagnostic_subjects();
+    let extension = vec![
+        AvailableSubjects::SessionTasksRunLog.to_string(),
+        AvailableSubjects::SubjectsChangeLog.to_string(),
+    ];
+    subjects.extend(extension);
+    subjects
+}
+
+/// Writes diagnostic (and any other network) subjects to `TMP_DIR`
+pub async fn write_diagnostic_subjects_to_csv(subject_names: &[&str], runtime_env: &std::sync::Arc<RuntimeEnv>, network_name: &str) -> Result<()> {
+
+    // Timestamp to differentiate between runs of the same network
+    let timestamp = create_timestamp_str();
+
+    // Create project directory
+    let tmp_dir = TempDir::new()?;
+    let project_dir = tmp_dir.path().join(format!("network={network_name}"));
+    let _ = std::fs::create_dir(&project_dir);
+
+    // Create the subdirectory
+    let diagnostic_dir = project_dir.as_path().join(format!("timestamp={timestamp}"));
+    let _ = std::fs::create_dir(&diagnostic_dir);
+
+    for subject_name in subject_names {
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: subject_name.to_string(),
+        }
+        .subscribe_to_subject(runtime_env, network_name)?
+        .unwrap()
+        .try_collect()
+        .await?;
+        if !batches.is_empty() {
+
+            // Create the diagnostics subject file
+            let diagnostics_file_path = format!("{}/{subject_name}.csv", diagnostic_dir.as_path().to_str().unwrap());
+            let mut diagnostics_file = std::fs::File::create(&diagnostics_file_path)?;
+
+            // Write the subject file to disk
+            let subject = Subject::get_builder()
+                .with_name(subject_name)
+                .with_record_batches(batches)?
+                .build()?;
+            subject.to_csv_file(&mut diagnostics_file, b',', true)?;
+        }
+    }
+
+    Ok(())
+}

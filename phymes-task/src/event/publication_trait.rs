@@ -30,7 +30,7 @@ use crate::list_subject;
 /// # Todo
 /// * Handle more complex partitioning schemes
 pub fn make_object_store_path(
-    session_name: &str,
+    network_name: &str,
     subject_name: &str,
     step: u32,
     publisher: &str,
@@ -38,13 +38,13 @@ pub fn make_object_store_path(
 ) -> String {
     let hash = make_random_id().unwrap();
     format!(
-        "session={session_name}/subject={subject_name}/superstep={step}/publisher={publisher}/partition={partition}/{subject_name}-{hash}.ipc"
+        "network={network_name}/subject={subject_name}/superstep={step}/publisher={publisher}/partition={partition}/{subject_name}-{hash}.ipc"
     )
 }
 
 /// Generate the a vector of record batches of locations to put the subject
 pub fn make_object_store_paths_record_batch(
-    session_name: &str,
+    network_name: &str,
     subject_name: &str,
     step: u32,
     publisher: &str,
@@ -52,7 +52,7 @@ pub fn make_object_store_paths_record_batch(
 ) -> Vec<RecordBatch> {
     (0..n_batches)
         .map(|i| {
-            let location = make_object_store_path(session_name, subject_name, step, publisher, i);
+            let location = make_object_store_path(network_name, subject_name, step, publisher, i);
             let pk: Vec<u32> = vec![0];
             let location: ArrayRef = Arc::new(StringArray::from(vec![location]));
             let pk: ArrayRef = Arc::new(UInt32Array::from(pk));

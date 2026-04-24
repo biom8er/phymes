@@ -1107,9 +1107,9 @@ mod tests {
         assert_eq!(
             col,
             [
-                "session=session_1/subject=state_1/superstep=0/publisher=session_1/partition=0/state_1.ipc",
-                "session=session_1/subject=state_1/superstep=0/publisher=session_1/partition=1/state_1.ipc",
-                "session=session_1/subject=state_1/superstep=0/publisher=session_1/partition=2/state_1.ipc"
+                "network=session_1/subject=state_1/superstep=0/publisher=session_1/partition=0/state_1.ipc",
+                "network=session_1/subject=state_1/superstep=0/publisher=session_1/partition=1/state_1.ipc",
+                "network=session_1/subject=state_1/superstep=0/publisher=session_1/partition=2/state_1.ipc"
             ]
         );
         let col = meta.as_ref().unwrap().get_column_as_vec_str("bucket");

@@ -26,7 +26,7 @@ pub fn list_subject(
     last: bool,
 ) -> Result<SendableRecordBatchStream> {
     // 1. List the partitions (RecordBatches)
-    let location = format!("session={session_name}/subject={sn}");
+    let location = format!("network={session_name}/subject={sn}");
     let config = ObjectStoreConfig {
         timeout: 5,
         ops_type: ObjectStoreOptsType::List,
@@ -333,9 +333,9 @@ mod tests {
         assert_eq!(
             result,
             [
-                "session=/subject=messages/superstep=0/publisher=/partition=0/messages.ipc",
-                "session=/subject=messages/superstep=0/publisher=/partition=1/messages.ipc",
-                "session=/subject=messages/superstep=0/publisher=/partition=2/messages.ipc"
+                "network=/subject=messages/superstep=0/publisher=/partition=0/messages.ipc",
+                "network=/subject=messages/superstep=0/publisher=/partition=1/messages.ipc",
+                "network=/subject=messages/superstep=0/publisher=/partition=2/messages.ipc"
             ]
         );
 
@@ -361,7 +361,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(
             result,
-            ["session=/subject=messages/superstep=0/publisher=/partition=2/messages.ipc"]
+            ["network=/subject=messages/superstep=0/publisher=/partition=2/messages.ipc"]
         );
 
         Ok(())

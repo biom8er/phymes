@@ -676,9 +676,9 @@ mod tests {
         assert_eq!(
             column,
             [
-                "session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
-                "session=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",
-                "session=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
+                "network=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
+                "network=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",
+                "network=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
             ]
         );
         let column = subject.get_column_as_vec_str("bucket");
@@ -720,10 +720,10 @@ mod tests {
         assert_eq!(
             column,
             [
-                "session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
-                "session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
-                "session=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",
-                "session=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
+                "network=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
+                "network=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
+                "network=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",
+                "network=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
             ]
         );
         let column = subject.get_column_as_vec_str("diff");
@@ -761,9 +761,9 @@ mod tests {
         assert_eq!(
             column,
             [
-                "session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
-                "session=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",
-                "session=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
+                "network=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
+                "network=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",
+                "network=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
             ]
         );
         let column = subject.get_column_as_vec_str("bucket");
@@ -804,7 +804,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(
             column,
-            ["session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc"]
+            ["network=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc"]
         );
         let column = subject.get_column_as_vec_str("bucket");
         assert!(column.first().unwrap().contains("LocalBucketWSubject"));
@@ -844,9 +844,9 @@ mod tests {
         assert_eq!(
             column,
             [
-                "session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
-                "session=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",
-                "session=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
+                "network=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
+                "network=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",
+                "network=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
             ]
         );
         let column = subject.get_column_as_vec_str("bucket");
@@ -1115,9 +1115,9 @@ mod tests {
         assert_eq!(
             column,
             [
-                "session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
-                "session=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",
-                "session=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
+                "network=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
+                "network=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",
+                "network=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
             ]
         );
         let column = subject.get_column_as_vec_str("bucket");
@@ -1159,10 +1159,10 @@ mod tests {
         assert_eq!(
             column,
             [
-                "session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
-                "session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
-                "session=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",
-                "session=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
+                "network=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
+                "network=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
+                "network=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",
+                "network=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
             ]
         );
         let column = subject.get_column_as_vec_str("diff");
@@ -1200,9 +1200,9 @@ mod tests {
         assert_eq!(
             column,
             [
-                "session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
-                "session=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",
-                "session=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
+                "network=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
+                "network=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",
+                "network=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
             ]
         );
         let column = subject.get_column_as_vec_str("bucket");
@@ -1243,7 +1243,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(
             column,
-            ["session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc"]
+            ["network=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc"]
         );
         let column = subject.get_column_as_vec_str("bucket");
         assert!(column.first().unwrap().contains("LocalBucketWOSubject"));
@@ -1283,9 +1283,9 @@ mod tests {
         assert_eq!(
             column,
             [
-                "session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
-                "session=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",
-                "session=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
+                "network=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
+                "network=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",
+                "network=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
             ]
         );
         let column = subject.get_column_as_vec_str("bucket");

@@ -478,6 +478,8 @@ fn xml_to_parsed_owl_record_batch(
     let (entities, attributes): (HashMap<String, Vec<(XMLType, String)>>, HashMap<String, Vec<(XMLType, String)>>) = relations.into_par_iter()
     .filter(|(k, _v)| {
         let xml_element: XMLElement = serde_json::from_str(k).unwrap();
+
+        // --- Exclusion list ---
         // Hierarchical objects are not yet supported (e.g., EquivalentClass, ChainedAxioms, etc.)
         !((xml_element.tag == "http://www.w3.org/2002/07/owl#Ontology" && !xml_element.attributes.contains_key("rdf:about"))
         || (xml_element.tag == "http://www.w3.org/2002/07/owl#AnnotationProperty" && !xml_element.attributes.contains_key("rdf:about"))
@@ -494,15 +496,22 @@ fn xml_to_parsed_owl_record_batch(
         || xml_element.tag == "http://www.w3.org/2002/07/owl#onProperty"
         || xml_element.tag == "http://www.w3.org/2002/07/owl#someValuesFrom"
         || xml_element.tag == "http://www.w3.org/2002/07/owl#propertyChainAxiom"
+
         // DM: re-instate axiom when testing with GO-CAM
         || xml_element.tag == "http://www.w3.org/2002/07/owl#Axiom"
+
         // Ignore other properties not used in the embeddings
         || xml_element.tag == "http://purl.obolibrary.org/obo/OMO_0002000"
         || xml_element.tag == "http://purl.org/dc/elements/1.1/contributor"
         || xml_element.tag == "http://purl.org/dc/terms/contributor"
         || xml_element.tag == "http://purl.org/dc/terms/license"
+        || xml_element.tag == "http://xmlns.com/foaf/0.1/depiction"
+        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:id"
+        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:hasDbXref"
         || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:created_by"
         || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:creation_date")
+
+        // --- Inclusion list ---
 
     })
     .partition(|(k, _v)| {
