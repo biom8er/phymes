@@ -175,7 +175,7 @@ fn aggregator_operator_tensor(
     range: &Range<usize>,
     device: &Device,
 ) -> Result<Tensor> {
-    let gather_tensor = Tensor::arange(range.start as u8, range.end as u8, device)?;
+    let gather_tensor = Tensor::arange(range.start as u32, range.end as u32, device)?;
     let agg_tensor = match agg_operator {
         DataAggregatorOperator::Sum => tensor
             .gather(&gather_tensor, candle_core::D::Minus1)?

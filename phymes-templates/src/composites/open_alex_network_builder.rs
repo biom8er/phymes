@@ -1054,8 +1054,6 @@ mod tests {
     async fn test_open_alex_network_v_rust() -> Result<()> {
         // Initialize the session
         let open_alex_network_builder = OpenAlexNetworkBuilder::default().inner.take().unwrap();
-        dbg!(&open_alex_network_builder.processors.as_ref().unwrap().iter().filter(|p| p.get_processor().get_name() == "get_owl_p").collect::<Vec<_>>());
-        dbg!(&open_alex_network_builder.tasks.as_ref().unwrap().iter().filter(|t| t.task_name.as_str() == "get_owl_t").collect::<Vec<_>>());
         let network_name = open_alex_network_builder.name.clone().unwrap();
         let (network, session_messages) = open_alex_network_builder
             .with_runtime_env(RuntimeEnv::get_builder()
