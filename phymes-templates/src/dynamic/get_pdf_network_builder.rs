@@ -278,61 +278,6 @@ mod tests {
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionErrors.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        if !batches.is_empty() {
-            let subject = Subject::get_builder()
-                .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
-                .with_record_batches(batches)?
-                .build()?;
-            println!(
-                "{}\n{}",
-                AvailableSubjects::SessionErrors,
-                String::from_utf8(subject.to_csv(b',', true)?)?
-            );
-        }
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionEvents.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        if !batches.is_empty() {
-            let subject = Subject::get_builder()
-                .with_name(AvailableSubjects::SessionEvents.to_string().as_str())
-                .with_record_batches(batches)?
-                .build()?;
-            println!(
-                "{}\n{}",
-                AvailableSubjects::SessionEvents,
-                String::from_utf8(subject.to_csv(b',', true)?)?
-            );
-        }
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTraces.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        if !batches.is_empty() {
-            let subject = Subject::get_builder()
-                .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
-                .with_record_batches(batches)?
-                .build()?;
-            println!(
-                "{}\n{}",
-                AvailableSubjects::SessionTraces,
-                String::from_utf8(subject.to_csv(b',', true)?)?
-            );
-        }
-
         assert_eq!(response.len(), 0);
 
         // Test supsersteps
@@ -429,62 +374,7 @@ mod tests {
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
-
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionErrors.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        if !batches.is_empty() {
-            let subject = Subject::get_builder()
-                .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
-                .with_record_batches(batches)?
-                .build()?;
-            println!(
-                "{}\n{}",
-                AvailableSubjects::SessionErrors,
-                String::from_utf8(subject.to_csv(b',', true)?)?
-            );
-        }
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionEvents.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        if !batches.is_empty() {
-            let subject = Subject::get_builder()
-                .with_name(AvailableSubjects::SessionEvents.to_string().as_str())
-                .with_record_batches(batches)?
-                .build()?;
-            println!(
-                "{}\n{}",
-                AvailableSubjects::SessionEvents,
-                String::from_utf8(subject.to_csv(b',', true)?)?
-            );
-        }
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTraces.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        if !batches.is_empty() {
-            let subject = Subject::get_builder()
-                .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
-                .with_record_batches(batches)?
-                .build()?;
-            println!(
-                "{}\n{}",
-                AvailableSubjects::SessionTraces,
-                String::from_utf8(subject.to_csv(b',', true)?)?
-            );
-        }
-
+        
         assert_eq!(response.len(), 0);
 
         // Test supsersteps

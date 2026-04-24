@@ -1,11 +1,12 @@
+use std::str::FromStr;
+
 use anyhow::Result;
 use futures::TryStreamExt;
-use phymes_diagnostics::create_timestamp_str;
+use phymes_diagnostics::create_timestamp_micros;
 use phymes_event::Subscription;
 use phymes_schemas::AvailableSubjects;
 use phymes_subject::{BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectTrait};
 use phymes_task::SubscriptionTrait;
-use tempfile::TempDir;
 
 /// Default diagnostic subjects for Errors, Events, Traces, and Metrics
 pub fn default_diagnostic_subjects() -> Vec<String> {
@@ -28,20 +29,16 @@ pub fn extended_diagnostic_subjects() -> Vec<String> {
     subjects
 }
 
-/// Writes diagnostic (and any other network) subjects to `TMP_DIR`
+/// Writes diagnostic (and any other network) subjects to `HOME` as CSV
 pub async fn write_diagnostic_subjects_to_csv(subject_names: &[&str], runtime_env: &std::sync::Arc<RuntimeEnv>, network_name: &str) -> Result<()> {
 
-    // Timestamp to differentiate between runs of the same network
-    let timestamp = create_timestamp_str();
-
-    // Create project directory
-    let tmp_dir = TempDir::new()?;
-    let project_dir = tmp_dir.path().join(format!("network={network_name}"));
-    let _ = std::fs::create_dir(&project_dir);
-
-    // Create the subdirectory
-    let diagnostic_dir = project_dir.as_path().join(format!("timestamp={timestamp}"));
-    let _ = std::fs::create_dir(&diagnostic_dir);
+    // Create directory and subdirectories
+    let tmp_dir_str = "../target";
+    // let tmp_dir_str = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let timestamp = create_timestamp_micros();
+    let diagnostic_dir_str = format!("{tmp_dir_str}/network={network_name}/timestamp={timestamp}");
+    let diagnostic_path = std::path::PathBuf::from_str(&diagnostic_dir_str)?;
+    let _ = std::fs::create_dir_all(&diagnostic_path);
 
     for subject_name in subject_names {
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
@@ -54,7 +51,7 @@ pub async fn write_diagnostic_subjects_to_csv(subject_names: &[&str], runtime_en
         if !batches.is_empty() {
 
             // Create the diagnostics subject file
-            let diagnostics_file_path = format!("{}/{subject_name}.csv", diagnostic_dir.as_path().to_str().unwrap());
+            let diagnostics_file_path = format!("{}/{subject_name}.csv", diagnostic_path.as_path().to_str().unwrap());
             let mut diagnostics_file = std::fs::File::create(&diagnostics_file_path)?;
 
             // Write the subject file to disk

@@ -28,7 +28,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         let subject_o = if self.as_documents {
             "Documents"
         } else {
-            "Queries"
+            "UserQueries"
         };
         let extract_owl = if self. include_extract_owl {
             r#"
@@ -935,7 +935,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         Utf8 lhs_stream "Stream"
         Utf8 rhs_stream "Stream"
     }
-	Queries["Queries"] {
+	UserQueries["UserQueries"] {
         Utf8 query_id
         Utf8 text
 	}"#

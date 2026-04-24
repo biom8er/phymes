@@ -1033,7 +1033,7 @@ mod tests {
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use futures::TryStreamExt;
     use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectTrait
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait
     };
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
@@ -1058,6 +1058,7 @@ mod tests {
         let (network, session_messages) = open_alex_network_builder
             .with_runtime_env(RuntimeEnv::get_builder()
                 .with_name(DynamicTaskNetworkNames::RuntimeEnv(&network_name).to_string().as_str())
+                .with_max_steps(100)
                 .build_arc()?)
             .with_diagnostics(true)
             .add_processor_subjects()?
@@ -1132,9 +1133,9 @@ mod tests {
         //     // "".to_string(),
         //     ];
         let cl_urls = vec![
-            // "Users/dmccl/Downloads/ontologies/ro.owl",
+            "Users/dmccl/Downloads/ontologies/ro.owl",
             // "Users/dmccl/Downloads/ontologies/eco.owl",
-            "Users/dmccl/Downloads/ontologies/cl.owl"
+            // "Users/dmccl/Downloads/ontologies/cl.owl"
             ];
         let cl_arr: ArrayRef = Arc::new(StringArray::from(cl_urls));
         // let batch = RecordBatch::try_from_iter(vec![("content", cl_arr)])?;
@@ -1456,14 +1457,14 @@ mod tests {
         // assert_eq!(column.last().unwrap(), &"UserScript");
         
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::Queries.to_string(),
+            subject_name: AvailableInterfaceSubjects::UserQueries.to_string(),
         }
         .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
         let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::Queries.to_string().as_str())
+            .with_name(AvailableInterfaceSubjects::UserQueries.to_string().as_str())
             .with_record_batches(batches)?
             .build()?;
         dbg!(subject.count_rows());
