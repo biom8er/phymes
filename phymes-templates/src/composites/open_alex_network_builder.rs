@@ -1165,8 +1165,14 @@ mod tests {
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
+        let extended_diagnostic_subjects = extended_diagnostic_subjects();
+        let subject_names = extended_diagnostic_subjects
+            .iter()
+            .map(|s| s.as_str())
+            .chain(["EmbeddingScores","Documents","UserQueries"])
+            .collect::<Vec<_>>();
         write_diagnostic_subjects_to_csv(
-            &extended_diagnostic_subjects().iter().map(|s| s.as_str()).collect::<Vec<_>>(), 
+            &subject_names, 
             network_arc.runtime_env(), 
             network_arc.get_name())
             .await?;
@@ -1358,7 +1364,7 @@ mod tests {
             &"https://doi.org/10.37184/jlnh.2959-1805.3.9"
         );
         let column = subject.get_column_as_vec_str("extension");
-        assert_eq!(column.first().unwrap(), &"text/html; charset=UTF-8");
+        assert_eq!(column.first().unwrap(), &"text/html;charset=UTF-8");
         assert_eq!(column.last().unwrap(), &"application/pdf");
         let column = subject.get_column_as_vec_str("metadata");
         assert_eq!(column.first().unwrap(), &"tool");

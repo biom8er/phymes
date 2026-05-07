@@ -1,5 +1,6 @@
 mod documents;
 mod openai_embedding; // Based on openai-api-rs <https://github.com/dongri/openai-api-rs>
+// mod pdf; DM: work in progress to better parse PDF files...
 mod queries;
 
 pub use documents::{

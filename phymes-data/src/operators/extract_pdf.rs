@@ -141,13 +141,17 @@ type ParsedPage = (String, u32, Vec<String>);
 /// * Returns an error if text extraction fails for any page in the document
 #[instrument(skip(docs))]
 pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
+    // DM: Change to phymes_schemas::embed::pdfs.rs
+    // Extract document metadata
+
     // Extract the page number and text along with any errors from the documents
     let pages: Vec<Result<ParsedPage, Error>> = docs
         .into_par_iter()
         .map(|(id, doc)| {
             doc.get_pages()
                 .into_par_iter()
-                .map(
+                .map( // DM: Change to phymes_schemas::embed::pdfs.rs
+                    // Extract each each page AND content stream
                     |(page_num, page_id): (u32, (u32, u16))| -> Result<ParsedPage, Error> {
                         // Extract text from the page
                         let text = doc.extract_text(&[page_num]).map_err(|e| {
@@ -170,6 +174,7 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
         .collect();
 
     // Create an ArrowTable to hold the extracted text
+    // DM: migrate to phymes_schemas::embed::pdfs.rs 
     let mut document_id_vec = Vec::new();
     let mut chunk_id_vec = Vec::new(); // the page number
     let mut text_vec = Vec::new();
