@@ -152,6 +152,7 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
                 .into_par_iter()
                 .map( // DM: Change to phymes_schemas::embed::pdfs.rs
                     // Extract each each page AND content stream
+                    // Todo: modified version of `extract_text_chunks_from_page` that retains the information on the fonts...
                     |(page_num, page_id): (u32, (u32, u16))| -> Result<ParsedPage, Error> {
                         // Extract text from the page
                         let text = doc.extract_text(&[page_num]).map_err(|e| {
