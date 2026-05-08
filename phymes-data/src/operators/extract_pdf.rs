@@ -4,7 +4,7 @@ use anyhow::{Ok, Result, anyhow};
 use arrow::array::{ArrayRef, ListArray, RecordBatch, StringArray, UInt8Array};
 use candle_core::Device;
 use lopdf::{
-    Dictionary, Document, Encoding, Object, Stream, content::{Content, Operation}, dictionary
+    Document, Encoding, Object, Stream, content::{Content, Operation}, dictionary
 };
 
 use phymes_schemas::{
@@ -121,23 +121,68 @@ impl DataOperatorTrait for ExtractPDF {
     }
 }
 
+/// Tm
+struct Tm {
+    /// scale param 1
+    a: f32,
+    /// skew param 1
+    b: f32,
+    /// skew param 2
+    c: f32,
+    /// scale param 2
+    d: f32,
+    /// pos x
+    x: f32,
+    /// pos y
+    y: f32,
+}
+
+impl Tm {
+    pub fn new(a: f32, b: f32, c: f32, d: f32, x: f32, y: f32) -> Self {
+        Self { a, b, c, d, x, y }
+    }
+}
+
+impl Default for Tm {
+    fn default() -> Self {
+        Self { a: 1_f32, b: 0_f32, c: 0_f32, d: 1_f32, x: 0_f32, y: 0_f32 }
+    }
+}
+
+#[derive(Default, Debug)]
+struct PdfText {
+    pub tm: Tm,
+    pub font_name: String,
+    pub font_size: f32,
+    pub page_num: u32,
+    pub text: String,
+}
+
 /// Drop-in replacement for `extract_text` that retains additional metadata including
 /// page_number, pos_x, pos_y, font_name, font_size, ...
-pub fn extract_text(doc: &Document, page_numbers: &[u32]) -> Result<HashMap<(u32, i64, i64, String, i64), String>> {
+pub fn extract_text(doc: &Document, page_numbers: &[u32]) -> Result<Vec<(u32, i64, i64, String, i64, String)>> {
     let text_fragments = extract_text_chunks(doc, page_numbers)?;
-    let mut text = HashMap::<(u32, i64, i64, String, i64), String>::new();
+
+    // Combine text that have the same font and are sequential
+    let mut text = HashMap::<(usize, u32, i64, i64, String, i64), String>::new();
     let mut current_key = None;
+    let mut iter: usize = 0; // Ensure uniqueness of each key `k` when pos_x/pos_y/size are uninformative
     for (page, pos_x, pos_y, font, size, text_chunk) in text_fragments.into_iter() {
         let key = Some((page, font.clone(), size));
-        let k = (page, pos_x, pos_y, font, size);
+        let k = (iter, page, pos_x, pos_y, font, size);
         if let Some(m) = text.get_mut(&k) && current_key == key {
             m.push_str(text_chunk.as_str());
         } else {
             let _ = text.insert(k, text_chunk);
             current_key = key;
+            iter += 1;
         }
     }
 
+    // Remove the `iter`
+    let text = text.into_iter()
+        .map(|((_, page, pos_x, pos_y, font, size), v)| (page, pos_x, pos_y, font, size, v))
+        .collect::<Vec<_>>();
     Ok(text)
 }
 
@@ -188,25 +233,38 @@ fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16
 
     // each text with different encoding is extracted as separate chunk
     let mut current_encoding = None;
-    let mut current_font_name = None;
-    let mut current_font_size = None;
-    let mut current_pos_x = None;
-    let mut current_pos_y = None;
     let mut current_text = String::new();
     for operation in &content.operations {
         match operation.operator.as_ref() {
+            "BT" => {
+                dbg!(&operation);
+            }
+            "TD" => {
+                dbg!(&operation);
+            }
+            "Tm" => {
+                dbg!(&operation);
+            }
+            "T*" => {
+                dbg!(&operation);
+            }
+            "'" => {
+                dbg!(&operation);
+            }
             "Td" => {
+                dbg!(&operation);
                 if current_pos_x.is_none() {
                     let current_pos = operation
                         .operands
                         .iter()
-                        .map(|f| f.as_i64().unwrap_or_default())
+                        .map(|f| String::from_utf8(f.as_str().unwrap_or_default().to_vec()).unwrap())
                         .collect::<Vec<_>>();
                     current_pos_x = current_pos.first().copied();
                     current_pos_y = current_pos.last().copied();
                 }
             }
-            "Tf" => {
+            "Tf" => {                
+                dbg!(&operation);
                 let current_font = operation
                     .operands
                     .first()
@@ -227,10 +285,11 @@ fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16
                 };
                 current_font_size = match current_size {
                     std::result::Result::Ok(size) => Some(size),
-                    Err(_err) => None,
+                    Err(_err) => Some(0),
                 };
 
                 if !current_text.is_empty() {
+                    dbg!(&current_encoding);
                     collected_chunks_and_errs.push(Ok((current_pos_x.clone(), current_pos_y.clone(), current_font_name.clone(), current_font_size, current_text)));
                     current_text = String::new();
                 }
@@ -249,6 +308,8 @@ fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16
                 if !current_text.ends_with('\n') {
                     current_text.push('\n')
                 }
+                current_pos_x = None;
+                current_pos_y = None;
             }
             _ => {}
         }
@@ -281,7 +342,7 @@ fn collect_text(text: &mut String, encoding: &Encoding, operands: &[Object]) -> 
     Ok(())
 }
 
-type ParsedPage = (String, u32, Vec<String>);
+type ParsedPage = (String, u32, i64, i64, String, i64, String);
 
 /// Extract text from a PDF document(s) and return it as an ArrowTable
 ///
@@ -303,7 +364,7 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
     // Extract document metadata
 
     // Extract the page number and text along with any errors from the documents
-    let pages: Vec<Result<ParsedPage, Error>> = docs
+    let pages = docs
         .into_par_iter()
         .map(|(id, doc)| {
             doc.get_pages()
@@ -311,39 +372,47 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
                 .map( // DM: Change to phymes_schemas::embed::pdfs.rs
                     // Extract each each page AND content stream
                     // Todo: modified version of `extract_text_chunks_from_page` that retains the information on the fonts...
-                    |(page_num, page_id): (u32, (u32, u16))| -> Result<ParsedPage, Error> {
+                    |(page_num, page_id): (u32, (u32, u16))| -> Result<Vec<ParsedPage>, Error> {
                         // Extract text from the page
-                        let text = doc.extract_text(&[page_num]).map_err(|e| {
+                        let text = extract_text(doc, &[page_num]).map_err(|e| {
                             Error::other(format!(
                                 "Failed to extract text from page {page_num} id={page_id:?}: {e:}"
                             ))
-                        })?;
-                        std::result::Result::Ok((
-                            id.to_string(),
-                            page_num,
-                            text.split(|c| ['\n', '\r'].contains(&c))
-                                .map(|s| s.trim_end().to_string())
-                                .collect::<Vec<String>>(),
-                        ))
+                        })?
+                        .into_iter()
+                        .map(|(page, pos_x, pos_y, font, size, v)| (id.to_string(), page, pos_x, pos_y, font, size, v))
+                        .collect::<Vec<_>>();
+                        std::result::Result::Ok(text)
                     },
                 )
                 .collect::<Vec<_>>()
         })
         .flatten()
-        .collect();
+        .collect::<Vec<_>>();
 
     // Create an ArrowTable to hold the extracted text
     // DM: migrate to phymes_schemas::embed::pdfs.rs 
     let mut document_id_vec = Vec::new();
     let mut chunk_id_vec = Vec::new(); // the page number
+    let mut page_num_vec = Vec::new();
+    let mut pos_x_vec = Vec::new();
+    let mut pos_y_vec = Vec::new();
+    let mut font_vec = Vec::new();
+    let mut size_vec = Vec::new();
     let mut text_vec = Vec::new();
     for page in pages {
         match page {
-            std::result::Result::Ok((id, page_num, lines)) => {
-                chunk_id_vec.push(format!("{id}_{page_num}"));
-                document_id_vec.push(id);
-                // Join the lines of text into a single string for each page
-                text_vec.push(lines.join(" "));
+            std::result::Result::Ok(chunks) => {
+                for (id, page_num, pos_x, pos_y, font, size, text) in chunks {
+                    chunk_id_vec.push(format!("{id}_{page_num}_{pos_x}_{pos_y}_{font}_{size}"));
+                    document_id_vec.push(id);
+                    page_num_vec.push(page_num);
+                    pos_x_vec.push(pos_x);
+                    pos_y_vec.push(pos_y);
+                    font_vec.push(font);
+                    size_vec.push(size);
+                    text_vec.push(text);
+                }
             }
             Err(e) => {
                 event!(Level::ERROR, "{e:?}");
@@ -352,48 +421,59 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
     }
     let document_id_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(document_id_vec));
     let chunk_id_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(chunk_id_vec));
+    let page_num_arr: ArrayRef = Arc::new(arrow::array::UInt32Array::from(page_num_vec));
+    let pos_x_arr: ArrayRef = Arc::new(arrow::array::Int64Array::from(pos_x_vec));
+    let pos_y_arr: ArrayRef = Arc::new(arrow::array::Int64Array::from(pos_y_vec));
+    let font_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(font_vec));
+    let size_arr: ArrayRef = Arc::new(arrow::array::Int64Array::from(size_vec));
     let text_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(text_vec));
     let batch = RecordBatch::try_from_iter(vec![
         ("chunk_id", chunk_id_arr),
         ("document_id", document_id_arr),
+        // ("page_num", page_num_arr),
+        // ("pos_x", pos_x_arr),
+        // ("pos_y", pos_y_arr),
+        // ("font", font_arr),
+        // ("size", size_arr),
         ("text", text_arr),
     ])?;
+    // dbg!(&batch);
     Ok(batch)
 }
 
 static IGNORE_TYPE_NAMES: &[&[u8]] = &[
-    b"Length",
-    b"BBox",
-    b"FormType",
-    b"Matrix",
-    b"Type",
-    b"XObject",
-    b"Subtype",
-    b"Filter",
-    b"ColorSpace",
-    b"Width",
-    b"Height",
-    b"BitsPerComponent",
-    b"Length1",
-    b"Length2",
-    b"Length3",
-    b"PTEX.FileName",
-    b"PTEX.PageNumber",
-    b"PTEX.InfoDict",
-    b"FontDescriptor",
-    b"ExtGState",
-    b"MediaBox",
-    b"Annot",
+    // b"Length",
+    // b"BBox",
+    // b"FormType",
+    // b"Matrix",
+    // b"Type",
+    // b"XObject",
+    // b"Subtype",
+    // b"Filter",
+    // b"ColorSpace",
+    // b"Width",
+    // b"Height",
+    // b"BitsPerComponent",
+    // b"Length1",
+    // b"Length2",
+    // b"Length3",
+    // b"PTEX.FileName",
+    // b"PTEX.PageNumber",
+    // b"PTEX.InfoDict",
+    // b"FontDescriptor",
+    // b"ExtGState",
+    // b"MediaBox",
+    // b"Annot",
 ];
 
 static IGNORE_KEYS: &[&[u8]] = &[
-    b"Producer",
-    b"ModDate",
-    b"Creator",
-    b"ProcSet",
-    b"XObject",
-    b"MediaBox",
-    b"Annots",
+    // b"Producer",
+    // b"ModDate",
+    // b"Creator",
+    // b"ProcSet",
+    // b"XObject",
+    // b"MediaBox",
+    // b"Annots",
 ];
 
 /// Filter a PDF document to remove unwanted objects and keys
@@ -574,6 +654,7 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
+        dbg!(&table);
         assert_eq!(table.count_rows(), 4);
         assert_eq!(
             table.get_column_as_vec_str("document_id"),
