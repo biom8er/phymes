@@ -122,6 +122,7 @@ impl DataOperatorTrait for ExtractPDF {
 }
 
 /// Tm
+#[derive(Debug, Clone, PartialEq)]
 struct Tm {
     /// scale param 1
     a: f32,
@@ -138,8 +139,8 @@ struct Tm {
 }
 
 impl Tm {
-    pub fn new(a: f32, b: f32, c: f32, d: f32, x: f32, y: f32) -> Self {
-        Self { a, b, c, d, x, y }
+    pub fn new(a: &f32, b: &f32, c: &f32, d: &f32, x: &f32, y: &f32) -> Self {
+        Self { a: *a, b: *b, c: *c, d: *d, x: *x, y: *y }
     }
 }
 
@@ -149,44 +150,48 @@ impl Default for Tm {
     }
 }
 
-#[derive(Default, Debug)]
+/// Tm
+#[derive(Debug, Clone, PartialEq)]
+struct Td {
+    /// pos x
+    x: f32,
+    /// pos y
+    y: f32,
+}
+
+impl Td {
+    pub fn new(x: &f32, y: &f32) -> Self {
+        Self { x: *x, y: *y }
+    }
+}
+
+impl Default for Td {
+    fn default() -> Self {
+        Self { x: 0_f32, y: 0_f32 }
+    }
+}
+
+#[derive(Default, Debug, Clone, PartialEq)]
 struct PdfText {
+    /// Text matrix
     pub tm: Tm,
+    /// Text translation
+    pub td: Td,
     pub font_name: String,
     pub font_size: f32,
     pub page_num: u32,
     pub text: String,
 }
 
-/// Drop-in replacement for `extract_text` that retains additional metadata including
-/// page_number, pos_x, pos_y, font_name, font_size, ...
-pub fn extract_text(doc: &Document, page_numbers: &[u32]) -> Result<Vec<(u32, i64, i64, String, i64, String)>> {
-    let text_fragments = extract_text_chunks(doc, page_numbers)?;
-
-    // Combine text that have the same font and are sequential
-    let mut text = HashMap::<(usize, u32, i64, i64, String, i64), String>::new();
-    let mut current_key = None;
-    let mut iter: usize = 0; // Ensure uniqueness of each key `k` when pos_x/pos_y/size are uninformative
-    for (page, pos_x, pos_y, font, size, text_chunk) in text_fragments.into_iter() {
-        let key = Some((page, font.clone(), size));
-        let k = (iter, page, pos_x, pos_y, font, size);
-        if let Some(m) = text.get_mut(&k) && current_key == key {
-            m.push_str(text_chunk.as_str());
-        } else {
-            let _ = text.insert(k, text_chunk);
-            current_key = key;
-            iter += 1;
-        }
+impl PdfText {
+    pub fn text_mut(&mut self) -> &mut String {
+        &mut self.text
     }
-
-    // Remove the `iter`
-    let text = text.into_iter()
-        .map(|((_, page, pos_x, pos_y, font, size), v)| (page, pos_x, pos_y, font, size, v))
-        .collect::<Vec<_>>();
-    Ok(text)
 }
 
-pub fn extract_text_chunks(doc: &Document, page_numbers: &[u32]) -> Result<Vec<(u32, i64, i64, String, i64, String)>> {
+/// Drop-in replacement for `extract_text` that retains additional metadata including
+/// page_number, pos_x, pos_y, font_name, font_size, ...
+fn extract_text_chunks(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfText>> {
     let pages: BTreeMap<u32, (u32, u16)> = doc.get_pages();
     page_numbers
         .iter()
@@ -199,10 +204,9 @@ pub fn extract_text_chunks(doc: &Document, page_numbers: &[u32]) -> Result<Vec<(
                     } else {
                         None
                     })
-                    .filter_map(|(pos_x, pos_y, font, size, text_chunk)| if let (Some(pos_x), Some(pos_y), Some(font), Some(size)) = (pos_x, pos_y, font, size) {
-                        Some((page_number.to_owned(), pos_x, pos_y, font, size, text_chunk))
-                    } else {
-                        None
+                    .map(|mut pdf_text| {
+                        pdf_text.page_num = *page_number;
+                        pdf_text
                     })
                     .map(Ok)
                     .collect::<Vec<_>>(),
@@ -212,8 +216,8 @@ pub fn extract_text_chunks(doc: &Document, page_numbers: &[u32]) -> Result<Vec<(
         .collect()
 }
 
-fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16)>, page_number: u32) -> Result<Vec<Result<(Option<i64>, Option<i64>, Option<String>, Option<i64>, String)>>> {
-    let mut collected_chunks_and_errs = Vec::<Result<(Option<i64>, Option<i64>, Option<String>, Option<i64>, String)>>::new();
+fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16)>, page_number: u32) -> Result<Vec<Result<PdfText>>> {
+    let mut collected_chunks_and_errs = Vec::<Result<PdfText>>::new();
 
     let page_id = *pages.get(&page_number).ok_or(anyhow!("Page number {page_number} not found."))?;
     let fonts = doc.get_page_fonts(page_id)?;
@@ -233,8 +237,9 @@ fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16
 
     // each text with different encoding is extracted as separate chunk
     let mut current_encoding = None;
-    let mut current_text = String::new();
-    for operation in &content.operations {
+    let mut current_text = PdfText::default();
+    for operation in &content.operations {        
+        dbg!(&operation);
         match operation.operator.as_ref() {
             "BT" => {
                 dbg!(&operation);
@@ -244,78 +249,97 @@ fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16
             }
             "Tm" => {
                 dbg!(&operation);
+                let m = operation
+                    .operands
+                    .iter()
+                    .map(|f| f.as_f32().unwrap_or_default())
+                    .collect::<Vec<_>>();
+                let tm = Tm::new(m.get(0).unwrap_or(&1_f32),
+                    m.get(1).unwrap_or(&0_f32),
+                    m.get(2).unwrap_or(&0_f32),
+                    m.get(3).unwrap_or(&1_f32),
+                    m.get(4).unwrap_or(&0_f32),
+                    m.get(5).unwrap_or(&0_f32),
+                );
+                current_text.tm = tm;
             }
-            "T*" => {
-                dbg!(&operation);
-            }
-            "'" => {
-                dbg!(&operation);
-            }
+            // "T*" => {
+            //     dbg!(&operation);
+            // }
+            // "'" => {
+            //     dbg!(&operation);
+            // }
             "Td" => {
                 dbg!(&operation);
-                if current_pos_x.is_none() {
-                    let current_pos = operation
-                        .operands
-                        .iter()
-                        .map(|f| String::from_utf8(f.as_str().unwrap_or_default().to_vec()).unwrap())
-                        .collect::<Vec<_>>();
-                    current_pos_x = current_pos.first().copied();
-                    current_pos_y = current_pos.last().copied();
-                }
+                let d = operation
+                    .operands
+                    .iter()
+                    .map(|f| f.as_f32().unwrap_or_default())
+                    .collect::<Vec<_>>();
+                let td = Td::new(d.get(0).unwrap_or(&0_f32),
+                    d.get(1).unwrap_or(&0_f32),
+                );
+                current_text.td = td;
             }
-            "Tf" => {                
+            "Tf" => {
                 dbg!(&operation);
                 let current_font = operation
                     .operands
                     .first()
                     .ok_or_else(|| anyhow!("missing font operand".to_string()))?
                     .as_name();
-                let current_size = operation
+                let font_size = operation
                     .operands
                     .last()
                     .ok_or_else(|| anyhow!("missing font size operand".to_string()))?
-                    .as_i64();
-                (current_encoding, current_font_name) = match current_font {
-                    std::result::Result::Ok(font) => (encodings.get(font), Some(String::from_utf8(font.to_vec()).unwrap())),
+                    .as_f32()?;
+                let (current_enc, font_name) = match current_font {
+                    std::result::Result::Ok(font) => (encodings.get(font), String::from_utf8(font.to_vec()).unwrap()),
                     Err(err) => {
                         let err = anyhow!("{err:?}");
                         collected_chunks_and_errs.push(Err(err));
-                        (None, None)
+                        (None, String::new())
                     },
                 };
-                current_font_size = match current_size {
-                    std::result::Result::Ok(size) => Some(size),
-                    Err(_err) => Some(0),
-                };
+                current_encoding = current_enc;
+                current_text.font_name = font_name;
+                current_text.font_size = font_size;
 
-                if !current_text.is_empty() {
-                    dbg!(&current_encoding);
-                    collected_chunks_and_errs.push(Ok((current_pos_x.clone(), current_pos_y.clone(), current_font_name.clone(), current_font_size, current_text)));
-                    current_text = String::new();
+                if !current_text.text.is_empty() {
+                    collected_chunks_and_errs.push(Ok(current_text.clone()));
+                    current_text.text_mut().clear();
                 }
             }
             "Tj" | "TJ" => match current_encoding {
                 Some(encoding) => {
-                    let res = collect_text(&mut current_text, encoding, &operation.operands);
+                    let res = collect_text(current_text.text_mut(), encoding, &operation.operands);
                     if let Err(err) = res {
                         let err = anyhow!("{err:?}");
+                        dbg!(&err);
                         collected_chunks_and_errs.push(Err(err));
+                    } else {
+                        dbg!(&current_text);
                     }
                 }
-                None => {},
+                None => {
+                    dbg!(&current_encoding);
+                },
             },
             "ET" => {
-                if !current_text.ends_with('\n') {
-                    current_text.push('\n')
+                dbg!(&operation);
+                if !current_text.text.ends_with('\n') {
+                    current_text.text_mut().push('\n')
                 }
-                current_pos_x = None;
-                current_pos_y = None;
+                if !current_text.text.is_empty() {
+                    collected_chunks_and_errs.push(Ok(current_text));
+                }
+                current_text = PdfText::default();
             }
             _ => {}
         }
     }
-    if !current_text.is_empty() {
-        collected_chunks_and_errs.push(Ok((current_pos_x.clone(), current_pos_y.clone(), current_font_name, current_font_size, current_text)));
+    if !current_text.text.is_empty() {
+        collected_chunks_and_errs.push(Ok(current_text));
     }
 
     Ok(collected_chunks_and_errs)
@@ -342,8 +366,6 @@ fn collect_text(text: &mut String, encoding: &Encoding, operands: &[Object]) -> 
     Ok(())
 }
 
-type ParsedPage = (String, u32, i64, i64, String, i64, String);
-
 /// Extract text from a PDF document(s) and return it as an ArrowTable
 ///
 /// # Arguments
@@ -369,18 +391,16 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
         .map(|(id, doc)| {
             doc.get_pages()
                 .into_par_iter()
-                .map( // DM: Change to phymes_schemas::embed::pdfs.rs
-                    // Extract each each page AND content stream
-                    // Todo: modified version of `extract_text_chunks_from_page` that retains the information on the fonts...
-                    |(page_num, page_id): (u32, (u32, u16))| -> Result<Vec<ParsedPage>, Error> {
+                .map(
+                    |(page_num, page_id): (u32, (u32, u16))| -> Result<Vec<(String, PdfText)>, Error> {
                         // Extract text from the page
-                        let text = extract_text(doc, &[page_num]).map_err(|e| {
+                        let text = extract_text_chunks(doc, &[page_num]).map_err(|e| {
                             Error::other(format!(
                                 "Failed to extract text from page {page_num} id={page_id:?}: {e:}"
                             ))
                         })?
                         .into_iter()
-                        .map(|(page, pos_x, pos_y, font, size, v)| (id.to_string(), page, pos_x, pos_y, font, size, v))
+                        .map(|pdf_text| (id.to_string(), pdf_text))
                         .collect::<Vec<_>>();
                         std::result::Result::Ok(text)
                     },
@@ -395,23 +415,35 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
     let mut document_id_vec = Vec::new();
     let mut chunk_id_vec = Vec::new(); // the page number
     let mut page_num_vec = Vec::new();
-    let mut pos_x_vec = Vec::new();
-    let mut pos_y_vec = Vec::new();
-    let mut font_vec = Vec::new();
-    let mut size_vec = Vec::new();
+    let mut tm_a_vec = Vec::new();
+    let mut tm_b_vec = Vec::new();
+    let mut tm_c_vec = Vec::new();
+    let mut tm_d_vec = Vec::new();
+    let mut tm_x_vec = Vec::new();
+    let mut tm_y_vec = Vec::new();
+    let mut td_x_vec = Vec::new();
+    let mut td_y_vec = Vec::new();
+    let mut font_name_vec = Vec::new();
+    let mut font_size_vec = Vec::new();
     let mut text_vec = Vec::new();
     for page in pages {
         match page {
             std::result::Result::Ok(chunks) => {
-                for (id, page_num, pos_x, pos_y, font, size, text) in chunks {
-                    chunk_id_vec.push(format!("{id}_{page_num}_{pos_x}_{pos_y}_{font}_{size}"));
+                for (id, mut pdf_text) in chunks {
+                    page_num_vec.push(pdf_text.page_num);
+                    tm_a_vec.push(pdf_text.tm.a);
+                    tm_b_vec.push(pdf_text.tm.b);
+                    tm_c_vec.push(pdf_text.tm.c);
+                    tm_d_vec.push(pdf_text.tm.d);
+                    tm_x_vec.push(pdf_text.tm.x);
+                    tm_y_vec.push(pdf_text.tm.y);
+                    td_x_vec.push(pdf_text.td.x);
+                    td_y_vec.push(pdf_text.td.y);
+                    font_name_vec.push(pdf_text.font_name.to_owned());
+                    font_size_vec.push(pdf_text.font_size);
+                    text_vec.push(pdf_text.text.drain(..).as_str().to_string());
+                    chunk_id_vec.push(format!("{id}_{pdf_text:?}"));
                     document_id_vec.push(id);
-                    page_num_vec.push(page_num);
-                    pos_x_vec.push(pos_x);
-                    pos_y_vec.push(pos_y);
-                    font_vec.push(font);
-                    size_vec.push(size);
-                    text_vec.push(text);
                 }
             }
             Err(e) => {
@@ -422,19 +454,31 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
     let document_id_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(document_id_vec));
     let chunk_id_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(chunk_id_vec));
     let page_num_arr: ArrayRef = Arc::new(arrow::array::UInt32Array::from(page_num_vec));
-    let pos_x_arr: ArrayRef = Arc::new(arrow::array::Int64Array::from(pos_x_vec));
-    let pos_y_arr: ArrayRef = Arc::new(arrow::array::Int64Array::from(pos_y_vec));
-    let font_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(font_vec));
-    let size_arr: ArrayRef = Arc::new(arrow::array::Int64Array::from(size_vec));
+    let tm_a_arr: ArrayRef = Arc::new(arrow::array::Float32Array::from(tm_a_vec));
+    let tm_b_arr: ArrayRef = Arc::new(arrow::array::Float32Array::from(tm_b_vec));
+    let tm_c_arr: ArrayRef = Arc::new(arrow::array::Float32Array::from(tm_c_vec));
+    let tm_d_arr: ArrayRef = Arc::new(arrow::array::Float32Array::from(tm_d_vec));
+    let tm_x_arr: ArrayRef = Arc::new(arrow::array::Float32Array::from(tm_x_vec));
+    let tm_y_arr: ArrayRef = Arc::new(arrow::array::Float32Array::from(tm_y_vec));
+    let td_x_arr: ArrayRef = Arc::new(arrow::array::Float32Array::from(td_x_vec));
+    let td_y_arr: ArrayRef = Arc::new(arrow::array::Float32Array::from(td_y_vec));
+    let font_name_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(font_name_vec));
+    let font_size_arr: ArrayRef = Arc::new(arrow::array::Float32Array::from(font_size_vec));
     let text_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(text_vec));
     let batch = RecordBatch::try_from_iter(vec![
         ("chunk_id", chunk_id_arr),
         ("document_id", document_id_arr),
         // ("page_num", page_num_arr),
-        // ("pos_x", pos_x_arr),
-        // ("pos_y", pos_y_arr),
-        // ("font", font_arr),
-        // ("size", size_arr),
+        // ("tm_a", tm_a_arr),
+        // ("tm_b", tm_b_arr),
+        // ("tm_c", tm_c_arr),
+        // ("tm_d", tm_d_arr),
+        // ("tm_x", tm_x_arr),
+        // ("tm_y", tm_y_arr),
+        // ("td_x", td_x_arr),
+        // ("td_y", td_y_arr),
+        // ("font_name", font_name_arr),
+        // ("font_size", font_size_arr),
         ("text", text_arr),
     ])?;
     // dbg!(&batch);
@@ -444,7 +488,7 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
 static IGNORE_TYPE_NAMES: &[&[u8]] = &[
     // b"Length",
     // b"BBox",
-    // b"FormType",
+    b"FormType",
     // b"Matrix",
     // b"Type",
     // b"XObject",
@@ -467,7 +511,7 @@ static IGNORE_TYPE_NAMES: &[&[u8]] = &[
 ];
 
 static IGNORE_KEYS: &[&[u8]] = &[
-    // b"Producer",
+    b"Producer",
     // b"ModDate",
     // b"Creator",
     // b"ProcSet",
