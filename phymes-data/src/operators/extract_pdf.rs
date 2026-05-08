@@ -1,12 +1,10 @@
-use std::{collections::HashMap, io::Error, iter::zip, sync::Arc};
+use std::{collections::{BTreeMap, HashMap}, io::Error, iter::zip, sync::Arc};
 
-use anyhow::{Result, anyhow};
+use anyhow::{Ok, Result, anyhow};
 use arrow::array::{ArrayRef, ListArray, RecordBatch, StringArray, UInt8Array};
 use candle_core::Device;
 use lopdf::{
-    Document, Object, Stream,
-    content::{Content, Operation},
-    dictionary,
+    Dictionary, Document, Encoding, Object, Stream, content::{Content, Operation}, dictionary
 };
 
 use phymes_schemas::{
@@ -123,6 +121,166 @@ impl DataOperatorTrait for ExtractPDF {
     }
 }
 
+/// Drop-in replacement for `extract_text` that retains additional metadata including
+/// page_number, pos_x, pos_y, font_name, font_size, ...
+pub fn extract_text(doc: &Document, page_numbers: &[u32]) -> Result<HashMap<(u32, i64, i64, String, i64), String>> {
+    let text_fragments = extract_text_chunks(doc, page_numbers)?;
+    let mut text = HashMap::<(u32, i64, i64, String, i64), String>::new();
+    let mut current_key = None;
+    for (page, pos_x, pos_y, font, size, text_chunk) in text_fragments.into_iter() {
+        let key = Some((page, font.clone(), size));
+        let k = (page, pos_x, pos_y, font, size);
+        if let Some(m) = text.get_mut(&k) && current_key == key {
+            m.push_str(text_chunk.as_str());
+        } else {
+            let _ = text.insert(k, text_chunk);
+            current_key = key;
+        }
+    }
+
+    Ok(text)
+}
+
+pub fn extract_text_chunks(doc: &Document, page_numbers: &[u32]) -> Result<Vec<(u32, i64, i64, String, i64, String)>> {
+    let pages: BTreeMap<u32, (u32, u16)> = doc.get_pages();
+    page_numbers
+        .iter()
+        .flat_map(|page_number| {
+            let result = extract_text_chunks_from_page(doc, &pages, *page_number);
+            match result {
+                std::result::Result::Ok(text_chunks) => text_chunks.into_iter()
+                    .filter_map(|x| if let std::result::Result::Ok(x) = x {
+                        Some(x)
+                    } else {
+                        None
+                    })
+                    .filter_map(|(pos_x, pos_y, font, size, text_chunk)| if let (Some(pos_x), Some(pos_y), Some(font), Some(size)) = (pos_x, pos_y, font, size) {
+                        Some((page_number.to_owned(), pos_x, pos_y, font, size, text_chunk))
+                    } else {
+                        None
+                    })
+                    .map(Ok)
+                    .collect::<Vec<_>>(),
+                Err(err) => vec![Err(err)],
+            }
+        })
+        .collect()
+}
+
+fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16)>, page_number: u32) -> Result<Vec<Result<(Option<i64>, Option<i64>, Option<String>, Option<i64>, String)>>> {
+    let mut collected_chunks_and_errs = Vec::<Result<(Option<i64>, Option<i64>, Option<String>, Option<i64>, String)>>::new();
+
+    let page_id = *pages.get(&page_number).ok_or(anyhow!("Page number {page_number} not found."))?;
+    let fonts = doc.get_page_fonts(page_id)?;
+    let encodings: BTreeMap<Vec<u8>, Encoding> = fonts
+        .into_iter()
+        .filter_map(|(name, font)| match font.get_font_encoding(doc) {
+            std::result::Result::Ok(it) => Some((name, it)),
+            Err(err) => {
+                let err = anyhow!("{err:?}");
+                collected_chunks_and_errs.push(Err(err));
+                None
+            },
+        })
+        .collect();
+    let content_data = doc.get_page_content(page_id)?;
+    let content = Content::decode(&content_data)?;
+
+    // each text with different encoding is extracted as separate chunk
+    let mut current_encoding = None;
+    let mut current_font_name = None;
+    let mut current_font_size = None;
+    let mut current_pos_x = None;
+    let mut current_pos_y = None;
+    let mut current_text = String::new();
+    for operation in &content.operations {
+        match operation.operator.as_ref() {
+            "Td" => {
+                if current_pos_x.is_none() {
+                    let current_pos = operation
+                        .operands
+                        .iter()
+                        .map(|f| f.as_i64().unwrap_or_default())
+                        .collect::<Vec<_>>();
+                    current_pos_x = current_pos.first().copied();
+                    current_pos_y = current_pos.last().copied();
+                }
+            }
+            "Tf" => {
+                let current_font = operation
+                    .operands
+                    .first()
+                    .ok_or_else(|| anyhow!("missing font operand".to_string()))?
+                    .as_name();
+                let current_size = operation
+                    .operands
+                    .last()
+                    .ok_or_else(|| anyhow!("missing font size operand".to_string()))?
+                    .as_i64();
+                (current_encoding, current_font_name) = match current_font {
+                    std::result::Result::Ok(font) => (encodings.get(font), Some(String::from_utf8(font.to_vec()).unwrap())),
+                    Err(err) => {
+                        let err = anyhow!("{err:?}");
+                        collected_chunks_and_errs.push(Err(err));
+                        (None, None)
+                    },
+                };
+                current_font_size = match current_size {
+                    std::result::Result::Ok(size) => Some(size),
+                    Err(_err) => None,
+                };
+
+                if !current_text.is_empty() {
+                    collected_chunks_and_errs.push(Ok((current_pos_x.clone(), current_pos_y.clone(), current_font_name.clone(), current_font_size, current_text)));
+                    current_text = String::new();
+                }
+            }
+            "Tj" | "TJ" => match current_encoding {
+                Some(encoding) => {
+                    let res = collect_text(&mut current_text, encoding, &operation.operands);
+                    if let Err(err) = res {
+                        let err = anyhow!("{err:?}");
+                        collected_chunks_and_errs.push(Err(err));
+                    }
+                }
+                None => {},
+            },
+            "ET" => {
+                if !current_text.ends_with('\n') {
+                    current_text.push('\n')
+                }
+            }
+            _ => {}
+        }
+    }
+    if !current_text.is_empty() {
+        collected_chunks_and_errs.push(Ok((current_pos_x.clone(), current_pos_y.clone(), current_font_name, current_font_size, current_text)));
+    }
+
+    Ok(collected_chunks_and_errs)
+}
+
+fn collect_text(text: &mut String, encoding: &Encoding, operands: &[Object]) -> Result<()> {
+    for operand in operands.iter() {
+        match operand {
+            Object::String(bytes, _) => {
+                text.push_str(&Document::decode_text(encoding, bytes)?);
+            }
+            Object::Array(arr) => {
+                collect_text(text, encoding, arr)?;
+                text.push(' ');
+            }
+            Object::Integer(i) => {
+                if *i < -100 {
+                    text.push(' ');
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
 type ParsedPage = (String, u32, Vec<String>);
 
 /// Extract text from a PDF document(s) and return it as an ArrowTable
@@ -160,7 +318,7 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
                                 "Failed to extract text from page {page_num} id={page_id:?}: {e:}"
                             ))
                         })?;
-                        Ok((
+                        std::result::Result::Ok((
                             id.to_string(),
                             page_num,
                             text.split(|c| ['\n', '\r'].contains(&c))
@@ -169,7 +327,7 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
                         ))
                     },
                 )
-                .collect::<Vec<Result<ParsedPage, Error>>>()
+                .collect::<Vec<_>>()
         })
         .flatten()
         .collect();
@@ -181,7 +339,7 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
     let mut text_vec = Vec::new();
     for page in pages {
         match page {
-            Ok((id, page_num, lines)) => {
+            std::result::Result::Ok((id, page_num, lines)) => {
                 chunk_id_vec.push(format!("{id}_{page_num}"));
                 document_id_vec.push(id);
                 // Join the lines of text into a single string for each page
@@ -258,7 +416,7 @@ pub fn filter_pdf(mut doc: Document) -> Document {
             .map(|object| {
                 // Remove unwanted keys manually
                 let keys_to_remove: Vec<Vec<u8>> = match object.as_dict() {
-                    Ok(dict) => dict
+                    std::result::Result::Ok(dict) => dict
                         .iter()
                         .filter_map(|(k, _)| {
                             if IGNORE_KEYS.contains(&k.as_slice()) {
@@ -271,7 +429,7 @@ pub fn filter_pdf(mut doc: Document) -> Document {
                     Err(_) => Vec::new(),
                 };
                 for key in keys_to_remove {
-                    if let Ok(dict_mut) = object.as_dict_mut() {
+                    if let std::result::Result::Ok(dict_mut) = object.as_dict_mut() {
                         dict_mut.remove(&key);
                     }
                 }
@@ -289,7 +447,7 @@ pub fn filter_pdf(mut doc: Document) -> Document {
 /// * `Result<Document>` - The loaded PDF document
 pub fn load_pdf_document(doc: &[u8]) -> Result<Document> {
     match Document::load_mem(doc) {
-        Ok(document) => Ok(document),
+        std::result::Result::Ok(document) => Ok(document),
         Err(e) => Err(anyhow!(format!(
             "Failed to load PDF document in memory: {e}"
         ))),
@@ -320,7 +478,7 @@ pub fn prepare_pdf_documents(
                 .downcast_ref::<ListArray>()
                 .unwrap()
                 .iter()
-                .map(|s| {
+                .filter_map(|s| {
                     let bytes = s
                         .unwrap()
                         .as_any()
@@ -329,7 +487,10 @@ pub fn prepare_pdf_documents(
                         .iter()
                         .map(|v| v.unwrap())
                         .collect::<Vec<u8>>();
-                    filter_pdf(load_pdf_document(&bytes).unwrap())
+                    match load_pdf_document(&bytes) {
+                        std::result::Result::Ok(doc) => Some(filter_pdf(doc)),
+                        Err(_err) => None
+                    }
                 })
                 .collect::<Vec<_>>();
             zip(document_id, pdf_data)

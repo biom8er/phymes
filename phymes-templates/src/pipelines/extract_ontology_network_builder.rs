@@ -36,7 +36,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	%% OWL ontology extraction
 	%% ------------------------------------------------------------------------------
 	subgraph extract_owl_t
-	    UserScript-subject-.->|AllRecordBatches|extract_owl_p-subscribe
+	    UserScript-subject-.->|OnUpdateDrainRecordBatches|extract_owl_p-subscribe
 	    extract_owl_p-subscribe-->extract_owl_p-processor
 	    extract_owl_p-processor-->extract_owl_p-publish
 	    extract_owl_p-publish-->|Extend|ParseOwl-subject
@@ -54,7 +54,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	%% Filter on Owl:Ontology entities
 	%% ------------------------------------------------------------------------------
 	subgraph filter_ontology_entity_t
-	    ParseOwl-subject-.->|LastRecordBatch|comparator_ontology_entity_p-subscribe
+	    ParseOwl-subject-.->|AllRecordBatches|comparator_ontology_entity_p-subscribe
 	    comparator_ontology_entity_p-subscribe-->comparator_ontology_entity_p-processor
 	    comparator_ontology_entity_p-processor-->comparator_ontology_entity_p-publish
 	    comparator_ontology_entity_p-publish-->|Replace|comparator_ontology_entity_s-subject
@@ -65,7 +65,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    filter_ontology_entity_s-subject-->|AllRecordBatches|select_ontology_entity_p-subscribe
 	    select_ontology_entity_p-subscribe-->select_ontology_entity_p-processor
 	    select_ontology_entity_p-processor-->select_ontology_entity_p-publish
-	    select_ontology_entity_p-publish-->|Extend|select_ontology_entity_s-subject
+	    select_ontology_entity_p-publish-->|Replace|select_ontology_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_ontology_entity_t
 	extract_owl_r-rt@{{shape: subproc, label: extract_owl_r}}
@@ -86,7 +86,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	%% Filter on Owl:AnnotationProperty entities
 	%% ------------------------------------------------------------------------------
 	subgraph filter_annotation_property_entity_t
-	    ParseOwl-subject-.->|LastRecordBatch|comparator_annotation_property_entity_p-subscribe
+	    ParseOwl-subject-.->|AllRecordBatches|comparator_annotation_property_entity_p-subscribe
 	    comparator_annotation_property_entity_p-subscribe-->comparator_annotation_property_entity_p-processor
 	    comparator_annotation_property_entity_p-processor-->comparator_annotation_property_entity_p-publish
 	    comparator_annotation_property_entity_p-publish-->|Replace|comparator_annotation_property_entity_s-subject
@@ -97,7 +97,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    filter_annotation_property_entity_s-subject-->|AllRecordBatches|select_annotation_property_entity_p-subscribe
 	    select_annotation_property_entity_p-subscribe-->select_annotation_property_entity_p-processor
 	    select_annotation_property_entity_p-processor-->select_annotation_property_entity_p-publish
-	    select_annotation_property_entity_p-publish-->|Extend|select_annotation_property_entity_s-subject
+	    select_annotation_property_entity_p-publish-->|Replace|select_annotation_property_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_annotation_property_entity_t
 	comparator_annotation_property_entity_p-processor@{{shape: rect, label: Select}}
@@ -116,7 +116,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	%% Filter on Owl:DatatypeProperty entities
 	%% ------------------------------------------------------------------------------
 	subgraph filter_datatype_property_entity_t
-	    ParseOwl-subject-.->|LastRecordBatch|comparator_datatype_property_entity_p-subscribe
+	    ParseOwl-subject-.->|AllRecordBatches|comparator_datatype_property_entity_p-subscribe
 	    comparator_datatype_property_entity_p-subscribe-->comparator_datatype_property_entity_p-processor
 	    comparator_datatype_property_entity_p-processor-->comparator_datatype_property_entity_p-publish
 	    comparator_datatype_property_entity_p-publish-->|Replace|comparator_datatype_property_entity_s-subject
@@ -127,7 +127,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    filter_datatype_property_entity_s-subject-->|AllRecordBatches|select_datatype_property_entity_p-subscribe
 	    select_datatype_property_entity_p-subscribe-->select_datatype_property_entity_p-processor
 	    select_datatype_property_entity_p-processor-->select_datatype_property_entity_p-publish
-	    select_datatype_property_entity_p-publish-->|Extend|select_datatype_property_entity_s-subject
+	    select_datatype_property_entity_p-publish-->|Replace|select_datatype_property_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_datatype_property_entity_t
 	comparator_datatype_property_entity_p-processor@{{shape: rect, label: Select}}
@@ -146,7 +146,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	%% Filter on Owl:Class entities
 	%% ------------------------------------------------------------------------------
 	subgraph filter_class_entity_t
-	    ParseOwl-subject-.->|LastRecordBatch|comparator_class_entity_p-subscribe
+	    ParseOwl-subject-.->|AllRecordBatches|comparator_class_entity_p-subscribe
 	    comparator_class_entity_p-subscribe-->comparator_class_entity_p-processor
 	    comparator_class_entity_p-processor-->comparator_class_entity_p-publish
 	    comparator_class_entity_p-publish-->|Replace|comparator_class_entity_s-subject
@@ -157,7 +157,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    filter_class_entity_s-subject-->|AllRecordBatches|select_class_entity_p-subscribe
 	    select_class_entity_p-subscribe-->select_class_entity_p-processor
 	    select_class_entity_p-processor-->select_class_entity_p-publish
-	    select_class_entity_p-publish-->|Extend|select_class_entity_s-subject
+	    select_class_entity_p-publish-->|Replace|select_class_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_class_entity_t
 	comparator_class_entity_p-processor@{{shape: rect, label: Select}}
@@ -176,7 +176,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	%% Filter on Owl:ObjectProperty entities
 	%% ------------------------------------------------------------------------------
 	subgraph filter_object_property_entity_t
-	    ParseOwl-subject-.->|LastRecordBatch|comparator_object_property_entity_p-subscribe
+	    ParseOwl-subject-.->|AllRecordBatches|comparator_object_property_entity_p-subscribe
 	    comparator_object_property_entity_p-subscribe-->comparator_object_property_entity_p-processor
 	    comparator_object_property_entity_p-processor-->comparator_object_property_entity_p-publish
 	    comparator_object_property_entity_p-publish-->|Replace|comparator_object_property_entity_s-subject
@@ -187,7 +187,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    filter_object_property_entity_s-subject-->|AllRecordBatches|select_object_property_entity_p-subscribe
 	    select_object_property_entity_p-subscribe-->select_object_property_entity_p-processor
 	    select_object_property_entity_p-processor-->select_object_property_entity_p-publish
-	    select_object_property_entity_p-publish-->|Extend|select_object_property_entity_s-subject
+	    select_object_property_entity_p-publish-->|Replace|select_object_property_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_object_property_entity_t
 	comparator_object_property_entity_p-processor@{{shape: rect, label: Select}}
@@ -206,7 +206,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	%% Filter on Owl:NamedIndividual entities
 	%% ------------------------------------------------------------------------------
 	subgraph filter_named_individual_entity_t
-	    ParseOwl-subject-.->|LastRecordBatch|comparator_named_individual_entity_p-subscribe
+	    ParseOwl-subject-.->|AllRecordBatches|comparator_named_individual_entity_p-subscribe
 	    comparator_named_individual_entity_p-subscribe-->comparator_named_individual_entity_p-processor
 	    comparator_named_individual_entity_p-processor-->comparator_named_individual_entity_p-publish
 	    comparator_named_individual_entity_p-publish-->|Replace|comparator_named_individual_entity_s-subject
@@ -217,7 +217,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    filter_named_individual_entity_s-subject-->|AllRecordBatches|select_named_individual_entity_p-subscribe
 	    select_named_individual_entity_p-subscribe-->select_named_individual_entity_p-processor
 	    select_named_individual_entity_p-processor-->select_named_individual_entity_p-publish
-	    select_named_individual_entity_p-publish-->|Extend|select_named_individual_entity_s-subject
+	    select_named_individual_entity_p-publish-->|Replace|select_named_individual_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_named_individual_entity_t
 	comparator_named_individual_entity_p-processor@{{shape: rect, label: Select}}
@@ -236,7 +236,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	%% Filter on Owl:Axiom entities
 	%% ------------------------------------------------------------------------------
 	subgraph filter_axiom_entity_t
-	    ParseOwl-subject-.->|LastRecordBatch|comparator_axiom_entity_p-subscribe
+	    ParseOwl-subject-.->|AllRecordBatches|comparator_axiom_entity_p-subscribe
 	    comparator_axiom_entity_p-subscribe-->comparator_axiom_entity_p-processor
 	    comparator_axiom_entity_p-processor-->comparator_axiom_entity_p-publish
 	    comparator_axiom_entity_p-publish-->|Replace|comparator_axiom_entity_s-subject
@@ -247,7 +247,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    filter_axiom_entity_s-subject-->|AllRecordBatches|select_axiom_entity_p-subscribe
 	    select_axiom_entity_p-subscribe-->select_axiom_entity_p-processor
 	    select_axiom_entity_p-processor-->select_axiom_entity_p-publish
-	    select_axiom_entity_p-publish-->|Extend|select_axiom_entity_s-subject
+	    select_axiom_entity_p-publish-->|Replace|select_axiom_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_axiom_entity_t
 	comparator_axiom_entity_p-processor@{{shape: rect, label: Select}}
@@ -266,7 +266,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	%% Pivot Owl:AnnotationProperty on rdfs:label (or skos:prefLabel)
 	%% ------------------------------------------------------------------------------
 	subgraph pivot_annotation_property_t
-	    select_annotation_property_entity_s-subject-.->|LastRecordBatch|coalesce_annotation_property_entity_p-subscribe
+	    select_annotation_property_entity_s-subject-.->|AllRecordBatches|coalesce_annotation_property_entity_p-subscribe
 	    coalesce_annotation_property_entity_p-subscribe-->coalesce_annotation_property_entity_p-processor
 	    coalesce_annotation_property_entity_p-processor-->coalesce_annotation_property_entity_p-publish
 	    coalesce_annotation_property_entity_p-publish-->|Replace|coalesce_annotation_property_entity_s-subject
@@ -342,7 +342,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	%% Pivot Owl:Class on rdfs:label (or skos:prefLabel)
 	%% ------------------------------------------------------------------------------
 	subgraph pivot_class_entity_t
-	    select_class_entity_s-subject-.->|LastRecordBatch|coalesce_class_entity_p-subscribe
+	    select_class_entity_s-subject-.->|AllRecordBatches|coalesce_class_entity_p-subscribe
 	    coalesce_class_entity_p-subscribe-->coalesce_class_entity_p-processor
 	    coalesce_class_entity_p-processor-->coalesce_class_entity_p-publish
 	    coalesce_class_entity_p-publish-->|Replace|coalesce_class_entity_s-subject
@@ -418,7 +418,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	%% Pivot Owl:ObjectProperty on rdfs:label (or skos:prefLabel)
 	%% ------------------------------------------------------------------------------
 	subgraph pivot_object_property_t
-	    select_object_property_entity_s-subject-.->|LastRecordBatch|coalesce_object_property_entity_p-subscribe
+	    select_object_property_entity_s-subject-.->|AllRecordBatches|coalesce_object_property_entity_p-subscribe
 	    coalesce_object_property_entity_p-subscribe-->coalesce_object_property_entity_p-processor
 	    coalesce_object_property_entity_p-processor-->coalesce_object_property_entity_p-publish
 	    coalesce_object_property_entity_p-publish-->|Replace|coalesce_object_property_entity_s-subject
@@ -493,7 +493,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	%% Pivot Owl:NamedIndividual on rdfs:label (or skos:prefLabel)
 	%% ------------------------------------------------------------------------------
 	subgraph pivot_named_individual_t
-	    select_named_individual_entity_s-subject-.->|LastRecordBatch|coalesce_named_individual_entity_p-subscribe
+	    select_named_individual_entity_s-subject-.->|AllRecordBatches|coalesce_named_individual_entity_p-subscribe
 	    coalesce_named_individual_entity_p-subscribe-->coalesce_named_individual_entity_p-processor
 	    coalesce_named_individual_entity_p-processor-->coalesce_named_individual_entity_p-publish
 	    coalesce_named_individual_entity_p-publish-->|Replace|coalesce_named_individual_entity_s-subject

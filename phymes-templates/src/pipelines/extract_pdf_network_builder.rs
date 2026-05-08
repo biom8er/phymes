@@ -24,7 +24,7 @@ impl<'a> ExtractPDFNetworkBuilder<'a> {
 	%% PDF document extraction
 	%% ------------------------------------------------------------------------------
 	subgraph extract_pdf_t
-		UserPdf-subject-.->|LastRecordBatch|extract_pdf_p-subscribe
+		UserPdf-subject-.->|OnUpdateDrainRecordBatches|extract_pdf_p-subscribe
 		extract_pdf_p-subscribe-->extract_pdf_p-processor
 		extract_pdf_p-processor-->extract_pdf_p-publish
 		extract_pdf_p-publish-->|Extend|extract_pdf_s-subject
@@ -111,7 +111,7 @@ mod tests {
 
     use super::*;
 
-    #[tokio::test(flavor = "current_thread")]
+    #[tokio::test]
     async fn test_extract_pdf_network() -> Result<()> {
         // Initialize the session
         let extract_pdf_session = ExtractPDFNetworkBuilder::default();
