@@ -1,4 +1,3 @@
-use core::num;
 use std::{collections::{BTreeMap, HashMap}, io::Error, iter::zip, sync::Arc};
 
 use anyhow::{Ok, Result, anyhow};
@@ -246,7 +245,7 @@ fn extract_text(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfText>> {
             let n_sym = pdf_text.text.chars().filter(|c| !c.is_alphanumeric()).count();
             let sym_frac = n_sym as f32 / n_chars as f32;
             dbg!(sym_frac);
-            let sym_check =  sym_frac < 0.1_f32;
+            let sym_check =  sym_frac < 0.25_f32;
             let n_lower = pdf_text.text.chars().filter(|c| c.is_lowercase()).count();
             let lower_frac = n_lower as f32 / n_chars as f32;
             dbg!(lower_frac);
@@ -317,11 +316,10 @@ fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16
             "BT" => {
                 current_text.bt = index;
             }
-            "TD" => {
-                dbg!(&operation);
-            }
+            // "TD" => {
+            //     dbg!(&operation);
+            // }
             "Tm" => {
-                dbg!(&operation);
                 let m = operation
                     .operands
                     .iter()
@@ -343,7 +341,6 @@ fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16
             //     dbg!(&operation);
             // }
             "Td" => {
-                dbg!(&operation);
                 let d = operation
                     .operands
                     .iter()
@@ -389,10 +386,7 @@ fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16
                     let res = collect_text(current_text.text_mut(), encoding, &operation.operands);
                     if let Err(err) = res {
                         let err = anyhow!("{err:?}");
-                        dbg!(&err);
                         collected_chunks_and_errs.push(Err(err));
-                    } else {
-                        dbg!(&current_text);
                     }
                 }
                 None => {},
@@ -510,6 +504,8 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
     let mut document_id_vec = Vec::new();
     let mut chunk_id_vec = Vec::new(); // the page number
     let mut page_num_vec = Vec::new();
+    let mut op_vec = Vec::new();
+    let mut bt_vec = Vec::new();
     let mut tm_a_vec = Vec::new();
     let mut tm_b_vec = Vec::new();
     let mut tm_c_vec = Vec::new();
@@ -528,6 +524,8 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
             std::result::Result::Ok(chunks) => {
                 for (id, mut pdf_text) in chunks {
                     page_num_vec.push(pdf_text.page_num);
+                    op_vec.push(pdf_text.op);
+                    bt_vec.push(pdf_text.bt);
                     tm_a_vec.push(pdf_text.tm.a);
                     tm_b_vec.push(pdf_text.tm.b);
                     tm_c_vec.push(pdf_text.tm.c);
@@ -553,6 +551,8 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
     let document_id_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(document_id_vec));
     let chunk_id_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(chunk_id_vec));
     let page_num_arr: ArrayRef = Arc::new(arrow::array::UInt32Array::from(page_num_vec));
+    let op_arr: ArrayRef = Arc::new(arrow::array::UInt32Array::from(op_vec));
+    let bt_arr: ArrayRef = Arc::new(arrow::array::UInt32Array::from(bt_vec));
     let tm_a_arr: ArrayRef = Arc::new(arrow::array::Float32Array::from(tm_a_vec));
     let tm_b_arr: ArrayRef = Arc::new(arrow::array::Float32Array::from(tm_b_vec));
     let tm_c_arr: ArrayRef = Arc::new(arrow::array::Float32Array::from(tm_c_vec));
@@ -570,6 +570,8 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
         ("chunk_id", chunk_id_arr),
         ("document_id", document_id_arr),
         // ("page_num", page_num_arr),
+        // ("op", op_arr),
+        // ("bt", bt_arr),
         // ("tm_a", tm_a_arr),
         // ("tm_b", tm_b_arr),
         // ("tm_c", tm_c_arr),
@@ -787,8 +789,8 @@ mod tests {
     #[test]
     fn test_extract_pdf_text() {
         // Create several PDF document in memory
-        let doc_1 = filter_pdf(make_pdf_document(&["1\n2\n3", "4\n5\n6"]));
-        let doc_2 = filter_pdf(make_pdf_document(&["1\n2\n3", "4\n5\n6"]));
+        let doc_1 = filter_pdf(make_pdf_document(&["abc", "a\nb\nc", "4\n5\n6"]));
+        let doc_2 = filter_pdf(make_pdf_document(&["abc", "a\nb\nc", "4\n5\n6"]));
         let docs = [("doc_1".to_string(), doc_1), ("doc_2".to_string(), doc_2)];
 
         // Extract text from the PDF document
