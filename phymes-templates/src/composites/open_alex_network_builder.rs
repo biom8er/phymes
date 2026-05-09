@@ -1132,32 +1132,33 @@ mod tests {
         //     // "".to_string(),
         //     // "".to_string(),
         //     ];
-        let cl_urls = vec![
-            "Users/dmccl/Downloads/ontologies/test.owl",
-            // "Users/dmccl/Downloads/ontologies/rdfs-dc-skos.owl",
-            // "Users/dmccl/Downloads/ontologies/ro.owl",
-            // "Users/dmccl/Downloads/ontologies/eco.owl",
-            // "Users/dmccl/Downloads/ontologies/cl.owl"
-            ];
-        let cl_arr: ArrayRef = Arc::new(StringArray::from(cl_urls));
-        // let batch = RecordBatch::try_from_iter(vec![("content", cl_arr)])?;
-        let batch = RecordBatch::try_from_iter(vec![("location", cl_arr)])?;
-        let subject = Subject::get_builder()
-            .with_name("http_request_owl_s")
-            .with_record_batches(vec![batch])?
-            .build()?;
-        let _ = message_map.insert(
-            subject.get_name().to_string(),
-            IPCMessage::get_builder()
-                .with_name(subject.get_name())
-                .with_publisher(network_arc.get_name())
-                .with_subject(subject.get_name())
-                .with_update(&Publication::Replace {
-                    subject_name: subject.get_name().to_string(),
-                })
-                .with_message(subject.to_ipc_stream()?)
-                .build()?,
-        );
+        // let cl_urls = vec![
+        //     // "Users/dmccl/Downloads/ontologies/test.owl",
+        //     // "Users/dmccl/Downloads/ontologies/rdfs-dc-skos.owl",
+        //     // "Users/dmccl/Downloads/ontologies/ro.owl",
+        //     // "Users/dmccl/Downloads/ontologies/eco.owl",
+        //     // "Users/dmccl/Downloads/ontologies/cl.owl"
+        //     "Users/dmccl/Downloads/ontologies/HumanDO.owl"
+        //     ];
+        // let cl_arr: ArrayRef = Arc::new(StringArray::from(cl_urls));
+        // // let batch = RecordBatch::try_from_iter(vec![("content", cl_arr)])?;
+        // let batch = RecordBatch::try_from_iter(vec![("location", cl_arr)])?;
+        // let subject = Subject::get_builder()
+        //     .with_name("http_request_owl_s")
+        //     .with_record_batches(vec![batch])?
+        //     .build()?;
+        // let _ = message_map.insert(
+        //     subject.get_name().to_string(),
+        //     IPCMessage::get_builder()
+        //         .with_name(subject.get_name())
+        //         .with_publisher(network_arc.get_name())
+        //         .with_subject(subject.get_name())
+        //         .with_update(&Publication::Replace {
+        //             subject_name: subject.get_name().to_string(),
+        //         })
+        //         .with_message(subject.to_ipc_stream()?)
+        //         .build()?,
+        // );
 
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
@@ -1386,147 +1387,160 @@ mod tests {
             assert!(column.len() > 100);
         }
 
-        // Test HTTP request of ontologies
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableInterfaceSubjects::UserScript.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name(AvailableInterfaceSubjects::UserScript.to_string().as_str())
-            .with_record_batches(batches)?
-            .build()?;
-        dbg!(subject.count_rows());
-        
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::ParseOwl.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::ParseOwl.to_string().as_str())
-            .with_record_batches(batches)?
-            .build()?;
-        dbg!(subject.count_rows());
-        // assert_eq!(subject.count_rows(), 30);
-        let column = subject.get_column_as_vec_str("entity");
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(
-        //     column.first().unwrap(),
-        //     &"http://www.w3.org/2002/07/owl#AnnotationProperty"
-        // );
-        // assert_eq!(
-        //     column.last().unwrap(),
-        //     &"http://www.w3.org/2002/07/owl#Ontology"
-        // );
-        let column = subject.get_column_as_vec_str("subject");
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(
-        //     column.first().unwrap(),
-        //     &"http://purl.obolibrary.org/obo/IAO_0000115"
-        // );
-        // assert_eq!(
-        //     column.last().unwrap(),
-        //     &"http://purl.obolibrary.org/obo/ro.owl"
-        // );
-        let column = subject.get_column_as_vec_str("predicate");
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(
-        //     column.first().unwrap(),
-        //     &"http://purl.obolibrary.org/obo/IAO_0000115"
-        // );
-        // assert_eq!(column.last().unwrap(), &"http://purl.org/dc/terms/title");
-        let column = subject.get_column_as_vec_str("object");
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(
-        //     column.first().unwrap(),
-        //     &""
-        // );
-        // assert_eq!(column.last().unwrap(), &"OBO Relations Ontology");
-        let column = subject.get_column_as_vec_str("graph");
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(
-        //     column.first().unwrap(),
-        //     &""
-        // );
-        // assert_eq!(
-        //     column.last().unwrap(),
-        //     &""
-        // );
-        let column = subject.get_column_as_vec_str("dataset");
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(column.first().unwrap(), &"UserScript");
-        // assert_eq!(column.last().unwrap(), &"UserScript");
-        
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableInterfaceSubjects::UserQueries.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name(AvailableInterfaceSubjects::UserQueries.to_string().as_str())
-            .with_record_batches(batches)?
-            .build()?;
-        dbg!(subject.count_rows());
-        // assert_eq!(subject.count_rows(), 3);
-        let mut column = subject.get_column_as_vec_str("query_id");
-        column.sort();
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(
-        //     column.first().unwrap(),
-        //     &"http://purl.obolibrary.org/obo/BFO_0000003"
-        // );
-        // assert_eq!(
-        //     column.last().unwrap(),
-        //     &"http://purl.obolibrary.org/obo/RO_0002131"
-        // );
-        let mut column = subject.get_column_as_vec_str("text");
-        column.sort();
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        // assert_eq!(
-        //     column.first().unwrap(),
-        //     &"**definition** An entity that has temporal parts and that happens, unfolds or develops through time.\n**has exact synonym** has temporal part\n**has exact synonym** through time\n**has exact synonym** unfolds in time\n**label** occurrent"
-        // );
-
-        // // Make the query data
-        // let mut message_map = HashMap::<String, IPCMessage>::new();
-        // let chat = AvailableInterfaceSubjects::UserMessages
-        //     .to_subject_builder(None)
-        //     .append_new_user_query_str(
-        //         "Fanconi Anemia",
-        //         "user",
-        //     )?
+        // // Test HTTP request of ontologies
+        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+        //     subject_name: AvailableInterfaceSubjects::UserScript.to_string(),
+        // }
+        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        // .unwrap()
+        // .try_collect()
+        // .await?;
+        // let subject = Subject::get_builder()
+        //     .with_name(AvailableInterfaceSubjects::UserScript.to_string().as_str())
+        //     .with_record_batches(batches)?
         //     .build()?;
-        // let _ = message_map.insert(
-        //     chat.get_name().to_string(),
-        //     IPCMessage::get_builder()
-        //         .with_message(chat.to_ipc_stream()?)
-        //         .with_subject(chat.get_name())
-        //         .with_update(&Publication::Extend {
-        //             subject_name: chat.get_name().to_string(),
-        //         })
-        //         .with_publisher(network_arc.get_name())
-        //         .make_name()?
-        //         .build()?,
-        // );
+        // dbg!(subject.count_rows());
+        
+        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+        //     subject_name: AvailableSubjects::ParseOwl.to_string(),
+        // }
+        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        // .unwrap()
+        // .try_collect()
+        // .await?;
+        // let subject = Subject::get_builder()
+        //     .with_name(AvailableSubjects::ParseOwl.to_string().as_str())
+        //     .with_record_batches(batches)?
+        //     .build()?;
+        // dbg!(subject.count_rows());
+        // // assert_eq!(subject.count_rows(), 30);
+        // let column = subject.get_column_as_vec_str("entity");
+        // dbg!(column.first().unwrap());
+        // dbg!(column.last().unwrap());
+        // // assert_eq!(
+        // //     column.first().unwrap(),
+        // //     &"http://www.w3.org/2002/07/owl#AnnotationProperty"
+        // // );
+        // // assert_eq!(
+        // //     column.last().unwrap(),
+        // //     &"http://www.w3.org/2002/07/owl#Ontology"
+        // // );
+        // let column = subject.get_column_as_vec_str("subject");
+        // dbg!(column.first().unwrap());
+        // dbg!(column.last().unwrap());
+        // // assert_eq!(
+        // //     column.first().unwrap(),
+        // //     &"http://purl.obolibrary.org/obo/IAO_0000115"
+        // // );
+        // // assert_eq!(
+        // //     column.last().unwrap(),
+        // //     &"http://purl.obolibrary.org/obo/ro.owl"
+        // // );
+        // let column = subject.get_column_as_vec_str("predicate");
+        // dbg!(column.first().unwrap());
+        // dbg!(column.last().unwrap());
+        // // assert_eq!(
+        // //     column.first().unwrap(),
+        // //     &"http://purl.obolibrary.org/obo/IAO_0000115"
+        // // );
+        // // assert_eq!(column.last().unwrap(), &"http://purl.org/dc/terms/title");
+        // let column = subject.get_column_as_vec_str("object");
+        // dbg!(column.first().unwrap());
+        // dbg!(column.last().unwrap());
+        // // assert_eq!(
+        // //     column.first().unwrap(),
+        // //     &""
+        // // );
+        // // assert_eq!(column.last().unwrap(), &"OBO Relations Ontology");
+        // let column = subject.get_column_as_vec_str("graph");
+        // dbg!(column.first().unwrap());
+        // dbg!(column.last().unwrap());
+        // // assert_eq!(
+        // //     column.first().unwrap(),
+        // //     &""
+        // // );
+        // // assert_eq!(
+        // //     column.last().unwrap(),
+        // //     &""
+        // // );
+        // let column = subject.get_column_as_vec_str("dataset");
+        // dbg!(column.first().unwrap());
+        // dbg!(column.last().unwrap());
+        // // assert_eq!(column.first().unwrap(), &"UserScript");
+        // // assert_eq!(column.last().unwrap(), &"UserScript");
+        
+        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+        //     subject_name: AvailableInterfaceSubjects::UserQueries.to_string(),
+        // }
+        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        // .unwrap()
+        // .try_collect()
+        // .await?;
+        // let subject = Subject::get_builder()
+        //     .with_name(AvailableInterfaceSubjects::UserQueries.to_string().as_str())
+        //     .with_record_batches(batches)?
+        //     .build()?;
+        // dbg!(subject.count_rows());
+        // // assert_eq!(subject.count_rows(), 3);
+        // let mut column = subject.get_column_as_vec_str("query_id");
+        // column.sort();
+        // dbg!(column.first().unwrap());
+        // dbg!(column.last().unwrap());
+        // // assert_eq!(
+        // //     column.first().unwrap(),
+        // //     &"http://purl.obolibrary.org/obo/BFO_0000003"
+        // // );
+        // // assert_eq!(
+        // //     column.last().unwrap(),
+        // //     &"http://purl.obolibrary.org/obo/RO_0002131"
+        // // );
+        // let mut column = subject.get_column_as_vec_str("text");
+        // column.sort();
+        // dbg!(column.first().unwrap());
+        // dbg!(column.last().unwrap());
+        // // assert_eq!(
+        // //     column.first().unwrap(),
+        // //     &"**definition** An entity that has temporal parts and that happens, unfolds or develops through time.\n**has exact synonym** has temporal part\n**has exact synonym** through time\n**has exact synonym** unfolds in time\n**label** occurrent"
+        // // );
 
-        // // 2. Run the session
-        // let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
-        // let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
+        // Make the query data
+        let mut message_map = HashMap::<String, IPCMessage>::new();
+        let chat = AvailableInterfaceSubjects::UserMessages
+            .to_subject_builder(None)
+            .append_new_user_query_str(
+                r#"adult Fanconi syndrome; Fanconi syndrome; A renal tubular transport disease of the proximal renal tubes characterized by glucosuria, phosphaturia, generalized aminoaciduria and HCO3 wasting."#,
+                "user",
+            )?
+            .build()?;
+        let _ = message_map.insert(
+            chat.get_name().to_string(),
+            IPCMessage::get_builder()
+                .with_message(chat.to_ipc_stream()?)
+                .with_subject(chat.get_name())
+                .with_update(&Publication::Extend {
+                    subject_name: chat.get_name().to_string(),
+                })
+                .with_publisher(network_arc.get_name())
+                .make_name()?
+                .build()?,
+        );
+
+        // 2. Run the session
+        let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
+
+        let subject_names = extended_diagnostic_subjects
+            .iter()
+            .map(|s| s.as_str())
+            .chain(["EmbeddingScores","Documents","UserQueries",
+                "pivot_object_property_entity_s","pivot_class_entity_s",
+                "select_annotation_property_entity_s","pivot_annotation_property_entity_s"])
+            .collect::<Vec<_>>();
+        write_diagnostic_subjects_to_csv(
+            &subject_names, 
+            network_arc.runtime_env(), 
+            network_arc.get_name())
+            .await?;
 
         // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
         //     subject_name: AvailableSubjects::SessionErrors.to_string(),

@@ -213,6 +213,7 @@ fn extract_text(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfText>> {
     let text_fragments = extract_text_chunks(doc, page_numbers)?;
 
     // Merge text that are positioned in the same Tm since Font cannot be reliable used across PDFs
+    // DM: move to seperate operator
     let mut text = Vec::new();
     let mut current_text: Option<PdfText> = None;
     for maybe_text_fragment in text_fragments.into_iter() {
@@ -233,22 +234,24 @@ fn extract_text(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfText>> {
         text.push(current);
     }
 
-    // Additional filters of junk text
+    // Additional filters of "junk" text
+    // (removes Reference sections and all capital section headers...)
+    // DM: move to seperate operator
     let text = text.into_iter()
         .filter(|pdf_text| {            
             // Heuristics from <https://doi.org/10.1371/journal.pcbi.1005962> suitable for most articles
             let n_chars = pdf_text.text.chars().count();
             let n_num = pdf_text.text.chars().filter(|c| c.is_numeric()).count();
             let num_frac = n_num as f32 / n_chars as f32;
-            dbg!(num_frac);
+            // dbg!(num_frac);
             let num_check = num_frac < 0.1_f32;
             let n_sym = pdf_text.text.chars().filter(|c| !c.is_alphanumeric()).count();
             let sym_frac = n_sym as f32 / n_chars as f32;
-            dbg!(sym_frac);
+            // dbg!(sym_frac);
             let sym_check =  sym_frac < 0.25_f32;
             let n_lower = pdf_text.text.chars().filter(|c| c.is_lowercase()).count();
             let lower_frac = n_lower as f32 / n_chars as f32;
-            dbg!(lower_frac);
+            // dbg!(lower_frac);
             let lower_check = lower_frac > 0.5_f32;
             num_check & sym_check & lower_check
         })

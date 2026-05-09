@@ -73,3 +73,141 @@ pub struct PdfContent {
     operator_type: String,
     operand: serde_json::Value,
 }
+
+
+/// PDF Text Matrix (PdfTm) operator
+#[derive(Debug, Clone, PartialEq)]
+struct PdfTm {
+    /// scale param 1
+    a: f32,
+    /// skew param 1
+    b: f32,
+    /// skew param 2
+    c: f32,
+    /// scale param 2
+    d: f32,
+    /// pos x
+    x: f32,
+    /// pos y
+    y: f32,
+}
+
+impl PdfTm {
+    pub fn new(a: &f32, b: &f32, c: &f32, d: &f32, x: &f32, y: &f32) -> Self {
+        Self { a: *a, b: *b, c: *c, d: *d, x: *x, y: *y }
+    }
+}
+
+impl Default for PdfTm {
+    fn default() -> Self {
+        Self { a: 1_f32, b: 0_f32, c: 0_f32, d: 1_f32, x: 0_f32, y: 0_f32 }
+    }
+}
+
+fn create_pdf_tm_fields() -> Vec<Field> {
+    let field_names = ["tm_a", "tm_b", "tm_c", "tm_d", "tm_x", "tm_y"];
+    let fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Float32, false))
+        .collect::<Vec<_>>();
+    fields_vec
+}
+
+/// PdfTm
+#[derive(Debug, Clone, PartialEq)]
+struct PdfTd {
+    /// pos x
+    x: i64,
+    /// pos y
+    y: i64,
+}
+
+impl PdfTd {
+    pub fn new(x: &i64, y: &i64) -> Self {
+        Self { x: *x, y: *y }
+    }
+}
+
+impl Default for PdfTd {
+    fn default() -> Self {
+        Self { x: 0_i64, y: 0_i64 }
+    }
+}
+
+fn create_pdf_td_fields() -> Vec<Field> {
+    let field_names = ["td_x", "td_y"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Int64, false))
+        .collect::<Vec<_>>();
+    fields_vec
+}
+
+/// PDF Font information
+#[derive(Default, Debug, Clone, PartialEq)]
+struct PdfFont {
+    pub font_name: String,
+    pub font_subtype: String,
+    pub base_font: String,
+}
+
+impl PdfFont {
+    pub fn new(font_name: &str, font_subtype: &str, base_font: &str, ) -> Self {
+        Self { font_name: font_name.to_string(), font_subtype: font_subtype.to_string(), base_font: base_font.to_string() }
+    }
+}
+
+fn create_pdf_td_fields() -> Vec<Field> {
+    let field_names = ["font_name", "font_subtype", "base_font"];
+    let fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    fields_vec
+}
+
+#[derive(Default, Debug, Clone, PartialEq)]
+struct PdfText {
+    /// Index of the operataion the text was found
+    pub op: u32,
+    /// BT operataion the text was found
+    pub bt: u32,
+    /// Text matrix
+    pub tm: PdfTm,
+    /// Text translation
+    pub td: PdfTd,
+    /// Font
+    pub font: PdfFont,
+    pub font_size: i64,
+    pub page_num: u32,
+    pub text: String,
+}
+
+impl PdfText {
+    pub fn text_mut(&mut self) -> &mut String {
+        &mut self.text
+    }
+}
+
+fn create_pdf_text_fields() -> Vec<Field> {
+    let field_names = ["font_name", "font_subtype", "base_font"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    fields_vec
+}
+
+fn create_pdf_manuscript_fields() -> Vec<Field> {
+    let field_names = ["document", "section", "text"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let field_names = ["document", "page", "paragraph", "sentence"];
+    fields_vec.extend(field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::UInt32, false))
+        .collect::<Vec<_>>());
+    fields_vec
+}
