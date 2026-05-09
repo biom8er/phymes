@@ -1,4 +1,5 @@
-use std::{collections::{BTreeMap, BTreeSet, HashMap}, io::Error, iter::zip, sync::Arc};
+use core::num;
+use std::{collections::{BTreeMap, HashMap}, io::Error, iter::zip, sync::Arc};
 
 use anyhow::{Ok, Result, anyhow};
 use arrow::array::{ArrayRef, ListArray, RecordBatch, StringArray, UInt8Array};
@@ -172,12 +173,30 @@ impl Default for Td {
 }
 
 #[derive(Default, Debug, Clone, PartialEq)]
+struct PdfFont {
+    pub font_name: String,
+    pub font_subtype: String,
+    pub base_font: String,
+}
+
+impl PdfFont {
+    pub fn new(font_name: &str, font_subtype: &str, base_font: &str, ) -> Self {
+        Self { font_name: font_name.to_string(), font_subtype: font_subtype.to_string(), base_font: base_font.to_string() }
+    }
+}
+
+#[derive(Default, Debug, Clone, PartialEq)]
 struct PdfText {
+    /// Index of the operataion the text was found
+    pub op: u32,
+    /// BT operataion the text was found
+    pub bt: u32,
     /// Text matrix
     pub tm: Tm,
     /// Text translation
     pub td: Td,
-    pub font_name: String,
+    /// Font
+    pub font: PdfFont,
     pub font_size: i64,
     pub page_num: u32,
     pub text: String,
@@ -191,6 +210,53 @@ impl PdfText {
 
 /// Drop-in replacement for `extract_text` that retains additional metadata including
 /// page_number, pos_x, pos_y, font_name, font_size, ...
+fn extract_text(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfText>> {
+    let text_fragments = extract_text_chunks(doc, page_numbers)?;
+
+    // Merge text that are positioned in the same Tm since Font cannot be reliable used across PDFs
+    let mut text = Vec::new();
+    let mut current_text: Option<PdfText> = None;
+    for maybe_text_fragment in text_fragments.into_iter() {
+        let key = format!("{:?}", maybe_text_fragment.tm);
+        if let Some(mut current) = current_text.take() {
+            let current_key = format!("{:?}", current.tm);
+            if key == current_key {
+                current.text = [current.text, maybe_text_fragment.text].join("");
+                current_text.replace(current);
+            } else {
+                text.push(current);
+            }
+        } else {
+            current_text = Some(maybe_text_fragment);
+        }
+    }
+    if let Some(current) = current_text.take() {
+        text.push(current);
+    }
+
+    // Additional filters of junk text
+    let text = text.into_iter()
+        .filter(|pdf_text| {            
+            // Heuristics from <https://doi.org/10.1371/journal.pcbi.1005962> suitable for most articles
+            let n_chars = pdf_text.text.chars().count();
+            let n_num = pdf_text.text.chars().filter(|c| c.is_numeric()).count();
+            let num_frac = n_num as f32 / n_chars as f32;
+            dbg!(num_frac);
+            let num_check = num_frac < 0.1_f32;
+            let n_sym = pdf_text.text.chars().filter(|c| !c.is_alphanumeric()).count();
+            let sym_frac = n_sym as f32 / n_chars as f32;
+            dbg!(sym_frac);
+            let sym_check =  sym_frac < 0.1_f32;
+            let n_lower = pdf_text.text.chars().filter(|c| c.is_lowercase()).count();
+            let lower_frac = n_lower as f32 / n_chars as f32;
+            dbg!(lower_frac);
+            let lower_check = lower_frac > 0.5_f32;
+            num_check & sym_check & lower_check
+        })
+        .collect::<Vec<_>>();
+
+    Ok(text)
+}
 fn extract_text_chunks(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfText>> {
     let pages: BTreeMap<u32, (u32, u16)> = doc.get_pages();
     page_numbers
@@ -218,9 +284,16 @@ fn extract_text_chunks(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfTe
 
 fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16)>, page_number: u32) -> Result<Vec<Result<PdfText>>> {
     let mut collected_chunks_and_errs = Vec::<Result<PdfText>>::new();
-
     let page_id = *pages.get(&page_number).ok_or(anyhow!("Page number {page_number} not found."))?;
-    let fonts = doc.get_page_fonts(page_id)?;
+
+    // extract out the fonts on the page
+    let fonts_map = extract_fonts_from_page(doc, page_id)?
+        .into_iter()
+        .map(|(a, b, c)| (a, (b, c)))
+        .collect::<HashMap<_, _>>();
+
+    // extract out the font encodings
+    let fonts = doc.get_page_fonts(page_id)?;    
     let encodings: BTreeMap<Vec<u8>, Encoding> = fonts
         .into_iter()
         .filter_map(|(name, font)| match font.get_font_encoding(doc) {
@@ -238,10 +311,11 @@ fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16
     // each text with different encoding is extracted as separate chunk
     let mut current_encoding = None;
     let mut current_text = PdfText::default();
+    let mut index: u32 = 0;
     for operation in &content.operations {
         match operation.operator.as_ref() {
             "BT" => {
-                dbg!(&operation);
+                current_text.bt = index;
             }
             "TD" => {
                 dbg!(&operation);
@@ -300,10 +374,12 @@ fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16
                     },
                 };
                 current_encoding = current_enc;
-                current_text.font_name = font_name;
+                let pdf_font = PdfFont::new(&font_name, fonts_map.get(&font_name).unwrap().0.as_str(), fonts_map.get(&font_name).unwrap().1.as_str());
+                current_text.font = pdf_font;
                 current_text.font_size = font_size;
 
                 if !current_text.text.is_empty() {
+                    current_text.op = index;
                     collected_chunks_and_errs.push(Ok(current_text.clone()));
                     current_text.text_mut().clear();
                 }
@@ -326,14 +402,17 @@ fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16
                     current_text.text_mut().push('\n')
                 }
                 if !current_text.text.is_empty() {
+                    current_text.op = index;
                     collected_chunks_and_errs.push(Ok(current_text));
                 }
                 current_text = PdfText::default();
             }
             _ => {}
         }
+        index += 1;
     }
     if !current_text.text.is_empty() {
+        current_text.op = index;
         collected_chunks_and_errs.push(Ok(current_text));
     }
 
@@ -361,65 +440,23 @@ fn collect_text(text: &mut String, encoding: &Encoding, operands: &[Object]) -> 
     Ok(())
 }
 
-/// Recursively resolve an indirect object to its dictionary (if possible)
-fn resolve_dict<'a>(doc: &'a Document, obj: &'a Object) -> Option<&'a lopdf::Dictionary> {
-    match obj {
-        Object::Dictionary(dict) => Some(dict),
-        Object::Reference(oid) => doc.objects.get(oid).and_then(|o| resolve_dict(doc, o)),
-        _ => None,
-    }
-}
-
 /// Extract all fonts from the document pages
-fn extract_fonts(doc: &Document, page_numbers: &[u32]) -> Vec<(String, String, String)> {
-    let pages: BTreeMap<u32, (u32, u16)> = doc.get_pages();
-    page_numbers
-        .iter()
-        .flat_map(|page_number| {
-            let result = extract_fonts_from_page(doc, &pages, *page_number);
-            match result {
-                std::result::Result::Ok(fonts) => fonts,
-                Err(_err) => Vec::new(),
-            }
-        })
-        .collect()
-}
-
-fn extract_fonts_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16)>, page_number: u32) -> Result<Vec<(String, String, String)>> {
+fn extract_fonts_from_page(doc: &Document, page_id: (u32, u16)) -> Result<Vec<(String, String, String)>> {
+    let font_refs = doc.get_page_fonts(page_id)?;
     let mut fonts_found = Vec::<(String, String, String)>::new();
-    let page_id = *pages.get(&page_number).ok_or(anyhow!("Page number {page_number} not found."))?;
-    if let std::result::Result::Ok(Some(page_dict)) = doc.get_object(page_id).map(|o| resolve_dict(&doc, o)) {
-        dbg!(&page_dict);
-        // Get Resources dictionary
-        if let std::result::Result::Ok(resources_obj) = page_dict.get(b"Resources") {
-            dbg!(&resources_obj);
-            if let Some(resources_dict) = resolve_dict(&doc, resources_obj) {
-                dbg!(&resources_dict);
-                // Get Font dictionary
-                if let std::result::Result::Ok(fonts_obj) = resources_dict.get(b"Font") {
-                    dbg!(&fonts_obj);
-                    if let Some(fonts_dict) = resolve_dict(&doc, fonts_obj) {
-                        dbg!(&fonts_dict);
-                        for (font_name, font_ref) in fonts_dict.iter() {
-                            if let Some(font_dict) = resolve_dict(&doc, font_ref) {
-                                let base_font = font_dict
-                                    .get(b"BaseFont")
-                                    .and_then(|bf| bf.as_name())
-                                    .unwrap_or(b"<Unknown>");
-                                let subtype = font_dict
-                                    .get(b"Subtype")
-                                    .and_then(|st| st.as_name())
-                                    .unwrap_or(b"<Unknown>");
-                                fonts_found.push((String::from_utf8_lossy(font_name).to_string(), 
-                                    String::from_utf8_lossy(base_font).to_string(),
-                                    String::from_utf8_lossy(subtype).to_string()),
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    for (font_name, &font_dict) in font_refs.iter() {
+        let base_font = font_dict
+            .get(b"BaseFont")
+            .and_then(|bf| bf.as_name())
+            .unwrap_or(b"<Unknown>");
+        let subtype = font_dict
+            .get(b"Subtype")
+            .and_then(|st| st.as_name())
+            .unwrap_or(b"<Unknown>");
+        fonts_found.push((String::from_utf8_lossy(font_name).to_string(), 
+            String::from_utf8_lossy(base_font).to_string(),
+            String::from_utf8_lossy(subtype).to_string()),
+        );
     }
     Ok(fonts_found)
 }
@@ -452,7 +489,7 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
                 .map(
                     |(page_num, page_id): (u32, (u32, u16))| -> Result<Vec<(String, PdfText)>, Error> {
                         // Extract text from the page
-                        let text = extract_text_chunks(doc, &[page_num]).map_err(|e| {
+                        let text = extract_text(doc, &[page_num]).map_err(|e| {
                             Error::other(format!(
                                 "Failed to extract text from page {page_num} id={page_id:?}: {e:}"
                             ))
@@ -482,6 +519,8 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
     let mut td_x_vec = Vec::new();
     let mut td_y_vec = Vec::new();
     let mut font_name_vec = Vec::new();
+    let mut font_subtype_vec = Vec::new();
+    let mut base_font_vec = Vec::new();
     let mut font_size_vec = Vec::new();
     let mut text_vec = Vec::new();
     for page in pages {
@@ -497,7 +536,9 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
                     tm_y_vec.push(pdf_text.tm.y);
                     td_x_vec.push(pdf_text.td.x);
                     td_y_vec.push(pdf_text.td.y);
-                    font_name_vec.push(pdf_text.font_name.to_owned());
+                    font_name_vec.push(pdf_text.font.font_name.to_owned());
+                    font_subtype_vec.push(pdf_text.font.font_subtype.to_owned());
+                    base_font_vec.push(pdf_text.font.base_font.to_owned());
                     font_size_vec.push(pdf_text.font_size);
                     text_vec.push(pdf_text.text.drain(..).as_str().to_string());
                     chunk_id_vec.push(format!("{id}_{pdf_text:?}"));
@@ -521,6 +562,8 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
     let td_x_arr: ArrayRef = Arc::new(arrow::array::Int64Array::from(td_x_vec));
     let td_y_arr: ArrayRef = Arc::new(arrow::array::Int64Array::from(td_y_vec));
     let font_name_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(font_name_vec));
+    let font_subtype_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(font_subtype_vec));
+    let base_font_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(base_font_vec));
     let font_size_arr: ArrayRef = Arc::new(arrow::array::Int64Array::from(font_size_vec));
     let text_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(text_vec));
     let batch = RecordBatch::try_from_iter(vec![
@@ -536,6 +579,8 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
         // ("td_x", td_x_arr),
         // ("td_y", td_y_arr),
         // ("font_name", font_name_arr),
+        // ("font_subtype", font_subtype_arr),
+        // ("base_font", base_font_arr),
         // ("font_size", font_size_arr),
         ("text", text_arr),
     ])?;
@@ -763,8 +808,7 @@ mod tests {
         );
         assert_eq!(
             table.get_column_as_vec_str("chunk_id"),
-            ["doc_1_1", "doc_1_2", "doc_2_1", "doc_2_2"]
-        );
+            ["doc_1_PdfText { op: 4, bt: 0, tm: Tm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: Td { x: 100, y: 600 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, page_num: 1, text: \"\" }", "doc_1_PdfText { op: 4, bt: 0, tm: Tm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: Td { x: 100, y: 600 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, page_num: 2, text: \"\" }", "doc_2_PdfText { op: 4, bt: 0, tm: Tm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: Td { x: 100, y: 600 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, page_num: 1, text: \"\" }", "doc_2_PdfText { op: 4, bt: 0, tm: Tm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: Td { x: 100, y: 600 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, page_num: 2, text: \"\" }"]        );
         assert_eq!(
             table.get_column_as_vec_str("text"),
             ["123 ", "456 ", "123 ", "456 "]
@@ -796,11 +840,22 @@ mod tests {
 
     #[test]
     fn test_extract_pdf_extract_fonts() {
-        // Create several PDF document in memory
+        // Create a dummy PDF in memory
         let doc_1 = filter_pdf(make_pdf_document(&["1\n2\n3", "4\n5\n6"]));
 
-        // Extract text from the PDF document
-        let fonts = extract_fonts(&doc_1, &[0, 1]);
-        dbg!(fonts);
+        // Extract Fonts        
+        let fonts = doc_1.get_pages()
+            .into_iter()
+            .map(|(_page_num, page_id): (u32, (u32, u16))| -> Result<Vec<(String, String, String)>> {
+                extract_fonts_from_page(&doc_1, page_id)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(fonts.len(), 2);
+        assert_eq!(fonts.first().as_ref().unwrap().as_ref().unwrap().first().unwrap().0, "F1");
+        assert_eq!(fonts.first().as_ref().unwrap().as_ref().unwrap().first().unwrap().1, "Courier");
+        assert_eq!(fonts.first().as_ref().unwrap().as_ref().unwrap().first().unwrap().2, "Type1");
+        assert_eq!(fonts.get(1).as_ref().unwrap().as_ref().unwrap().first().unwrap().0, "F1");
+        assert_eq!(fonts.get(1).as_ref().unwrap().as_ref().unwrap().first().unwrap().1, "Courier");
+        assert_eq!(fonts.get(1).as_ref().unwrap().as_ref().unwrap().first().unwrap().2, "Type1");
     }
 }
