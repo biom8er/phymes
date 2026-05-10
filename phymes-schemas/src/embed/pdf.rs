@@ -211,3 +211,56 @@ fn create_pdf_manuscript_fields() -> Vec<Field> {
         .collect::<Vec<_>>());
     fields_vec
 }
+
+// The context that the co-occurance was counted
+pub enum CoOccuranceContext {
+    Document,
+    Paragraph,
+    Sentence
+}
+
+fn create_cooccurrance_counts_fields() -> Vec<Field> {
+    let field_names = ["entity_1", "entity_2", "context"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let field_names = ["count"];
+    fields_vec.extend(field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::UInt32, false))
+        .collect::<Vec<_>>());
+    fields_vec
+}
+
+/// Co-occurance parameters
+/// 
+/// # Notes
+/// * w_document = document context co-occurance weight
+/// * w_paragraph = document context co-occurance weight
+/// * w_sentence = document context co-occurance weight
+/// * alpha = score weight
+/// * x_bar = Z-score background distribution mean
+/// * s = Z-score background distribution variance
+fn create_cooccurrance_parameters_fields() -> Vec<Field> {
+    let field_names = ["w_document", "w_paragraph", "w_sentence", "alpha", "x_bar", "s"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Float32, false))
+        .collect::<Vec<_>>();
+    fields_vec
+}
+
+fn create_cooccurrance_scores_fields() -> Vec<Field> {
+    let field_names = ["entity_1", "entity_2"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let field_names = ["weighted_count", "score", "z_score"];
+    fields_vec.extend(field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Float32, false))
+        .collect::<Vec<_>>());
+    fields_vec
+}

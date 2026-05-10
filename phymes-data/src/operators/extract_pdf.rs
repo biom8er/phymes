@@ -225,9 +225,10 @@ fn extract_text(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfText>> {
                 current_text.replace(current);
             } else {
                 text.push(current);
+                current_text.replace(maybe_text_fragment);
             }
         } else {
-            current_text = Some(maybe_text_fragment);
+            current_text.replace(maybe_text_fragment);
         }
     }
     if let Some(current) = current_text.take() {

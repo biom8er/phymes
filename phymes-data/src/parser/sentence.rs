@@ -269,8 +269,9 @@ mod tests {
         let splitter = SentenceSplitter::new(20, 0, " ", "\n\n\n", Some("[^,.;。？！]+[,.;。？！]?|[,.;。？！]"), None);
         let text = format!("{}{}{}", "foo ".repeat(15), ". ", "bar ".repeat(15));
         let chunks = splitter.split_text(&text);
-        assert!(chunks[0].contains("."));
-        assert!(chunks[1].contains("bar"));
+        dbg!(&chunks);
+        assert_eq!(chunks[0], "foo foo foo foo foo foo foo foo foo foo foo foo foo foo foo .");
+        assert_eq!(chunks[1], "bar bar bar bar bar bar bar bar bar bar bar bar bar bar bar");
     }
 
     #[test]
