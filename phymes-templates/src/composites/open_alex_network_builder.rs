@@ -1508,7 +1508,9 @@ mod tests {
         let chat = AvailableInterfaceSubjects::UserMessages
             .to_subject_builder(None)
             .append_new_user_query_str(
-                r#"adult Fanconi syndrome; Fanconi syndrome; A renal tubular transport disease of the proximal renal tubes characterized by glucosuria, phosphaturia, generalized aminoaciduria and HCO3 wasting."#,
+                r#"label: adult Fanconi syndrome
+has exact synonym: Fanconi syndrome 
+definition: A renal tubular transport disease of the proximal renal tubes characterized by glucosuria, phosphaturia, generalized aminoaciduria and HCO3 wasting."#,
                 "user",
             )?
             .build()?;

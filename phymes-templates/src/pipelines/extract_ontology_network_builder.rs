@@ -1825,7 +1825,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
     }}
     concat_cols_class_entity_p["concat_cols_class_entity_p"] {{
         List-Utf8 as_columns "['','','','','predicate_rdfs_label-Cast','object_obo_IAO_0000115-Cast','object-Concat','text']"
-        List-Utf8 cast_templates "['','','','','**{{{{ predicate_rdfs_label }}}}** ','{{% if object_obo_IAO_0000115 %}} with definition {{{{ object_obo_IAO_0000115 }}}}{{% endif %}}','','']"
+        List-Utf8 cast_templates "['','','','','{{{{ predicate_rdfs_label }}}}: ','{{% if object_obo_IAO_0000115 %}} with definition {{{{ object_obo_IAO_0000115 }}}}{{% endif %}}','','']"
         List-Utf8 column_operators "['None','None','None','None','None','None','Concat','Concat']"
         List-Utf8 rhs_values "['','','','','','','object_obo_IAO_0000115-Cast','object-Concat']"
         List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','object_obo_IAO_0000115','object_rdfs_label','predicate_rdfs_label-Cast']"
@@ -1863,7 +1863,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
     }}
     concat_cols_object_property_entity_p["concat_cols_object_property_entity_p"] {{
         List-Utf8 as_columns "['','','','','predicate_rdfs_label-Cast','object_obo_IAO_0000115-Cast','object-Concat','text']"
-        List-Utf8 cast_templates "['','','','','**{{{{ predicate_rdfs_label }}}}** ','{{% if object_obo_IAO_0000115 %}} with definition {{{{ object_obo_IAO_0000115 }}}}{{% endif %}}','','']"
+        List-Utf8 cast_templates "['','','','','{{{{ predicate_rdfs_label }}}}: ','{{% if object_obo_IAO_0000115 %}} with definition {{{{ object_obo_IAO_0000115 }}}}{{% endif %}}','','']"
         List-Utf8 column_operators "['None','None','None','None','None','None','Concat','Concat']"
         List-Utf8 rhs_values "['','','','','','','object_obo_IAO_0000115-Cast','object-Concat']"
         List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','object_obo_IAO_0000115','object_rdfs_label','predicate_rdfs_label-Cast']"
@@ -2878,7 +2878,7 @@ mod tests {
             column.sort();
             assert_eq!(
                 column.first().unwrap(),
-                &"**definition** An entity that has temporal parts and that happens, unfolds or develops through time.\n**has exact synonym** has temporal part\n**has exact synonym** through time\n**has exact synonym** unfolds in time\n**label** occurrent"
+                &"definition: An entity that has temporal parts and that happens, unfolds or develops through time.\nhas exact synonym: has temporal part\nhas exact synonym: through time\nhas exact synonym: unfolds in time\nlabel: occurrent"
             );
         }
         Ok(())
