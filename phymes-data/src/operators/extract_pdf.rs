@@ -236,7 +236,7 @@ fn extract_text(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfText>> {
     }
 
     // Additional filters of "junk" text
-    // (removes Reference sections and all capital section headers...)
+    // Notes: removes Reference sections and all capital section headers...
     // DM: move to seperate operator
     let text = text.into_iter()
         .filter(|pdf_text| {            
@@ -254,7 +254,14 @@ fn extract_text(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfText>> {
             let lower_frac = n_lower as f32 / n_chars as f32;
             // dbg!(lower_frac);
             let lower_check = lower_frac > 0.5_f32;
-            num_check & sym_check & lower_check
+
+            // Additional Heuristics
+            let check_chars = n_chars > 50; // more than 50 chars
+            let n_wspace = pdf_text.text.chars().filter(|c| !c.is_whitespace()).count();
+            let wspace_frac = n_wspace as f32 / n_chars as f32;
+            let check_wspace = wspace_frac > 0.05; // greater than 5% white space
+
+            num_check & sym_check & lower_check & check_chars & check_wspace
         })
         .collect::<Vec<_>>();
 

@@ -846,7 +846,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    concat_cols_object_property_entity_p-subscribe-->concat_cols_object_property_entity_p-processor
 	    concat_cols_object_property_entity_p-processor-->concat_cols_object_property_entity_p-publish
 	    concat_cols_object_property_entity_p-publish-->|Replace|concat_cols_object_property_entity_s-subject
-	    concat_cols_object_property_entity_s-subject-->|AllRecordBatches|select_cols_object_property_entity_p-subscribe
+	    concat_cols_object_property_entity_s-subject-.->|AllRecordBatches|select_cols_object_property_entity_p-subscribe
 	    select_cols_object_property_entity_p-subscribe-->select_cols_object_property_entity_p-processor
 	    select_cols_object_property_entity_p-processor-->select_cols_object_property_entity_p-publish
 	    select_cols_object_property_entity_p-publish-->|Replace|select_cols_object_property_entity_s-subject
@@ -892,7 +892,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         List-Utf8 as_columns "['chunk_id','document_id','text']"
         List-Utf8 cast_templates "['','','{% for item in text_List %}{{ item }}{% if not loop.last %}\n{% endif %}{% endfor %}']"
         List-Utf8 lhs_values "['subject','dataset','text_List']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "select_rows_class_entity_s"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
@@ -902,7 +902,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         List-Utf8 as_columns "['chunk_id','document_id','text']"
         List-Utf8 cast_templates "['','','{% for item in text_List %}{{ item }}{% if not loop.last %}\n{% endif %}{% endfor %}']"
         List-Utf8 lhs_values "['subject','dataset','text_List']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "select_rows_object_property_entity_s"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
@@ -919,7 +919,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         List-Utf8 as_columns "['query_id','text']"
         List-Utf8 cast_templates "['','{% for item in text_List %}{{ item }}{% if not loop.last %}\n{% endif %}{% endfor %}']"
         List-Utf8 lhs_values "['subject','text_List']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "select_rows_class_entity_s"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
@@ -929,7 +929,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         List-Utf8 as_columns "['query_id','text']"
         List-Utf8 cast_templates "['','{% for item in text_List %}{{ item }}{% if not loop.last %}\n{% endif %}{% endfor %}']"
         List-Utf8 lhs_values "['subject','text_List']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "select_rows_object_property_entity_s"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
@@ -950,12 +950,12 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         Int64 timestamp
     }
     extract_owl_p["extract_owl_p"] {
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 format "Owl"
         Utf8 lhs_name "UserScript"
         List-Utf8 lhs_values "['bytes']"
         Utf8 operator "ExtractXML"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }"#
         } else {
             ""
@@ -975,27 +975,27 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#Ontology']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
 	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "ParseOwl"
         Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     filter_ontology_entity_p["filter_ontology_entity_p"] {{
         List-Utf8 cmp_columns "['cmp']"
         List-Utf8 cmp_operators "['Like']"
         Utf8 cmp_predicate "All"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "comparator_ontology_entity_s"
         List-Utf8 lhs_values "['entity']"
         Utf8 operator "Filter"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     select_ontology_entity_p["select_ontology_entity_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "filter_ontology_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     select_ontology_entity_s["select_ontology_entity_s"] {{
         Utf8 entity
@@ -1011,27 +1011,27 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#AnnotationProperty']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
 	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "ParseOwl"
         Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     filter_annotation_property_entity_p["filter_annotation_property_entity_p"] {{
         List-Utf8 cmp_columns "['cmp']"
         List-Utf8 cmp_operators "['Like']"
         Utf8 cmp_predicate "All"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "comparator_annotation_property_entity_s"
         List-Utf8 lhs_values "['entity']"
         Utf8 operator "Filter"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     select_annotation_property_entity_p["select_annotation_property_entity_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "filter_annotation_property_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     select_annotation_property_entity_s["select_annotation_property_entity_s"] {{
         Utf8 entity
@@ -1047,27 +1047,27 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#DatatypeProperty']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
 	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "ParseOwl"
         Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     filter_datatype_property_entity_p["filter_datatype_property_entity_p"] {{
         List-Utf8 cmp_columns "['cmp']"
         List-Utf8 cmp_operators "['Like']"
         Utf8 cmp_predicate "All"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "comparator_datatype_property_entity_s"
         List-Utf8 lhs_values "['entity']"
         Utf8 operator "Filter"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     select_datatype_property_entity_p["select_datatype_property_entity_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "filter_datatype_property_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     select_datatype_property_entity_s["select_datatype_property_entity_s"] {{
         Utf8 entity
@@ -1083,27 +1083,27 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#Class']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
 	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "ParseOwl"
         Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     filter_class_entity_p["filter_class_entity_p"] {{
         List-Utf8 cmp_columns "['cmp']"
         List-Utf8 cmp_operators "['Like']"
         Utf8 cmp_predicate "All"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "comparator_class_entity_s"
         List-Utf8 lhs_values "['entity']"
         Utf8 operator "Filter"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     select_class_entity_p["select_class_entity_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "filter_class_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     select_class_entity_s["select_class_entity_s"] {{
         Utf8 entity
@@ -1119,27 +1119,27 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#ObjectProperty']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
 	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "ParseOwl"
         Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     filter_object_property_entity_p["filter_object_property_entity_p"] {{
         List-Utf8 cmp_columns "['cmp']"
         List-Utf8 cmp_operators "['Like']"
         Utf8 cmp_predicate "All"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "comparator_object_property_entity_s"
         List-Utf8 lhs_values "['entity']"
         Utf8 operator "Filter"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     select_object_property_entity_p["select_object_property_entity_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "filter_object_property_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     select_object_property_entity_s["select_object_property_entity_s"] {{
         Utf8 entity
@@ -1155,27 +1155,27 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#NamedIndividual']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
 	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "ParseOwl"
         Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     filter_named_individual_entity_p["filter_named_individual_entity_p"] {{
         List-Utf8 cmp_columns "['cmp']"
         List-Utf8 cmp_operators "['Like']"
         Utf8 cmp_predicate "All"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "comparator_named_individual_entity_s"
         List-Utf8 lhs_values "['entity']"
         Utf8 operator "Filter"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     select_named_individual_entity_p["select_named_individual_entity_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "filter_named_individual_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     select_named_individual_entity_s["select_named_individual_entity_s"] {{
         Utf8 entity
@@ -1191,27 +1191,27 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#Axiom']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
 	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "ParseOwl"
         Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     filter_axiom_entity_p["filter_axiom_entity_p"] {{
         List-Utf8 cmp_columns "['cmp']"
         List-Utf8 cmp_operators "['Like']"
         Utf8 cmp_predicate "All"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "comparator_axiom_entity_s"
         List-Utf8 lhs_values "['entity']"
         Utf8 operator "Filter"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     select_axiom_entity_p["select_axiom_entity_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "filter_axiom_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
+        Utf8 lhs_stream "Stream"
     }}
     select_axiom_entity_s["select_axiom_entity_s"] {{
         Utf8 entity
@@ -1231,7 +1231,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2000/01/rdf-schema#label','http://purl.obolibrary.org/obo/IAO_0000115']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value','Value']"
 	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label','obo_IAO_0000115']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "coalesce_annotation_property_entity_s"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
@@ -1241,7 +1241,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         List-Utf8 cmp_columns "['rdfs_label','obo_IAO_0000115']"
         List-Utf8 cmp_operators "['Like','Like']"
         Utf8 cmp_predicate "Any"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "comparator_predicate_annotation_property_entity_s"
         List-Utf8 lhs_values "['predicate','predicate']"
         Utf8 operator "Filter"
@@ -1249,7 +1249,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         Utf8 rhs_stream "Stream"
     }}
     select_predicate_annotation_property_entity_p["select_predicate_annotation_property_entity_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "filter_predicate_annotation_property_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
@@ -1259,7 +1259,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	pivot_annotation_property_entity_p["pivot_annotation_property_entity_p"] {{
 	    List-Utf8 agg_columns "['object']"
 	    List-Utf8 agg_operators "['First']"
-	    Boolean cpu "false"
+	    Boolean cpu "true"
 	    List-Utf8 default_values "['']"
 	    Utf8 lhs_name "select_predicate_annotation_property_entity_s"
 	    List-Utf8 lhs_values "['subject']"
@@ -1280,7 +1280,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	group_by_annotation_property_pivot_p["group_by_annotation_property_pivot_p"] {{
 	    List-Utf8 agg_columns "['http://www.w3.org/2000/01/rdf-schema#label-object-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First']"
 	    List-Utf8 agg_operators "['First','First']"
-	    Boolean cpu "false"
+	    Boolean cpu "true"
 	    Utf8 lhs_name "coalesce_annotation_property_pivot_s"
 	    List-Utf8 lhs_values "['subject']"
 	    Utf8 operator "GroupBy"
@@ -1293,7 +1293,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    Utf8 http://purl.obolibrary.org/obo/IAO_0000115-object-First-First
 	}}
     select_annotation_property_pivot_p["select_annotation_property_pivot_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "group_by_annotation_property_pivot_s"
         List-Utf8 as_columns "['uri','rdfs_label','obo_IAO_0000115']"
         List-Utf8 lhs_values "['subject','http://www.w3.org/2000/01/rdf-schema#label-object-First-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First-First']"
@@ -1312,7 +1312,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2000/01/rdf-schema#label','http://purl.obolibrary.org/obo/IAO_0000115']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value','Value']"
 	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label','obo_IAO_0000115']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "coalesce_class_entity_s"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
@@ -1322,7 +1322,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         List-Utf8 cmp_columns "['rdfs_label','obo_IAO_0000115']"
         List-Utf8 cmp_operators "['Like','Like']"
         Utf8 cmp_predicate "Any"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "comparator_predicate_class_entity_s"
         List-Utf8 lhs_values "['predicate','predicate']"
         Utf8 operator "Filter"
@@ -1330,7 +1330,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         Utf8 rhs_stream "Stream"
     }}
     select_predicate_class_entity_p["select_predicate_class_entity_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "filter_predicate_class_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
@@ -1340,7 +1340,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	pivot_class_entity_p["pivot_class_entity_p"] {{
 	    List-Utf8 agg_columns "['object']"
 	    List-Utf8 agg_operators "['First']"
-	    Boolean cpu "false"
+	    Boolean cpu "true"
 	    List-Utf8 default_values "['']"
 	    Utf8 lhs_name "select_predicate_class_entity_s"
 	    List-Utf8 lhs_values "['subject']"
@@ -1361,7 +1361,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	group_by_class_pivot_p["group_by_class_pivot_p"] {{
 	    List-Utf8 agg_columns "['http://www.w3.org/2000/01/rdf-schema#label-object-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First']"
 	    List-Utf8 agg_operators "['First','First']"
-	    Boolean cpu "false"
+	    Boolean cpu "true"
 	    Utf8 lhs_name "coalesce_class_pivot_s"
 	    List-Utf8 lhs_values "['subject']"
 	    Utf8 operator "GroupBy"
@@ -1374,7 +1374,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    Utf8 http://purl.obolibrary.org/obo/IAO_0000115-object-First-First
 	}}
     select_class_pivot_p["select_class_pivot_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "group_by_class_pivot_s"
         List-Utf8 as_columns "['uri','rdfs_label','obo_IAO_0000115']"
         List-Utf8 lhs_values "['subject','http://www.w3.org/2000/01/rdf-schema#label-object-First-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First-First']"
@@ -1392,7 +1392,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2000/01/rdf-schema#label','http://purl.obolibrary.org/obo/IAO_0000115']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value','Value']"
 	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label','obo_IAO_0000115']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "coalesce_object_property_entity_s"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
@@ -1402,7 +1402,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         List-Utf8 cmp_columns "['rdfs_label','obo_IAO_0000115']"
         List-Utf8 cmp_operators "['Like','Like']"
         Utf8 cmp_predicate "Any"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "comparator_predicate_object_property_entity_s"
         List-Utf8 lhs_values "['predicate','predicate']"
         Utf8 operator "Filter"
@@ -1410,7 +1410,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         Utf8 rhs_stream "Stream"
     }}
     select_predicate_object_property_entity_p["select_predicate_object_property_entity_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "filter_predicate_object_property_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
@@ -1420,7 +1420,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	pivot_object_property_entity_p["pivot_object_property_entity_p"] {{
 	    List-Utf8 agg_columns "['object']"
 	    List-Utf8 agg_operators "['First']"
-	    Boolean cpu "false"
+	    Boolean cpu "true"
 	    List-Utf8 default_values "['']"
 	    Utf8 lhs_name "select_predicate_object_property_entity_s"
 	    List-Utf8 lhs_values "['subject']"
@@ -1441,7 +1441,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	group_by_object_property_pivot_p["group_by_object_property_pivot_p"] {{
 	    List-Utf8 agg_columns "['http://www.w3.org/2000/01/rdf-schema#label-object-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First']"
 	    List-Utf8 agg_operators "['First','First']"
-	    Boolean cpu "false"
+	    Boolean cpu "true"
 	    Utf8 lhs_name "coalesce_object_property_pivot_s"
 	    List-Utf8 lhs_values "['subject']"
 	    Utf8 operator "GroupBy"
@@ -1454,7 +1454,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    Utf8 http://purl.obolibrary.org/obo/IAO_0000115-object-First-First
 	}}
     select_object_property_pivot_p["select_object_property_pivot_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "group_by_object_property_pivot_s"
         List-Utf8 as_columns "['uri','rdfs_label','obo_IAO_0000115']"
         List-Utf8 lhs_values "['subject','http://www.w3.org/2000/01/rdf-schema#label-object-First-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First-First']"
@@ -1472,7 +1472,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2000/01/rdf-schema#label']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
 	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "coalesce_named_individual_entity_s"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
@@ -1482,7 +1482,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         List-Utf8 cmp_columns "['rdfs_label']"
         List-Utf8 cmp_operators "['Like']"
         Utf8 cmp_predicate "Any"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "comparator_predicate_named_individual_entity_s"
         List-Utf8 lhs_values "['predicate']"
         Utf8 operator "Filter"
@@ -1490,7 +1490,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         Utf8 rhs_stream "Stream"
     }}
     select_predicate_named_individual_entity_p["select_predicate_named_individual_entity_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "filter_predicate_named_individual_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
@@ -1500,7 +1500,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	pivot_named_individual_entity_p["pivot_named_individual_entity_p"] {{
 	    List-Utf8 agg_columns "['object']"
 	    List-Utf8 agg_operators "['First']"
-	    Boolean cpu "false"
+	    Boolean cpu "true"
 	    List-Utf8 default_values "['']"
 	    Utf8 lhs_name "select_predicate_named_individual_entity_s"
 	    List-Utf8 lhs_values "['subject']"
@@ -1520,7 +1520,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	group_by_named_individual_pivot_p["group_by_named_individual_pivot_p"] {{
 	    List-Utf8 agg_columns "['http://www.w3.org/2000/01/rdf-schema#label-object-First']"
 	    List-Utf8 agg_operators "['First']"
-	    Boolean cpu "false"
+	    Boolean cpu "true"
 	    Utf8 lhs_name "coalesce_named_individual_pivot_s"
 	    List-Utf8 lhs_values "['subject']"
 	    Utf8 operator "GroupBy"
@@ -1532,7 +1532,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    Utf8 http://www.w3.org/2000/01/rdf-schema#label-object-First-First
 	}}
     select_named_individual_pivot_p["select_named_individual_pivot_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "group_by_named_individual_pivot_s"
 	    List-Utf8 as_columns "['uri','rdfs_label','obo_IAO_0000115']"
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8']"
@@ -1548,7 +1548,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    Utf8 obo_IAO_0000115
 	}}
 	join_predicates_class_entity_p["join_predicates_class_entity_p"] {{
-	    Boolean cpu "false"
+	    Boolean cpu "true"
 	    Utf8 operator "Join"
 	    Utf8 lhs_name "select_class_entity_s"
 	    Utf8 lhs_fk "predicate"
@@ -1556,12 +1556,12 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    Utf8 rhs_name "select_annotation_property_pivot_s"
 	    Utf8 rhs_fk "uri"
 	    Utf8 rhs_pk "uri"
-	    Utf8 lhs_stream "Accumulate"
+	    Utf8 lhs_stream "Stream"
         Utf8 rhs_stream "Accumulate"
         Utf8 join_operators "Inner"
 	}}
     select_predicates_class_entity_p["select_predicates_class_entity_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "join_predicates_class_entity_s"
         List-Utf8 as_columns "['','','','','','','predicate_rdfs_label','predicate_obo_IAO_0000115']"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label','obo_IAO_0000115']"
@@ -1585,7 +1585,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 cast_templates "['','','','','','','','','http://%']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Value']"
 	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','resource']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "select_predicates_class_entity_s"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
@@ -1595,7 +1595,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         List-Utf8 cmp_columns "['resource']"
         List-Utf8 cmp_operators "['Like']"
         Utf8 cmp_predicate "Any"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "comparator_resource_class_entity_s"
         List-Utf8 lhs_values "['object']"
         Utf8 operator "Filter"
@@ -1603,7 +1603,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         Utf8 rhs_stream "Stream"
     }}
     select_resource_class_entity_p["select_resource_class_entity_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "filter_resource_class_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115']"
         Utf8 operator "Select"
@@ -1621,7 +1621,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    Utf8 predicate_obo_IAO_0000115
 	}}
 	join_objects_class_entity_p["join_objects_class_entity_p"] {{
-	    Boolean cpu "false"
+	    Boolean cpu "true"
 	    Utf8 operator "Join"
 	    Utf8 lhs_name "select_resource_class_entity_s"
 	    Utf8 lhs_fk "object"
@@ -1629,12 +1629,12 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    Utf8 rhs_name "merge_object_property_class_named_individual_pivot_s"
 	    Utf8 rhs_fk "uri"
 	    Utf8 rhs_pk "uri"
-	    Utf8 lhs_stream "Accumulate"
+	    Utf8 lhs_stream "Stream"
         Utf8 rhs_stream "Accumulate"
         Utf8 join_operators "Inner"
 	}}
     select_objects_class_entity_p["select_objects_class_entity_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "join_objects_class_entity_s"
         List-Utf8 as_columns "['','','','','','','object_rdfs_label','object_obo_IAO_0000115']"
         List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','rdfs_label','obo_IAO_0000115']"
@@ -1658,7 +1658,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 cast_templates "['','','','','','','','','http://%']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Value']"
 	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','resource']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "select_predicates_class_entity_s"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
@@ -1668,7 +1668,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         List-Utf8 cmp_columns "['resource']"
         List-Utf8 cmp_operators "['NotLike']"
         Utf8 cmp_predicate "Any"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "comparator_literal_class_entity_s"
         List-Utf8 lhs_values "['object']"
         Utf8 operator "Filter"
@@ -1676,7 +1676,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         Utf8 rhs_stream "Stream"
     }}
     select_literal_class_entity_p["select_literal_class_entity_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "filter_literal_class_entity_s"
         List-Utf8 as_columns "['','','','','','','object_rdfs_label','']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','None','String']"
@@ -1686,7 +1686,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         Utf8 rhs_stream "Stream"
     }}
 	join_predicates_object_property_entity_p["join_predicates_object_property_entity_p"] {{
-	    Boolean cpu "false"
+	    Boolean cpu "true"
 	    Utf8 operator "Join"
 	    Utf8 lhs_name "select_object_property_entity_s"
 	    Utf8 lhs_fk "predicate"
@@ -1694,12 +1694,12 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    Utf8 rhs_name "select_annotation_property_pivot_s"
 	    Utf8 rhs_fk "uri"
 	    Utf8 rhs_pk "uri"
-	    Utf8 lhs_stream "Accumulate"
+	    Utf8 lhs_stream "Stream"
         Utf8 rhs_stream "Accumulate"
         Utf8 join_operators "Inner"
 	}}
     select_predicates_object_property_entity_p["select_predicates_object_property_entity_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "join_predicates_object_property_entity_s"
         List-Utf8 as_columns "['','','','','','','predicate_rdfs_label','predicate_obo_IAO_0000115']"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label','obo_IAO_0000115']"
@@ -1723,7 +1723,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 cast_templates "['','','','','','','','','http://%']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Value']"
 	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','resource']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "select_predicates_object_property_entity_s"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
@@ -1733,7 +1733,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         List-Utf8 cmp_columns "['resource']"
         List-Utf8 cmp_operators "['Like']"
         Utf8 cmp_predicate "Any"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "comparator_resource_object_property_entity_s"
         List-Utf8 lhs_values "['object']"
         Utf8 operator "Filter"
@@ -1741,7 +1741,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         Utf8 rhs_stream "Stream"
     }}
     select_resource_object_property_entity_p["select_resource_object_property_entity_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "filter_resource_object_property_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115']"
         Utf8 operator "Select"
@@ -1759,7 +1759,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    Utf8 predicate_obo_IAO_0000115
 	}}
 	join_objects_object_property_entity_p["join_objects_object_property_entity_p"] {{
-	    Boolean cpu "false"
+	    Boolean cpu "true"
 	    Utf8 operator "Join"
 	    Utf8 lhs_name "select_resource_object_property_entity_s"
 	    Utf8 lhs_fk "object"
@@ -1767,12 +1767,12 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    Utf8 rhs_name "merge_object_property_class_named_individual_pivot_s"
 	    Utf8 rhs_fk "uri"
 	    Utf8 rhs_pk "uri"
-	    Utf8 lhs_stream "Accumulate"
+	    Utf8 lhs_stream "Stream"
         Utf8 rhs_stream "Accumulate"
         Utf8 join_operators "Inner"
 	}}
     select_objects_object_property_entity_p["select_objects_object_property_entity_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "join_objects_object_property_entity_s"
         List-Utf8 as_columns "['','','','','','','object_rdfs_label','object_obo_IAO_0000115']"
         List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','rdfs_label','obo_IAO_0000115']"
@@ -1796,7 +1796,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 cast_templates "['','','','','','','','','http://%']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Value']"
 	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','resource']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "select_predicates_object_property_entity_s"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
@@ -1806,7 +1806,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         List-Utf8 cmp_columns "['resource']"
         List-Utf8 cmp_operators "['NotLike']"
         Utf8 cmp_predicate "Any"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "comparator_literal_object_property_entity_s"
         List-Utf8 lhs_values "['object']"
         Utf8 operator "Filter"
@@ -1814,7 +1814,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         Utf8 rhs_stream "Stream"
     }}
     select_literal_object_property_entity_p["select_literal_object_property_entity_p"] {{
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "filter_literal_object_property_entity_s"
         List-Utf8 as_columns "['','','','','','','object_rdfs_label','']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','None','String']"
@@ -1829,7 +1829,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         List-Utf8 column_operators "['None','None','None','None','None','None','Concat','Concat']"
         List-Utf8 rhs_values "['','','','','','','object_obo_IAO_0000115-Cast','object-Concat']"
         List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','object_obo_IAO_0000115','object_rdfs_label','predicate_rdfs_label-Cast']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "select_objects_class_entity_s"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
@@ -1837,7 +1837,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
     }}
     select_cols_class_entity_p["select_cols_class_entity_p"] {{
         List-Utf8 lhs_values "['entity','subject','graph','dataset','text']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "concat_cols_class_entity_s"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
@@ -1847,7 +1847,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 agg_columns "['text']"
 	    List-Utf8 agg_operators "['List']"
 	    List-Utf8 lhs_values "['subject','dataset']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "select_cols_class_entity_s"
         Utf8 operator "GroupBy"
         Utf8 lhs_stream "Accumulate"
@@ -1855,7 +1855,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
     select_rows_class_entity_p["select_rows_class_entity_p"] {{
         List-Utf8 as_columns "['subject','dataset','text_List']"
         List-Utf8 lhs_values "['subject','dataset','text-List']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "list_rows_class_entity_s"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
@@ -1867,7 +1867,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         List-Utf8 column_operators "['None','None','None','None','None','None','Concat','Concat']"
         List-Utf8 rhs_values "['','','','','','','object_obo_IAO_0000115-Cast','object-Concat']"
         List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','object_obo_IAO_0000115','object_rdfs_label','predicate_rdfs_label-Cast']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "select_objects_object_property_entity_s"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
@@ -1875,7 +1875,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
     }}
     select_cols_object_property_entity_p["select_cols_object_property_entity_p"] {{
         List-Utf8 lhs_values "['entity','subject','graph','dataset','text']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "concat_cols_object_property_entity_s"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
@@ -1885,7 +1885,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 agg_columns "['text']"
 	    List-Utf8 agg_operators "['List']"
 	    List-Utf8 lhs_values "['subject','dataset']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "select_cols_object_property_entity_s"
         Utf8 operator "GroupBy"
         Utf8 lhs_stream "Accumulate"
@@ -1893,7 +1893,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
     select_rows_object_property_entity_p["select_rows_object_property_entity_p"] {{
         List-Utf8 as_columns "['subject','dataset','text_List']"
         List-Utf8 lhs_values "['subject','dataset','text-List']"
-        Boolean cpu "false"
+        Boolean cpu "true"
         Utf8 lhs_name "list_rows_object_property_entity_s"
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"

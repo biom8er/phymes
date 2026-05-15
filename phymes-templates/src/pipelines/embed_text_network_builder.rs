@@ -146,12 +146,20 @@ impl<'a> EmbedTextNetworkBuilder<'a> {
 	%% Embed Query
 	%% ------------------------------------------------------------------------------
 	subgraph embed_query_t
-	    UserQueries-subject-.->|LastRecordBatch|embed_query_p-subscribe
+	    UserQueries-subject-.->|AllRecordBatches|coalesce_query_p-subscribe
+	    coalesce_query_p-subscribe-->coalesce_query_p-processor
+	    coalesce_query_p-processor-->coalesce_query_p-publish
+	    coalesce_query_p-publish-->|Extend|coalesce_query_s-subject
+	    coalesce_query_s-subject-->|AllRecordBatches|embed_query_p-subscribe
 	    embed_query_p-subscribe-->embed_query_p-processor
 	    embed_query_p-processor-->embed_query_p-publish
 	    embed_query_p-publish-->|Replace|QueryEmbeddings-subject
 	end
 	embed_text_r-rt-->embed_query_t
+	coalesce_query_p-processor@{{shape: rect, label: CoalesceProcessor}}
+	coalesce_query_p-publish@{{shape: fork}}
+	coalesce_query_p-subscribe@{{shape: diamond, label: All}}
+	coalesce_query_s-subject@{{shape: doc, label: coalesce_query_s}}
 	embed_query_p-processor@{{shape: rect, label: {embed_processor}}}
 	embed_query_p-publish@{{shape: fork}}
 	embed_query_p-subscribe@{{shape: diamond, label: All}}
@@ -212,8 +220,12 @@ impl<'a> EmbedTextNetworkBuilder<'a> {
         Utf8 query_id
         Utf8 text
     }}
+	coalesce_query_p["coalesce_query_p"] {{
+	    Int64 fetch "8"
+	    Utf8 summary_format "None"
+	}}
 	embed_query_p["embed_query_p"] {{
-	    Utf8 documents "UserQueries"
+	    Utf8 documents "coalesce_query_s"
 	    Boolean cpu "false"
 	    Utf8 encoding_format "float"
 	    Utf8 input_type "query"
@@ -230,7 +242,7 @@ impl<'a> EmbedTextNetworkBuilder<'a> {
         Utf8 text
 	}}
 	coalesce_documents_p["coalesce_documents_p"] {{
-	    Int64 fetch "1"
+	    Int64 fetch "4"
 	    Utf8 summary_format "None"
 	}}
 	embed_documents_p["embed_documents_p"] {{

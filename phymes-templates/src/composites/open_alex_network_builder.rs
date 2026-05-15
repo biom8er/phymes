@@ -10,7 +10,7 @@ use phymes_network::{NetworkBuilder, NetworkBuilderMermaidTrait};
 use phymes_schemas::{
     AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat,
 };
-use phymes_streams::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType, ObjectStoreConfig, ObjectStoreOptsType};
+use phymes_streams::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType, LimitConfig, ObjectStoreConfig, ObjectStoreOptsType};
 use serde_json::{Map, Value};
 
 use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, EmbedTextNetworkBuilder, ExtractOntologyNetworkBuilder, ExtractPDFNetworkBuilder, RetrieveTextNetworkBuilder};
@@ -182,10 +182,42 @@ impl Default for OpenAlexNetworkBuilder {
             let task_name = "filter_work_topic_table";
             let mut tasks = VecDeque::new();
             {
-                let network_name = "cmp_work_topic_table";
+                let network_name = "coalesce_work_topic_table";
                 let subject_name_lhs = "WorkTopicTable";
+                let config = LimitConfig {
+                    fetch: 512,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: task_name.to_string(),
+                    is_dynamic: false,
+                    processor: AvailableProcessors::CoalesceProcessor,
+                    subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                        subject_name: subject_name_lhs.to_string(),
+                    },
+                    publication: Publication::Replace {
+                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
+                    },
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);                
+            }
+            {
+                let network_name = "cmp_work_topic_table";
                 let config = DataConfig {
-                    lhs_name: Some(subject_name_lhs.to_string()),
+                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
                     lhs_values: Some(["work_id","topic_id","is_primary","score","cmp_is_primary","cmp_score"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     as_columns: Some(["work_id","topic_id","is_primary","score","cmp_is_primary","cmp_score"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     cast_templates: Some(["","","","","1","0.5"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
@@ -211,8 +243,8 @@ impl Default for OpenAlexNetworkBuilder {
                     network_name: task_name.to_string(),
                     is_dynamic: false,
                     processor: AvailableProcessors::Select,
-                    subscription_lhs: Subscription::OnUpdateAllRecordBatches {
-                        subject_name: subject_name_lhs.to_string(),
+                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
+                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
                     },
                     publication: Publication::Replace {
                         subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
@@ -230,7 +262,7 @@ impl Default for OpenAlexNetworkBuilder {
                     cmp_columns: Some(["cmp_is_primary","cmp_score"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     cmp_operators: Some([DataComparatorOperator::Equals, DataComparatorOperator::GreaterThan].into_iter().collect::<Vec<_>>()),
                     cmp_predicate: Some(DataComparatorPredicate::All),
-                    cpu: false,
+                    cpu: true,
                     operator: AvailableOperators::Filter,
                     lhs_stream: DataStreamManager::Stream,
                     ..Default::default()
@@ -308,9 +340,9 @@ impl Default for OpenAlexNetworkBuilder {
                     lhs_pk: Some("topic_id".to_string()),
                     rhs_pk: Some("topic_id".to_string()),
                     join_operators: Some(phymes_data::DataJoinOperator::Inner),
-                    cpu: false,
+                    cpu: true,
                     operator: AvailableOperators::Join,
-                    lhs_stream: DataStreamManager::Accumulate,
+                    lhs_stream: DataStreamManager::Stream,
                     rhs_stream: Some(DataStreamManager::Accumulate),
                     ..Default::default()
                 };
@@ -386,16 +418,48 @@ impl Default for OpenAlexNetworkBuilder {
             let task_name = "select_open_access_pdf_url";
             let mut tasks = VecDeque::new();
             {
-                let network_name = "cmp_work_location_table";
+                let network_name = "coalesce_work_location_table";
                 let subject_name_lhs = "WorkLocationTable";
+                let config = LimitConfig {
+                    fetch: 512,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: task_name.to_string(),
+                    is_dynamic: false,
+                    processor: AvailableProcessors::CoalesceProcessor,
+                    subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                        subject_name: subject_name_lhs.to_string(),
+                    },
+                    publication: Publication::Replace {
+                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
+                    },
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);                
+            }
+            {
+                let network_name = "cmp_work_location_table";
                 let config = DataConfig {
-                    lhs_name: Some(subject_name_lhs.to_string()),
+                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
                     lhs_values: Some(["work_id","landing_page_url","pdf_url","source_id","license","version","is_best_oa","is_primary","is_oa","cmp_is_best_oa","pdf_url","cmp_pdf_url_len"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     as_columns: Some(["work_id","landing_page_url","pdf_url","source_id","license","version","is_best_oa","is_primary","is_oa","cmp_is_best_oa","pdf_url_len","cmp_pdf_url_len"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     cast_templates: Some(["","","","","","","","","","1","",""].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     cast_datatypes: Some([DataType::Utf8, DataType::Utf8, DataType::Utf8, DataType::Utf8, DataType::Utf8, DataType::Utf8, DataType::UInt8, DataType::UInt8, DataType::UInt8, DataType::UInt8, DataType::UInt32, DataType::UInt32].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     column_operators: Some([DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::Value, DataColumnOperator::Len, DataColumnOperator::Zeros].into_iter().collect::<Vec<_>>()),
-                    cpu: false,
+                    cpu: true,
                     operator: AvailableOperators::Select,
                     lhs_stream: DataStreamManager::Stream,
                     ..Default::default()
@@ -411,19 +475,12 @@ impl Default for OpenAlexNetworkBuilder {
                     .with_subject(subject)
                     .build()
                     .unwrap();
-                let subject = AvailableSubjects::Bytes
-                    .to_subject(Some(subject_name_lhs), None)
-                    .unwrap();
-                let subject_lhs = SubjectPlan::get_builder()
-                    .with_subject(subject)
-                    .build()
-                    .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
                     is_dynamic: false,
                     processor: AvailableProcessors::Select,
-                    subscription_lhs: Subscription::OnUpdateAllRecordBatches {
-                        subject_name: subject_lhs.get_name().to_string(),
+                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
+                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
                     },
                     publication: Publication::Replace {
                         subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
@@ -441,7 +498,7 @@ impl Default for OpenAlexNetworkBuilder {
                     cmp_columns: Some(["cmp_is_best_oa","cmp_pdf_url_len"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     cmp_operators: Some([DataComparatorOperator::Equals, DataComparatorOperator::GreaterThan].into_iter().collect::<Vec<_>>()),
                     cmp_predicate: Some(DataComparatorPredicate::All),
-                    cpu: false,
+                    cpu: true,
                     operator: AvailableOperators::Filter,
                     lhs_stream: DataStreamManager::Stream,
                     ..Default::default()
@@ -477,7 +534,7 @@ impl Default for OpenAlexNetworkBuilder {
                 let config = DataConfig {
                     lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
                     lhs_values: Some(["work_id","landing_page_url","pdf_url","source_id","license","version","is_best_oa","is_primary","is_oa"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
-                    cpu: false,
+                    cpu: true,
                     operator: AvailableOperators::Select,
                     lhs_stream: DataStreamManager::Stream,
                     ..Default::default()
@@ -519,9 +576,9 @@ impl Default for OpenAlexNetworkBuilder {
                     lhs_pk: Some("work_id".to_string()),
                     rhs_pk: Some("work_id".to_string()),
                     join_operators: Some(phymes_data::DataJoinOperator::Inner),
-                    cpu: false,
+                    cpu: true,
                     operator: AvailableOperators::Join,
-                    lhs_stream: DataStreamManager::Accumulate,
+                    lhs_stream: DataStreamManager::Stream,
                     rhs_stream: Some(DataStreamManager::Accumulate),
                     ..Default::default()
                 };
@@ -846,6 +903,38 @@ impl Default for OpenAlexNetworkBuilder {
                 };
                 tasks.push_back(builder);                
             }
+            {
+                let network_name = "coalesce_extract_owl";
+                let config = LimitConfig {
+                    fetch: 512,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: task_name.to_string(),
+                    is_dynamic: false,
+                    processor: AvailableProcessors::CoalesceProcessor,
+                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
+                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                    },
+                    publication: Publication::Replace {
+                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
+                    },
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);                
+            }
             let schema_cols = ["entity","subject","predicate","object","graph","dataset"];
             let cmp_cols = ["hasDbXref","creation_date","id","seeAlso","contributor","OMO_0002000","date"];
             {
@@ -1117,6 +1206,7 @@ mod tests {
                 .build()?,
         );
         // let cl_urls = vec![
+        //     // "Users/dmccl/Downloads/ontologies/core_predicates.owl",
         //     // "http://purl.obolibrary.org/obo/ro.owl".to_string(),
         //     // "http://purl.obolibrary.org/obo/eco.owl".to_string(),
         //     "http://purl.obolibrary.org/obo/cl.owl".to_string(),
@@ -1132,33 +1222,33 @@ mod tests {
         //     // "".to_string(),
         //     // "".to_string(),
         //     ];
-        // let cl_urls = vec![
-        //     // "Users/dmccl/Downloads/ontologies/test.owl",
-        //     // "Users/dmccl/Downloads/ontologies/rdfs-dc-skos.owl",
-        //     // "Users/dmccl/Downloads/ontologies/ro.owl",
-        //     // "Users/dmccl/Downloads/ontologies/eco.owl",
-        //     // "Users/dmccl/Downloads/ontologies/cl.owl"
-        //     "Users/dmccl/Downloads/ontologies/HumanDO.owl"
-        //     ];
-        // let cl_arr: ArrayRef = Arc::new(StringArray::from(cl_urls));
-        // // let batch = RecordBatch::try_from_iter(vec![("content", cl_arr)])?;
-        // let batch = RecordBatch::try_from_iter(vec![("location", cl_arr)])?;
-        // let subject = Subject::get_builder()
-        //     .with_name("http_request_owl_s")
-        //     .with_record_batches(vec![batch])?
-        //     .build()?;
-        // let _ = message_map.insert(
-        //     subject.get_name().to_string(),
-        //     IPCMessage::get_builder()
-        //         .with_name(subject.get_name())
-        //         .with_publisher(network_arc.get_name())
-        //         .with_subject(subject.get_name())
-        //         .with_update(&Publication::Replace {
-        //             subject_name: subject.get_name().to_string(),
-        //         })
-        //         .with_message(subject.to_ipc_stream()?)
-        //         .build()?,
-        // );
+        let cl_urls = vec![
+            // "Users/dmccl/Downloads/ontologies/core_predicates.owl",
+            // "Users/dmccl/Downloads/ontologies/rdfs-dc-skos.owl",
+            // "Users/dmccl/Downloads/ontologies/ro.owl",
+            // "Users/dmccl/Downloads/ontologies/eco.owl",
+            // "Users/dmccl/Downloads/ontologies/cl.owl"
+            "Users/dmccl/Downloads/ontologies/HumanDO.owl"
+            ];
+        let cl_arr: ArrayRef = Arc::new(StringArray::from(cl_urls));
+        // let batch = RecordBatch::try_from_iter(vec![("content", cl_arr)])?;
+        let batch = RecordBatch::try_from_iter(vec![("location", cl_arr)])?;
+        let subject = Subject::get_builder()
+            .with_name("http_request_owl_s")
+            .with_record_batches(vec![batch])?
+            .build()?;
+        let _ = message_map.insert(
+            subject.get_name().to_string(),
+            IPCMessage::get_builder()
+                .with_name(subject.get_name())
+                .with_publisher(network_arc.get_name())
+                .with_subject(subject.get_name())
+                .with_update(&Publication::Replace {
+                    subject_name: subject.get_name().to_string(),
+                })
+                .with_message(subject.to_ipc_stream()?)
+                .build()?,
+        );
 
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
@@ -1172,9 +1262,7 @@ mod tests {
         let subject_names = extended_diagnostic_subjects
             .iter()
             .map(|s| s.as_str())
-            .chain(["EmbeddingScores","Documents","UserQueries",
-                "pivot_object_property_entity_s","pivot_class_entity_s",
-                "select_annotation_property_entity_s","pivot_annotation_property_entity_s"])
+            .chain(["EmbeddingScores","Documents","UserQueries"])
             .collect::<Vec<_>>();
         write_diagnostic_subjects_to_csv(
             &subject_names, 
@@ -1387,162 +1475,171 @@ mod tests {
             assert!(column.len() > 100);
         }
 
-        // // Test HTTP request of ontologies
-        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-        //     subject_name: AvailableInterfaceSubjects::UserScript.to_string(),
-        // }
-        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        // .unwrap()
-        // .try_collect()
-        // .await?;
-        // let subject = Subject::get_builder()
-        //     .with_name(AvailableInterfaceSubjects::UserScript.to_string().as_str())
-        //     .with_record_batches(batches)?
-        //     .build()?;
-        // dbg!(subject.count_rows());
-        
-        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-        //     subject_name: AvailableSubjects::ParseOwl.to_string(),
-        // }
-        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        // .unwrap()
-        // .try_collect()
-        // .await?;
-        // let subject = Subject::get_builder()
-        //     .with_name(AvailableSubjects::ParseOwl.to_string().as_str())
-        //     .with_record_batches(batches)?
-        //     .build()?;
-        // dbg!(subject.count_rows());
-        // // assert_eq!(subject.count_rows(), 30);
-        // let column = subject.get_column_as_vec_str("entity");
-        // dbg!(column.first().unwrap());
-        // dbg!(column.last().unwrap());
-        // // assert_eq!(
-        // //     column.first().unwrap(),
-        // //     &"http://www.w3.org/2002/07/owl#AnnotationProperty"
-        // // );
-        // // assert_eq!(
-        // //     column.last().unwrap(),
-        // //     &"http://www.w3.org/2002/07/owl#Ontology"
-        // // );
-        // let column = subject.get_column_as_vec_str("subject");
-        // dbg!(column.first().unwrap());
-        // dbg!(column.last().unwrap());
-        // // assert_eq!(
-        // //     column.first().unwrap(),
-        // //     &"http://purl.obolibrary.org/obo/IAO_0000115"
-        // // );
-        // // assert_eq!(
-        // //     column.last().unwrap(),
-        // //     &"http://purl.obolibrary.org/obo/ro.owl"
-        // // );
-        // let column = subject.get_column_as_vec_str("predicate");
-        // dbg!(column.first().unwrap());
-        // dbg!(column.last().unwrap());
-        // // assert_eq!(
-        // //     column.first().unwrap(),
-        // //     &"http://purl.obolibrary.org/obo/IAO_0000115"
-        // // );
-        // // assert_eq!(column.last().unwrap(), &"http://purl.org/dc/terms/title");
-        // let column = subject.get_column_as_vec_str("object");
-        // dbg!(column.first().unwrap());
-        // dbg!(column.last().unwrap());
-        // // assert_eq!(
-        // //     column.first().unwrap(),
-        // //     &""
-        // // );
-        // // assert_eq!(column.last().unwrap(), &"OBO Relations Ontology");
-        // let column = subject.get_column_as_vec_str("graph");
-        // dbg!(column.first().unwrap());
-        // dbg!(column.last().unwrap());
-        // // assert_eq!(
-        // //     column.first().unwrap(),
-        // //     &""
-        // // );
-        // // assert_eq!(
-        // //     column.last().unwrap(),
-        // //     &""
-        // // );
-        // let column = subject.get_column_as_vec_str("dataset");
-        // dbg!(column.first().unwrap());
-        // dbg!(column.last().unwrap());
-        // // assert_eq!(column.first().unwrap(), &"UserScript");
-        // // assert_eq!(column.last().unwrap(), &"UserScript");
-        
-        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-        //     subject_name: AvailableInterfaceSubjects::UserQueries.to_string(),
-        // }
-        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        // .unwrap()
-        // .try_collect()
-        // .await?;
-        // let subject = Subject::get_builder()
-        //     .with_name(AvailableInterfaceSubjects::UserQueries.to_string().as_str())
-        //     .with_record_batches(batches)?
-        //     .build()?;
-        // dbg!(subject.count_rows());
-        // // assert_eq!(subject.count_rows(), 3);
-        // let mut column = subject.get_column_as_vec_str("query_id");
-        // column.sort();
-        // dbg!(column.first().unwrap());
-        // dbg!(column.last().unwrap());
-        // // assert_eq!(
-        // //     column.first().unwrap(),
-        // //     &"http://purl.obolibrary.org/obo/BFO_0000003"
-        // // );
-        // // assert_eq!(
-        // //     column.last().unwrap(),
-        // //     &"http://purl.obolibrary.org/obo/RO_0002131"
-        // // );
-        // let mut column = subject.get_column_as_vec_str("text");
-        // column.sort();
-        // dbg!(column.first().unwrap());
-        // dbg!(column.last().unwrap());
-        // // assert_eq!(
-        // //     column.first().unwrap(),
-        // //     &"**definition** An entity that has temporal parts and that happens, unfolds or develops through time.\n**has exact synonym** has temporal part\n**has exact synonym** through time\n**has exact synonym** unfolds in time\n**label** occurrent"
-        // // );
-
-        // Make the query data
-        let mut message_map = HashMap::<String, IPCMessage>::new();
-        let chat = AvailableInterfaceSubjects::UserMessages
-            .to_subject_builder(None)
-            .append_new_user_query_str(
-                r#"label: adult Fanconi syndrome
-has exact synonym: Fanconi syndrome 
-definition: A renal tubular transport disease of the proximal renal tubes characterized by glucosuria, phosphaturia, generalized aminoaciduria and HCO3 wasting."#,
-                "user",
-            )?
+        // Test HTTP request of ontologies
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableInterfaceSubjects::UserScript.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableInterfaceSubjects::UserScript.to_string().as_str())
+            .with_record_batches(batches)?
             .build()?;
-        let _ = message_map.insert(
-            chat.get_name().to_string(),
-            IPCMessage::get_builder()
-                .with_message(chat.to_ipc_stream()?)
-                .with_subject(chat.get_name())
-                .with_update(&Publication::Extend {
-                    subject_name: chat.get_name().to_string(),
-                })
-                .with_publisher(network_arc.get_name())
-                .make_name()?
-                .build()?,
-        );
+        dbg!(subject.count_rows());
+        
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::ParseOwl.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::ParseOwl.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        dbg!(subject.count_rows());
+        // assert_eq!(subject.count_rows(), 30);
+        let column = subject.get_column_as_vec_str("entity");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &"http://www.w3.org/2002/07/owl#AnnotationProperty"
+        // );
+        // assert_eq!(
+        //     column.last().unwrap(),
+        //     &"http://www.w3.org/2002/07/owl#Ontology"
+        // );
+        let column = subject.get_column_as_vec_str("subject");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &"http://purl.obolibrary.org/obo/IAO_0000115"
+        // );
+        // assert_eq!(
+        //     column.last().unwrap(),
+        //     &"http://purl.obolibrary.org/obo/ro.owl"
+        // );
+        let column = subject.get_column_as_vec_str("predicate");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &"http://purl.obolibrary.org/obo/IAO_0000115"
+        // );
+        // assert_eq!(column.last().unwrap(), &"http://purl.org/dc/terms/title");
+        let column = subject.get_column_as_vec_str("object");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &""
+        // );
+        // assert_eq!(column.last().unwrap(), &"OBO Relations Ontology");
+        let column = subject.get_column_as_vec_str("graph");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &""
+        // );
+        // assert_eq!(
+        //     column.last().unwrap(),
+        //     &""
+        // );
+        let column = subject.get_column_as_vec_str("dataset");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"UserScript");
+        // assert_eq!(column.last().unwrap(), &"UserScript");
+        
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableInterfaceSubjects::UserQueries.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableInterfaceSubjects::UserQueries.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        dbg!(subject.count_rows());
+        // assert_eq!(subject.count_rows(), 3);
+        let mut column = subject.get_column_as_vec_str("query_id");
+        column.sort();
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &"http://purl.obolibrary.org/obo/BFO_0000003"
+        // );
+        // assert_eq!(
+        //     column.last().unwrap(),
+        //     &"http://purl.obolibrary.org/obo/RO_0002131"
+        // );
+        let mut column = subject.get_column_as_vec_str("text");
+        column.sort();
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &"**definition** An entity that has temporal parts and that happens, unfolds or develops through time.\n**has exact synonym** has temporal part\n**has exact synonym** through time\n**has exact synonym** unfolds in time\n**label** occurrent"
+        // );
 
-        // 2. Run the session
-        let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
+//         // Make the query data
+//         let mut message_map = HashMap::<String, IPCMessage>::new();
+//         let chat = AvailableInterfaceSubjects::UserMessages
+//             .to_subject_builder(None)
+//             .append_new_user_query_str(
+//                 r#"label: Fanconi syndrome
+// definition: A renal tubular transport disease of the proximal renal tubes characterized by glucosuria, phosphaturia, generalized aminoaciduria and HCO3 wasting.
+// has exact synonym: Lignac-Fanconi syndrome
+// has exact synonym: adult Fanconi Anemia
+// has exact synonym: Congenital Fanconi syndrome
+// has exact synonym: Fanconi-de Toni syndrome
+// has exact synonym: Infantile nephropathic cystinosis
+// has exact synonym: Fanconi-de-Toni syndrome
+// has exact synonym: De Toni-Fanconi syndrome
+// has exact synonym: adult Fanconi syndrome
+// has exact synonym: deToni Fanconi syndrome
+// has exact match: MESH:D005198"#,
+//                 "user",
+//             )?
+//             .build()?;
+//         let _ = message_map.insert(
+//             chat.get_name().to_string(),
+//             IPCMessage::get_builder()
+//                 .with_message(chat.to_ipc_stream()?)
+//                 .with_subject(chat.get_name())
+//                 .with_update(&Publication::Extend {
+//                     subject_name: chat.get_name().to_string(),
+//                 })
+//                 .with_publisher(network_arc.get_name())
+//                 .make_name()?
+//                 .build()?,
+//         );
 
-        let subject_names = extended_diagnostic_subjects
-            .iter()
-            .map(|s| s.as_str())
-            .chain(["EmbeddingScores","Documents","UserQueries",
-                "pivot_object_property_entity_s","pivot_class_entity_s",
-                "select_annotation_property_entity_s","pivot_annotation_property_entity_s"])
-            .collect::<Vec<_>>();
-        write_diagnostic_subjects_to_csv(
-            &subject_names, 
-            network_arc.runtime_env(), 
-            network_arc.get_name())
-            .await?;
+//         // 2. Run the session
+//         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+//         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
+
+//         let subject_names = extended_diagnostic_subjects
+//             .iter()
+//             .map(|s| s.as_str())
+//             .chain(["EmbeddingScores","Documents","UserQueries",
+//                 "pivot_object_property_entity_s","pivot_class_entity_s",
+//                 "select_annotation_property_entity_s","pivot_annotation_property_entity_s"])
+//             .collect::<Vec<_>>();
+//         write_diagnostic_subjects_to_csv(
+//             &subject_names, 
+//             network_arc.runtime_env(), 
+//             network_arc.get_name())
+//             .await?;
 
         // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
         //     subject_name: AvailableSubjects::SessionErrors.to_string(),

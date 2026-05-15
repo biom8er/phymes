@@ -136,6 +136,7 @@ impl<'a> RetrieveTextNetworkBuilder<'a> {
 	    Utf8 rhs_pk "chunk_id"
 	    List-Utf8 rhs_values "['embedding']"
 	    Utf8 lhs_stream "Accumulate"
+	    Utf8 rhs_stream "Accumulate"
 	}
 	threshold_scores_p["threshold_scores_p"] {
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Float32','Float32']"
@@ -147,16 +148,18 @@ impl<'a> RetrieveTextNetworkBuilder<'a> {
 	    Utf8 lhs_name "vector_distance_s"
 	    Utf8 operator "Select"
 	    Utf8 lhs_stream "Accumulate"
+	    Utf8 rhs_stream "Accumulate"
 	}
 	filter_scores_p["filter_scores_p"] {    
 	    List-Utf8 cmp_columns "['threshold']"
 	    List-Utf8 cmp_operators "['GreaterThan']"
 	    Utf8 cmp_predicate "All"
-	    Boolean cpu "false"
+	    Boolean cpu "true"
 	    Utf8 lhs_name "threshold_scores_s"
 	    List-Utf8 lhs_values "['score']"
 	    Utf8 operator "Filter"
 	    Utf8 lhs_stream "Accumulate"
+	    Utf8 rhs_stream "Accumulate"
 	}
 	select_scores_p["select_scores_p"] {
 	    List-Utf8 lhs_values "['chunk_id','query_id','score']"
@@ -164,14 +167,16 @@ impl<'a> RetrieveTextNetworkBuilder<'a> {
 	    Utf8 lhs_name "filter_scores_s"
 	    Utf8 operator "Select"
 	    Utf8 lhs_stream "Accumulate"
+	    Utf8 rhs_stream "Accumulate"
 	}
 	sort_scores_p["sort_scores_p"] {
 	    Boolean cpu "false"
 	    Utf8 lhs_name "select_scores_s"
 	    List-Utf8 lhs_values "['score']"
-		Boolean asc "false"
+		Boolean asc "true"
 	    Utf8 operator "Sort"
 	    Utf8 lhs_stream "Accumulate"
+	    Utf8 rhs_stream "Accumulate"
 	}
 	limit_scores_p["limit_scores_p"] {
 	    Int64 fetch "500"
@@ -207,6 +212,7 @@ impl<'a> RetrieveTextNetworkBuilder<'a> {
 	    Utf8 lhs_name "join_documents_scores_s"
 	    Utf8 operator "Select"
 	    Utf8 lhs_stream "Accumulate"
+	    Utf8 rhs_stream "Accumulate"
 	}
 	summarize_documents_scores_p["summarize_documents_scores_p"] {
 	    Utf8 lhs_name "select_documents_scores_s"
@@ -214,6 +220,7 @@ impl<'a> RetrieveTextNetworkBuilder<'a> {
 	    Boolean cpu "false"
 	    Utf8 operator "PackTabular"
 	    Utf8 lhs_stream "Accumulate"
+	    Utf8 rhs_stream "Accumulate"
 	    Utf8 encoding "None"
 	    Utf8 format "None"
 	    Utf8 schema "Messages"
