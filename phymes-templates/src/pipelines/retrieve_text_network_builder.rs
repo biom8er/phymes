@@ -170,10 +170,10 @@ impl<'a> RetrieveTextNetworkBuilder<'a> {
 	    Utf8 rhs_stream "Accumulate"
 	}
 	sort_scores_p["sort_scores_p"] {
-	    Boolean cpu "false"
+	    Boolean cpu "true"
 	    Utf8 lhs_name "select_scores_s"
 	    List-Utf8 lhs_values "['score']"
-		Boolean asc "true"
+		Boolean asc "false"
 	    Utf8 operator "Sort"
 	    Utf8 lhs_stream "Accumulate"
 	    Utf8 rhs_stream "Accumulate"

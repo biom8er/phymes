@@ -509,9 +509,18 @@ fn xml_to_parsed_owl_record_batch(
         || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:id"
         || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:hasDbXref"
         || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:created_by"
-        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:creation_date")
-
-        // --- Inclusion list ---
+        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:creation_date"
+        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:hasNarrowSynonym"
+        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:hasBroadSynonym"
+        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:hasRelatedSynonym"
+        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:shorthand"
+        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:hasOBOFormatVersion"
+        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:hasScope"
+        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:hasSynonymType"
+        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:inconsistent_with"
+        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:inferred_by"
+        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:isAbout"
+        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:hasAlternativeId")
 
     })
     .partition(|(k, _v)| {
