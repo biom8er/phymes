@@ -501,26 +501,14 @@ fn xml_to_parsed_owl_record_batch(
         || xml_element.tag == "http://www.w3.org/2002/07/owl#Axiom"
 
         // Ignore other properties not used in the embeddings
-        || xml_element.tag == "http://purl.obolibrary.org/obo/OMO_0002000"
-        || xml_element.tag == "http://purl.org/dc/elements/1.1/contributor"
-        || xml_element.tag == "http://purl.org/dc/terms/contributor"
-        || xml_element.tag == "http://purl.org/dc/terms/license"
-        || xml_element.tag == "http://xmlns.com/foaf/0.1/depiction"
-        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:id"
-        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:hasDbXref"
-        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:created_by"
-        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:creation_date"
-        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:hasNarrowSynonym"
-        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:hasBroadSynonym"
-        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:hasRelatedSynonym"
-        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:shorthand"
-        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:hasOBOFormatVersion"
-        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:hasScope"
-        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:hasSynonymType"
-        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:inconsistent_with"
-        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:inferred_by"
-        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:isAbout"
-        || xml_element.tag == "http://www.geneontology.org/formats/oboInOwl#oboInOwl:hasAlternativeId")
+        || xml_element.tag == "http://www.w3.org/2002/07/owl#deprecated"
+        || xml_element.tag.contains("http://www.w3.org/2004/02/skos/core#")
+        || xml_element.tag.contains("http://xmlns.com/foaf/0.1/")
+        || xml_element.tag.contains("http://purl.org/dc/terms/")
+        || xml_element.tag.contains("http://purl.org/dc/elements/1.1/")
+        || (xml_element.tag.contains("http://www.geneontology.org/formats/oboInOwl#") && xml_element.tag != "http://www.geneontology.org/formats/oboInOwl#hasExactSynonym")
+        || (xml_element.tag.contains("http://purl.obolibrary.org/obo/") && xml_element.tag != "http://purl.obolibrary.org/obo/IAO_0000115")
+        )
 
     })
     .partition(|(k, _v)| {

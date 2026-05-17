@@ -1223,14 +1223,15 @@ mod tests {
         //     // "".to_string(),
         //     ];
         let cl_urls = vec![
-            "Users/dmccl/Downloads/ontologies/core_predicates.owl",
+            "Users/dmccl/Downloads/ontologies/HumanDO.owl",
+            // "Users/dmccl/Downloads/ontologies/core_predicates.owl",
             // "Users/dmccl/Downloads/ontologies/rdfs-dc-skos.owl",
             // "Users/dmccl/Downloads/ontologies/ro.owl",
             // "Users/dmccl/Downloads/ontologies/eco.owl",
             "Users/dmccl/Downloads/ontologies/cl.owl",
-            // "Users/dmccl/Downloads/ontologies/uberon.owl",
-            // "Users/dmccl/Downloads/ontologies/go.owl",
-            // "Users/dmccl/Downloads/ontologies/HumanDO.owl"
+            "Users/dmccl/Downloads/ontologies/uberon.owl",
+            "Users/dmccl/Downloads/ontologies/go.owl",
+            "Users/dmccl/Downloads/ontologies/taxslim.owl",
             ];
         let cl_arr: ArrayRef = Arc::new(StringArray::from(cl_urls));
         // let batch = RecordBatch::try_from_iter(vec![("content", cl_arr)])?;

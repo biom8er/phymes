@@ -122,7 +122,8 @@ pub mod bench_chat_processor {
         // Make the system prompt and add the user query
         let message_builder = SubjectBuilder::new()
             .with_name(&config.messages)
-            .insert_system_template_str("You are a helpful assistant.")?
+            .insert_system_template_str("You are a code completion assistant. Use the minimal amount of tokens to fill in the middle.")?
+            // .insert_system_template_str("You are a helpful assistant.")?
             .append_new_user_query_str(user_content, "user")?;
 
         // Build the current message state
