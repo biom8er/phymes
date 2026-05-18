@@ -72,7 +72,7 @@ pub fn from_messages_to_patches(
     let prompt_vec: Result<Vec<(String, String, String)>> = repository_vec.into_iter()
         .zip(path_vec.into_iter())
         .zip(content_vec.into_iter())
-        .filter(|((r, p), c)| match code_completion { 
+        .filter(|((_r, _p), c)| match code_completion { 
             CodeCompletionType::FIM => c.contains("<|fim_prefix|>") && c.contains("<|fim_suffix|>"),
             CodeCompletionType::SRI => c.contains("/* MIDDLE CODE TO COMPLETE */"),
         })

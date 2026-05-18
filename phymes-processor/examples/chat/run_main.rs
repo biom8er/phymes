@@ -29,7 +29,7 @@ pub async fn run_main() -> Result<()> {
         &config,
         // "What are the four molecules that compose DNA?",
         r#"<|repo_name|>library-system
-<|file_sep|>library.py
+<|file_sep|>/src/library.py
 class Book:
     def __init__(self, title, author, isbn, copies):
         self.title = title
@@ -57,7 +57,7 @@ class Library:
     def list_books(self):
         return self.books
 
-<|file_sep|>student.py
+<|file_sep|>/src/student.py
 class Student:
     def __init__(self, name, id):
         self.name = name
@@ -78,7 +78,7 @@ class Student:
             return True
         return False
 
-<|file_sep|>main.py
+<|file_sep|>/src/main.py
 from library import Library
 from student import Student
 
