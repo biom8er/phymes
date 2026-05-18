@@ -236,11 +236,11 @@ fn extract_text(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfText>> {
     }
 
     // Additional filters of "junk" text
-    // Notes: removes Reference sections and all capital section headers...
     // DM: move to seperate operator
     let text = text.into_iter()
         .filter(|pdf_text| {            
             // Heuristics from <https://doi.org/10.1371/journal.pcbi.1005962> suitable for most articles
+            // Notes: removes majority of the Reference sections and all capital section headers...
             let n_chars = pdf_text.text.chars().count();
             let n_num = pdf_text.text.chars().filter(|c| c.is_numeric()).count();
             let num_frac = n_num as f32 / n_chars as f32;
@@ -256,10 +256,11 @@ fn extract_text(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfText>> {
             let lower_check = lower_frac > 0.5_f32;
 
             // Additional Heuristics
+            // Notes: Removes all section headers and combined text from SVG figures
             let check_chars = n_chars > 50; // more than 50 chars
             let n_wspace = pdf_text.text.chars().filter(|c| !c.is_whitespace()).count();
             let wspace_frac = n_wspace as f32 / n_chars as f32;
-            let check_wspace = wspace_frac > 0.05; // greater than 5% white space
+            let check_wspace = wspace_frac > 0.09; // greater than 9% white space
 
             num_check & sym_check & lower_check & check_chars & check_wspace
         })
@@ -480,6 +481,9 @@ fn extract_fonts_from_page(doc: &Document, page_id: (u32, u16)) -> Result<Vec<(S
 ///
 /// # Errors
 /// * Returns an error if text extraction fails for any page in the document
+/// 
+/// # Todo
+/// * Create profiles for text, manuscript_text, images, etc.
 #[instrument(skip(docs))]
 pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
     // DM: Change to phymes_schemas::embed::pdfs.rs

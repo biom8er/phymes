@@ -179,7 +179,7 @@ impl<'a> RetrieveTextNetworkBuilder<'a> {
 	    Utf8 rhs_stream "Accumulate"
 	}
 	limit_scores_p["limit_scores_p"] {
-	    Int64 fetch "500"
+	    Int64 fetch "48"
 	    Int64 skip "0"
 	    Utf8 summary_format "None"
 	}

@@ -1138,6 +1138,7 @@ mod tests {
 
     use super::*;
 
+    // `cargo test -p phymes-templates test_open_alex_network_v_rust --features gpu,hf_hub --release -- --nocapture`
     // #[ignore = "In progress... Some issues with embeddings and retrieval."]
     #[tokio::test]
     async fn test_open_alex_network_v_rust() -> Result<()> {
@@ -1228,10 +1229,10 @@ mod tests {
             // "Users/dmccl/Downloads/ontologies/rdfs-dc-skos.owl",
             // "Users/dmccl/Downloads/ontologies/ro.owl",
             // "Users/dmccl/Downloads/ontologies/eco.owl",
-            "Users/dmccl/Downloads/ontologies/cl.owl",
-            "Users/dmccl/Downloads/ontologies/uberon.owl",
-            "Users/dmccl/Downloads/ontologies/go.owl",
-            "Users/dmccl/Downloads/ontologies/taxslim.owl",
+            // "Users/dmccl/Downloads/ontologies/cl.owl", // Works with HumanDO
+            "Users/dmccl/Downloads/ontologies/uberon.owl", // Breaks
+            // "Users/dmccl/Downloads/ontologies/go.owl",
+            // "Users/dmccl/Downloads/ontologies/taxslim.owl", // Works with HumanDO
             ];
         let cl_arr: ArrayRef = Arc::new(StringArray::from(cl_urls));
         // let batch = RecordBatch::try_from_iter(vec![("content", cl_arr)])?;

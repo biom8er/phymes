@@ -480,6 +480,7 @@ fn xml_to_parsed_owl_record_batch(
         let xml_element: XMLElement = serde_json::from_str(k).unwrap();
 
         // --- Exclusion list ---
+        // DM: The more elements that can be excluded, the faster the parsing of large ontologies
         // Hierarchical objects are not yet supported (e.g., EquivalentClass, ChainedAxioms, etc.)
         !((xml_element.tag == "http://www.w3.org/2002/07/owl#Ontology" && !xml_element.attributes.contains_key("rdf:about"))
         || (xml_element.tag == "http://www.w3.org/2002/07/owl#AnnotationProperty" && !xml_element.attributes.contains_key("rdf:about"))
@@ -500,11 +501,19 @@ fn xml_to_parsed_owl_record_batch(
         // DM: re-instate axiom when testing with GO-CAM
         || xml_element.tag == "http://www.w3.org/2002/07/owl#Axiom"
 
-        // Ignore other properties not used in the embeddings
+        // DM: move to seperate config option
+        //   e.g., `exclude_namespace_iri` and `exclude_iri`
+        //   or re-instate different owl profiles
+
+        // Excluse IRIs not used in the embeddings
         || xml_element.tag == "http://www.w3.org/2002/07/owl#deprecated"
+
+        // Exclude namespace IRIs not used in the embeddings
         || xml_element.tag.contains("http://www.w3.org/2004/02/skos/core#")
+        // || (xml_element.tag.contains("http://www.w3.org/2004/02/skos/core#") && xml_element.tag != "http://www.w3.org/2004/02/skos/core#prefLabel")
         || xml_element.tag.contains("http://xmlns.com/foaf/0.1/")
         || xml_element.tag.contains("http://purl.org/dc/terms/")
+        // || (xml_element.tag.contains("http://purl.org/dc/terms/") && xml_element.tag != "http://purl.org/dc/terms/description")
         || xml_element.tag.contains("http://purl.org/dc/elements/1.1/")
         || (xml_element.tag.contains("http://www.geneontology.org/formats/oboInOwl#") && xml_element.tag != "http://www.geneontology.org/formats/oboInOwl#hasExactSynonym")
         || (xml_element.tag.contains("http://purl.obolibrary.org/obo/") && xml_element.tag != "http://purl.obolibrary.org/obo/IAO_0000115")
