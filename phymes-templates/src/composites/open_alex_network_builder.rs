@@ -1230,8 +1230,8 @@ mod tests {
             // "Users/dmccl/Downloads/ontologies/ro.owl",
             // "Users/dmccl/Downloads/ontologies/eco.owl",
             // "Users/dmccl/Downloads/ontologies/cl.owl", // Works with HumanDO
-            "Users/dmccl/Downloads/ontologies/uberon.owl", // Breaks
-            // "Users/dmccl/Downloads/ontologies/go.owl",
+            // "Users/dmccl/Downloads/ontologies/uberon.owl", // Breaks
+            "Users/dmccl/Downloads/ontologies/go.owl",
             // "Users/dmccl/Downloads/ontologies/taxslim.owl", // Works with HumanDO
             ];
         let cl_arr: ArrayRef = Arc::new(StringArray::from(cl_urls));

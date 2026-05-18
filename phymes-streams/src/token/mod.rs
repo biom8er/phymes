@@ -20,4 +20,4 @@ pub use openai_chat_stream::OpenAIChatStream;
 pub use openai_embed_stream::OpenAIEmbedStream;
 pub use tool_call_config::ToolCallConfig;
 pub use tool_call_stream::ToolCallStream;
-pub use tool_parser::extract_tool_calls_str;
+pub use tool_parser::{extract_tool_calls_str, extract_fim_str};

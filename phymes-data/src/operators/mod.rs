@@ -46,3 +46,6 @@ mod normalize_time;
 pub use from_tasks_to_participants::FromTasksToParticipants;
 pub use from_traces_to_messages::FromTracesToMessages;
 pub use normalize_time::NormalizeTime;
+
+/// Custom functions for code generation
+mod from_workspace_to_messages;
