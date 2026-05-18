@@ -16,7 +16,7 @@ pub use parser::{AvailableParsers, NodeParserTrait, TextParserTrait, CodeSplitte
 #[cfg(feature = "api")]
 pub use patch::WorkspaceEditor;
 pub use patch::{
-    ApplyDiffMode, DiffType, PatchOperation, PatchOperator, apply_patch_auto, apply_v4a_diff,
+    ApplyDiffMode, CodeCompletionType, DiffType, PatchOperation, PatchOperator, apply_patch_auto, apply_v4a_diff,
     compute_diff,
 };
 pub use template::{

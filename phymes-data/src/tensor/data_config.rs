@@ -9,7 +9,7 @@ use phymes_schemas::{
 use phymes_subject::{MappableTrait, Subject, SubjectTrait};
 use serde::{Deserialize, Serialize};
 
-use crate::{AvailableJinja2Templates, AvailableOperators, AvailableParsers, DiffType};
+use crate::{AvailableJinja2Templates, AvailableOperators, AvailableParsers, CodeCompletionType, DiffType};
 
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
 pub enum DataStreamManager {
@@ -686,6 +686,11 @@ pub struct DataConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub diff: Option<DiffType>,
+
+    /// [CodeCompletionType] specifying the code completion format to use
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code_completion: Option<CodeCompletionType>,
 
     /// Universal Diff or V4a Diff in a serialized JSON `Value` representing
     ///   a `Vec<WorkspacePatchSubject>>`

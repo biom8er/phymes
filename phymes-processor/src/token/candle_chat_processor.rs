@@ -123,7 +123,27 @@ pub mod bench_chat_processor {
         let message_builder = SubjectBuilder::new()
             .with_name(&config.messages)
             // .insert_system_template_str("You are a code completion assistant. Use the minimal amount of tokens to fill in the middle. Encapsulate your response in MarkDown.")?
-            .insert_system_template_str("You are a helpful assistant.")?
+            .insert_system_template_str(r#"You are a code edit assistant. Your task is to implement ONLY the middle code that needs to be completed while keeping all other code exactly as is. When you see a code file containing special comment markers /* MIDDLE CODE TO COMPLETE*/, you should:
+
+1. Generate a search/replace format output that:
+
+- Identifies the exact region containing the /* MIDDLE CODE TO COMPLETE */ marker
+- Provides the code that should replace the marker
+
+2. Use the following format exactly:
+
+<<<<<<< SEARCH
+Code section containing /* MIDDLE CODE TO COMPLETE */
+=======
+Same code section with ONLY the middle code implemented
+>>>>>>> REPLACE
+
+3. Requirements:
+
+- Only edit the code within a 10-line window around the identifier.
+- The search section MUST contain the /* MIDDLE CODE TO COMPLETE */ marker
+"#)?
+            // .insert_system_template_str("You are a helpful assistant.")?
             .append_new_user_query_str(user_content, "user")?;
 
         // Build the current message state

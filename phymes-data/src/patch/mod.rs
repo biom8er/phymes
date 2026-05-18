@@ -9,3 +9,18 @@ pub use apply_v4a_diff::{ApplyDiffMode, apply_v4a_diff};
 
 #[cfg(feature = "api")]
 pub use workspace_editor::WorkspaceEditor;
+
+use clap::ValueEnum;
+use serde::{Deserialize, Serialize};
+
+/// The code completion type
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, ValueEnum)]
+pub enum CodeCompletionType {
+    /// Fill-in-the-middle
+    #[value(name = "FIM")]
+    FIM,
+    /// Search and Replace Infilling
+    #[default]
+    #[value(name = "SRI")]
+    SRI
+}

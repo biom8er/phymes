@@ -1,3 +1,41 @@
+/// # V4A diff Grammar
+/// 
+/// Patch     := Begin { FileOp } End
+/// Begin     := "*** Begin Patch" NEWLINE
+/// End       := "*** End Patch" NEWLINE
+/// FileOp    := AddFile | DeleteFile | UpdateFile
+/// AddFile   := "*** Add File: " path NEWLINE { "+" line NEWLINE }
+/// DeleteFile:= "*** Delete File: " path NEWLINE
+/// UpdateFile:= "*** Update File: " path NEWLINE [ MoveTo ] { Hunk }
+/// MoveTo    := "*** Move to: " newPath NEWLINE
+/// Hunk      := "@@" [ header ] NEWLINE { HunkLine }
+/// HunkLine  := (" " | "-" | "+") text NEWLINE
+/// 
+/// # Example
+/// *** Begin Patch
+/// *** Update File: src/auth/middleware.ts
+/// @@ export function validateToken(
+///  export function validateToken(token: string): boolean {
+/// -  const decoded = jwt.verify(token, SECRET);
+/// -  return !!decoded;
+/// +  try {
+/// +    const decoded = jwt.verify(token, SECRET);
+/// +    return !!decoded;
+/// +  } catch {
+/// +    logger.warn('Token validation failed');
+/// +    return false;
+/// +  }
+///  }
+/// *** Add File: src/auth/__tests__/middleware.test.ts
+/// +import { validateToken } from '../middleware';
+/// +
+/// +describe('validateToken', () => {
+/// +  it('returns false for expired tokens', () => {
+/// +    expect(validateToken('expired.jwt.here')).toBe(false);
+/// +  });
+/// +});
+/// *** End Patch
+
 use anyhow::{Error, Result, anyhow};
 use std::fmt;
 
