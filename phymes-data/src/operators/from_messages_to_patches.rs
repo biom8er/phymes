@@ -8,7 +8,7 @@ use phymes_subject::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{DataConfig, DataOperatorTrait};
+use crate::{CodeCompletionType, DataConfig, DataOperatorTrait};
 
 /// Compute the normalized start and end times in a [RecordBatch]
 #[derive(Debug, Serialize, Deserialize)]
@@ -26,10 +26,10 @@ impl DataOperatorTrait for FromMessagesToPatches {
     fn forward(
         &self,
         lhs_args: &[RecordBatch],
-        rhs_args: Option<&[RecordBatch]>,
+        _rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        from_messages_to_patches(lhs_args, rhs_args, &self.code_completion, device)
+        from_messages_to_patches(lhs_args, &self.code_completion, device)
     }
     fn new(config: &DataConfig) -> Result<Self> {
         let code_completion = config.code_completion.clone().ok_or(anyhow!(
@@ -50,22 +50,17 @@ impl DataOperatorTrait for FromMessagesToPatches {
 ///
 /// # Arguments
 ///
-/// * `lhs_args` - Slice of [RecordBatch]es with the workspace
-/// * `rhs_args` - Slice of [RecordBatch]es with the assistant FIM code completion
+/// * `lhs_args` - Slice of [RecordBatch]es with the assistant FIM code completion
 /// * `device` - The compute device
 pub fn from_messages_to_patches(
     lhs_args: &[RecordBatch],
-    rhs_args: &[RecordBatch],
+    code_completion: &CodeCompletionType,
     _device: &Device,
 ) -> Result<RecordBatch> {
     // Wrap the lhs and rhs into tables
     let lhs_table = Subject::get_builder()
         .with_record_batches(lhs_args.to_vec())?
-        .with_name("from_messages_to_patches User Message")
-        .build()?;
-    let rhs_table = Subject::get_builder()
-        .with_record_batches(lhs_args.to_vec())?
-        .with_name("from_messages_to_patches Assistant Message")
+        .with_name("from_messages_to_patches Code Completion")
         .build()?;
 
     // Get the workspace information
@@ -77,7 +72,10 @@ pub fn from_messages_to_patches(
     let prompt_vec: Result<Vec<(String, String, String)>> = repository_vec.into_iter()
         .zip(path_vec.into_iter())
         .zip(content_vec.into_iter())
-        .filter(|((r, p), c)| c.contains("<|fim_prefix|>") && c.contains("<|fim_suffix|>"))
+        .filter(|((r, p), c)| match code_completion { 
+            CodeCompletionType::FIM => c.contains("<|fim_prefix|>") && c.contains("<|fim_suffix|>"),
+            CodeCompletionType::SRI => c.contains("/* MIDDLE CODE TO COMPLETE */"),
+        })
         .map(|((r, p), c)| {
 
             // Extract the filename
@@ -94,11 +92,9 @@ pub fn from_messages_to_patches(
             }
         })
         .collect();
-    let mut prompt = prompt_vec?.join("");
-    prompt.push_str("<|fim_middle|>");
 
-    // Create the message
-    create_chat_record_batch(vec!["user".to_string()], vec![prompt], vec![create_timestamp_micros()])
+    todo!()
+    // Create the patch batch
 }
 
 #[cfg(test)]
@@ -164,7 +160,7 @@ pub use todo::Todo"#,
         // Make the device
         let device = device(false)?;
 
-        let result = from_messages_to_patches(&[repo_batch], &device)?;
+        let result = from_messages_to_patches(&[repo_batch], &CodeCompletionType::FIM, &device)?;
         let result_table = Subject::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")

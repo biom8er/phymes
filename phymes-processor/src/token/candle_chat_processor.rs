@@ -127,16 +127,20 @@ pub mod bench_chat_processor {
 
 1. Generate a search/replace format output that:
 
+- Identifies the FILENAME containg the /* MIDDLE CODE TO COMPLETE */ marker
 - Identifies the exact region containing the /* MIDDLE CODE TO COMPLETE */ marker
 - Provides the code that should replace the marker
 
 2. Use the following format exactly:
 
+```
+FILENAME
 <<<<<<< SEARCH
 Code section containing /* MIDDLE CODE TO COMPLETE */
 =======
 Same code section with ONLY the middle code implemented
 >>>>>>> REPLACE
+```
 
 3. Requirements:
 
