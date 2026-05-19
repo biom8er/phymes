@@ -1224,14 +1224,14 @@ mod tests {
         //     // "".to_string(),
         //     ];
         let cl_urls = vec![
-            "Users/dmccl/Downloads/ontologies/HumanDO.owl",
+            // "Users/dmccl/Downloads/ontologies/HumanDO.owl",
             // "Users/dmccl/Downloads/ontologies/core_predicates.owl",
             // "Users/dmccl/Downloads/ontologies/rdfs-dc-skos.owl",
-            // "Users/dmccl/Downloads/ontologies/ro.owl",
-            // "Users/dmccl/Downloads/ontologies/eco.owl",
+            // "Users/dmccl/Downloads/ontologies/ro.owl", // Breaks with HumanDO but works on its own (no relations!)
+            // "Users/dmccl/Downloads/ontologies/eco.owl", // Works with HumanDO
             // "Users/dmccl/Downloads/ontologies/cl.owl", // Works with HumanDO
-            // "Users/dmccl/Downloads/ontologies/uberon.owl", // Breaks
-            "Users/dmccl/Downloads/ontologies/go.owl", // Works with HumanDO
+            "Users/dmccl/Downloads/ontologies/uberon.owl", // Breaks with HumanDO but works on its own
+            // "Users/dmccl/Downloads/ontologies/go.owl", // Works with HumanDO
             // "Users/dmccl/Downloads/ontologies/taxslim.owl", // Works with HumanDO
             ];
         let cl_arr: ArrayRef = Arc::new(StringArray::from(cl_urls));

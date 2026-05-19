@@ -4,7 +4,7 @@ use std::{
     task::{Context, Poll, ready},
 };
 
-use phymes_data::DataConfigTrait;
+use phymes_data::{DataConfigTrait, extract_tool_calls_str, format_tool_calls_str};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait, create_timestamp_micros,
 };
@@ -25,8 +25,6 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{Stream, StreamExt};
 use tracing::{Level, event};
-
-use crate::{extract_tool_calls_str, token::tool_parser::format_tool_calls_str};
 
 #[allow(dead_code)]
 pub struct MessageParserStream {

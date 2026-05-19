@@ -8,7 +8,6 @@ mod openai_chat_stream;
 mod openai_embed_stream;
 mod tool_call_config;
 mod tool_call_stream;
-mod tool_parser;
 
 pub use candle_chat_stream::CandleChatStream;
 pub use candle_embed_stream::CandleEmbedStream;
@@ -20,4 +19,3 @@ pub use openai_chat_stream::OpenAIChatStream;
 pub use openai_embed_stream::OpenAIEmbedStream;
 pub use tool_call_config::ToolCallConfig;
 pub use tool_call_stream::ToolCallStream;
-pub use tool_parser::{extract_tool_calls_str, extract_fim_str};

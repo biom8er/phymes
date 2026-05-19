@@ -11,7 +11,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_data::{
-    MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE, SubjectScript,
+    MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE, SubjectScript, extract_tool_calls_str
 };
 use phymes_diagnostics::{HashMap, HashSet};
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
@@ -20,7 +20,6 @@ use phymes_processor::{AvailableProcessors, ProcessorBuilder, ProcessorPlanBuild
 use phymes_schemas::{
     check_agent_subjects, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type,
 };
-use phymes_streams::extract_tool_calls_str;
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait,
     SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait,

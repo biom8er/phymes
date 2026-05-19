@@ -1,11 +1,14 @@
 /// Patching module inspired by OpenAI Codex patching tools
-pub mod apply_patch;
-pub mod apply_v4a_diff;
+mod apply_patch;
+mod apply_search_and_replace_diff;
+mod apply_v4a_diff;
+mod tool_parser;
 #[cfg(feature = "api")]
-pub mod workspace_editor;
+mod workspace_editor;
 
 pub use apply_patch::{DiffType, PatchOperation, PatchOperator, apply_patch_auto, compute_diff};
 pub use apply_v4a_diff::{ApplyDiffMode, apply_v4a_diff};
+pub use tool_parser::{extract_tool_calls_str, extract_fim_str, format_tool_calls_str};
 
 #[cfg(feature = "api")]
 pub use workspace_editor::WorkspaceEditor;
