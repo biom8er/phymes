@@ -58,12 +58,12 @@ impl Default for GenerateCodeNetworkBuilder {
 
         // From messages to patch
         let network_builder = {
-            let network_name = "from_workspace_to_messages";
+            let network_name = "from_messages_to_patches";
             let config = DataConfig {
                 lhs_name: Some(AvailableInterfaceSubjects::AssistantMessages.to_string()),
                 code_completion: Some(phymes_data::CodeCompletionType::SRI),
                 cpu: false,
-                operator: AvailableOperators::FromWorkspaceToMessages,
+                operator: AvailableOperators::FromMessagesToPatches,
                 lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             };
@@ -86,7 +86,7 @@ impl Default for GenerateCodeNetworkBuilder {
                 subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                     subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 },
-                publication: Publication::Replace {
+                publication: Publication::Extend {
                     subject_name: AvailableSubjects::WorkspacePatch.to_string(),
                 },
                 subject_processor,
@@ -330,9 +330,9 @@ mod tests {
 
         // Make the workspace data ready for SRI
         let path = [
-            "requirements.txt",
-            "src/main.py",
-            "install.sh",
+            "/requirements.txt",
+            "/src/main.py",
+            "/install.sh",
         ]
         .into_iter()
         .map(|s| s.to_string())

@@ -12,10 +12,10 @@
 
 use crate::{extract_fim_str, extract_tool_calls_str};
 
-const SECTION_OUTPUT: &str = "```";
-const BEGIN_SEARCH: &str = "<<<<<<< SEARCH\n";
-const END_SEARCH_BEGIN_REPLACE: &str = "=======\n";
-const END_REPLACE: &str = ">>>>>>> REPLACE\n";
+pub(crate) const SECTION_OUTPUT: &str = "```";
+pub(crate) const BEGIN_SEARCH: &str = "<<<<<<< SEARCH\n";
+pub(crate) const END_SEARCH_BEGIN_REPLACE: &str = "=======\n";
+pub(crate) const END_REPLACE: &str = ">>>>>>> REPLACE\n";
 
 #[derive(Debug)]
 pub struct SearchAndReplaceDiff {
@@ -40,19 +40,17 @@ pub fn parse_fill_in_the_middle_output(input: &str) -> Vec<SearchAndReplaceDiff>
 
     // Create the diff
     let diff = format!("{BEGIN_SEARCH}<|fim_suffix|>{END_SEARCH_BEGIN_REPLACE}{middle}{END_REPLACE}");
-    let diff = diff.trim();
 
     let prefix = create_fill_in_the_middle_prefix_diff(*filename);
-    let suffix = SearchAndReplaceDiff::new(filename, diff);
+    let suffix = SearchAndReplaceDiff::new(filename, &diff);
     vec![prefix, suffix]
 }
 
 fn create_fill_in_the_middle_prefix_diff(filename: &str) -> SearchAndReplaceDiff {
     // Create the diff
     let diff = format!("{BEGIN_SEARCH}<|fim_prefix|>{END_SEARCH_BEGIN_REPLACE}{END_REPLACE}");
-    let diff = diff.trim();
 
-    SearchAndReplaceDiff::new(filename, diff)
+    SearchAndReplaceDiff::new(filename, &diff)
 }
 
 /// Parse a search and replace output diff generated from a fill-in-the-middle coding LLM
@@ -63,9 +61,8 @@ pub fn parse_search_and_replace_output(input: &str) -> SearchAndReplaceDiff {
     // Extract the diff
     let diff = extract_tool_calls_str(input, Some(BEGIN_SEARCH), Some(END_REPLACE));
     let diff = format!("{BEGIN_SEARCH}{diff}{END_REPLACE}");
-    let diff = diff.trim();
 
-    SearchAndReplaceDiff::new(filename, diff)
+    SearchAndReplaceDiff::new(filename, &diff)
 }
 
 pub fn apply_search_and_replace_patch(input: &str, diff: &str) -> String {
@@ -90,9 +87,9 @@ pub mod tests {
         let input = "main.py\n```python\n    New text\n```";
         let diffs = parse_fill_in_the_middle_output(input);
         assert_eq!(diffs.first().unwrap().filename, "main.py");
-        assert_eq!(diffs.first().unwrap().diff, "<<<<<<< SEARCH\n<|fim_prefix|>=======\n>>>>>>> REPLACE");
+        assert_eq!(diffs.first().unwrap().diff, "<<<<<<< SEARCH\n<|fim_prefix|>=======\n>>>>>>> REPLACE\n");
         assert_eq!(diffs.last().unwrap().filename, "main.py");
-        assert_eq!(diffs.last().unwrap().diff, "<<<<<<< SEARCH\n<|fim_suffix|>=======\n\n    New text\n>>>>>>> REPLACE");
+        assert_eq!(diffs.last().unwrap().diff, "<<<<<<< SEARCH\n<|fim_suffix|>=======\n\n    New text\n>>>>>>> REPLACE\n");
     }
 
     #[test]
@@ -111,7 +108,8 @@ New text
 Old text
 =======
 New text
->>>>>>> REPLACE"#);
+>>>>>>> REPLACE
+"#);
     }
 
     #[test]

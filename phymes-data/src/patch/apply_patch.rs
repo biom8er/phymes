@@ -5,7 +5,7 @@ use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::patch::apply_v4a_diff::apply_v4a_patch;
+use crate::patch::{apply_search_and_replace_diff::{BEGIN_SEARCH, END_REPLACE, END_SEARCH_BEGIN_REPLACE}, apply_search_and_replace_patch, apply_v4a_diff::apply_v4a_patch};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, ValueEnum, Default)]
 pub enum PatchOperator {
@@ -43,6 +43,9 @@ pub enum DiffType {
     /// V4A based on markers instead of line numbers
     #[value(name = "V4A")]
     V4A,
+    /// Search and Replace
+    #[value(name = "SR")]
+    SR,
     /// HashMap merging
     #[value(name = "Map")]
     Map,
@@ -55,6 +58,7 @@ impl std::fmt::Display for DiffType {
         match self {
             Self::Dmp => write!(f, "Dmp"),
             Self::V4A => write!(f, "V4A"),
+            Self::SR => write!(f, "SR"),
             Self::Map => write!(f, "Map"),
             Self::Unknown => write!(f, "Unknown"),
         }
@@ -81,6 +85,7 @@ fn classify_diff(diff: &str) -> DiffType {
     } else {
         let mut dmp_score = 0;
         let mut v4a_score = 0;
+        let mut sr_score = 0;
         for line in diff.lines() {
             let trimmed = line.trim();
             if trimmed.starts_with("@@") {
@@ -111,12 +116,19 @@ fn classify_diff(diff: &str) -> DiffType {
                     v4a_score += 1;
                 }
             }
+            else if trimmed.contains(BEGIN_SEARCH.trim())
+                || trimmed.contains(END_SEARCH_BEGIN_REPLACE.trim())
+                || trimmed.contains(END_REPLACE.trim()) {
+                sr_score += 1;
+            }
         }
 
-        if dmp_score >= 3 && v4a_score == 0 {
+        if dmp_score >= 3 && v4a_score == 0 && sr_score == 0 {
             DiffType::Dmp
-        } else if v4a_score >= 3 && dmp_score == 0 {
+        } else if v4a_score >= 3 && dmp_score == 0 && sr_score == 0 {
             DiffType::V4A
+        } else if sr_score >= 3 && dmp_score == 0 && v4a_score == 0 {
+            DiffType::SR
         } else {
             DiffType::Unknown
         }
@@ -142,6 +154,7 @@ pub fn apply_patch_auto(original: &str, diff: &str, create: bool) -> Result<Stri
 
             Ok(new_content)
         }
+        DiffType::SR => Ok(apply_search_and_replace_patch(original, diff)),
         DiffType::Map => {
             if create {
                 Ok(diff.to_string())
@@ -178,6 +191,10 @@ pub fn compute_diff(original: &str, modified: &str, diff: &DiffType) -> Result<S
             let patch = dmp.patch_to_text(&patches);
             Ok(patch)
         }
+        DiffType::SR => {
+            let patch = format!("{BEGIN_SEARCH}{original}{END_SEARCH_BEGIN_REPLACE}{modified}{END_REPLACE}");
+            Ok(patch)
+        },
         DiffType::Map => {
             let original_map = serde_json::from_str::<Map<String, Value>>(original)?
                 .into_iter()
@@ -240,6 +257,21 @@ pub mod tests {
         assert!(results.iter().all(|b| *b));
 
         assert_eq!(auto, direct);
+    }
+
+    #[test]
+    fn test_apply_patch_auto_sr_direct() {
+        let original = "Old text\n";
+        let modified = "New text\n";
+        let diff = compute_diff(original, modified, &DiffType::SR).unwrap();
+        assert_eq!(diff,  r#"<<<<<<< SEARCH
+Old text
+=======
+New text
+>>>>>>> REPLACE
+"#);
+        let result = apply_patch_auto(original, &diff, false).unwrap();
+        assert_eq!(result, "New text\n");
     }
 
     #[test]

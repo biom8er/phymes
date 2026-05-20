@@ -40,6 +40,7 @@ impl DataOperatorTrait for FromWorkspaceToMessages {
     }
 }
 
+/// Fill-in-the-middle System Prompt Based on https://arxiv.org/pdf/2601.13384 with modifications
 const FIM_SYSTEM_TEMPLATE: &str = r#"You are a code completion assistant. Use the minimal amount of tokens to fill in the middle code.
             
 Requirements:
@@ -64,6 +65,7 @@ hello.py
 ```
 
 "#;
+/// Search and Replace Infilling Based on https://arxiv.org/pdf/2601.13384 with modifications
 const SRI_SYSTEM_TEMPLATE: &str =  r#"You are a code edit assistant. Your task is to implement ONLY the middle code that needs to be completed while keeping all other code exactly as is. When you see a code file containing special comment markers /* MIDDLE CODE TO COMPLETE*/, you should:
 
 1. Generate a search/replace format output that:

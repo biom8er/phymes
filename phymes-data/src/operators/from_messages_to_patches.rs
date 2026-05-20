@@ -209,7 +209,7 @@ if __name__ == "__main__":
         let cols = result_table.get_column_as_vec_str("filename");
         assert_eq!(cols, ["/src/main.py"]);
         let cols = result_table.get_column_as_vec_str("diff");
-        assert_eq!(cols, ["<<<<<<< SEARCH\n    /* MIDDLE CODE TO COMPLETE */\n=======\n    book = library.find_book(\"1234567890\")\n>>>>>>> REPLACE"]);
+        assert_eq!(cols, ["<<<<<<< SEARCH\n    /* MIDDLE CODE TO COMPLETE */\n=======\n    book = library.find_book(\"1234567890\")\n>>>>>>> REPLACE\n"]);
         let cols = result_table.get_column_as_vec_str("operator");
         assert_eq!(cols, ["Update"]);
 
@@ -333,7 +333,7 @@ if __name__ == "__main__":
         assert_eq!(cols, ["/src/main.py", "/src/main.py"]);
         let cols = result_table.get_column_as_vec_str("diff");
         assert_eq!(cols, [
-            "<<<<<<< SEARCH\n<|fim_prefix|>=======\n>>>>>>> REPLACE",
+            "<<<<<<< SEARCH\n<|fim_prefix|>=======\n>>>>>>> REPLACE\n",
             "<<<<<<< SEARCH\n<|fim_suffix|>=======\n\n    book = library.find_book(\"1234567890\")\n>>>>>>> REPLACE",
             ]);
         let cols = result_table.get_column_as_vec_str("operator");
