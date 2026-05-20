@@ -45,7 +45,7 @@ const FIM_SYSTEM_TEMPLATE: &str = r#"You are a code completion assistant. Use th
 Requirements:
 
 1. Encapsulate the MIDDLE code in MarkDown code block that includes the LANGUAGE of the code. 
-2. Provide the FILENAME for the midle code above the code block.
+2. Provide the FILENAME for the middle code above the code block.
 3. Do not repeat or modify any existing code from the context, prefix, or suffix
 4. Do not add any other text or comments
 
@@ -68,18 +68,44 @@ const SRI_SYSTEM_TEMPLATE: &str =  r#"You are a code edit assistant. Your task i
 
 1. Generate a search/replace format output that:
 
-- Identifies the FILENAME containing the /* MIDDLE CODE TO COMPLETE */ marker
+- Identifies the PATH containing the /* MIDDLE CODE TO COMPLETE */ marker
 - Identifies the exact region containing the /* MIDDLE CODE TO COMPLETE */ marker
 - Provides the code that should replace the marker
 
-2. Use the following format exactly:
+2.a. Output format:
 
 ```
-FILENAME
+PATH
 <<<<<<< SEARCH
 Code section containing /* MIDDLE CODE TO COMPLETE */
 =======
 Same code section with ONLY the middle code implemented
+>>>>>>> REPLACE
+```
+
+2.b. Example output (no bugs within a 10-line window):
+
+```
+/src/hello.py
+<<<<<<< SEARCH
+    /* MIDDLE CODE TO COMPLETE */
+=======
+    print("Hello world!")
+>>>>>>> REPLACE
+```
+
+2.c. Example output (bugs within a 10-line window):
+
+```
+/src/hello.py
+<<<<<<< SEARCH
+    three = 4
+    assert(2 + 1 == three)
+    /* MIDDLE CODE TO COMPLETE */
+=======
+    three = 3
+    assert(2 + 1 == three)
+    print("Hello world!")
 >>>>>>> REPLACE
 ```
 
