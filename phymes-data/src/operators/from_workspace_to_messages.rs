@@ -88,7 +88,7 @@ Same code section with ONLY the middle code implemented
 2.b. Example output (no bugs within a 10-line window):
 
 ```
-/src/hello.py
+src/hello.py
 <<<<<<< SEARCH
     /* MIDDLE CODE TO COMPLETE */
 =======
@@ -99,7 +99,7 @@ Same code section with ONLY the middle code implemented
 2.c. Example output (bugs within a 10-line window):
 
 ```
-/src/hello.py
+src/hello.py
 <<<<<<< SEARCH
     three = 4
     assert(2 + 1 == three)

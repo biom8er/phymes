@@ -168,15 +168,35 @@ impl<'a> ExecuteWorkspaceNetwork<'a> {
         if let Some(subject_name_i) = self.subject_name_i.as_ref() {
             let subject_name_o = self.subject_name_o.as_str();
             let flowchart_component = format!(
+    //             r#"
+	// %% ------------------------------------------------------------------------------
+	// %% Execute workspace
+    // %% - Listen for any changes to the updated workspace `apply_patch_s` subject
+    // %%   Or updates to the dataset we want to execute the workspace code on
+	// %% ------------------------------------------------------------------------------
+	// subgraph command_sandbox_t
+	// 	apply_patch_s-subject-.->|AllRecordBatches|command_sandbox_p-subscribe
+    //     {subject_name_i}-subject-.->|AllRecordBatches|command_sandbox_p-subscribe
+	// 	command_sandbox_p-subscribe-->command_sandbox_p-processor
+	// 	command_sandbox_p-processor-->command_sandbox_p-publish
+	// 	command_sandbox_p-publish-->|Extend|{subject_name_o}-subject
+	// end
+	// patch_workspace_r-rt-->command_sandbox_t
+	// apply_patch_s-subject@{{shape: doc, label: apply_patch_s}}
+	// {subject_name_i}-subject@{{shape: doc, label: {subject_name_i}}}
+	// command_sandbox_p-processor@{{shape: rect, label: CommandSandboxProcessor}}
+	// command_sandbox_p-publish@{{shape: fork}}
+	// command_sandbox_p-subscribe@{{shape: diamond, label: Any}}
+	// {subject_name_o}-subject@{{shape: doc, label: {subject_name_o}}}
+	// %% ------------------------------------------------------------------------------"#
                 r#"
 	%% ------------------------------------------------------------------------------
 	%% Execute workspace
     %% - Listen for any changes to the updated workspace `apply_patch_s` subject
-    %%   Or updates to the dataset we want to execute the workspace code on
 	%% ------------------------------------------------------------------------------
 	subgraph command_sandbox_t
 		apply_patch_s-subject-.->|AllRecordBatches|command_sandbox_p-subscribe
-        {subject_name_i}-subject-.->|AllRecordBatches|command_sandbox_p-subscribe
+        {subject_name_i}-subject-->|AllRecordBatches|command_sandbox_p-subscribe
 		command_sandbox_p-subscribe-->command_sandbox_p-processor
 		command_sandbox_p-processor-->command_sandbox_p-publish
 		command_sandbox_p-publish-->|Extend|{subject_name_o}-subject
@@ -186,7 +206,7 @@ impl<'a> ExecuteWorkspaceNetwork<'a> {
 	{subject_name_i}-subject@{{shape: doc, label: {subject_name_i}}}
 	command_sandbox_p-processor@{{shape: rect, label: CommandSandboxProcessor}}
 	command_sandbox_p-publish@{{shape: fork}}
-	command_sandbox_p-subscribe@{{shape: diamond, label: Any}}
+	command_sandbox_p-subscribe@{{shape: diamond, label: All}}
 	{subject_name_o}-subject@{{shape: doc, label: {subject_name_o}}}
 	%% ------------------------------------------------------------------------------"#);
             flowchart_vec.push(flowchart_component);
@@ -376,7 +396,7 @@ mod tests {
             .build()?;
         let column = subject.get_column_as_vec_str("name");
         assert_eq!(column, ["Alice", "Bob"]);
-        let column = subject.get_column_as_vec_primitive::<u32>("age")?;
+        let column = subject.get_column_as_vec_primitive::<i64>("age")?;
         assert_eq!(column, [40, 35]);
 
         Ok(())
@@ -496,7 +516,7 @@ mod tests {
             .build()?;
         let column = subject.get_column_as_vec_str("name");
         assert_eq!(column, ["Alice", "Bob"]);
-        let column = subject.get_column_as_vec_primitive::<u32>("age")?;
+        let column = subject.get_column_as_vec_primitive::<i64>("age")?;
         assert_eq!(column, [40, 35]);
 
         Ok(())

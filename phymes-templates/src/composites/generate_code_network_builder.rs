@@ -128,8 +128,7 @@ impl Default for GenerateCodeNetworkBuilder {
 
         // Input table from CSV
         let subject_name_i = "subject_name_i";
-        let batches = test_command_sandbox_processor::create_messages().unwrap();
-        let subject_schema_io = batches.schema();
+        let subject_schema_io = test_command_sandbox_processor::create_messages().unwrap().schema();
         let network_builder = {
             let network_name = "extract_csv";
             let config = DataConfig {
@@ -163,10 +162,8 @@ impl Default for GenerateCodeNetworkBuilder {
                 .unwrap();
             let subject = Subject::get_builder()
                 .with_name(subject_name_i)
-                // DM, TODO: testing with only a single trigger for execute workspace coming from the updated workspace `apply_patch_s`
-                // .with_schema(subject_schema_io.clone())
-                // .with_record_batches(Vec::new()).unwrap()
-                .with_record_batches(vec![batches]).unwrap()
+                .with_schema(subject_schema_io.clone())
+                .with_record_batches(Vec::new()).unwrap()
                 .build().unwrap();
             let subject_out = SubjectPlan::get_builder()
                 .with_subject(subject)
@@ -237,7 +234,7 @@ impl Default for GenerateCodeNetworkBuilder {
                 network_name: network_name.to_string(),
                 is_dynamic: false,
                 processor: AvailableProcessors::PackTabular,
-                subscription_lhs: Subscription::OnUpdateDrainRecordBatches {
+                subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                     subject_name: subject_name_o.to_string(),
                 },
                 publication: Publication::Replace {
@@ -292,7 +289,7 @@ mod tests {
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
     use phymes_schemas::{
-        AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, create_object_store_meta_batch, create_workspace_batch,
+        AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, CsvFormat, create_object_store_meta_batch, create_workspace_batch
     };
     use phymes_streams::ChatBuilderTraitExt;
     use phymes_task::SubscriptionTrait;
@@ -330,9 +327,9 @@ mod tests {
 
         // Make the workspace data ready for SRI
         let path = [
-            "/requirements.txt",
-            "/src/main.py",
-            "/install.sh",
+            "requirements.txt",
+            "src/main.py",
+            "install.sh",
         ]
         .into_iter()
         .map(|s| s.to_string())
@@ -408,25 +405,30 @@ pip install --no-cache-dir -r requirements.txt"#,
                 .build()?,
         );
 
-        // // Make the input data for the script
-        // let batch = test_command_sandbox_processor::create_messages()?;
-        // let message_table = SubjectBuilder::new()
-        //     .with_record_batches(vec![batch])?
-        //     .with_name(subject_name_i)
-        //     .build()?;
-        // // TODO convert to csv for upload
-        // let _ = message_map.insert(
-        //     message_table.get_name().to_string(),
-        //     IPCMessage::get_builder()
-        //         .with_name(message_table.get_name())
-        //         .with_publisher(&network_name)
-        //         .with_subject(message_table.get_name())
-        //         .with_update(&Publication::Replace {
-        //             subject_name: message_table.get_name().to_string(),
-        //         })
-        //         .with_message(message_table.to_ipc_stream()?)
-        //         .build()?,
-        // );
+        // Make the input data for the script
+        let batch = test_command_sandbox_processor::create_messages()?;
+        let tabular_data = SubjectBuilder::new()
+            .with_record_batches(vec![batch])?
+            .with_name(subject_name_i)
+            .build()?;
+        let csv_format = CsvFormat::default();
+        let bytes = tabular_data.to_csv(csv_format.delimiter, csv_format.header)?;
+        let attachments = AvailableInterfaceSubjects::UserCsv
+            .to_subject_builder(None)
+            .with_attachment(None, Some("csv"), &bytes, None)?
+            .build()?;
+        let _ = message_map.insert(
+            attachments.get_name().to_string(),
+            IPCMessage::get_builder()
+                .with_name(attachments.get_name())
+                .with_publisher(&network_name)
+                .with_subject(attachments.get_name())
+                .with_update(&Publication::Replace {
+                    subject_name: attachments.get_name().to_string(),
+                })
+                .with_message(attachments.to_ipc_stream()?)
+                .build()?,
+        );
 
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
@@ -456,36 +458,65 @@ pip install --no-cache-dir -r requirements.txt"#,
 
         assert_eq!(response.len(), 0);
 
-        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-        //     subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
-        // }
-        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        // .unwrap()
-        // .try_collect()
-        // .await?;
-        // let subject = Subject::get_builder()
-        //     .with_name(
-        //         AvailableInterfaceSubjects::ToolMessages
-        //             .to_string()
-        //             .as_str(),
-        //     )
-        //     .with_record_batches(batches)?
-        //     .build()?;
-        // dbg!(&subject.count_rows());
-        // // assert_eq!(subject.count_rows(), 1);
-        // let column = subject.get_column_as_vec_str("role");
-        // dbg!(column.first().unwrap());
-        // // assert_eq!(column.first().unwrap(), &"tool");
-        // let column = subject.get_column_as_vec_str("content");
-        // dbg!(column.first().unwrap());
-        // // assert_eq!(
-        // //     column.first().unwrap(),
-        // //     &"[{\"text\":\"Deoxyribonucleic acid (DNA) is a polymer composed of two polynucleotide chains that coil around each other to form a double helix. The polymer carries genetic instructions for the development, functioning, growth and reproduction of all known organisms and many viruses. DNA and ribonucleic acid (RNA) are nucleic acids. Alongside proteins, lipids and complex carbohydrates (polysaccharides), nucleic acids are one of the four major types of macromolecules that are essential for all known forms of life.The two \"}]"
-        // // );
-        // let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-        // for t in column {
-        //     assert!(t > 0);
-        // }
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(
+                AvailableInterfaceSubjects::AssistantMessages
+                    .to_string()
+                    .as_str(),
+            )
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 1);
+        let column = subject.get_column_as_vec_str("role");
+        assert_eq!(column.first().unwrap(), &"assistant");
+        let column = subject.get_column_as_vec_str("content");
+        assert!(column.first().unwrap().contains("src/main.py"));
+        assert!(column.first().unwrap().contains("table_out = pa.Table.from_pandas(df)"));
+        let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+        for t in column {
+            assert!(t > 0);
+        }
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: workspace_name.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(workspace_name)
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 3);
+        let column = subject.get_column_as_vec_str("path");
+        assert_eq!(column.first().unwrap(), &"src/main.py");
+        let column = subject.get_column_as_vec_str("content");
+        assert!(!column.first().unwrap().contains("/* MIDDLE CODE TO COMPLETE */"));
+        assert!(column.first().unwrap().contains("table_out = pa.Table.from_pandas(df)"));
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: subject_name_o.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(subject_name_o)
+            .with_record_batches(batches)?
+            .build()?;
+        let column = subject.get_column_as_vec_str("name");
+        assert_eq!(column, ["Alice", "Bob"]);
+        let column = subject.get_column_as_vec_primitive::<i64>("age")?;
+        assert_eq!(column, [40, 35]);
 
         Ok(())
     }

@@ -77,7 +77,7 @@ impl ProcessorTrait for CommandSandboxProcessor {
 }
 
 pub mod test_command_sandbox_processor {
-    use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
+    use arrow::array::{ArrayRef, RecordBatch, StringArray, Int64Array};
 
     use super::*;
 
@@ -85,7 +85,7 @@ pub mod test_command_sandbox_processor {
         let names = vec!["Alice", "Bob"];
         let names_arr: ArrayRef = Arc::new(StringArray::from(names));
         let ages = vec![30, 25];
-        let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
+        let ages_arr: ArrayRef = Arc::new(Int64Array::from(ages));
         let batch = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
         Ok(batch)
     }
@@ -93,7 +93,7 @@ pub mod test_command_sandbox_processor {
 
 #[cfg(test)]
 mod tests {
-    use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
+    use arrow::array::{ArrayRef, RecordBatch, StringArray, Int64Array};
     use futures::TryStreamExt;
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
     use phymes_event::Publication;
@@ -1755,7 +1755,7 @@ fn main() -> Result<()> {
         // --- from TempFile, no initialization ---
 
         // Create the run script
-        let run_str = r#"use arrow::array::{ArrayRef, StringArray, UInt32Array};
+        let run_str = r#"use arrow::array::{ArrayRef, StringArray, Int64Array};
 use arrow::error::{ArrowError, Result};
 use arrow::ipc::reader::FileReader;
 use arrow::ipc::writer::FileWriter;
@@ -1791,13 +1791,13 @@ fn add_10_yrs_to_age(batch: &RecordBatch) -> arrow::error::Result<RecordBatch> {
         .column_by_name("age")
         .unwrap()
         .as_any()
-        .downcast_ref::<UInt32Array>()
+        .downcast_ref::<Int64Array>()
         .unwrap()
         .iter()
         .map(|s| s.unwrap_or_default() + 10)
         .collect::<Vec<u32>>();
     let names_arr: ArrayRef = Arc::new(StringArray::from(names));
-    let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
+    let ages_arr: ArrayRef = Arc::new(Int64Array::from(ages));
     RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])
 }
 
@@ -1920,7 +1920,7 @@ fn main() -> Result<()> {
         let names = vec!["Joe"];
         let names_arr: ArrayRef = Arc::new(StringArray::from(names));
         let ages = vec![40];
-        let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
+        let ages_arr: ArrayRef = Arc::new(Int64Array::from(ages));
         let batch_2 = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
 
         let message_table = SubjectBuilder::new()
