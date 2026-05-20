@@ -50,3 +50,6 @@ pub use normalize_time::NormalizeTime;
 /// Custom functions for code generation
 mod from_workspace_to_messages;
 mod from_messages_to_patches;
+
+pub use from_workspace_to_messages::FromWorkspaceToMessages;
+pub use from_messages_to_patches::FromMessagesToPatches;

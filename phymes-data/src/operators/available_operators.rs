@@ -7,13 +7,11 @@ use phymes_subject::{BuilderTrait, MappableTrait, Subject, SubjectBuilder, Subje
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Diff, ExtractXML, PackTabular, Patch, ToolTrait,
-    operators::{
+    Diff, ExtractXML, FromMessagesToPatches, FromWorkspaceToMessages, PackTabular, Patch, ToolTrait, operators::{
         ApplyTemplate, ChunkDocuments, ExtractPDF, ExtractTabular, Filter, FromTasksToParticipants,
         FromTracesToMessages, GroupBy, HumanInTheLoop, Join, Melt, NormalizeTime, Pivot, Select,
         Sort, VectorDistance,
-    },
-    tensor::{DataConfig, DataOperatorTrait},
+    }, tensor::{DataConfig, DataOperatorTrait}
 };
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
@@ -79,6 +77,12 @@ pub enum AvailableOperators {
     #[value(name = "FromTracesToMessages")]
     #[serde(alias = "FromTracesToMessages")]
     FromTracesToMessages,
+    #[value(name = "FromWorkspaceToMessages")]
+    #[serde(alias = "FromWorkspaceToMessages")]
+    FromWorkspaceToMessages,
+    #[value(name = "FromMessagesToPatches")]
+    #[serde(alias = "FromMessagesToPatches")]
+    FromMessagesToPatches,
 }
 
 impl Display for AvailableOperators {
@@ -108,6 +112,8 @@ impl Display for AvailableOperators {
                 write!(f, "{}", FromTasksToParticipants::get_static_name())
             }
             Self::FromTracesToMessages => write!(f, "{}", FromTracesToMessages::get_static_name()),
+            Self::FromWorkspaceToMessages => write!(f, "{}", FromWorkspaceToMessages::get_static_name()),
+            Self::FromMessagesToPatches => write!(f, "{}", FromMessagesToPatches::get_static_name()),
         }
     }
 }
@@ -135,6 +141,8 @@ impl ToolTrait for AvailableOperators {
             Self::NormalizeTime => NormalizeTime::default().to_json_tool_schema(),
             Self::FromTasksToParticipants => String::new(),
             Self::FromTracesToMessages => String::new(),
+            Self::FromWorkspaceToMessages => String::new(),
+            Self::FromMessagesToPatches => String::new(),
         }
     }
     fn get_description(&self) -> String {
@@ -159,6 +167,8 @@ impl ToolTrait for AvailableOperators {
             Self::NormalizeTime => NormalizeTime::default().get_description(),
             Self::FromTasksToParticipants => String::new(),
             Self::FromTracesToMessages => String::new(),
+            Self::FromWorkspaceToMessages => String::new(),
+            Self::FromMessagesToPatches => String::new(),
         }
     }
 }
@@ -212,6 +222,8 @@ impl AvailableOperators {
             Self::NormalizeTime => Ok(Box::new(NormalizeTime::new(config)?)),
             Self::FromTasksToParticipants => Ok(Box::new(FromTasksToParticipants::new(config)?)),
             Self::FromTracesToMessages => Ok(Box::new(FromTracesToMessages::new(config)?)),
+            Self::FromWorkspaceToMessages => Ok(Box::new(FromWorkspaceToMessages::new(config)?)),
+            Self::FromMessagesToPatches => Ok(Box::new(FromMessagesToPatches::new(config)?)),
         }
     }
 }
@@ -271,6 +283,8 @@ mod tests {
                 "NormalizeTime".to_string(),
                 "FromTasksToParticipants".to_string(),
                 "FromTracesToMessages".to_string(),
+                "FromWorkspaceToMessages".to_string(),
+                "FromMessagesToPatches".to_string(),
             ],
         )
         .unwrap();
@@ -296,6 +310,8 @@ mod tests {
                 "NormalizeTime",
                 "FromTasksToParticipants",
                 "FromTracesToMessages",
+                "FromWorkspaceToMessages",
+                "FromMessagesToPatches",
             ]
         );
     }

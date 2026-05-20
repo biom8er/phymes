@@ -146,57 +146,57 @@ pub mod bench_chat_processor {
 // ```
 
 // "#)?
-            .insert_system_template_str(r#"You are a code edit assistant. Your task is to implement ONLY the middle code that needs to be completed while keeping all other code exactly as is. When you see a code file containing special comment markers /* MIDDLE CODE TO COMPLETE*/, you should:
+//             .insert_system_template_str(r#"You are a code edit assistant. Your task is to implement ONLY the middle code that needs to be completed while keeping all other code exactly as is. When you see a code file containing special comment markers /* MIDDLE CODE TO COMPLETE*/, you should:
 
-1. Generate a search/replace format output that:
+// 1. Generate a search/replace format output that:
 
-- Identifies the PATH containing the /* MIDDLE CODE TO COMPLETE */ marker
-- Identifies the exact region containing the /* MIDDLE CODE TO COMPLETE */ marker
-- Provides the code that should replace the marker
+// - Identifies the PATH containing the /* MIDDLE CODE TO COMPLETE */ marker
+// - Identifies the exact region containing the /* MIDDLE CODE TO COMPLETE */ marker
+// - Provides the code that should replace the marker
 
-2.a. Output format:
+// 2.a. Output format:
 
-```
-PATH
-<<<<<<< SEARCH
-Code section containing /* MIDDLE CODE TO COMPLETE */
-=======
-Same code section with ONLY the middle code implemented
->>>>>>> REPLACE
-```
+// ```
+// PATH
+// <<<<<<< SEARCH
+// Code section containing /* MIDDLE CODE TO COMPLETE */
+// =======
+// Same code section with ONLY the middle code implemented
+// >>>>>>> REPLACE
+// ```
 
-2.b. Example output (no bugs within a 10-line window):
+// 2.b. Example output (no bugs within a 10-line window):
 
-```
-/src/hello.py
-<<<<<<< SEARCH
-    /* MIDDLE CODE TO COMPLETE */
-=======
-    print("Hello world!")
->>>>>>> REPLACE
-```
+// ```
+// /src/hello.py
+// <<<<<<< SEARCH
+//     /* MIDDLE CODE TO COMPLETE */
+// =======
+//     print("Hello world!")
+// >>>>>>> REPLACE
+// ```
 
-2.c. Example output (bugs within a 10-line window):
+// 2.c. Example output (bugs within a 10-line window):
 
-```
-/src/hello.py
-<<<<<<< SEARCH
-    three = 4
-    assert(2 + 1 == three)
-    /* MIDDLE CODE TO COMPLETE */
-=======
-    three = 3
-    assert(2 + 1 == three)
-    print("Hello world!")
->>>>>>> REPLACE
-```
+// ```
+// /src/hello.py
+// <<<<<<< SEARCH
+//     three = 4
+//     assert(2 + 1 == three)
+//     /* MIDDLE CODE TO COMPLETE */
+// =======
+//     three = 3
+//     assert(2 + 1 == three)
+//     print("Hello world!")
+// >>>>>>> REPLACE
+// ```
 
-3. Requirements:
+// 3. Requirements:
 
-- Only edit the code within a 10-line window around the identifier.
-- The search section MUST contain the /* MIDDLE CODE TO COMPLETE */ marker
-"#)?
-            // .insert_system_template_str("You are a helpful assistant.")?
+// - Only edit the code within a 10-line window around the identifier.
+// - The search section MUST contain the /* MIDDLE CODE TO COMPLETE */ marker
+// "#)?
+            .insert_system_template_str("You are a helpful assistant.")?
             .append_new_user_query_str(user_content, "user")?;
 
         // Build the current message state

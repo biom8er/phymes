@@ -6,7 +6,7 @@ mod tensor;
 
 pub use operators::{
     ApplyTemplate, AvailableOperators, ChunkDocuments, Diff, ExtractPDF, ExtractTabular,
-    ExtractXML, Filter, FromTasksToParticipants, FromTracesToMessages, GroupBy, HumanInTheLoop,
+    ExtractXML, Filter, FromTasksToParticipants, FromTracesToMessages, FromWorkspaceToMessages, FromMessagesToPatches, GroupBy, HumanInTheLoop,
     Join, NormalizeTime, PackTabular, Patch, Pivot, Select, Sort, VectorDistance,
     convert_destinations_to_tools, extract_pdf, extract_xml, filter, filter_pdf, group_by,
     load_pdf_document, make_pdf_document, pack_tabular, sort,

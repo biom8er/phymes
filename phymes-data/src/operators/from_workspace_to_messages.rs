@@ -139,10 +139,10 @@ pub fn from_workspace_to_messages(
         .build()?;
 
     // Get the workspace information
-    let repository_vec = lhs_table.get_column_as_vec_nonprimitive::<String>("repository")?;
     let path_vec = lhs_table.get_column_as_vec_nonprimitive::<String>("path")?;
-    // Assume that <|fim_prefix|> and <|fim_suffix|> have already been added to the content?
     let content_vec = lhs_table.get_column_as_vec_nonprimitive::<String>("content")?;
+    let repository_vec = lhs_table.get_column_as_vec_nonprimitive::<String>("repository")
+        .unwrap_or_else(|_| (0..path_vec.len()).map(|_| "repo".to_string()).collect::<Vec<_>>());
 
     // Create the prompt
     let prompt_vec: Result<Vec<String>> = repository_vec.into_iter()
@@ -166,8 +166,17 @@ pub fn from_workspace_to_messages(
         CodeCompletionType::SRI => {},
     }
 
+    // Create the system prompt
+    let system = match code_completion {
+        CodeCompletionType::FIM => FIM_SYSTEM_TEMPLATE,
+        CodeCompletionType::SRI => SRI_SYSTEM_TEMPLATE,
+    };
+
     // Create the message
-    create_chat_record_batch(vec!["user".to_string()], vec![prompt], vec![create_timestamp_micros()])
+    let role = vec!["system".to_string(), "user".to_string()];
+    let content = vec![system.to_string(), prompt];
+    let timestamp = vec![create_timestamp_micros(), create_timestamp_micros()];
+    create_chat_record_batch(role, content, timestamp)
 }
 
 #[cfg(test)]
@@ -240,9 +249,9 @@ pub use todo::Todo"#,
             .build()?;
 
         let cols = result_table.get_column_as_vec_str("role");
-        assert_eq!(cols, ["user"]);
+        assert_eq!(cols, ["system", "user"]);
         let cols = result_table.get_column_as_vec_str("content");
-        assert_eq!(cols, [r#"<|repo_name|>test_repo
+        assert_eq!(cols, [FIM_SYSTEM_TEMPLATE, r#"<|repo_name|>test_repo
 <|file_sep|>/home/sandbox/Cargo.toml
 [package]
 name = "phymes_rs"
@@ -328,9 +337,9 @@ pub use todo::Todo"#,
             .build()?;
 
         let cols = result_table.get_column_as_vec_str("role");
-        assert_eq!(cols, ["user"]);
+        assert_eq!(cols, ["system", "user"]);
         let cols = result_table.get_column_as_vec_str("content");
-        assert_eq!(cols, [r#"<|repo_name|>test_repo
+        assert_eq!(cols, [SRI_SYSTEM_TEMPLATE ,r#"<|repo_name|>test_repo
 <|file_sep|>/home/sandbox/Cargo.toml
 [package]
 name = "phymes_rs"
