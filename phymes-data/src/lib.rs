@@ -17,7 +17,7 @@ pub use parser::{AvailableParsers, NodeParserTrait, TextParserTrait, CodeSplitte
 pub use patch::WorkspaceEditor;
 pub use patch::{
     ApplyDiffMode, CodeCompletionType, DiffType, PatchOperation, PatchOperator, apply_patch_auto, apply_v4a_diff,
-    compute_diff, extract_tool_calls_str, extract_fim_str, format_tool_calls_str
+    compute_diff, extract_tool_calls_str, extract_fim_str, format_tool_calls_str, parse_search_and_replace_output, parse_fill_in_the_middle_output
 };
 pub use template::{
     AvailableJinja2Templates, MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_INPUT,

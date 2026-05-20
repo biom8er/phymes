@@ -10,7 +10,7 @@
 /// >>>>>>> REPLACE
 /// ```
 
-use crate::extract_tool_calls_str;
+use crate::{extract_fim_str, extract_tool_calls_str};
 
 const SECTION_OUTPUT: &str = "```";
 const BEGIN_SEARCH: &str = "<<<<<<< SEARCH\n";
@@ -19,14 +19,31 @@ const END_REPLACE: &str = ">>>>>>> REPLACE\n";
 
 #[derive(Debug)]
 pub struct SearchAndReplaceDiff {
-    filename: String,
-    diff: String,
+    pub filename: String,
+    pub diff: String,
 }
 
 impl SearchAndReplaceDiff {
     pub fn new(filename: &str, diff: &str) -> Self {
         Self { filename: filename.to_string(), diff: diff.to_string() }
     }
+}
+
+// "main.py\n```python\n    book = library.find_book(\"1234567890\")\n```"
+/// Parse a fill-in-the-middle Output diff generated from a fill-in-the-middle coding LLM
+pub fn parse_fill_in_the_middle_output(input: &str) -> SearchAndReplaceDiff {
+    // Extract the filename (should be first line)
+    let filename = input.split_whitespace().into_iter().collect::<Vec<_>>();
+    let filename = filename.first().unwrap();
+
+    // Extract the middle
+    let middle = extract_fim_str(input, None, None);
+
+    // Create the diff
+    let diff = format!("{BEGIN_SEARCH}<|fim_suffix|>{END_SEARCH_BEGIN_REPLACE}{middle}{END_REPLACE}");
+    let diff = diff.trim();
+
+    SearchAndReplaceDiff::new(filename, diff)
 }
 
 /// Parse a search and replace output diff generated from a fill-in-the-middle coding LLM
@@ -58,6 +75,14 @@ pub fn apply_search_and_replace_patch(input: &str, diff: &str) -> String {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_fill_in_the_middle_output() {
+        let input = "main.py\n```python\n    New text\n```";
+        let diff = parse_fill_in_the_middle_output(input);
+        assert_eq!(diff.filename, "main.py");
+        assert_eq!(diff.diff, "<<<<<<< SEARCH\n<|fim_suffix|>=======\n\n    New text\n>>>>>>> REPLACE");
+    }
 
     #[test]
     fn test_parse_search_and_replace_output() {

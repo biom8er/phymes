@@ -1,14 +1,16 @@
+use std::sync::Arc;
+
 use anyhow::{anyhow, Result};
-use arrow::array::RecordBatch;
+use arrow::array::{ArrayRef, RecordBatch};
 use candle_core::Device;
 use phymes_diagnostics::create_timestamp_micros;
-use phymes_schemas::create_chat_record_batch;
+use phymes_schemas::{create_chat_record_batch, create_workspace_patch_batch};
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{CodeCompletionType, DataConfig, DataOperatorTrait};
+use crate::{CodeCompletionType, DataConfig, DataOperatorTrait, PatchOperator, parse_fill_in_the_middle_output, parse_search_and_replace_output};
 
 /// Compute the normalized start and end times in a [RecordBatch]
 #[derive(Debug, Serialize, Deserialize)]
@@ -63,38 +65,24 @@ pub fn from_messages_to_patches(
         .with_name("from_messages_to_patches Code Completion")
         .build()?;
 
-    // Get the workspace information
-    let repository_vec = lhs_table.get_column_as_vec_nonprimitive::<String>("repository")?;
-    let path_vec = lhs_table.get_column_as_vec_nonprimitive::<String>("path")?;
-    let content_vec = lhs_table.get_column_as_vec_nonprimitive::<String>("content")?;
+    // Get the content
+    let content_str = lhs_table.get_column_as_vec_nonprimitive::<String>("content")?;
+    let content_str = content_str.last().ok_or(anyhow!("Missing code completion content."))?;
 
-    // Create the promopt
-    let prompt_vec: Result<Vec<(String, String, String)>> = repository_vec.into_iter()
-        .zip(path_vec.into_iter())
-        .zip(content_vec.into_iter())
-        .filter(|((_r, _p), c)| match code_completion { 
-            CodeCompletionType::FIM => c.contains("<|fim_prefix|>") && c.contains("<|fim_suffix|>"),
-            CodeCompletionType::SRI => c.contains("/* MIDDLE CODE TO COMPLETE */"),
-        })
-        .map(|((r, p), c)| {
+    // Parse the content
+    let (filename, diff, operator) = match code_completion {
+        CodeCompletionType::FIM => {
+            let diff = parse_fill_in_the_middle_output(content_str);
+            (diff.filename, diff.diff, PatchOperator::Update.to_string())
+        },
+        CodeCompletionType::SRI => {
+            let diff = parse_search_and_replace_output(content_str);
+            (diff.filename, diff.diff, PatchOperator::Update.to_string())
+        }
+    };
 
-            // Extract the filename
-            let path = std::path::Path::new(&p);
-            match path.file_name() {
-                Some(filename) => {
-                    // Convert OsStr to &str safely
-                    match filename.to_str() {
-                        Some(name_str) => Ok((r, name_str.to_string(), c)),
-                        None => Err(anyhow!("Filename contains invalid UTF-8.")),
-                    }
-                }
-                None => Err(anyhow!("No filename found in the given path.")),
-            }
-        })
-        .collect();
-
-    todo!()
     // Create the patch batch
+    create_workspace_patch_batch(vec![filename], vec![diff], vec![operator])
 }
 
 #[cfg(test)]

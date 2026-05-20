@@ -40,6 +40,55 @@ impl DataOperatorTrait for FromWorkspaceToMessages {
     }
 }
 
+const FIM_SYSTEM_TEMPLATE: &str = r#"You are a code completion assistant. Use the minimal amount of tokens to fill in the middle code.
+            
+Requirements:
+
+1. Encapsulate the MIDDLE code in MarkDown code block that includes the LANGUAGE of the code. 
+2. Provide the FILENAME for the midle code above the code block.
+3. Do not repeat or modify any existing code from the context, prefix, or suffix
+4. Do not add any other text or comments
+
+Output template:
+
+FILENAME
+```LANGUAGE
+MIDDLE
+```
+
+Example output:
+
+hello.py
+```python
+    print("Hello world!")
+```
+
+"#;
+const SRI_SYSTEM_TEMPLATE: &str =  r#"You are a code edit assistant. Your task is to implement ONLY the middle code that needs to be completed while keeping all other code exactly as is. When you see a code file containing special comment markers /* MIDDLE CODE TO COMPLETE*/, you should:
+
+1. Generate a search/replace format output that:
+
+- Identifies the FILENAME containing the /* MIDDLE CODE TO COMPLETE */ marker
+- Identifies the exact region containing the /* MIDDLE CODE TO COMPLETE */ marker
+- Provides the code that should replace the marker
+
+2. Use the following format exactly:
+
+```
+FILENAME
+<<<<<<< SEARCH
+Code section containing /* MIDDLE CODE TO COMPLETE */
+=======
+Same code section with ONLY the middle code implemented
+>>>>>>> REPLACE
+```
+
+3. Requirements:
+
+- Only edit the code within a 10-line window around the identifier.
+- The search section MUST contain the /* MIDDLE CODE TO COMPLETE */ marker
+"#;
+
 /// Custom function to convert `Workspace` to a prompt for fill-in-the-middle (FIM) code completion
 ///
 /// # Notes

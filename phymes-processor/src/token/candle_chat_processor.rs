@@ -122,31 +122,54 @@ pub mod bench_chat_processor {
         // Make the system prompt and add the user query
         let message_builder = SubjectBuilder::new()
             .with_name(&config.messages)
-            // .insert_system_template_str("You are a code completion assistant. Use the minimal amount of tokens to fill in the middle. Encapsulate your response in MarkDown.")?
-            .insert_system_template_str(r#"You are a code edit assistant. Your task is to implement ONLY the middle code that needs to be completed while keeping all other code exactly as is. When you see a code file containing special comment markers /* MIDDLE CODE TO COMPLETE*/, you should:
+            .insert_system_template_str(r#"You are a code completion assistant. Use the minimal amount of tokens to fill in the middle code.
+            
+Requirements:
 
-1. Generate a search/replace format output that:
+1. Encapsulate the MIDDLE code in MarkDown code block that includes the LANGUAGE of the code. 
+2. Provide the FILENAME for the midle code above the code block.
+3. Do not repeat or modify any existing code from the context, prefix, or suffix
+4. Do not add any other text or comments
 
-- Identifies the FILENAME containing the /* MIDDLE CODE TO COMPLETE */ marker
-- Identifies the exact region containing the /* MIDDLE CODE TO COMPLETE */ marker
-- Provides the code that should replace the marker
+Output template:
 
-2. Use the following format exactly:
-
-```
 FILENAME
-<<<<<<< SEARCH
-Code section containing /* MIDDLE CODE TO COMPLETE */
-=======
-Same code section with ONLY the middle code implemented
->>>>>>> REPLACE
+```LANGUAGE
+MIDDLE
 ```
 
-3. Requirements:
+Example output:
 
-- Only edit the code within a 10-line window around the identifier.
-- The search section MUST contain the /* MIDDLE CODE TO COMPLETE */ marker
+hello.py
+```python
+    print("Hello world!")
+```
+
 "#)?
+//             .insert_system_template_str(r#"You are a code edit assistant. Your task is to implement ONLY the middle code that needs to be completed while keeping all other code exactly as is. When you see a code file containing special comment markers /* MIDDLE CODE TO COMPLETE*/, you should:
+
+// 1. Generate a search/replace format output that:
+
+// - Identifies the FILENAME containing the /* MIDDLE CODE TO COMPLETE */ marker
+// - Identifies the exact region containing the /* MIDDLE CODE TO COMPLETE */ marker
+// - Provides the code that should replace the marker
+
+// 2. Use the following format exactly:
+
+// ```
+// FILENAME
+// <<<<<<< SEARCH
+// Code section containing /* MIDDLE CODE TO COMPLETE */
+// =======
+// Same code section with ONLY the middle code implemented
+// >>>>>>> REPLACE
+// ```
+
+// 3. Requirements:
+
+// - Only edit the code within a 10-line window around the identifier.
+// - The search section MUST contain the /* MIDDLE CODE TO COMPLETE */ marker
+// "#)?
             // .insert_system_template_str("You are a helpful assistant.")?
             .append_new_user_query_str(user_content, "user")?;
 

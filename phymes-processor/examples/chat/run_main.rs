@@ -79,7 +79,7 @@ class Student:
         return False
 
 <|file_sep|>/src/main.py
-from library import Library
+<|fim_prefix|>from library import Library
 from student import Student
 
 def main():
@@ -91,8 +91,7 @@ def main():
     # Set up a student
     student = Student("Alice", "S1")
     
-    # Student borrows a book
-    /* MIDDLE CODE TO COMPLETE */
+    # Student borrows a book<|fim_suffix|>
     if student.borrow_book(book, library):
         print(f"{student.name} borrowed {book.title}")
     else:
@@ -110,7 +109,7 @@ def main():
         print(book)
 
 if __name__ == "__main__":
-    main()"#,
+    main()<|fim_middle|>"#,
         "chat_processor",
     )
     .await?;
