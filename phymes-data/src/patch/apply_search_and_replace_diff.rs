@@ -29,9 +29,8 @@ impl SearchAndReplaceDiff {
     }
 }
 
-// "main.py\n```python\n    book = library.find_book(\"1234567890\")\n```"
 /// Parse a fill-in-the-middle Output diff generated from a fill-in-the-middle coding LLM
-pub fn parse_fill_in_the_middle_output(input: &str) -> SearchAndReplaceDiff {
+pub fn parse_fill_in_the_middle_output(input: &str) -> Vec<SearchAndReplaceDiff> {
     // Extract the filename (should be first line)
     let filename = input.split_whitespace().into_iter().collect::<Vec<_>>();
     let filename = filename.first().unwrap();
@@ -41,6 +40,16 @@ pub fn parse_fill_in_the_middle_output(input: &str) -> SearchAndReplaceDiff {
 
     // Create the diff
     let diff = format!("{BEGIN_SEARCH}<|fim_suffix|>{END_SEARCH_BEGIN_REPLACE}{middle}{END_REPLACE}");
+    let diff = diff.trim();
+
+    let prefix = create_fill_in_the_middle_prefix_diff(*filename);
+    let suffix = SearchAndReplaceDiff::new(filename, diff);
+    vec![prefix, suffix]
+}
+
+fn create_fill_in_the_middle_prefix_diff(filename: &str) -> SearchAndReplaceDiff {
+    // Create the diff
+    let diff = format!("{BEGIN_SEARCH}<|fim_prefix|>{END_SEARCH_BEGIN_REPLACE}{END_REPLACE}");
     let diff = diff.trim();
 
     SearchAndReplaceDiff::new(filename, diff)
@@ -79,9 +88,11 @@ pub mod tests {
     #[test]
     fn test_parse_fill_in_the_middle_output() {
         let input = "main.py\n```python\n    New text\n```";
-        let diff = parse_fill_in_the_middle_output(input);
-        assert_eq!(diff.filename, "main.py");
-        assert_eq!(diff.diff, "<<<<<<< SEARCH\n<|fim_suffix|>=======\n\n    New text\n>>>>>>> REPLACE");
+        let diffs = parse_fill_in_the_middle_output(input);
+        assert_eq!(diffs.first().unwrap().filename, "main.py");
+        assert_eq!(diffs.first().unwrap().diff, "<<<<<<< SEARCH\n<|fim_prefix|>=======\n>>>>>>> REPLACE");
+        assert_eq!(diffs.last().unwrap().filename, "main.py");
+        assert_eq!(diffs.last().unwrap().diff, "<<<<<<< SEARCH\n<|fim_suffix|>=======\n\n    New text\n>>>>>>> REPLACE");
     }
 
     #[test]

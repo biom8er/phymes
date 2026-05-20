@@ -150,27 +150,13 @@ pub fn from_workspace_to_messages(
         .zip(content_vec.into_iter())
         .enumerate()
         .map(|(i, ((r, p), c))| {
-
-            // Extract the filename
-            let path = std::path::Path::new(&p);
-            match path.file_name() {
-                Some(filename) => {
-                    // Convert OsStr to &str safely
-                    match filename.to_str() {
-                        Some(name_str) => {
-                            // Create the string
-                            if i == 0 {
-                                let prompt = format!("<|repo_name|>{r}\n<|file_sep|>{name_str}\n{c}\n");
-                                Ok(prompt)
-                            } else {
-                                let prompt = format!("<|file_sep|>{name_str}\n{c}\n");
-                                Ok(prompt)
-                            }
-                        },
-                        None => Err(anyhow!("Filename contains invalid UTF-8.")),
-                    }
-                }
-                None => Err(anyhow!("No filename found in the given path.")),
+            // Create the string
+            if i == 0 {
+                let prompt = format!("<|repo_name|>{r}\n<|file_sep|>{p}\n{c}\n");
+                Ok(prompt)
+            } else {
+                let prompt = format!("<|file_sep|>{p}\n{c}\n");
+                Ok(prompt)
             }
         })
         .collect();
@@ -257,24 +243,24 @@ pub use todo::Todo"#,
         assert_eq!(cols, ["user"]);
         let cols = result_table.get_column_as_vec_str("content");
         assert_eq!(cols, [r#"<|repo_name|>test_repo
-<|file_sep|>Cargo.toml
+<|file_sep|>/home/sandbox/Cargo.toml
 [package]
 name = "phymes_rs"
 version = "0.1.0"
 edition = "2024"
 [dependencies]
 anyhow = { version = "1", default-features = false }
-<|file_sep|>main.rs
+<|file_sep|>/home/sandbox/src/main.rs
 use anyhow::Result;
 fn main() -> Result<()> {
     Ok(())
 }
-<|file_sep|>lib.rs
+<|file_sep|>/home/sandbox/src/lib.rs
 pub mod extra;
-<|file_sep|>mod.rs
+<|file_sep|>/home/sandbox/src/extras/mod.rs
 mod todo;
 pub use todo::Todo
-<|file_sep|>todo.rs
+<|file_sep|>/home/sandbox/src/extras/todo.rs
 pub struct Todo {}
 <|fim_middle|>"#]);
 
@@ -345,25 +331,26 @@ pub use todo::Todo"#,
         assert_eq!(cols, ["user"]);
         let cols = result_table.get_column_as_vec_str("content");
         assert_eq!(cols, [r#"<|repo_name|>test_repo
-<|file_sep|>Cargo.toml
+<|file_sep|>/home/sandbox/Cargo.toml
 [package]
 name = "phymes_rs"
 version = "0.1.0"
 edition = "2024"
 [dependencies]
 anyhow = { version = "1", default-features = false }
-<|file_sep|>main.rs
+<|file_sep|>/home/sandbox/src/main.rs
 use anyhow::Result;
 fn main() -> Result<()> {
     Ok(())
 }
-<|file_sep|>lib.rs
+<|file_sep|>/home/sandbox/src/lib.rs
 pub mod extra;
-<|file_sep|>mod.rs
+<|file_sep|>/home/sandbox/src/extras/mod.rs
 mod todo;
 pub use todo::Todo
-<|file_sep|>todo.rs
-pub struct Todo {}"#]);
+<|file_sep|>/home/sandbox/src/extras/todo.rs
+pub struct Todo {}
+"#]);
 
         Ok(())
     }
