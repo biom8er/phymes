@@ -1472,10 +1472,7 @@ impl Stream for CommandSandboxStream {
                         let stderr = String::from_utf8_lossy(&output.stderr);
                         let _stdout = String::from_utf8_lossy(&output.stdout);
                         dbg!(&output);
-                        return Poll::Ready(Some(Err(anyhow!(
-                            "STDERR: {stderr}\n" 
-                            // "Command exited with code `{exit_code}`\nstderr: {stderr}\nstdout: {stdout}\n"                           
-                        ))));
+                        return Poll::Ready(Some(Err(anyhow!("STDERR: {stderr}\n"))));
                     }
                     // // DM: useful for debugging
                     // {

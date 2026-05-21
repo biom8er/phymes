@@ -8,7 +8,7 @@ use phymes_schemas::{
 };
 use phymes_streams::CommandSandboxEnvironments;
 
-use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, ExecuteWorkspaceNetwork, GenerateTextNetworkBuilder, PatchWorkspaceNetworkBuilderStaticWSubject, RetrieveTextNetworkBuilder};
+use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, ExecuteWorkspaceNetwork, GenerateTextNetworkBuilder, PatchWorkspaceNetworkBuilderStaticWSubject};
 
 /// OpenAlex network
 pub struct GenerateCodeNetworkBuilder {
@@ -289,17 +289,18 @@ mod tests {
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
     use phymes_schemas::{
-        AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, CsvFormat, create_object_store_meta_batch, create_workspace_batch
+        AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, CsvFormat, create_workspace_batch
     };
-    use phymes_streams::ChatBuilderTraitExt;
     use phymes_task::SubscriptionTrait;
 
     use crate::{DynamicTaskNetworkNames, extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
 
     use super::*;
 
-    // `cargo test -p phymes-templates test_generate_code_network_v_rust --features gpu,hf_hub --release -- --nocapture`
-    // #[ignore = "In progress... Some issues with embeddings and retrieval."]
+    /// `cargo test -p phymes-templates test_generate_code_network_py --features gpu,hf_hub --release -- --nocapture`
+    /// DM: should require two iterations to complete the code
+    ///   1. Fill in the middle
+    ///   2. Correct the error message
     #[tokio::test]
     async fn test_generate_code_network_py() -> Result<()> {
         // Constants
@@ -474,12 +475,15 @@ pip install --no-cache-dir -r requirements.txt"#,
             )
             .with_record_batches(batches)?
             .build()?;
-        assert_eq!(subject.count_rows(), 1);
+        assert_eq!(subject.count_rows(), 2);
         let column = subject.get_column_as_vec_str("role");
         assert_eq!(column.first().unwrap(), &"assistant");
+        assert_eq!(column.get(1).unwrap(), &"assistant");
         let column = subject.get_column_as_vec_str("content");
         assert!(column.first().unwrap().contains("src/main.py"));
         assert!(column.first().unwrap().contains("table_out = pa.Table.from_pandas(df)"));
+        assert!(column.get(1).unwrap().contains("src/main.py"));
+        assert!(column.get(1).unwrap().contains("new_schema = pa.schema([pa.field(f.name, f.type, nullable=False) for f in table_out.schema])"));
         let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
         for t in column {
             assert!(t > 0);
@@ -496,12 +500,13 @@ pip install --no-cache-dir -r requirements.txt"#,
             .with_name(workspace_name)
             .with_record_batches(batches)?
             .build()?;
-        assert_eq!(subject.count_rows(), 3);
+        assert_eq!(subject.count_rows(), 6);
         let column = subject.get_column_as_vec_str("path");
-        assert_eq!(column.first().unwrap(), &"src/main.py");
+        assert_eq!(column.get(4).unwrap(), &"src/main.py");
         let column = subject.get_column_as_vec_str("content");
-        assert!(!column.first().unwrap().contains("/* MIDDLE CODE TO COMPLETE */"));
-        assert!(column.first().unwrap().contains("table_out = pa.Table.from_pandas(df)"));
+        assert!(!column.get(4).unwrap().contains("/* MIDDLE CODE TO COMPLETE */"));
+        assert!(column.get(4).unwrap().contains("table_out = pa.Table.from_pandas(df)"));
+        assert!(column.get(4).unwrap().contains("new_schema = pa.schema([pa.field(f.name, f.type, nullable=False) for f in table_out.schema])"));
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: subject_name_o.to_string(),
