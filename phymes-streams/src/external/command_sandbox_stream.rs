@@ -1466,24 +1466,22 @@ impl Stream for CommandSandboxStream {
 
                     // Check for an error
                     if let Some(exit_code) = &output.status.code()
-                        && exit_code != &1
+                        // && exit_code != &1
                         && !output.status.success()
                     {
                         self.stream_state = CommandSandboxStreamState::Done;
                         let stderr = String::from_utf8_lossy(&output.stderr);
                         let stdout = String::from_utf8_lossy(&output.stdout);
+                        dbg!(&output);
                         return Poll::Ready(Some(Err(anyhow!(
-                            "Command exited with code {}, stderr {}, and stdout {}.",
-                            output.status.code().unwrap_or(0),
-                            stderr,
-                            stdout
+                            "Command exited with code `{exit_code}`\nstderr: {stderr}\nstdout: {stdout}\n"                            
                         ))));
                     }
-                    // DM: useful for debugging
-                    {
-                        let stdout = String::from_utf8_lossy(&output.stdout);
-                        dbg!(stdout);
-                    }
+                    // // DM: useful for debugging
+                    // {
+                    //     let stdout = String::from_utf8_lossy(&output.stdout);
+                    //     dbg!(stdout);
+                    // }
 
                     // Parse the response if running and skip if starting, initializing, or done
                     let (batch, stream_state) =

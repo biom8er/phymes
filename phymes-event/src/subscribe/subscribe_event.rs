@@ -253,17 +253,26 @@ impl SubscribeEventTrait for ChatContentSubscribe {
         updates: &HashMap<String, bool>,
         _schemas: &HashMap<String, SchemaRef>,
     ) -> bool {
+        // DM: always subscribe to user messages when there are no tool or error messages
+        let user = if updates.contains_key(&self.user_message_table_name)
+            && !updates.contains_key(&self.tool_message_table_name)
+            && !updates.contains_key(&self.error_message_table_name) {
+            true
+        } else {
+            *updates.get(&self.user_message_table_name).unwrap_or(&false)
+        };
+
         // DM: default to false to prevent unwanted subscriptions
-        let user = updates.get(&self.user_message_table_name).unwrap_or(&false);
         let tool = updates.get(&self.tool_message_table_name).unwrap_or(&false);
         let error = updates
             .get(&self.error_message_table_name)
             .unwrap_or(&false);
-        // DM: assume the config is "other" which is always subscribed too
+
+        // DM: assume the config and assistant messages are "other" which are always subscribed too
         let config = !updates.contains_key(&self.user_message_table_name)
             && !updates.contains_key(&self.tool_message_table_name)
             && !updates.contains_key(&self.error_message_table_name);
-        *tool || *user || *error || config
+        *tool || user || *error || config
     }
     fn new_box() -> Box<dyn SubscribeEventTrait> {
         Box::new(Self {

@@ -289,6 +289,11 @@ impl Network {
                                     &updates,
                                     &HashMap::<String, SchemaRef>::new(),
                                 );
+                                if subscribe_policy.get_name() == "ChatContentSubscribe" {
+                                    dbg!(&subscriptions);
+                                    dbg!(&updates);
+                                    dbg!(&subscribe);
+                                }
                                 if subscribe {
                                     Some((
                                         (

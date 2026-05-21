@@ -364,7 +364,7 @@ if __name__ == '__main__':
     /* MIDDLE CODE TO COMPLETE */
 
     # One-liner to make all fields non-nullable
-    new_schema = pa.schema([pa.field(f.name, f.type, nullable=False) for f in table_out.schema])
+    new_schema = p.schema([pa.field(f.name, f.type, nullable=False) for f in table_out.schema])
 
     # Cast the table to the new schema
     # This will fail if there are actual nulls in the data
@@ -446,6 +446,7 @@ pip install --no-cache-dir -r requirements.txt"#,
                 "UserMessages",
                 "AssistantMessages",
                 "WorkspacePatch",
+                "aggregate_messages_generate_text_s",
                 subject_name_i,
                 subject_name_o,
                 workspace_name])
