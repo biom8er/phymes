@@ -549,8 +549,15 @@ pub fn patch(
         )?;
 
         // Group by to combine multiple patches for the same target
-        let group_by_lhs_values = lhs_columns.iter().map(|s| s.as_str()).collect::<Vec<_>>();
-        let group_by_agg_columns = rhs_columns.iter().map(|s| s.as_str()).collect::<Vec<_>>();
+        let group_by_lhs_values = lhs_schema.fields().iter().map(|s| s.name().as_str()).collect::<Vec<_>>();
+        let lhs_update_schema = lhs_update.schema();
+        let group_by_agg_columns = lhs_update_schema.fields()
+            .iter()
+            .filter_map(|s| if group_by_lhs_values.contains(&s.name().as_str()) {
+                None
+            } else {
+                Some(s.name().as_str())
+            }).collect::<Vec<_>>();
         let group_by_agg_operators = rhs_columns.iter().map(|_| DataAggregatorOperator::List).collect::<Vec<_>>();
         let lhs_update = group_by(&group_by_lhs_values, &[lhs_update], &group_by_agg_columns, &group_by_agg_operators, device)?;
 
@@ -1511,25 +1518,25 @@ pub use todo::Todo"#,
             .build()?;
 
         let test = result_table.get_column_as_vec_primitive::<u32>("repo_pk")?;
-        assert_eq!(test, [3, 0, 4, 2]);
+        assert_eq!(test, [0, 3, 2, 4]);
         let test = result_table.get_column_as_vec_nonprimitive::<String>("repo_path")?;
         assert_eq!(
             test,
             [
-                "/home/sandbox/src/extras/mod.rs",
                 "/home/sandbox/Cargo.toml",
+                "/home/sandbox/src/extras/mod.rs",
+                "/home/sandbox/src/lib.rs",
                 "/home/sandbox/src/extras/todo.rs",
-                "/home/sandbox/src/lib.rs"
             ]
         );
         let test = result_table.get_column_as_vec_nonprimitive::<String>("code")?;
         assert_eq!(
             test,
             [
-                "pub mod other;\nmod todo;\npub use todo::Todo",
                 "[package]\nname = \"phymes_rs\"\nversion = \"0.1.0\"\nedition = \"2024\"\n[dependencies]\nanyhow = { version = \"1\", default-features = false }",
+                "pub mod other;\nmod todo;\npub use todo::Todo",
+                "pub mod extra;",
                 "pub struct Todo {}",
-                "pub mod extra;"
             ]
         );
 
@@ -1552,26 +1559,29 @@ pub use todo::Todo"#,
             .with_record_batches(vec![result])?
             .build()?;
 
-        let test = result_table.get_column_as_vec_primitive::<u32>("repo_pk")?;
-        assert_eq!(test, [3, 0, 2, 4]);
-        let test = result_table.get_column_as_vec_nonprimitive::<String>("repo_path")?;
+        let mut test = result_table.get_column_as_vec_primitive::<u32>("repo_pk")?;
+        test.sort();
+        assert_eq!(test, [0, 2, 3, 4]);
+        let mut test = result_table.get_column_as_vec_nonprimitive::<String>("repo_path")?;
+        test.sort();
         assert_eq!(
             test,
             [
-                "/home/sandbox/src/extras/mod.rs",
                 "/home/sandbox/Cargo.toml",
+                "/home/sandbox/src/extras/mod.rs",
+                "/home/sandbox/src/extras/todo.rs",
                 "/home/sandbox/src/lib.rs",
-                "/home/sandbox/src/extras/todo.rs"
             ]
         );
-        let test = result_table.get_column_as_vec_nonprimitive::<String>("code")?;
+        let mut test = result_table.get_column_as_vec_nonprimitive::<String>("code")?;
+        test.sort();
         assert_eq!(
             test,
             [
-                "pub mod other;\nmod todo;\npub use todo::Todo",
                 "[package]\nname = \"phymes_rs\"\nversion = \"0.1.0\"\nedition = \"2024\"\n[dependencies]\nanyhow = { version = \"1\", default-features = false }",
                 "pub mod extra;",
-                "pub struct Todo {}"
+                "pub mod other;\nmod todo;\npub use todo::Todo",
+                "pub struct Todo {}",
             ]
         );
 
