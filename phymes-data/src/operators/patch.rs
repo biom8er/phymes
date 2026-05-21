@@ -18,9 +18,7 @@ use serde_json::Value;
 use tracing::instrument;
 
 use crate::{
-    DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate,
-    DataConfig, DataJoinOperator, DataOperatorTrait, PatchOperator, ToolTrait, apply_patch_auto,
-    operators::{
+    DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataJoinOperator, DataOperatorTrait, PatchOperator, ToolTrait, apply_patch_auto, group_by, operators::{
         filter, from_json_object_columns,
         group_by::{
             build_aggregator_column_list_nonprimitive, build_aggregator_column_list_primitive,
@@ -28,7 +26,7 @@ use crate::{
         join::join,
         select::select,
         to_json_object_columns,
-    },
+    }
 };
 
 /// Inject a table into a string template
@@ -539,6 +537,7 @@ pub fn patch(
         };
         let lhs_schema = lhs_delete.schema();
 
+        // Left outer join to combine each each target with its patch
         let lhs_update = join(
             lhs_pk,
             &[lhs_delete],
@@ -549,21 +548,35 @@ pub fn patch(
                           // device,
         )?;
 
+        // Group by to combine multiple patches for the same target
+        let group_by_lhs_values = lhs_columns.iter().map(|s| s.as_str()).collect::<Vec<_>>();
+        let group_by_agg_columns = rhs_columns.iter().map(|s| s.as_str()).collect::<Vec<_>>();
+        let group_by_agg_operators = rhs_columns.iter().map(|_| DataAggregatorOperator::List).collect::<Vec<_>>();
+        let lhs_update = group_by(&group_by_lhs_values, &[lhs_update], &group_by_agg_columns, &group_by_agg_operators, device)?;
+
         // Apply `Update`
+        // Note: possible to have more than one update per target
         let lhs_update_table = Subject::get_builder()
             .with_name("patch lhs_update")
             .with_record_batches(vec![lhs_update])?
             .build()?;
-        let patches = lhs_update_table.get_column_as_vec_str(diff_column);
+        let group_by_diff_column = format!("{diff_column}-List");
+        let patches = lhs_update_table.get_column_as_vec_nested_nonprimitive::<String>(&group_by_diff_column)?;
         let original = lhs_update_table.get_column_as_vec_str(lhs_values.first().unwrap());
         let modified: Result<Vec<String>> = original
             .into_iter()
             .zip(patches.into_iter())
-            .map(|(o, p)| {
-                if p.is_empty() {
+            .map(|(o, p_vec)| {
+                if p_vec.is_empty() {
                     Ok(o.to_string())
                 } else {
-                    apply_patch_auto(o, p, false)
+                    let mut patched = o.to_string();
+                    for p in p_vec {
+                        if !p.is_empty() {
+                            patched = apply_patch_auto(&patched, &p, false)?;
+                        }                        
+                    }
+                    Ok(patched)                    
                 }
             })
             .collect();
@@ -1645,6 +1658,165 @@ pub use todo::Todo"#,
         assert_eq!(test, ["0", "1", "2", "4"]);
         let test = result_table.get_column_as_vec_nonprimitive::<String>("lhs_text")?;
         assert_eq!(test, ["left", "right", "left", "right"]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_patch_multiple_update_patch_batch() -> Result<()> {
+        // Create the mock repository
+        let repo_pks = vec![0, 1, 2, 3, 4];
+        let repo_paths = [
+            "/home/sandbox/Cargo.toml",
+            "/home/sandbox/src/main.rs",
+            "/home/sandbox/src/lib.rs",
+            "/home/sandbox/src/extras/mod.rs",
+            "/home/sandbox/src/extras/todo.rs",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+        let code = [
+            r#"[package]
+name = "phymes_rs"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+anyhow = { version = "1", default-features = false }"#,
+            r#"use anyhow::Result;
+fn main() -> Result<()> {
+    Ok(())
+}"#,
+            "pub mod extra;",
+            r#"mod todo;
+pub use todo::Todo"#,
+            "pub struct Todo {}",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+        let repo_pks: ArrayRef = Arc::new(UInt32Array::from(repo_pks));
+        let repo_paths: ArrayRef = Arc::new(StringArray::from(repo_paths));
+        let code: ArrayRef = Arc::new(StringArray::from(code));
+        let repo_batch = RecordBatch::try_from_iter(vec![
+            ("repo_pk", repo_pks),
+            ("repo_path", repo_paths),
+            ("code", code),
+        ])?;
+
+        // Create the mock patches
+        let patch_pks = vec![2, 2];
+        let patch_paths = [
+            "/home/sandbox/src/lib.rs",
+            "/home/sandbox/src/lib.rs",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+        let operations = vec![
+            PatchOperator::Update.to_string(),
+            PatchOperator::Update.to_string(),
+        ];
+        let patches = [
+            "@@ pub mod extra;\n+pub mod other1;\n",
+            "@@ pub mod extra;\n+pub mod other2;\n",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+        let patch_pks: ArrayRef = Arc::new(UInt32Array::from(patch_pks));
+        let patch_paths: ArrayRef = Arc::new(StringArray::from(patch_paths));
+        let operations: ArrayRef = Arc::new(StringArray::from(operations));
+        let patches: ArrayRef = Arc::new(StringArray::from(patches));
+        let patch_batch = RecordBatch::try_from_iter(vec![
+            ("patch_pk", patch_pks),
+            ("patch_path", patch_paths),
+            ("operation", operations),
+            ("patch", patches),
+        ])?;
+
+        // Make the device
+        let device = device(false)?;
+
+        // --- PK = String ---
+        // Patch the repository
+        let result = patch(
+            std::slice::from_ref(&repo_batch),
+            Some(std::slice::from_ref(&patch_batch)),
+            &["code"],
+            &["patch", "operation"],
+            "repo_path",
+            "patch_path",
+            &[],
+            &device,
+        )?;
+
+        // Check the results
+        let result_table = Subject::get_builder()
+            .with_name("test_patch")
+            .with_record_batches(vec![result])?
+            .build()?;
+
+        let test = result_table.get_column_as_vec_primitive::<u32>("repo_pk")?;
+        assert_eq!(test, [0, 3, 2, 4, 1]);
+        let test = result_table.get_column_as_vec_nonprimitive::<String>("repo_path")?;
+        assert_eq!(
+            test,
+            [
+                "/home/sandbox/Cargo.toml", "/home/sandbox/src/extras/mod.rs", "/home/sandbox/src/lib.rs", "/home/sandbox/src/extras/todo.rs", "/home/sandbox/src/main.rs"
+            ]
+        );
+        let test = result_table.get_column_as_vec_nonprimitive::<String>("code")?;
+        assert_eq!(
+            test,
+            [
+                "[package]\nname = \"phymes_rs\"\nversion = \"0.1.0\"\nedition = \"2024\"\n[dependencies]\nanyhow = { version = \"1\", default-features = false }", 
+                "mod todo;\npub use todo::Todo", 
+                "pub mod extra;\npub mod other2;\npub mod other1;", 
+                "pub struct Todo {}", 
+                "use anyhow::Result;\nfn main() -> Result<()> {\n    Ok(())\n}"
+            ]
+        );
+
+        // --- PK = UInt32 ---
+        // Patch the repository
+        let result = patch(
+            &[repo_batch],
+            Some(&[patch_batch]),
+            &["code"],
+            &["patch", "operation"],
+            "repo_pk",
+            "patch_pk",
+            &[],
+            &device,
+        )?;
+
+        // Check the results
+        let result_table = Subject::get_builder()
+            .with_name("test_patch")
+            .with_record_batches(vec![result])?
+            .build()?;
+
+        let test = result_table.get_column_as_vec_primitive::<u32>("repo_pk")?;
+        assert_eq!(test, [0, 3, 2, 4, 1]);
+        let test = result_table.get_column_as_vec_nonprimitive::<String>("repo_path")?;
+        assert_eq!(
+            test,
+            [
+                "/home/sandbox/Cargo.toml", "/home/sandbox/src/extras/mod.rs", "/home/sandbox/src/lib.rs", "/home/sandbox/src/extras/todo.rs", "/home/sandbox/src/main.rs"
+            ]
+        );
+        let test = result_table.get_column_as_vec_nonprimitive::<String>("code")?;
+        assert_eq!(
+            test,
+            [
+                "[package]\nname = \"phymes_rs\"\nversion = \"0.1.0\"\nedition = \"2024\"\n[dependencies]\nanyhow = { version = \"1\", default-features = false }",
+                "mod todo;\npub use todo::Todo",
+                "pub mod extra;\npub mod other2;\npub mod other1;",
+                "pub struct Todo {}",
+                "use anyhow::Result;\nfn main() -> Result<()> {\n    Ok(())\n}"
+            ]
+        );
 
         Ok(())
     }

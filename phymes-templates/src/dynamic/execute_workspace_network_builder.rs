@@ -195,7 +195,7 @@ impl<'a> ExecuteWorkspaceNetwork<'a> {
     %% - Listen for any changes to the updated workspace `apply_patch_s` subject
 	%% ------------------------------------------------------------------------------
 	subgraph command_sandbox_t
-		apply_patch_s-subject-.->|AllRecordBatches|command_sandbox_p-subscribe
+		apply_patch_s-subject-.->|LastRecordBatch|command_sandbox_p-subscribe
         {subject_name_i}-subject-->|AllRecordBatches|command_sandbox_p-subscribe
 		command_sandbox_p-subscribe-->command_sandbox_p-processor
 		command_sandbox_p-processor-->command_sandbox_p-publish

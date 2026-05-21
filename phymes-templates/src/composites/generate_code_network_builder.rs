@@ -453,7 +453,7 @@ pip install --no-cache-dir -r requirements.txt"#,
             .collect::<Vec<_>>();
         write_diagnostic_subjects_to_csv(
             &subject_names, 
-            network_arc.runtime_env(), 
+            network_arc.runtime_env(),
             network_arc.get_name())
             .await?;
 

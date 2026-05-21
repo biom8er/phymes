@@ -74,7 +74,7 @@ impl Default for PatchWorkspaceNetworkBuilderStaticWSubject {
             network_name: network_name.to_string(),
             is_dynamic: false,
             processor: AvailableProcessors::Patch,
-            subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+            subscription_lhs: Subscription::AlwaysAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),
             },
             subscription_rhs: Some(Subscription::OnUpdateAllRecordBatches {
@@ -203,7 +203,7 @@ pub use todo::Todo"#,
             network_name: network_name.to_string(),
             is_dynamic: true,
             processor: AvailableProcessors::Patch,
-            subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+            subscription_lhs: Subscription::AlwaysAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),
             },
             subscription_rhs: Some(Subscription::OnUpdateAllRecordBatches {
@@ -272,7 +272,7 @@ impl Default for PatchWorkspaceNetworkBuilderDynamicWOSubject {
             network_name: network_name.to_string(),
             is_dynamic: true,
             processor: AvailableProcessors::Patch,
-            subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+            subscription_lhs: Subscription::AlwaysAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),
             },
             subscription_rhs: Some(Subscription::OnUpdateAllRecordBatches {

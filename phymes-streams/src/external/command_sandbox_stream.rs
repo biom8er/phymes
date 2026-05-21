@@ -1200,7 +1200,7 @@ impl Stream for CommandSandboxStream {
 
                         // Run the command
                         // DM: useful for debugging
-                        dbg!(&command_args);
+                        // dbg!(&command_args);
                         Command::new("docker").args(&command_args).output()
                     }
                     CommandSandboxRunners::Wasmtime => {
@@ -1465,16 +1465,16 @@ impl Stream for CommandSandboxStream {
                         .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                     // Check for an error
-                    if let Some(exit_code) = &output.status.code()
-                        // && exit_code != &1
+                    if let Some(_exit_code) = &output.status.code()
                         && !output.status.success()
                     {
                         self.stream_state = CommandSandboxStreamState::Done;
                         let stderr = String::from_utf8_lossy(&output.stderr);
-                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        let _stdout = String::from_utf8_lossy(&output.stdout);
                         dbg!(&output);
                         return Poll::Ready(Some(Err(anyhow!(
-                            "Command exited with code `{exit_code}`\nstderr: {stderr}\nstdout: {stdout}\n"                            
+                            "STDERR: {stderr}\n" 
+                            // "Command exited with code `{exit_code}`\nstderr: {stderr}\nstdout: {stdout}\n"                           
                         ))));
                     }
                     // // DM: useful for debugging
