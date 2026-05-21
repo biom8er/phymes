@@ -99,6 +99,7 @@ impl Default for GenerateCodeNetworkBuilder {
         // Generate code
         let generate_text_network = GenerateTextNetworkBuilder::new(
             "generate_text_network",
+            // Some("QwenV2p5_0p5bCoder".to_string()), // DM: less than 7b is not accurate enough with Qwen v2.5
             Some("QwenV2p5_7bCoder".to_string()),
             None,
             None,
