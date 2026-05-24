@@ -777,7 +777,7 @@ apt install --assume-yes protobuf-compiler clang"#,
         assert!(column.first().unwrap().contains(r#"    let batches = batches.into_iter()
         .map(|batch| add_10_yrs_to_age(&batch).unwrap())
         .collect::<Vec<_>>();"#));
-        assert!(column.get(1).unwrap().contains("src/main.py"));
+        assert!(column.get(1).unwrap().contains("src/main.rs"));
         assert!(column.get(1).unwrap().contains(r#"    let ages = batch
         .column_by_name("age")
         .unwrap()
@@ -805,13 +805,13 @@ apt install --assume-yes protobuf-compiler clang"#,
             .build()?;
         assert_eq!(subject.count_rows(), 6);
         let column = subject.get_column_as_vec_str("path");
-        assert_eq!(column.get(4).unwrap(), &"src/main.py");
+        assert_eq!(column.get(5).unwrap(), &"src/main.rs");
         let column = subject.get_column_as_vec_str("content");
-        assert!(!column.get(4).unwrap().contains("/* MIDDLE CODE TO COMPLETE */"));
-        assert!(column.get(4).unwrap().contains(r#"    let batches = batches.into_iter()
+        assert!(!column.get(5).unwrap().contains("/* MIDDLE CODE TO COMPLETE */"));
+        assert!(column.get(5).unwrap().contains(r#"    let batches = batches.into_iter()
         .map(|batch| add_10_yrs_to_age(&batch).unwrap())
         .collect::<Vec<_>>();"#));
-        assert!(column.get(4).unwrap().contains(r#"    let ages = batch
+        assert!(column.get(5).unwrap().contains(r#"    let ages = batch
         .column_by_name("age")
         .unwrap()
         .as_any()
