@@ -293,6 +293,29 @@ fn extract_text_chunks(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfTe
         .collect()
 }
 
+/// # Notes
+/// - See PDF 1.7 standard <https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf>
+/// 
+/// ## Text objects
+/// - BT, ET
+/// - Operators: TD, Tm, Td, Tf, and Tj/TJ
+/// - Other operators: Tc, Tw, Tz, TL, Tr, Ts
+/// 
+/// ## Path objects
+/// - m, re
+/// - Path Construction Operators: m, l, c, v, y, h, re
+/// - Clipping path objects: W, W*
+/// - Path Painting Operators: S, s, f, F, f*, B, B*, b, b*, n
+/// 
+/// ## Shading object
+/// - sh
+/// 
+/// ## In-line image object
+/// - BI, EI
+/// 
+/// ## External object
+/// - Do
+/// 
 fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16)>, page_number: u32) -> Result<Vec<Result<PdfText>>> {
     let mut collected_chunks_and_errs = Vec::<Result<PdfText>>::new();
     let page_id = *pages.get(&page_number).ok_or(anyhow!("Page number {page_number} not found."))?;
@@ -471,21 +494,24 @@ fn extract_fonts_from_page(doc: &Document, page_id: (u32, u16)) -> Result<Vec<(S
 ///
 /// # Arguments
 /// * `docs` - A slice of tuples containing the document id and the Document object
+/// * `pdf_filter_type` - Pre-determined list of object to filter from the PDF before extraction using [filter_pdf]
+/// * `pdf_extraction_type` - Pre-determined settings to extract objects from the PDF including
+///   text, graphics, embedding_text, embedding_graphics, etc.
 ///
 /// # Returns
 /// * `Result<RecordBatch>` - A RecordBatch containing the page number and text extracted from the PDF documents
 ///
 /// # Notes
+/// * use [prepare_pdf_documents] after calling [load_pdf_document] but before calling [extract_pdf]
 /// * The output schema of the RecordBatch matches that used in the document RAG session plans i.e.,
 ///   `document_id`: The ID of the document, `chunk_id`: The page number, `text`: The text content of the page.
 ///
 /// # Errors
 /// * Returns an error if text extraction fails for any page in the document
-/// 
-/// # Todo
-/// * Create profiles for text, manuscript_text, images, etc.
 #[instrument(skip(docs))]
 pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
+    // Filter the pdf
+
     // DM: Change to phymes_schemas::embed::pdfs.rs
     // Extract document metadata
 
@@ -506,6 +532,8 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
                         .into_iter()
                         .map(|pdf_text| (id.to_string(), pdf_text))
                         .collect::<Vec<_>>();
+
+                        // Todo, Extract graphics from the page
                         std::result::Result::Ok(text)
                     },
                 )
@@ -584,21 +612,21 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
     let batch = RecordBatch::try_from_iter(vec![
         ("chunk_id", chunk_id_arr),
         ("document_id", document_id_arr),
-        // ("page_num", page_num_arr),
-        // ("op", op_arr),
-        // ("bt", bt_arr),
-        // ("tm_a", tm_a_arr),
-        // ("tm_b", tm_b_arr),
-        // ("tm_c", tm_c_arr),
-        // ("tm_d", tm_d_arr),
-        // ("tm_x", tm_x_arr),
-        // ("tm_y", tm_y_arr),
-        // ("td_x", td_x_arr),
-        // ("td_y", td_y_arr),
-        // ("font_name", font_name_arr),
-        // ("font_subtype", font_subtype_arr),
-        // ("base_font", base_font_arr),
-        // ("font_size", font_size_arr),
+        ("page_num", page_num_arr),
+        ("op", op_arr),
+        ("bt", bt_arr),
+        ("tm_a", tm_a_arr),
+        ("tm_b", tm_b_arr),
+        ("tm_c", tm_c_arr),
+        ("tm_d", tm_d_arr),
+        ("tm_x", tm_x_arr),
+        ("tm_y", tm_y_arr),
+        ("td_x", td_x_arr),
+        ("td_y", td_y_arr),
+        ("font_name", font_name_arr),
+        ("font_subtype", font_subtype_arr),
+        ("base_font", base_font_arr),
+        ("font_size", font_size_arr),
         ("text", text_arr),
     ])?;
     // dbg!(&batch);
