@@ -3,6 +3,7 @@ use std::{collections::{BTreeMap, HashMap}, io::Error, iter::zip, sync::Arc};
 use anyhow::{Ok, Result, anyhow};
 use arrow::array::{ArrayRef, ListArray, RecordBatch, StringArray, UInt8Array};
 use candle_core::Device;
+use clap::ValueEnum;
 use lopdf::{
     Document, Encoding, Object, Stream, content::{Content, Operation}, dictionary
 };
@@ -118,6 +119,70 @@ impl DataOperatorTrait for ExtractPDF {
     ) -> Result<RecordBatch> {
         let docs = prepare_pdf_documents(&self.lhs_pk, &self.lhs_values, lhs_args);
         extract_pdf(&docs)
+    }
+}
+
+/// PDF Filter Type
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
+pub enum PdfFilterType {
+    /// No filtering
+    #[value(name = "None")]
+    None,
+    /// Remove all keys and object except those for text
+    #[value(name = "Text")]
+    Text,
+    /// Remove all keys and object except those for graphics
+    #[value(name = "Graphics")]
+    Graphics,
+    /// Minimal number of keys and objects
+    #[default]
+    #[value(name = "Default")]
+    #[serde(other)]
+    Default,
+}
+
+impl std::fmt::Display for PdfFilterType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::None => write!(f, "None"),
+            Self::Text => write!(f, "Text"),
+            Self::Graphics => write!(f, "Graphics"),
+            Self::Default => write!(f, "Default"),
+        }
+    }
+}
+
+/// PDF Extraction Type
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
+pub enum PdfExtractType {
+    /// All text including operator metadata
+    #[value(name = "Text")]
+    Text,
+    /// All text after applying heuristics optimized for text embeddings
+    #[value(name = "TextEmbeddings")]
+    TextEmbeddings,
+    /// All graphics include operator metadata
+    #[value(name = "Graphics")]
+    Graphics,
+    /// All images after applying heuristics optimized for text embeddings
+    #[value(name = "ImageEmbeddings")]
+    ImageEmbeddings,
+    /// Default extraction; all text excluding operator metadata
+    #[default]
+    #[value(name = "Default")]
+    #[serde(other)]
+    Default,
+}
+
+impl std::fmt::Display for PdfExtractType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Text => write!(f, "Text"),
+            Self::TextEmbeddings => write!(f, "TextEmbeddings"),
+            Self::Graphics => write!(f, "Graphics"),
+            Self::ImageEmbeddings => write!(f, "ImageEmbeddings"),
+            Self::Default => write!(f, "Default"),
+        }
     }
 }
 
@@ -494,8 +559,8 @@ fn extract_fonts_from_page(doc: &Document, page_id: (u32, u16)) -> Result<Vec<(S
 ///
 /// # Arguments
 /// * `docs` - A slice of tuples containing the document id and the Document object
-/// * `pdf_filter_type` - Pre-determined list of object to filter from the PDF before extraction using [filter_pdf]
-/// * `pdf_extraction_type` - Pre-determined settings to extract objects from the PDF including
+/// * `doc_filter` - [PdfFilterType] Pre-determined list of object to filter from the PDF before extraction using [filter_pdf]
+/// * `doc_extraction` - [PdfExtractionType] Pre-determined settings to extract objects from the PDF including
 ///   text, graphics, embedding_text, embedding_graphics, etc.
 ///
 /// # Returns
@@ -508,23 +573,30 @@ fn extract_fonts_from_page(doc: &Document, page_id: (u32, u16)) -> Result<Vec<(S
 ///
 /// # Errors
 /// * Returns an error if text extraction fails for any page in the document
-#[instrument(skip(docs))]
-pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
-    // Filter the pdf
-
+#[instrument(skip(docs, doc_filter, doc_extraction))]
+pub fn extract_pdf(mut docs: &[(String, Document)], doc_filter: &PdfFilterType, doc_extraction: &PdfExtractType) -> Result<RecordBatch> {
     // DM: Change to phymes_schemas::embed::pdfs.rs
     // Extract document metadata
 
     // Extract the page number and text along with any errors from the documents
     let pages = docs
         .into_par_iter()
-        .map(|(id, doc)| {
+        .map(|(id, mut doc)| {
+            // Filter the PDF
+            let doc = match doc_filter {
+                PdfFilterType::None => doc,
+                PdfFilterType::Text => filter_pdf(doc, IGNORE_TYPE_NAMES_TEXT, IGNORE_KEYS),
+                PdfFilterType::Graphics => filter_pdf(doc, &[&[]], IGNORE_KEYS),
+                PdfFilterType::Default => filter_pdf(doc, IGNORE_TYPE_NAMES_DEFAULT, IGNORE_KEYS),
+            };
+
+            // Extract the page contents
             doc.get_pages()
                 .into_par_iter()
                 .map(
                     |(page_num, page_id): (u32, (u32, u16))| -> Result<Vec<(String, PdfText)>, Error> {
                         // Extract text from the page
-                        let text = extract_text(doc, &[page_num]).map_err(|e| {
+                        let text = extract_text(&doc, &[page_num]).map_err(|e| {
                             Error::other(format!(
                                 "Failed to extract text from page {page_num} id={page_id:?}: {e:}"
                             ))
@@ -633,43 +705,54 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
     Ok(batch)
 }
 
-static IGNORE_TYPE_NAMES: &[&[u8]] = &[
-    // b"Length",
-    // b"BBox",
+const IGNORE_TYPE_NAMES_DEFAULT: &[&[u8]] = &[
+    b"Length",
+    b"BBox",
     b"FormType",
-    // b"Matrix",
-    // b"Type",
-    // b"XObject",
-    // b"Subtype",
-    // b"Filter",
-    // b"ColorSpace",
-    // b"Width",
-    // b"Height",
-    // b"BitsPerComponent",
-    // b"Length1",
-    // b"Length2",
-    // b"Length3",
-    // b"PTEX.FileName",
-    // b"PTEX.PageNumber",
-    // b"PTEX.InfoDict",
-    // b"FontDescriptor",
-    // b"ExtGState",
-    // b"MediaBox",
-    // b"Annot",
+    b"Matrix",
+    b"Type",
+    b"XObject",
+    b"Subtype",
+    b"Filter",
+    b"ColorSpace",
+    b"Width",
+    b"Height",
+    b"BitsPerComponent",
+    b"Length1",
+    b"Length2",
+    b"Length3",
+    b"PTEX.FileName",
+    b"PTEX.PageNumber",
+    b"PTEX.InfoDict",
+    b"FontDescriptor",
+    b"ExtGState",
+    b"MediaBox",
+    b"Annot",
 ];
 
-static IGNORE_KEYS: &[&[u8]] = &[
+const IGNORE_TYPE_NAMES_TEXT: &[&[u8]] = &[
+    b"BBox",
+    b"FormType",
+    b"XObject",
+    b"PTEX.FileName",
+    b"PTEX.PageNumber",
+    b"PTEX.InfoDict",
+    b"ExtGState",
+    b"MediaBox",
+];
+
+const IGNORE_KEYS: &[&[u8]] = &[
     b"Producer",
-    // b"ModDate",
-    // b"Creator",
-    // b"ProcSet",
-    // b"XObject",
-    // b"MediaBox",
-    // b"Annots",
+    b"ModDate",
+    b"Creator",
+    b"ProcSet",
+    b"XObject",
+    b"MediaBox",
+    b"Annots",
 ];
 
 /// Filter a PDF document to remove unwanted objects and keys
-pub fn filter_pdf(mut doc: Document) -> Document {
+pub fn filter_pdf(mut doc: Document, ignore_type_names: &[&[u8]], ignore_keys: &[&[u8]]) -> Document {
     // Extract the page IDs from the document
     let page_ids: Vec<(u32, u16)> = doc.get_pages().values().cloned().collect::<Vec<_>>();
 
@@ -679,7 +762,7 @@ pub fn filter_pdf(mut doc: Document) -> Document {
             .get_object_mut(page_id)
             .iter_mut()
             .filter_map(|object| {
-                if IGNORE_TYPE_NAMES.contains(&object.type_name().unwrap_or_default()) {
+                if ignore_type_names.contains(&object.type_name().unwrap_or_default()) {
                     None
                 } else {
                     Some(object)
@@ -691,7 +774,7 @@ pub fn filter_pdf(mut doc: Document) -> Document {
                     std::result::Result::Ok(dict) => dict
                         .iter()
                         .filter_map(|(k, _)| {
-                            if IGNORE_KEYS.contains(&k.as_slice()) {
+                            if ignore_keys.contains(&k.as_slice()) {
                                 Some(k.clone())
                             } else {
                                 None

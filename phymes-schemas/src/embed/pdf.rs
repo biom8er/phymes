@@ -23,6 +23,8 @@ pub struct PdfPage {
     width: f32,
     height: f32, 
     units: String,
+    text: Vec<PdfText>,
+    graphics: Vec<PdfGraphics>,
 }
 
 pub enum PdfObjectType {
@@ -209,4 +211,21 @@ fn create_pdf_manuscript_fields() -> Vec<Field> {
         .map(|f| Field::new(*f, DataType::UInt32, false))
         .collect::<Vec<_>>());
     fields_vec
+}
+
+#[derive(Default, Debug, Clone, PartialEq)]
+struct PdfGraphics {
+    /// Index of the operataion the text was found
+    pub op: u32,
+    /// BT operataion the text was found
+    pub bt: u32,
+    /// Text matrix
+    pub tm: PdfTm,
+    /// Text translation
+    pub td: PdfTd,
+    /// Font
+    pub font: PdfFont,
+    pub font_size: i64,
+    pub page_num: u32,
+    pub text: String,
 }
