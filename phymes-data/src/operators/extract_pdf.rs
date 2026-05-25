@@ -9,7 +9,7 @@ use lopdf::{
 };
 
 use phymes_schemas::{
-    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
+    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, PdfFont, PdfTd, PdfText, PdfTm, Tool, ToolType
 };
 use phymes_subject::MappableTrait;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -118,7 +118,7 @@ impl DataOperatorTrait for ExtractPDF {
         _device: &Device,
     ) -> Result<RecordBatch> {
         let docs = prepare_pdf_documents(&self.lhs_pk, &self.lhs_values, lhs_args);
-        extract_pdf(&docs)
+        extract_pdf(&docs, &PdfFilterType::Default, &PdfExtractType::Default)
     }
 }
 
@@ -186,98 +186,12 @@ impl std::fmt::Display for PdfExtractType {
     }
 }
 
-/// Tm
-#[derive(Debug, Clone, PartialEq)]
-struct Tm {
-    /// scale param 1
-    a: f32,
-    /// skew param 1
-    b: f32,
-    /// skew param 2
-    c: f32,
-    /// scale param 2
-    d: f32,
-    /// pos x
-    x: f32,
-    /// pos y
-    y: f32,
-}
-
-impl Tm {
-    pub fn new(a: &f32, b: &f32, c: &f32, d: &f32, x: &f32, y: &f32) -> Self {
-        Self { a: *a, b: *b, c: *c, d: *d, x: *x, y: *y }
-    }
-}
-
-impl Default for Tm {
-    fn default() -> Self {
-        Self { a: 1_f32, b: 0_f32, c: 0_f32, d: 1_f32, x: 0_f32, y: 0_f32 }
-    }
-}
-
-/// Tm
-#[derive(Debug, Clone, PartialEq)]
-struct Td {
-    /// pos x
-    x: i64,
-    /// pos y
-    y: i64,
-}
-
-impl Td {
-    pub fn new(x: &i64, y: &i64) -> Self {
-        Self { x: *x, y: *y }
-    }
-}
-
-impl Default for Td {
-    fn default() -> Self {
-        Self { x: 0_i64, y: 0_i64 }
-    }
-}
-
-#[derive(Default, Debug, Clone, PartialEq)]
-struct PdfFont {
-    pub font_name: String,
-    pub font_subtype: String,
-    pub base_font: String,
-}
-
-impl PdfFont {
-    pub fn new(font_name: &str, font_subtype: &str, base_font: &str, ) -> Self {
-        Self { font_name: font_name.to_string(), font_subtype: font_subtype.to_string(), base_font: base_font.to_string() }
-    }
-}
-
-#[derive(Default, Debug, Clone, PartialEq)]
-struct PdfText {
-    /// Index of the operataion the text was found
-    pub op: u32,
-    /// BT operataion the text was found
-    pub bt: u32,
-    /// Text matrix
-    pub tm: Tm,
-    /// Text translation
-    pub td: Td,
-    /// Font
-    pub font: PdfFont,
-    pub font_size: i64,
-    pub page_num: u32,
-    pub text: String,
-}
-
-impl PdfText {
-    pub fn text_mut(&mut self) -> &mut String {
-        &mut self.text
-    }
-}
-
 /// Drop-in replacement for `extract_text` that retains additional metadata including
 /// page_number, pos_x, pos_y, font_name, font_size, ...
 fn extract_text(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfText>> {
     let text_fragments = extract_text_chunks(doc, page_numbers)?;
 
-    // Merge text that are positioned in the same Tm since Font cannot be reliable used across PDFs
+    // Merge text that are positioned in the same PdfTm since Font cannot be reliable used across PDFs
     // DM: move to seperate operator
     let mut text = Vec::new();
     let mut current_text: Option<PdfText> = None;
@@ -363,7 +277,7 @@ fn extract_text_chunks(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfTe
 /// 
 /// ## Text objects
 /// - BT, ET
-/// - Operators: TD, Tm, Td, Tf, and Tj/TJ
+/// - Operators: TD, PdfTm, PdfTd, Tf, and Tj/TJ
 /// - Other operators: Tc, Tw, Tz, TL, Tr, Ts
 /// 
 /// ## Path objects
@@ -425,7 +339,7 @@ fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16
                     .iter()
                     .map(|f| f.as_f32().unwrap_or_default())
                     .collect::<Vec<_>>();
-                let tm = Tm::new(m.get(0).unwrap_or(&1_f32),
+                let tm = PdfTm::new(m.get(0).unwrap_or(&1_f32),
                     m.get(1).unwrap_or(&0_f32),
                     m.get(2).unwrap_or(&0_f32),
                     m.get(3).unwrap_or(&1_f32),
@@ -446,7 +360,7 @@ fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16
                     .iter()
                     .map(|f| f.as_i64().unwrap_or_default())
                     .collect::<Vec<_>>();
-                let td = Td::new(d.get(0).unwrap_or(&0_i64),
+                let td = PdfTd::new(d.get(0).unwrap_or(&0_i64),
                     d.get(1).unwrap_or(&0_i64),
                 );
                 current_text.td = td;
@@ -843,7 +757,7 @@ pub fn prepare_pdf_documents(
                         .map(|v| v.unwrap())
                         .collect::<Vec<u8>>();
                     match load_pdf_document(&bytes) {
-                        std::result::Result::Ok(doc) => Some(filter_pdf(doc)),
+                        std::result::Result::Ok(doc) => Some(doc),
                         Err(_err) => None
                     }
                 })
@@ -874,7 +788,7 @@ pub fn make_pdf_document(contents: &[&str]) -> Document {
             operations: vec![
                 Operation::new("BT", vec![]),
                 Operation::new("Tf", vec!["F1".into(), 48.into()]),
-                Operation::new("Td", vec![100.into(), 600.into()]),
+                Operation::new("PdfTd", vec![100.into(), 600.into()]),
                 Operation::new("Tj", vec![Object::string_literal(*content_str)]),
                 Operation::new("ET", vec![]),
             ],
@@ -915,12 +829,12 @@ mod tests {
     #[test]
     fn test_extract_pdf_text() {
         // Create several PDF document in memory
-        let doc_1 = filter_pdf(make_pdf_document(&["abc", "a\nb\nc", "4\n5\n6"]));
-        let doc_2 = filter_pdf(make_pdf_document(&["abc", "a\nb\nc", "4\n5\n6"]));
+        let doc_1 = make_pdf_document(&["abc", "a\nb\nc", "4\n5\n6"]);
+        let doc_2 = make_pdf_document(&["abc", "a\nb\nc", "4\n5\n6"]);
         let docs = [("doc_1".to_string(), doc_1), ("doc_2".to_string(), doc_2)];
 
         // Extract text from the PDF document
-        let batch = extract_pdf(&docs).unwrap();
+        let batch = extract_pdf(&docs, &PdfFilterType::Default, &PdfExtractType::Default).unwrap();
 
         // Check the results
         let table = Subject::get_builder()
@@ -936,7 +850,7 @@ mod tests {
         );
         assert_eq!(
             table.get_column_as_vec_str("chunk_id"),
-            ["doc_1_PdfText { op: 4, bt: 0, tm: Tm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: Td { x: 100, y: 600 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, page_num: 1, text: \"\" }", "doc_1_PdfText { op: 4, bt: 0, tm: Tm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: Td { x: 100, y: 600 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, page_num: 2, text: \"\" }", "doc_2_PdfText { op: 4, bt: 0, tm: Tm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: Td { x: 100, y: 600 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, page_num: 1, text: \"\" }", "doc_2_PdfText { op: 4, bt: 0, tm: Tm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: Td { x: 100, y: 600 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, page_num: 2, text: \"\" }"]        );
+            ["doc_1_PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 100, y: 600 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, page_num: 1, text: \"\" }", "doc_1_PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 100, y: 600 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, page_num: 2, text: \"\" }", "doc_2_PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 100, y: 600 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, page_num: 1, text: \"\" }", "doc_2_PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 100, y: 600 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, page_num: 2, text: \"\" }"]        );
         assert_eq!(
             table.get_column_as_vec_str("text"),
             ["123 ", "456 ", "123 ", "456 "]
@@ -957,11 +871,11 @@ mod tests {
         pdf.save_to(&mut bytes).unwrap();
 
         // Convert from bytes back to the PDF document
-        let pdf_test = filter_pdf(load_pdf_document(&bytes).unwrap());
+        let pdf_test = load_pdf_document(&bytes).unwrap();
 
         // Check that the original and test PDF documents are the same
-        let batch = extract_pdf(&[("pdf".to_string(), pdf)]).unwrap();
-        let batch_test = extract_pdf(&[("pdf".to_string(), pdf_test)]).unwrap();
+        let batch = extract_pdf(&[("pdf".to_string(), pdf)], &PdfFilterType::Default, &PdfExtractType::Default).unwrap();
+        let batch_test = extract_pdf(&[("pdf".to_string(), pdf_test)], &PdfFilterType::Default, &PdfExtractType::Default).unwrap();
 
         assert_eq!(batch, batch_test);
     }
@@ -969,7 +883,7 @@ mod tests {
     #[test]
     fn test_extract_pdf_extract_fonts() {
         // Create a dummy PDF in memory
-        let doc_1 = filter_pdf(make_pdf_document(&["1\n2\n3", "4\n5\n6"]));
+        let doc_1 = make_pdf_document(&["1\n2\n3", "4\n5\n6"]);
 
         // Extract Fonts        
         let fonts = doc_1.get_pages()
