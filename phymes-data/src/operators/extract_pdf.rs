@@ -9,7 +9,7 @@ use lopdf::{
 };
 
 use phymes_schemas::{
-    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, PdfFont, PdfTd, PdfText, PdfTm, Tool, ToolType
+    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, JsonSchemaTrait, PdfDocument, PdfDocumentsResponse, PdfFont, PdfPage, PdfTd, PdfText, PdfTm, Tool, ToolType
 };
 use phymes_subject::MappableTrait;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -259,10 +259,6 @@ fn extract_text_chunks(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfTe
                     } else {
                         None
                     })
-                    .map(|mut pdf_text| {
-                        pdf_text.page_num = *page_number;
-                        pdf_text
-                    })
                     .map(Ok)
                     .collect::<Vec<_>>(),
                 Err(err) => vec![Err(err)],
@@ -498,9 +494,9 @@ pub fn extract_pdf(
     // Extract document metadata
 
     // Extract the page number and text along with any errors from the documents
-    let pages = docs
+    let docs_extracted = docs
         .into_par_iter()
-        .map(|(id, mut doc)| {
+        .map(|(id, mut doc)| -> std::result::Result<PdfDocument, Error> {
             // Filter the PDF
             let doc = match doc_filter {
                 PdfFilterType::None => doc,
@@ -510,10 +506,10 @@ pub fn extract_pdf(
             };
 
             // Extract the page contents
-            doc.get_pages()
+            let pages_extracted = doc.get_pages()
                 .into_par_iter()
                 .map(
-                    |(page_num, page_id): (u32, (u32, u16))| -> Result<Vec<(String, PdfText)>, Error> {
+                    |(page_num, page_id): (u32, (u32, u16))| -> std::result::Result<PdfPage, Error> {
                         let content = match doc_extraction {
                             PdfExtractType::Default => todo!(),
                             PdfExtractType::Graphics => todo!(),
@@ -522,117 +518,28 @@ pub fn extract_pdf(
                                     Error::other(format!(
                                         "Failed to extract text from page {page_num} id={page_id:?}: {e:}"
                                     ))
-                                })?
-                                .into_iter()
-                                .map(|pdf_text| (id.to_string(), pdf_text))
-                                .collect::<Vec<_>>();
-                                
+                                })?;
+                                PdfPage::new(&page_num, &0_f32, &0_f32, "", &text, &[])
                             },
                             PdfExtractType::Text => todo!(),
                             PdfExtractType::TextEmbeddings => todo!(),
-                        };
-
-                        // Extract text from the page
-                        
+                        };                        
 
                         // Todo, Extract graphics from the page
-                        std::result::Result::Ok(text)
+                        std::result::Result::Ok(content)
                     },
                 )
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>();
+            let pages: std::result::Result<Vec<PdfPage>, Error> = pages_extracted.into_iter().collect();
+            let doc_extracted = PdfDocument::new(&id, "", &0_i64, &0_i64, "", "", &pages?);
+            std::result::Result::Ok(doc_extracted)
         })
         .flatten()
         .collect::<Vec<_>>();
 
-    // Create an ArrowTable to hold the extracted text
-    // DM: migrate to phymes_schemas::embed::pdfs.rs 
-    let mut document_id_vec = Vec::new();
-    let mut chunk_id_vec = Vec::new(); // the page number
-    let mut page_num_vec = Vec::new();
-    let mut op_vec = Vec::new();
-    let mut bt_vec = Vec::new();
-    let mut tm_a_vec = Vec::new();
-    let mut tm_b_vec = Vec::new();
-    let mut tm_c_vec = Vec::new();
-    let mut tm_d_vec = Vec::new();
-    let mut tm_x_vec = Vec::new();
-    let mut tm_y_vec = Vec::new();
-    let mut td_x_vec = Vec::new();
-    let mut td_y_vec = Vec::new();
-    let mut font_name_vec = Vec::new();
-    let mut font_subtype_vec = Vec::new();
-    let mut base_font_vec = Vec::new();
-    let mut font_size_vec = Vec::new();
-    let mut text_vec = Vec::new();
-    for page in pages {
-        match page {
-            std::result::Result::Ok(chunks) => {
-                for (id, mut pdf_text) in chunks {
-                    page_num_vec.push(pdf_text.page_num);
-                    op_vec.push(pdf_text.op);
-                    bt_vec.push(pdf_text.bt);
-                    tm_a_vec.push(pdf_text.tm.a);
-                    tm_b_vec.push(pdf_text.tm.b);
-                    tm_c_vec.push(pdf_text.tm.c);
-                    tm_d_vec.push(pdf_text.tm.d);
-                    tm_x_vec.push(pdf_text.tm.x);
-                    tm_y_vec.push(pdf_text.tm.y);
-                    td_x_vec.push(pdf_text.td.x);
-                    td_y_vec.push(pdf_text.td.y);
-                    font_name_vec.push(pdf_text.font.font_name.to_owned());
-                    font_subtype_vec.push(pdf_text.font.font_subtype.to_owned());
-                    base_font_vec.push(pdf_text.font.base_font.to_owned());
-                    font_size_vec.push(pdf_text.font_size);
-                    text_vec.push(pdf_text.text.drain(..).as_str().to_string());
-                    chunk_id_vec.push(format!("{id}_{pdf_text:?}"));
-                    document_id_vec.push(id);
-                }
-            }
-            Err(e) => {
-                event!(Level::ERROR, "{e:?}");
-            }
-        }
-    }
-    let document_id_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(document_id_vec));
-    let chunk_id_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(chunk_id_vec));
-    let page_num_arr: ArrayRef = Arc::new(arrow::array::UInt32Array::from(page_num_vec));
-    let op_arr: ArrayRef = Arc::new(arrow::array::UInt32Array::from(op_vec));
-    let bt_arr: ArrayRef = Arc::new(arrow::array::UInt32Array::from(bt_vec));
-    let tm_a_arr: ArrayRef = Arc::new(arrow::array::Float32Array::from(tm_a_vec));
-    let tm_b_arr: ArrayRef = Arc::new(arrow::array::Float32Array::from(tm_b_vec));
-    let tm_c_arr: ArrayRef = Arc::new(arrow::array::Float32Array::from(tm_c_vec));
-    let tm_d_arr: ArrayRef = Arc::new(arrow::array::Float32Array::from(tm_d_vec));
-    let tm_x_arr: ArrayRef = Arc::new(arrow::array::Float32Array::from(tm_x_vec));
-    let tm_y_arr: ArrayRef = Arc::new(arrow::array::Float32Array::from(tm_y_vec));
-    let td_x_arr: ArrayRef = Arc::new(arrow::array::Int64Array::from(td_x_vec));
-    let td_y_arr: ArrayRef = Arc::new(arrow::array::Int64Array::from(td_y_vec));
-    let font_name_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(font_name_vec));
-    let font_subtype_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(font_subtype_vec));
-    let base_font_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(base_font_vec));
-    let font_size_arr: ArrayRef = Arc::new(arrow::array::Int64Array::from(font_size_vec));
-    let text_arr: ArrayRef = Arc::new(arrow::array::StringArray::from(text_vec));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("chunk_id", chunk_id_arr),
-        ("document_id", document_id_arr),
-        ("page_num", page_num_arr),
-        ("op", op_arr),
-        ("bt", bt_arr),
-        ("tm_a", tm_a_arr),
-        ("tm_b", tm_b_arr),
-        ("tm_c", tm_c_arr),
-        ("tm_d", tm_d_arr),
-        ("tm_x", tm_x_arr),
-        ("tm_y", tm_y_arr),
-        ("td_x", td_x_arr),
-        ("td_y", td_y_arr),
-        ("font_name", font_name_arr),
-        ("font_subtype", font_subtype_arr),
-        ("base_font", base_font_arr),
-        ("font_size", font_size_arr),
-        ("text", text_arr),
-    ])?;
-    // dbg!(&batch);
-    Ok(batch)
+    // Convert to record batches
+    let docs = PdfDocumentsResponse::new(&docs_extracted);
+    docs.to_record_batch("extract_pdf")
 }
 
 const IGNORE_TYPE_NAMES_DEFAULT: &[&[u8]] = &[

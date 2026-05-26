@@ -1,10 +1,12 @@
-use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use phymes_subject::MappableTrait;
+use anyhow::Result;
+use arrow::{array::RecordBatch, datatypes::{DataType, Field, Fields, SchemaRef}};
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use serde::{Deserialize, Serialize};
 
-use crate::{AvailableSchemaTrait, DataEncoding, create_schema_from_fields, embed::documents::create_documents_fields_vec};
+use crate::{AvailableSchemaTrait, DataEncoding, DataFormat, JsonSchemaTrait, create_route_bytes_record_batch, create_schema_from_fields, embed::documents::create_documents_fields_vec};
 
 /// PDF Text Matrix (PdfTm) operator
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PdfTm {
     /// scale param 1
     pub a: f32,
@@ -42,7 +44,7 @@ fn create_pdf_tm_fields_vec() -> Vec<Field> {
 }
 
 /// PdfTm
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PdfTd {
     /// pos x
     pub x: i64,
@@ -72,7 +74,7 @@ fn create_pdf_td_fields_vec() -> Vec<Field> {
 }
 
 /// PDF Font information
-#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PdfFont {
     pub font_name: String,
     pub font_subtype: String,
@@ -130,7 +132,7 @@ impl PdfText {
     }
 }
 
-#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PdfTextSubject {
     pub document_id: String,
     pub chunk_id: String,
@@ -205,7 +207,7 @@ impl PdfGraphics {
     }
 }
 
-#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PdfGraphicsSubject {
     pub document_id: String,
     pub chunk_id: String,
@@ -258,6 +260,9 @@ pub struct PdfPage {
 }
 
 impl PdfPage {
+    pub fn new(page_number: &u32, width: &f32, height: &f32, units: &str, text: &[PdfText], graphics: &[PdfGraphics]) -> Self {
+        Self { page_number: *page_number, width: *width, height: *height, units: units.to_string(), text: text.to_vec(), graphics: graphics.to_vec() }
+    }
     /// Chunk ID to uniquely identify the text or graphic
     fn make_chunk_id(document_id: &str, page_number: &u32, unique_tag: &str) -> String {
         format!("{document_id}{page_number}{unique_tag}")
@@ -288,7 +293,7 @@ impl PdfPage {
     }
 }
 
-#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PdfPageSubject {
     /// Document ID, FK
     pub document_id: String,
@@ -337,14 +342,176 @@ fn create_pdf_pages_fields_vec() -> Vec<Field> {
 }
 
 /// Root PDF document container
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct PdfDocument {
     /// Document ID, PK
-    pub document_id: u32, 
+    pub document_id: String,
     pub version: String,
     pub creation_date: i64,
     pub modification_date: i64,
     pub author: String,
     pub title: String,
+    pub pages: Vec<PdfPage>,
+}
+
+impl PdfDocument {
+    pub fn new(document_id: &str, version: &str, creation_date: &i64, modification_date: &i64, author: &str, title: &str, pages: &[PdfPage]) -> PdfDocument {
+        Self { document_id: document_id.to_string(), version: version.to_string(), creation_date: *creation_date, modification_date: *modification_date, author: author.to_string(), title: title.to_string(), pages: pages.to_vec() }
+    }
+    pub fn build_pdf_document_subject(self) -> (PdfDocumentSubject, Vec<PdfPageSubject>, Vec<PdfTextSubject>, Vec<PdfGraphicsSubject>) {
+        todo!()
+    }
+}
+
+/// Root PDF document container
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PdfDocumentSubject {
+    /// Document ID, PK
+    pub document_id: String,
+    pub version: String,
+    pub creation_date: i64,
+    pub modification_date: i64,
+    pub author: String,
+    pub title: String,
+}
+
+impl PdfDocumentSubject {
+    fn to_fields() -> Fields {
+        Fields::from_iter(create_pdf_document_fields_vec())
+    }
+}
+
+impl MappableTrait for PdfDocumentSubject {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for PdfDocumentSubject {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
+fn create_pdf_document_fields_vec() -> Vec<Field> {
+    let field_names = ["document_id", "version", "author", "title"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let field_names = ["creation_date", "modification_date"];
+    fields_vec.extend(field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Int64, false))
+        .collect::<Vec<_>>());
+    fields_vec
+}
+
+
+/// Root PDF document container
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct PdfDocumentsResponse {
+    pub results: Vec<PdfDocument>,
+}
+
+impl PdfDocumentsResponse {
+    pub fn new(documents: &[PdfDocument]) -> Self {
+        Self { results: documents.to_vec() }
+    }
+}
+
+impl JsonSchemaTrait for PdfDocumentsResponse {
+    /// Parse the OpenAlexResponseWorks object into tables following the `create_ipc_fields` schema
+    ///   where each row is routed to a different table
+    fn to_record_batch(self, publisher: &str) -> Result<RecordBatch> {
+        let mut docs_subjects = Vec::new();
+        let mut pages_subjects = Vec::new();
+        let mut texts_subjects = Vec::new();
+        let mut graphics_subjects = Vec::new();
+        for result in self.results {
+            // Parse into individual subjects
+            let (
+                docs_subject,
+                pages_subject,
+                texts_subject,
+                graphics_subject,
+            ) = result.build_pdf_document_subject();
+
+            // Handle each individual subjects
+            docs_subjects.push(docs_subject);
+            pages_subjects.extend(pages_subject);
+            texts_subjects.extend(texts_subject);
+            graphics_subjects.extend(graphics_subject);
+        }
+
+        // Wrap into IPC [RecordBatch]
+        let mut names = Vec::new();
+        let mut publishers = Vec::new();
+        let mut subjects = Vec::new();
+        let mut formats = Vec::new();
+        let mut bytes = Vec::new();
+
+        // Handle each individual subject
+        if !docs_subjects.is_empty() {
+            names.push(docs_subjects.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(docs_subjects.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(
+                Subject::get_builder()
+                    .with_name(docs_subjects.first().unwrap().get_name())
+                    .with_schema(docs_subjects.first().unwrap().to_schema())
+                    .with_struct::<PdfDocumentSubject>(&docs_subjects)?
+                    .build()?
+                    .to_ipc_stream()?,
+            );
+        }
+        if !pages_subjects.is_empty() {
+            names.push(pages_subjects.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(pages_subjects.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(
+                Subject::get_builder()
+                    .with_name(pages_subjects.first().unwrap().get_name())
+                    .with_schema(pages_subjects.first().unwrap().to_schema())
+                    .with_struct::<PdfPageSubject>(&pages_subjects)?
+                    .build()?
+                    .to_ipc_stream()?,
+            );
+        }
+        if !texts_subjects.is_empty() {
+            names.push(texts_subjects.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(texts_subjects.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(
+                Subject::get_builder()
+                    .with_name(texts_subjects.first().unwrap().get_name())
+                    .with_schema(texts_subjects.first().unwrap().to_schema())
+                    .with_struct::<PdfTextSubject>(&texts_subjects)?
+                    .build()?
+                    .to_ipc_stream()?,
+            );
+        }
+        if !graphics_subjects.is_empty() {
+            names.push(graphics_subjects.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(graphics_subjects.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(
+                Subject::get_builder()
+                    .with_name(graphics_subjects.first().unwrap().get_name())
+                    .with_schema(graphics_subjects.first().unwrap().to_schema())
+                    .with_struct::<PdfGraphicsSubject>(&graphics_subjects)?
+                    .build()?
+                    .to_ipc_stream()?,
+            );
+        }
+        
+        let batch = create_route_bytes_record_batch(names, publishers, subjects, formats, bytes)?;
+        Ok(batch)
+    }
 }
 
 
