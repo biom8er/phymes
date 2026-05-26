@@ -6,13 +6,17 @@ use arrow::{
 };
 use std::sync::Arc;
 
-pub fn create_documents_fields() -> Fields {
+pub(crate) fn create_documents_fields_vec() -> Vec<Field> {
     let field_names = ["chunk_id", "document_id", "text"];
     let fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    Fields::from(fields_vec)
+    fields_vec
+}
+
+pub fn create_documents_fields() -> Fields {
+    Fields::from_iter(create_documents_fields_vec())
 }
 
 pub fn create_documents_batch(

@@ -9,7 +9,7 @@ pub use documents::{
     create_documents_fields, create_embeddings_scores_fields, create_join_chunks_scores_fields,
 };
 pub use openai_embedding::{EmbeddingRequest, EmbeddingResponse, EncodingFormat};
-pub use pdf::{PdfDocument, PdfPage, PdfTd, PdfTm, PdfFont, PdfText, PdfGraphics, create_pdf_text_fields};
+pub use pdf::{PdfDocument, PdfPage, PdfPageSubject, PdfTd, PdfTm, PdfFont, PdfText, PdfTextSubject, PdfGraphics, PdfGraphicsSubject};
 pub use queries::{
     create_queries_batch, create_queries_fields, create_query_embeddings_batch,
     create_query_embeddings_fields,

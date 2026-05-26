@@ -1,6 +1,7 @@
-use arrow::datatypes::{DataType, Field, Fields};
+use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
+use phymes_subject::MappableTrait;
 
-use crate::DataEncoding;
+use crate::{AvailableSchemaTrait, DataEncoding, create_schema_from_fields, embed::documents::create_documents_fields_vec};
 
 /// PDF Text Matrix (PdfTm) operator
 #[derive(Debug, Clone, PartialEq)]
@@ -106,7 +107,6 @@ pub struct PdfText {
     /// Font
     pub font: PdfFont,
     pub font_size: i64,
-    pub page_num: u32,
     pub text: String,
 }
 
@@ -114,15 +114,57 @@ impl PdfText {
     pub fn text_mut(&mut self) -> &mut String {
         &mut self.text
     }
+    pub fn build_pdf_text_subject(self, document_id: &str, chunk_id: &str, page_number: &u32) -> PdfTextSubject {
+        PdfTextSubject { 
+            document_id: document_id.to_string(), 
+            chunk_id: chunk_id.to_string(), 
+            page_number: *page_number, 
+            op: self.op, 
+            bt: self.bt, 
+            tm: self.tm, 
+            td: self.td, 
+            font: self.font, 
+            font_size: self.font_size, 
+            text: self.text 
+        }
+    }
+}
+
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct PdfTextSubject {
+    pub document_id: String,
+    pub chunk_id: String,
+    pub page_number: u32,
+    pub op: u32,
+    pub bt: u32,
+    pub tm: PdfTm,
+    pub td: PdfTd,
+    pub font: PdfFont,
+    pub font_size: i64,
+    pub text: String,
+}
+
+impl PdfTextSubject {
+    fn to_fields() -> Fields {
+        Fields::from_iter(create_pdf_text_fields_vec())
+    }
+}
+
+impl MappableTrait for PdfTextSubject {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for PdfTextSubject {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
 }
 
 fn create_pdf_text_fields_vec() -> Vec<Field> {
-    let field_names = ["text"];
-    let mut fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    let field_names = ["op", "bt", "page_num"];
+    let mut fields_vec = create_documents_fields_vec();
+    let field_names = ["op", "bt", "page_number"];
     fields_vec.extend(field_names
         .iter()
         .map(|f| Field::new(*f, DataType::UInt32, false))
@@ -136,10 +178,6 @@ fn create_pdf_text_fields_vec() -> Vec<Field> {
     fields_vec.extend(create_pdf_td_fields_vec());
     fields_vec.extend(create_pdf_font_fields_vec());
     fields_vec
-}
-
-pub fn create_pdf_text_fields() -> Fields {
-    Fields::from_iter(create_pdf_font_fields_vec())
 }
 
 fn create_pdf_manuscript_fields() -> Vec<Field> {
@@ -161,23 +199,56 @@ pub struct PdfGraphics {
     // TODO
 }
 
-/// Root PDF document container
-pub struct PdfDocument {
-    /// Document ID, PK
-    pub doc_id: u32, 
-    pub version: String,
-    pub creation_date: i64,
-    pub modification_date: i64,
-    pub author: String,
-    pub title: String,
+impl PdfGraphics {
+    pub fn build_pdf_graphics_subject(self, document_id: &str, chunk_id: &str, page_number: &u32) -> PdfGraphicsSubject {
+        PdfGraphicsSubject { document_id: document_id.to_string(), chunk_id: chunk_id.to_string(), page_number: *page_number }
+    }
+}
+
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct PdfGraphicsSubject {
+    pub document_id: String,
+    pub chunk_id: String,
+    pub page_number: u32,
+    // TODO
+}
+
+impl PdfGraphicsSubject {
+    fn to_fields() -> Fields {
+        Fields::from_iter(create_pdf_graphics_fields_vec())
+    }
+}
+
+impl MappableTrait for PdfGraphicsSubject {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for PdfGraphicsSubject {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
+fn create_pdf_graphics_fields_vec() -> Vec<Field> {
+    let field_names = ["document_id", "chunk_id"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let field_names = ["page_number"];
+    fields_vec.extend(field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::UInt32, false))
+        .collect::<Vec<_>>());
+    // TODO
+    fields_vec
 }
 
 /// Each PDF document has one or more pages
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct PdfPage {
-    /// Page ID, PK
-    pub page_id: u32,
-    /// Document ID, FK
-    pub doc_id: u32,
     pub page_number: u32,
     pub width: f32,
     pub height: f32, 
@@ -185,6 +256,97 @@ pub struct PdfPage {
     pub text: Vec<PdfText>,
     pub graphics: Vec<PdfGraphics>,
 }
+
+impl PdfPage {
+    /// Chunk ID to uniquely identify the text or graphic
+    fn make_chunk_id(document_id: &str, page_number: &u32, unique_tag: &str) -> String {
+        format!("{document_id}{page_number}{unique_tag}")
+    }
+    pub fn build_pdf_page_subject(self, document_id: &str) -> (PdfPageSubject, Vec<PdfTextSubject>, Vec<PdfGraphicsSubject>) {
+        let page_number = self.page_number;
+        let pdf_page_subject = PdfPageSubject { 
+            document_id: document_id.to_string(),
+            page_number: page_number,
+            height: self.height,
+            width: self.width,
+            units: self.units.clone(),
+        };
+        let (text, graphics) = (self.text, self.graphics);
+        let pdf_text_subjects = text.into_iter()
+            .map(|s| {
+                let chunk_id = PdfPage::make_chunk_id(document_id, &page_number, "");
+                s.build_pdf_text_subject(document_id, &chunk_id, &page_number)
+            })
+            .collect::<Vec<_>>();
+        let pdf_graphics_subjects = graphics.into_iter()
+            .map(|s| {
+                let chunk_id = PdfPage::make_chunk_id(document_id, &page_number, "");
+                s.build_pdf_graphics_subject(document_id, &chunk_id, &page_number)
+            })
+            .collect::<Vec<_>>();
+        (pdf_page_subject, pdf_text_subjects, pdf_graphics_subjects)
+    }
+}
+
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct PdfPageSubject {
+    /// Document ID, FK
+    pub document_id: String,
+    /// Document ID and Page Number, PK
+    pub page_number: u32,
+    pub width: f32,
+    pub height: f32, 
+    pub units: String,
+}
+
+impl PdfPageSubject {
+    fn to_fields() -> Fields {
+        Fields::from_iter(create_pdf_pages_fields_vec())
+    }
+}
+
+impl MappableTrait for PdfPageSubject {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for PdfPageSubject {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
+fn create_pdf_pages_fields_vec() -> Vec<Field> {
+    let field_names = ["document_id", "units"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let field_names = ["page_number"];
+    fields_vec.extend(field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::UInt32, false))
+        .collect::<Vec<_>>());
+    let field_names = ["width", "height"];
+    fields_vec.extend(field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Float32, false))
+        .collect::<Vec<_>>());
+    fields_vec
+}
+
+/// Root PDF document container
+pub struct PdfDocument {
+    /// Document ID, PK
+    pub document_id: u32, 
+    pub version: String,
+    pub creation_date: i64,
+    pub modification_date: i64,
+    pub author: String,
+    pub title: String,
+}
+
 
 pub enum PdfObjectType {
     Dictionary,
@@ -201,7 +363,7 @@ pub struct PdfObject {
     /// Object ID, PK
     obj_id: u32,
     /// Document ID, FK
-    doc_id: u32,
+    document_id: u32,
     object_number: u32,
     generation_number: u32,
     object_type: PdfObjectType,

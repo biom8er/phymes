@@ -117,8 +117,7 @@ impl DataOperatorTrait for ExtractPDF {
         _rhs_args: Option<&[RecordBatch]>,
         _device: &Device,
     ) -> Result<RecordBatch> {
-        let docs = prepare_pdf_documents(&self.lhs_pk, &self.lhs_values, lhs_args);
-        extract_pdf(&docs, &PdfFilterType::Default, &PdfExtractType::Default)
+        extract_pdf(&self.lhs_pk, &self.lhs_values, lhs_args, &PdfFilterType::Default, &PdfExtractType::Default)
     }
 }
 
@@ -472,7 +471,6 @@ fn extract_fonts_from_page(doc: &Document, page_id: (u32, u16)) -> Result<Vec<(S
 /// Extract text from a PDF document(s) and return it as an ArrowTable
 ///
 /// # Arguments
-/// * `docs` - A slice of tuples containing the document id and the Document object
 /// * `doc_filter` - [PdfFilterType] Pre-determined list of object to filter from the PDF before extraction using [filter_pdf]
 /// * `doc_extraction` - [PdfExtractionType] Pre-determined settings to extract objects from the PDF including
 ///   text, graphics, embedding_text, embedding_graphics, etc.
@@ -487,9 +485,16 @@ fn extract_fonts_from_page(doc: &Document, page_id: (u32, u16)) -> Result<Vec<(S
 ///
 /// # Errors
 /// * Returns an error if text extraction fails for any page in the document
-#[instrument(skip(docs, doc_filter, doc_extraction))]
-pub fn extract_pdf(mut docs: &[(String, Document)], doc_filter: &PdfFilterType, doc_extraction: &PdfExtractType) -> Result<RecordBatch> {
-    // DM: Change to phymes_schemas::embed::pdfs.rs
+#[instrument(skip(lhs_pk, lhs_values, lhs_args, doc_filter, doc_extraction))]
+pub fn extract_pdf(
+    lhs_pk: &str,
+    lhs_values: &str,
+    lhs_args: &[RecordBatch], 
+    doc_filter: &PdfFilterType,
+    doc_extraction: &PdfExtractType) -> Result<RecordBatch> {
+    // Prepare the documents for processing
+    let docs = prepare_pdf_documents(lhs_pk, lhs_values, lhs_args);
+
     // Extract document metadata
 
     // Extract the page number and text along with any errors from the documents
@@ -509,15 +514,26 @@ pub fn extract_pdf(mut docs: &[(String, Document)], doc_filter: &PdfFilterType, 
                 .into_par_iter()
                 .map(
                     |(page_num, page_id): (u32, (u32, u16))| -> Result<Vec<(String, PdfText)>, Error> {
+                        let content = match doc_extraction {
+                            PdfExtractType::Default => todo!(),
+                            PdfExtractType::Graphics => todo!(),
+                            PdfExtractType::ImageEmbeddings => {
+                                let text = extract_text(&doc, &[page_num]).map_err(|e| {
+                                    Error::other(format!(
+                                        "Failed to extract text from page {page_num} id={page_id:?}: {e:}"
+                                    ))
+                                })?
+                                .into_iter()
+                                .map(|pdf_text| (id.to_string(), pdf_text))
+                                .collect::<Vec<_>>();
+                                
+                            },
+                            PdfExtractType::Text => todo!(),
+                            PdfExtractType::TextEmbeddings => todo!(),
+                        };
+
                         // Extract text from the page
-                        let text = extract_text(&doc, &[page_num]).map_err(|e| {
-                            Error::other(format!(
-                                "Failed to extract text from page {page_num} id={page_id:?}: {e:}"
-                            ))
-                        })?
-                        .into_iter()
-                        .map(|pdf_text| (id.to_string(), pdf_text))
-                        .collect::<Vec<_>>();
+                        
 
                         // Todo, Extract graphics from the page
                         std::result::Result::Ok(text)
@@ -727,9 +743,9 @@ pub fn load_pdf_document(doc: &[u8]) -> Result<Document> {
 pub fn prepare_pdf_documents(
     lhs_pk: &str,
     lhs_values: &str,
-    docs: &[RecordBatch],
+    lhs_args: &[RecordBatch],
 ) -> Vec<(String, Document)> {
-    docs.iter()
+    lhs_args.iter()
         .flat_map(|batch| {
             let document_id = batch
                 .column_by_name(lhs_pk)
