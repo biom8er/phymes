@@ -1,7 +1,7 @@
-use std::{collections::{BTreeMap, HashMap}, io::Error, iter::zip, sync::Arc};
+use std::{collections::{BTreeMap, HashMap}, io::Error, iter::zip};
 
 use anyhow::{Ok, Result, anyhow};
-use arrow::array::{ArrayRef, ListArray, RecordBatch, StringArray, UInt8Array};
+use arrow::array::{ListArray, RecordBatch, StringArray, UInt8Array};
 use candle_core::Device;
 use clap::ValueEnum;
 use lopdf::{
@@ -14,7 +14,7 @@ use phymes_schemas::{
 use phymes_subject::MappableTrait;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
-use tracing::{Level, event, instrument};
+use tracing::instrument;
 
 use crate::{DataConfig, DataOperatorTrait, ToolTrait};
 
@@ -185,13 +185,12 @@ impl std::fmt::Display for PdfExtractType {
     }
 }
 
-/// Drop-in replacement for `extract_text` that retains additional metadata including
-/// page_number, pos_x, pos_y, font_name, font_size, ...
-fn extract_text(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfText>> {
+/// Drop-in replacement for `lopdf::extract_text_chunks` that applies
+/// several heuristics optimized for text embeddings,
+fn extract_text_embeddings(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfText>> {
     let text_fragments = extract_text_chunks(doc, page_numbers)?;
 
     // Merge text that are positioned in the same PdfTm since Font cannot be reliable used across PDFs
-    // DM: move to seperate operator
     let mut text = Vec::new();
     let mut current_text: Option<PdfText> = None;
     for maybe_text_fragment in text_fragments.into_iter() {
@@ -214,7 +213,6 @@ fn extract_text(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfText>> {
     }
 
     // Additional filters of "junk" text
-    // DM: move to seperate operator
     let text = text.into_iter()
         .filter(|pdf_text| {            
             // Heuristics from <https://doi.org/10.1371/journal.pcbi.1005962> suitable for most articles
@@ -222,15 +220,12 @@ fn extract_text(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfText>> {
             let n_chars = pdf_text.text.chars().count();
             let n_num = pdf_text.text.chars().filter(|c| c.is_numeric()).count();
             let num_frac = n_num as f32 / n_chars as f32;
-            // dbg!(num_frac);
             let num_check = num_frac < 0.1_f32;
             let n_sym = pdf_text.text.chars().filter(|c| !c.is_alphanumeric()).count();
             let sym_frac = n_sym as f32 / n_chars as f32;
-            // dbg!(sym_frac);
             let sym_check =  sym_frac < 0.25_f32;
             let n_lower = pdf_text.text.chars().filter(|c| c.is_lowercase()).count();
             let lower_frac = n_lower as f32 / n_chars as f32;
-            // dbg!(lower_frac);
             let lower_check = lower_frac > 0.5_f32;
 
             // Additional Heuristics
@@ -246,6 +241,9 @@ fn extract_text(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfText>> {
 
     Ok(text)
 }
+
+/// Drop-in replacement for `lopdf::extract_text_chunks` that retains additional metadata including
+/// page_number, pos_x, pos_y, font_name, font_size, etc.,
 fn extract_text_chunks(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfText>> {
     let pages: BTreeMap<u32, (u32, u16)> = doc.get_pages();
     page_numbers
@@ -464,6 +462,58 @@ fn extract_fonts_from_page(doc: &Document, page_id: (u32, u16)) -> Result<Vec<(S
     Ok(fonts_found)
 }
 
+/// Extract the documents to [PdfDocument]s
+fn extract_pdf_docs(docs: Vec<(String, Document)>, doc_filter: &PdfFilterType, doc_extraction: &PdfExtractType) -> Vec<PdfDocument> {
+    docs
+        .into_par_iter()
+        .map(|(id, doc)| -> std::result::Result<PdfDocument, Error> {
+            // Filter the PDF
+            let doc = match doc_filter {
+                PdfFilterType::None => doc,
+                PdfFilterType::Text => filter_pdf(doc, IGNORE_TYPE_NAMES_TEXT, IGNORE_KEYS),
+                PdfFilterType::Graphics => filter_pdf(doc, &[&[]], IGNORE_KEYS),
+                PdfFilterType::Default => filter_pdf(doc, IGNORE_TYPE_NAMES_DEFAULT, IGNORE_KEYS),
+            };
+
+            // Extract the page contents
+            let pages_extracted = doc.get_pages()
+                .into_par_iter()
+                .map(
+                    |(page_num, page_id): (u32, (u32, u16))| -> std::result::Result<PdfPage, Error> {
+                        let content = match doc_extraction {
+                            PdfExtractType::Default | PdfExtractType::Text => {
+                                let text = extract_text_chunks(&doc, &[page_num]).map_err(|e| {
+                                    Error::other(format!(
+                                        "Failed to extract text from page {page_num} id={page_id:?}: {e:}"
+                                    ))
+                                })?;
+                                PdfPage::new(&page_num, &0_f32, &0_f32, "", &text, &[])
+                            },
+                            PdfExtractType::Graphics => todo!(),
+                            PdfExtractType::TextEmbeddings => {
+                                let text = extract_text_embeddings(&doc, &[page_num]).map_err(|e| {
+                                    Error::other(format!(
+                                        "Failed to extract text from page {page_num} id={page_id:?}: {e:}"
+                                    ))
+                                })?;
+                                PdfPage::new(&page_num, &0_f32, &0_f32, "", &text, &[])
+                            },
+                            PdfExtractType::ImageEmbeddings => todo!(),
+                        };                        
+
+                        // Todo, Extract graphics from the page
+                        std::result::Result::Ok(content)
+                    },
+                )
+                .collect::<Vec<_>>();
+            let pages: std::result::Result<Vec<PdfPage>, Error> = pages_extracted.into_iter().collect();
+            let doc_extracted = PdfDocument::new(&id, "", &0_i64, &0_i64, "", "", &pages?);
+            std::result::Result::Ok(doc_extracted)
+        })
+        .flatten()
+        .collect::<Vec<_>>()
+}
+
 /// Extract text from a PDF document(s) and return it as an ArrowTable
 ///
 /// # Arguments
@@ -494,48 +544,7 @@ pub fn extract_pdf(
     // Extract document metadata
 
     // Extract the page number and text along with any errors from the documents
-    let docs_extracted = docs
-        .into_par_iter()
-        .map(|(id, mut doc)| -> std::result::Result<PdfDocument, Error> {
-            // Filter the PDF
-            let doc = match doc_filter {
-                PdfFilterType::None => doc,
-                PdfFilterType::Text => filter_pdf(doc, IGNORE_TYPE_NAMES_TEXT, IGNORE_KEYS),
-                PdfFilterType::Graphics => filter_pdf(doc, &[&[]], IGNORE_KEYS),
-                PdfFilterType::Default => filter_pdf(doc, IGNORE_TYPE_NAMES_DEFAULT, IGNORE_KEYS),
-            };
-
-            // Extract the page contents
-            let pages_extracted = doc.get_pages()
-                .into_par_iter()
-                .map(
-                    |(page_num, page_id): (u32, (u32, u16))| -> std::result::Result<PdfPage, Error> {
-                        let content = match doc_extraction {
-                            PdfExtractType::Default => todo!(),
-                            PdfExtractType::Graphics => todo!(),
-                            PdfExtractType::ImageEmbeddings => {
-                                let text = extract_text(&doc, &[page_num]).map_err(|e| {
-                                    Error::other(format!(
-                                        "Failed to extract text from page {page_num} id={page_id:?}: {e:}"
-                                    ))
-                                })?;
-                                PdfPage::new(&page_num, &0_f32, &0_f32, "", &text, &[])
-                            },
-                            PdfExtractType::Text => todo!(),
-                            PdfExtractType::TextEmbeddings => todo!(),
-                        };                        
-
-                        // Todo, Extract graphics from the page
-                        std::result::Result::Ok(content)
-                    },
-                )
-                .collect::<Vec<_>>();
-            let pages: std::result::Result<Vec<PdfPage>, Error> = pages_extracted.into_iter().collect();
-            let doc_extracted = PdfDocument::new(&id, "", &0_i64, &0_i64, "", "", &pages?);
-            std::result::Result::Ok(doc_extracted)
-        })
-        .flatten()
-        .collect::<Vec<_>>();
+    let docs_extracted = extract_pdf_docs(docs, doc_filter, doc_extraction);
 
     // Convert to record batches
     let docs = PdfDocumentsResponse::new(&docs_extracted);
@@ -589,7 +598,7 @@ const IGNORE_KEYS: &[&[u8]] = &[
 ];
 
 /// Filter a PDF document to remove unwanted objects and keys
-pub fn filter_pdf(mut doc: Document, ignore_type_names: &[&[u8]], ignore_keys: &[&[u8]]) -> Document {
+fn filter_pdf(mut doc: Document, ignore_type_names: &[&[u8]], ignore_keys: &[&[u8]]) -> Document {
     // Extract the page IDs from the document
     let page_ids: Vec<(u32, u16)> = doc.get_pages().values().cloned().collect::<Vec<_>>();
 
@@ -647,7 +656,7 @@ pub fn load_pdf_document(doc: &[u8]) -> Result<Document> {
 }
 
 /// Prepare PDF documents for processing by extracting the document ID and PDF data
-pub fn prepare_pdf_documents(
+fn prepare_pdf_documents(
     lhs_pk: &str,
     lhs_values: &str,
     lhs_args: &[RecordBatch],
@@ -743,7 +752,8 @@ pub fn make_pdf_document(contents: &[&str]) -> Document {
 
 #[cfg(test)]
 mod tests {
-    use phymes_subject::{
+    use phymes_schemas::create_attachments_batch;
+use phymes_subject::{
         BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait,
     };
 
@@ -752,12 +762,30 @@ mod tests {
     #[test]
     fn test_extract_pdf_text() {
         // Create several PDF document in memory
-        let doc_1 = make_pdf_document(&["abc", "a\nb\nc", "4\n5\n6"]);
-        let doc_2 = make_pdf_document(&["abc", "a\nb\nc", "4\n5\n6"]);
-        let docs = [("doc_1".to_string(), doc_1), ("doc_2".to_string(), doc_2)];
+        let docs = [
+            ("doc_1", make_pdf_document(&["abc", "a\nb\nc", "4\n5\n6"])),
+            ("doc_2", make_pdf_document(&["abc", "a\nb\nc", "4\n5\n6"]))
+        ];
+
+        // Attachments
+        let mut filename = Vec::new();
+        let mut extension = Vec::new();
+        let mut bytes_vec = Vec::new();
+        let mut metadata = Vec::new();
+        let mut timestamp = Vec::new();
+        for (name, mut doc) in docs {
+            let mut bytes = Vec::new();           
+            doc.save_to(&mut bytes).unwrap();
+            filename.push(name.to_string());
+            extension.push("pdf".to_string());
+            bytes_vec.push(bytes);
+            metadata.push(String::new());
+            timestamp.push(0);
+        }
+        let batch = create_attachments_batch(filename, extension, bytes_vec, metadata, timestamp).unwrap();
 
         // Extract text from the PDF document
-        let batch = extract_pdf(&docs, &PdfFilterType::Default, &PdfExtractType::Default).unwrap();
+        let batch = extract_pdf("filename", "bytes", &[batch], &PdfFilterType::Default, &PdfExtractType::Default).unwrap();
 
         // Check the results
         let table = Subject::get_builder()
@@ -797,9 +825,8 @@ mod tests {
         let pdf_test = load_pdf_document(&bytes).unwrap();
 
         // Check that the original and test PDF documents are the same
-        let batch = extract_pdf(&[("pdf".to_string(), pdf)], &PdfFilterType::Default, &PdfExtractType::Default).unwrap();
-        let batch_test = extract_pdf(&[("pdf".to_string(), pdf_test)], &PdfFilterType::Default, &PdfExtractType::Default).unwrap();
-
+        let batch = extract_pdf_docs(vec![("pdf".to_string(), pdf)], &PdfFilterType::Default, &PdfExtractType::Default);
+        let batch_test = extract_pdf_docs(vec![("pdf".to_string(), pdf_test)], &PdfFilterType::Default, &PdfExtractType::Default);
         assert_eq!(batch, batch_test);
     }
 

@@ -21,7 +21,7 @@ pub use apply_template::ApplyTemplate;
 pub use available_operators::{AvailableOperators, convert_destinations_to_tools};
 pub use chunk_documents::ChunkDocuments;
 pub use diff::{Diff, from_json_object_columns, to_json_object_columns};
-pub use extract_pdf::{ExtractPDF, extract_pdf, filter_pdf, load_pdf_document, make_pdf_document};
+pub use extract_pdf::{ExtractPDF, extract_pdf, load_pdf_document, make_pdf_document};
 pub use extract_tabular::{ExtractTabular, test_extract_tabular_data};
 pub use extract_xml::{ExtractXML, extract_xml};
 pub use filter::{Filter, filter};

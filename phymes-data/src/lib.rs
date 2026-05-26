@@ -8,7 +8,7 @@ pub use operators::{
     ApplyTemplate, AvailableOperators, ChunkDocuments, Diff, ExtractPDF, ExtractTabular,
     ExtractXML, Filter, FromTasksToParticipants, FromTracesToMessages, FromWorkspaceToMessages, FromMessagesToPatches, GroupBy, HumanInTheLoop,
     Join, NormalizeTime, PackTabular, Patch, Pivot, Select, Sort, VectorDistance,
-    convert_destinations_to_tools, extract_pdf, extract_xml, filter, filter_pdf, group_by,
+    convert_destinations_to_tools, extract_pdf, extract_xml, filter, group_by,
     load_pdf_document, make_pdf_document, pack_tabular, sort,
     table_and_data_format_to_record_batch, test_candle_ops, test_extract_tabular_data,
 };
