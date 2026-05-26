@@ -1,3 +1,5 @@
+use std::fmt::format;
+
 use anyhow::Result;
 use arrow::{array::RecordBatch, datatypes::{DataType, Field, Fields, SchemaRef}};
 use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
@@ -122,10 +124,18 @@ impl PdfText {
             chunk_id: chunk_id.to_string(), 
             page_number: *page_number, 
             op: self.op, 
-            bt: self.bt, 
-            tm: self.tm, 
-            td: self.td, 
-            font: self.font, 
+            bt: self.bt,
+            tm_a: self.tm.a,
+            tm_b: self.tm.b,
+            tm_c: self.tm.c,
+            tm_d: self.tm.d,
+            tm_x: self.tm.x,
+            tm_y: self.tm.y,
+            td_x: self.td.x,
+            td_y: self.td.y,
+            font_name: self.font.font_name,
+            font_subtype: self.font.font_subtype,
+            base_font: self.font.base_font,
             font_size: self.font_size, 
             text: self.text 
         }
@@ -139,9 +149,17 @@ pub struct PdfTextSubject {
     pub page_number: u32,
     pub op: u32,
     pub bt: u32,
-    pub tm: PdfTm,
-    pub td: PdfTd,
-    pub font: PdfFont,
+    pub tm_a: f32,
+    pub tm_b: f32,
+    pub tm_c: f32,
+    pub tm_d: f32,
+    pub tm_x: f32,
+    pub tm_y: f32,
+    pub td_x: i64,
+    pub td_y: i64,
+    pub font_name: String,
+    pub font_subtype: String,
+    pub base_font: String,
     pub font_size: i64,
     pub text: String,
 }
@@ -279,13 +297,15 @@ impl PdfPage {
         let (text, graphics) = (self.text, self.graphics);
         let pdf_text_subjects = text.into_iter()
             .map(|s| {
-                let chunk_id = PdfPage::make_chunk_id(document_id, &page_number, "");
+                let hash = format!("{s:?}");
+                let chunk_id = PdfPage::make_chunk_id(document_id, &page_number, &hash);
                 s.build_pdf_text_subject(document_id, &chunk_id, &page_number)
             })
             .collect::<Vec<_>>();
         let pdf_graphics_subjects = graphics.into_iter()
             .map(|s| {
-                let chunk_id = PdfPage::make_chunk_id(document_id, &page_number, "");
+                let hash = format!("{s:?}");
+                let chunk_id = PdfPage::make_chunk_id(document_id, &page_number, &hash);
                 s.build_pdf_graphics_subject(document_id, &chunk_id, &page_number)
             })
             .collect::<Vec<_>>();
@@ -359,7 +379,25 @@ impl PdfDocument {
         Self { document_id: document_id.to_string(), version: version.to_string(), creation_date: *creation_date, modification_date: *modification_date, author: author.to_string(), title: title.to_string(), pages: pages.to_vec() }
     }
     pub fn build_pdf_document_subject(self) -> (PdfDocumentSubject, Vec<PdfPageSubject>, Vec<PdfTextSubject>, Vec<PdfGraphicsSubject>) {
-        todo!()
+        let document_id = self.document_id.clone();
+        let pdf_document_subject = PdfDocumentSubject {
+            document_id: self.document_id.clone(),
+            version: self.version.clone(),
+            creation_date: self.creation_date,
+            modification_date: self.modification_date,
+            author: self.author.clone(),
+            title: self.title.clone(),
+        };
+        let ((pdf_page_subject, pdf_text_subject), pdf_graphics_subject): ((Vec<PdfPageSubject>, Vec<Vec<PdfTextSubject>>), Vec<Vec<PdfGraphicsSubject>>) = self.pages
+            .into_iter()
+            .map(|p| {
+                let (page, text, graphics) = p.build_pdf_page_subject(&document_id);
+                ((page, text), graphics)
+            })
+            .unzip();
+        let pdf_text_subject = pdf_text_subject.into_iter().flatten().collect();
+        let pdf_graphics_subject = pdf_graphics_subject.into_iter().flatten().collect();
+        (pdf_document_subject, pdf_page_subject, pdf_text_subject, pdf_graphics_subject)
     }
 }
 
@@ -509,8 +547,7 @@ impl JsonSchemaTrait for PdfDocumentsResponse {
             );
         }
         
-        let batch = create_route_bytes_record_batch(names, publishers, subjects, formats, bytes)?;
-        Ok(batch)
+        create_route_bytes_record_batch(names, publishers, subjects, formats, bytes)
     }
 }
 

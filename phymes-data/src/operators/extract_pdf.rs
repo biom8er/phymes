@@ -754,7 +754,7 @@ pub fn make_pdf_document(contents: &[&str]) -> Document {
 mod tests {
     use phymes_schemas::create_attachments_batch;
 use phymes_subject::{
-        BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+        BuildableTrait, BuilderTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait
     };
 
     use super::*;
@@ -794,17 +794,48 @@ use phymes_subject::{
             .unwrap()
             .build()
             .unwrap();
-        assert_eq!(table.count_rows(), 4);
+        assert_eq!(table.count_rows(), 3);
         assert_eq!(
-            table.get_column_as_vec_str("document_id"),
-            ["doc_1", "doc_1", "doc_2", "doc_2"]
+            table.get_column_as_vec_str("name"),
+            ["PdfDocumentSubject", "PdfPageSubject", "PdfTextSubject"]
         );
         assert_eq!(
-            table.get_column_as_vec_str("chunk_id"),
-            ["doc_1_PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 100, y: 600 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, page_num: 1, text: \"\" }", "doc_1_PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 100, y: 600 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, page_num: 2, text: \"\" }", "doc_2_PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 100, y: 600 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, page_num: 1, text: \"\" }", "doc_2_PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 100, y: 600 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, page_num: 2, text: \"\" }"]        );
+            table.get_column_as_vec_str("publisher"),
+            ["extract_pdf", "extract_pdf", "extract_pdf"]
+        );
         assert_eq!(
-            table.get_column_as_vec_str("text"),
-            ["123 ", "456 ", "123 ", "456 "]
+            table.get_column_as_vec_str("subject"),
+            ["PdfDocumentSubject", "PdfPageSubject", "PdfTextSubject"]
+        );
+        assert_eq!(
+            table.get_column_as_vec_str("format"),
+            ["Ipc", "Ipc", "Ipc"]
+        );
+
+        // Extract the subjects
+        let mut subjects = table.get_column_as_vec_nested_primitive::<u8>("bytes").unwrap()
+            .into_iter()
+            .map(|s| SubjectBuilder::new_from_ipc_stream(&s)?
+                .with_name("")
+                .build())
+            .collect::<Vec<_>>();
+        assert_eq!(subjects.len(), 3);
+
+        // Check PdfTextSubject
+        let subject = subjects.pop().unwrap().unwrap();
+        assert_eq!(
+            subject.get_column_as_vec_str("document_id"),
+            ["doc_1", "doc_1", "doc_1", "doc_2", "doc_2", "doc_2"]
+        );
+        assert_eq!(
+            subject.get_column_as_vec_str("chunk_id"),
+            ["doc_11PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"abc\\n\" }", 
+            "doc_12PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"abc\\n\" }", 
+            "doc_13PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"456\\n\" }", "doc_21PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"abc\\n\" }", "doc_22PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"abc\\n\" }", 
+            "doc_23PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"456\\n\" }"]);
+        assert_eq!(
+            subject.get_column_as_vec_str("text"),
+            ["abc\n", "abc\n", "456\n", "abc\n", "abc\n", "456\n"]
         );
     }
 
