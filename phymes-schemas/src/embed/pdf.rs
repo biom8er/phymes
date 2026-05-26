@@ -1,11 +1,9 @@
-use std::fmt::format;
-
 use anyhow::Result;
 use arrow::{array::RecordBatch, datatypes::{DataType, Field, Fields, SchemaRef}};
 use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 use serde::{Deserialize, Serialize};
 
-use crate::{AvailableSchemaTrait, DataEncoding, DataFormat, JsonSchemaTrait, create_route_bytes_record_batch, create_schema_from_fields, embed::documents::create_documents_fields_vec};
+use crate::{AvailableSchemaTrait, DataFormat, JsonSchemaTrait, create_route_bytes_record_batch, create_schema_from_fields, embed::documents::create_documents_fields_vec};
 
 /// PDF Text Matrix (PdfTm) operator
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -115,6 +113,11 @@ pub struct PdfText {
 }
 
 impl PdfText {
+    pub fn as_hash(&self) -> String {
+        let mut cpy = self.clone();
+        cpy.text.clear();
+        format!("{cpy:?}")
+    }
     pub fn text_mut(&mut self) -> &mut String {
         &mut self.text
     }
@@ -200,19 +203,19 @@ fn create_pdf_text_fields_vec() -> Vec<Field> {
     fields_vec
 }
 
-fn create_pdf_manuscript_fields() -> Vec<Field> {
-    let field_names = ["document", "section", "text"];
-    let mut fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    let field_names = ["document", "page", "paragraph", "sentence"];
-    fields_vec.extend(field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::UInt32, false))
-        .collect::<Vec<_>>());
-    fields_vec
-}
+// fn create_pdf_manuscript_fields() -> Vec<Field> {
+//     let field_names = ["document", "section", "text"];
+//     let mut fields_vec = field_names
+//         .iter()
+//         .map(|f| Field::new(*f, DataType::Utf8, false))
+//         .collect::<Vec<_>>();
+//     let field_names = ["document", "page", "paragraph", "sentence"];
+//     fields_vec.extend(field_names
+//         .iter()
+//         .map(|f| Field::new(*f, DataType::UInt32, false))
+//         .collect::<Vec<_>>());
+//     fields_vec
+// }
 
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct PdfGraphics {
@@ -220,6 +223,10 @@ pub struct PdfGraphics {
 }
 
 impl PdfGraphics {
+    pub fn as_hash(&self) -> String {
+        let mut cpy = self.clone();
+        format!("{cpy:?}")
+    }
     pub fn build_pdf_graphics_subject(self, document_id: &str, chunk_id: &str, page_number: &u32) -> PdfGraphicsSubject {
         PdfGraphicsSubject { document_id: document_id.to_string(), chunk_id: chunk_id.to_string(), page_number: *page_number }
     }
@@ -297,15 +304,13 @@ impl PdfPage {
         let (text, graphics) = (self.text, self.graphics);
         let pdf_text_subjects = text.into_iter()
             .map(|s| {
-                let hash = format!("{s:?}");
-                let chunk_id = PdfPage::make_chunk_id(document_id, &page_number, &hash);
+                let chunk_id = PdfPage::make_chunk_id(document_id, &page_number, &s.as_hash());
                 s.build_pdf_text_subject(document_id, &chunk_id, &page_number)
             })
             .collect::<Vec<_>>();
         let pdf_graphics_subjects = graphics.into_iter()
             .map(|s| {
-                let hash = format!("{s:?}");
-                let chunk_id = PdfPage::make_chunk_id(document_id, &page_number, &hash);
+                let chunk_id = PdfPage::make_chunk_id(document_id, &page_number, &s.as_hash());
                 s.build_pdf_graphics_subject(document_id, &chunk_id, &page_number)
             })
             .collect::<Vec<_>>();
@@ -551,51 +556,50 @@ impl JsonSchemaTrait for PdfDocumentsResponse {
     }
 }
 
+// pub enum PdfObjectType {
+//     Dictionary,
+//     Stream,
+//     Array,
+//     String,
+//     Number,
+//     Boolean,
+//     Null
+// }
 
-pub enum PdfObjectType {
-    Dictionary,
-    Stream,
-    Array,
-    String,
-    Number,
-    Boolean,
-    Null
-}
+// /// PDFs are build from "Indirect Objects" including Dictionaries, Streams, etc.)
+// pub struct PdfObject {
+//     /// Object ID, PK
+//     obj_id: u32,
+//     /// Document ID, FK
+//     document_id: u32,
+//     object_number: u32,
+//     generation_number: u32,
+//     object_type: PdfObjectType,
+//     raw_content: String
+// }
 
-/// PDFs are build from "Indirect Objects" including Dictionaries, Streams, etc.)
-pub struct PdfObject {
-    /// Object ID, PK
-    obj_id: u32,
-    /// Document ID, FK
-    document_id: u32,
-    object_number: u32,
-    generation_number: u32,
-    object_type: PdfObjectType,
-    raw_content: String
-}
+// /// Content Streams are the actual text and drawing instructions for the page
+// pub struct PdfStream {
+//     /// Stream ID, PK, AutoIncrement
+//     stream_id: u32,
+//     /// Object ID, FK
+//     obj_id: u32,
+//     length: u32,
+//     compression: DataEncoding,
+//     stream_data: Vec<u8>,
+// }
 
-/// Content Streams are the actual text and drawing instructions for the page
-pub struct PdfStream {
-    /// Stream ID, PK, AutoIncrement
-    stream_id: u32,
-    /// Object ID, FK
-    obj_id: u32,
-    length: u32,
-    compression: DataEncoding,
-    stream_data: Vec<u8>,
-}
+// /// Resource dictionary
+// pub struct PdfResource {}
 
-/// Resource dictionary
-pub struct PdfResource {}
-
-/// The decompressed and parsed stream for quering against
-pub struct PdfContent {
-    /// Content Step, PK along with Operator step
-    content_step: u32,
-    /// Operator Step, PK along with Content step
-    operator_step: u32,
-    /// Stream ID, FK
-    stream_id: u32,
-    operator_type: String,
-    operand: serde_json::Value,
-}
+// /// The decompressed and parsed stream for quering against
+// pub struct PdfContent {
+//     /// Content Step, PK along with Operator step
+//     content_step: u32,
+//     /// Operator Step, PK along with Content step
+//     operator_step: u32,
+//     /// Stream ID, FK
+//     stream_id: u32,
+//     operator_type: String,
+//     operand: serde_json::Value,
+// }

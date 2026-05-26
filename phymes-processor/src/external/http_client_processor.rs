@@ -75,7 +75,7 @@ impl ProcessorTrait for HTTPClientRequestProcessor {
 mod tests {
     use super::*;
     use futures::TryStreamExt;
-    use phymes_data::{extract_pdf, filter_pdf, load_pdf_document};
+    use phymes_data::{DocumentExtractType, DocumentFilterType, extract_pdf, load_pdf_document};
     use phymes_diagnostics::{
         DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder,
     };
@@ -688,14 +688,7 @@ mod tests {
         assert_eq!(result, ["application/pdf"]);
 
         // Check the PDF
-        let result = table
-            .get_column_as_vec_nested_primitive::<u8>("bytes")?
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
-        let pdf = filter_pdf(load_pdf_document(&result)?);
-        let docs = [(filenames.first().unwrap().to_string(), pdf)];
-        let pdf_batch = extract_pdf(&docs)?;
+        let pdf_batch = extract_pdf("filename", "bytes", table.get_record_batches(), &DocumentFilterType::Default, &DocumentExtractType::Default)?;
         let table = SubjectBuilder::new()
             .with_record_batches(vec![pdf_batch])?
             .with_name("")

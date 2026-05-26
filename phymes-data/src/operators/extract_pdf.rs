@@ -3,7 +3,6 @@ use std::{collections::{BTreeMap, HashMap}, io::Error, iter::zip};
 use anyhow::{Ok, Result, anyhow};
 use arrow::array::{ListArray, RecordBatch, StringArray, UInt8Array};
 use candle_core::Device;
-use clap::ValueEnum;
 use lopdf::{
     Document, Encoding, Object, Stream, content::{Content, Operation}, dictionary
 };
@@ -16,7 +15,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::{DataConfig, DataOperatorTrait, ToolTrait};
+use crate::{DataConfig, DataOperatorTrait, DocumentExtractType, DocumentFilterType, ToolTrait};
 
 /// Chunk documents by splitting a StringArray column in a [RecordBatch] into multiple rows based on a defined criteria
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -117,71 +116,7 @@ impl DataOperatorTrait for ExtractPDF {
         _rhs_args: Option<&[RecordBatch]>,
         _device: &Device,
     ) -> Result<RecordBatch> {
-        extract_pdf(&self.lhs_pk, &self.lhs_values, lhs_args, &PdfFilterType::Default, &PdfExtractType::Default)
-    }
-}
-
-/// PDF Filter Type
-#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
-pub enum PdfFilterType {
-    /// No filtering
-    #[value(name = "None")]
-    None,
-    /// Remove all keys and object except those for text
-    #[value(name = "Text")]
-    Text,
-    /// Remove all keys and object except those for graphics
-    #[value(name = "Graphics")]
-    Graphics,
-    /// Minimal number of keys and objects
-    #[default]
-    #[value(name = "Default")]
-    #[serde(other)]
-    Default,
-}
-
-impl std::fmt::Display for PdfFilterType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::None => write!(f, "None"),
-            Self::Text => write!(f, "Text"),
-            Self::Graphics => write!(f, "Graphics"),
-            Self::Default => write!(f, "Default"),
-        }
-    }
-}
-
-/// PDF Extraction Type
-#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
-pub enum PdfExtractType {
-    /// All text including operator metadata
-    #[value(name = "Text")]
-    Text,
-    /// All text after applying heuristics optimized for text embeddings
-    #[value(name = "TextEmbeddings")]
-    TextEmbeddings,
-    /// All graphics include operator metadata
-    #[value(name = "Graphics")]
-    Graphics,
-    /// All images after applying heuristics optimized for text embeddings
-    #[value(name = "ImageEmbeddings")]
-    ImageEmbeddings,
-    /// Default extraction; all text excluding operator metadata
-    #[default]
-    #[value(name = "Default")]
-    #[serde(other)]
-    Default,
-}
-
-impl std::fmt::Display for PdfExtractType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Text => write!(f, "Text"),
-            Self::TextEmbeddings => write!(f, "TextEmbeddings"),
-            Self::Graphics => write!(f, "Graphics"),
-            Self::ImageEmbeddings => write!(f, "ImageEmbeddings"),
-            Self::Default => write!(f, "Default"),
-        }
+        extract_pdf(&self.lhs_pk, &self.lhs_values, lhs_args, &DocumentFilterType::Default, &DocumentExtractType::Default)
     }
 }
 
@@ -463,16 +398,16 @@ fn extract_fonts_from_page(doc: &Document, page_id: (u32, u16)) -> Result<Vec<(S
 }
 
 /// Extract the documents to [PdfDocument]s
-fn extract_pdf_docs(docs: Vec<(String, Document)>, doc_filter: &PdfFilterType, doc_extraction: &PdfExtractType) -> Vec<PdfDocument> {
+fn extract_pdf_docs(docs: Vec<(String, Document)>, doc_filter: &DocumentFilterType, doc_extraction: &DocumentExtractType) -> Vec<PdfDocument> {
     docs
         .into_par_iter()
         .map(|(id, doc)| -> std::result::Result<PdfDocument, Error> {
             // Filter the PDF
             let doc = match doc_filter {
-                PdfFilterType::None => doc,
-                PdfFilterType::Text => filter_pdf(doc, IGNORE_TYPE_NAMES_TEXT, IGNORE_KEYS),
-                PdfFilterType::Graphics => filter_pdf(doc, &[&[]], IGNORE_KEYS),
-                PdfFilterType::Default => filter_pdf(doc, IGNORE_TYPE_NAMES_DEFAULT, IGNORE_KEYS),
+                DocumentFilterType::None => doc,
+                DocumentFilterType::Text => filter_pdf(doc, IGNORE_TYPE_NAMES_TEXT, IGNORE_KEYS),
+                DocumentFilterType::Graphics => filter_pdf(doc, &[&[]], IGNORE_KEYS),
+                DocumentFilterType::Default => filter_pdf(doc, IGNORE_TYPE_NAMES_DEFAULT, IGNORE_KEYS),
             };
 
             // Extract the page contents
@@ -481,7 +416,7 @@ fn extract_pdf_docs(docs: Vec<(String, Document)>, doc_filter: &PdfFilterType, d
                 .map(
                     |(page_num, page_id): (u32, (u32, u16))| -> std::result::Result<PdfPage, Error> {
                         let content = match doc_extraction {
-                            PdfExtractType::Default | PdfExtractType::Text => {
+                            DocumentExtractType::Default | DocumentExtractType::Text => {
                                 let text = extract_text_chunks(&doc, &[page_num]).map_err(|e| {
                                     Error::other(format!(
                                         "Failed to extract text from page {page_num} id={page_id:?}: {e:}"
@@ -489,8 +424,8 @@ fn extract_pdf_docs(docs: Vec<(String, Document)>, doc_filter: &PdfFilterType, d
                                 })?;
                                 PdfPage::new(&page_num, &0_f32, &0_f32, "", &text, &[])
                             },
-                            PdfExtractType::Graphics => todo!(),
-                            PdfExtractType::TextEmbeddings => {
+                            DocumentExtractType::Graphics => todo!(),
+                            DocumentExtractType::TextEmbeddings => {
                                 let text = extract_text_embeddings(&doc, &[page_num]).map_err(|e| {
                                     Error::other(format!(
                                         "Failed to extract text from page {page_num} id={page_id:?}: {e:}"
@@ -498,7 +433,7 @@ fn extract_pdf_docs(docs: Vec<(String, Document)>, doc_filter: &PdfFilterType, d
                                 })?;
                                 PdfPage::new(&page_num, &0_f32, &0_f32, "", &text, &[])
                             },
-                            PdfExtractType::ImageEmbeddings => todo!(),
+                            DocumentExtractType::ImageEmbeddings => todo!(),
                         };                        
 
                         // Todo, Extract graphics from the page
@@ -536,8 +471,8 @@ pub fn extract_pdf(
     lhs_pk: &str,
     lhs_values: &str,
     lhs_args: &[RecordBatch], 
-    doc_filter: &PdfFilterType,
-    doc_extraction: &PdfExtractType) -> Result<RecordBatch> {
+    doc_filter: &DocumentFilterType,
+    doc_extraction: &DocumentExtractType) -> Result<RecordBatch> {
     // Prepare the documents for processing
     let docs = prepare_pdf_documents(lhs_pk, lhs_values, lhs_args);
 
@@ -699,9 +634,9 @@ fn prepare_pdf_documents(
         .collect()
 }
 
-/// Make a PDF document with text content for testing purposes
+/// Make a PDF document with text content on separate pages for testing purposes
 #[allow(dead_code)]
-pub fn make_pdf_document(contents: &[&str]) -> Document {
+pub fn make_pdf_document_page_per_content(contents: &[&str], page_per_content: bool) -> Document {
     let mut doc = Document::with_version("1.5");
     let pages_id = doc.new_object_id();
     let font_id = doc.add_object(dictionary! {
@@ -715,15 +650,37 @@ pub fn make_pdf_document(contents: &[&str]) -> Document {
         },
     });
     let mut page_id_vec = Vec::new();
-    for content_str in contents {
-        let content = Content {
-            operations: vec![
+    if page_per_content {
+        for content_str in contents {
+            let content = Content {
+                operations: vec![
+                    Operation::new("BT", vec![]),
+                    Operation::new("Tf", vec!["F1".into(), 48.into()]),
+                    Operation::new("PdfTd", vec![100.into(), 600.into()]),
+                    Operation::new("Tj", vec![Object::string_literal(*content_str)]),
+                    Operation::new("ET", vec![]),
+                ],
+            };
+            let content_id = doc.add_object(Stream::new(dictionary! {}, content.encode().unwrap()));
+            let page_id = doc.add_object(dictionary! {
+                "Type" => "Page",
+                "Parent" => pages_id,
+                "Contents" => content_id,
+            });
+			page_id_vec.push(page_id.into());
+        }
+    } else {
+        let operations = contents.into_iter()
+            .flat_map(|content_str| vec![
                 Operation::new("BT", vec![]),
                 Operation::new("Tf", vec!["F1".into(), 48.into()]),
                 Operation::new("PdfTd", vec![100.into(), 600.into()]),
                 Operation::new("Tj", vec![Object::string_literal(*content_str)]),
                 Operation::new("ET", vec![]),
-            ],
+            ])
+            .collect::<Vec<_>>();
+        let content = Content {
+            operations: operations,
         };
         let content_id = doc.add_object(Stream::new(dictionary! {}, content.encode().unwrap()));
         let page_id = doc.add_object(dictionary! {
@@ -731,7 +688,7 @@ pub fn make_pdf_document(contents: &[&str]) -> Document {
             "Parent" => pages_id,
             "Contents" => content_id,
         });
-        page_id_vec.push(page_id.into());
+		page_id_vec.push(page_id.into());
     }
     let pages = dictionary! {
         "Type" => "Pages",
@@ -760,11 +717,11 @@ use phymes_subject::{
     use super::*;
 
     #[test]
-    fn test_extract_pdf_text() {
+    fn test_extract_pdf_text_chunks() {
         // Create several PDF document in memory
         let docs = [
-            ("doc_1", make_pdf_document(&["abc", "a\nb\nc", "4\n5\n6"])),
-            ("doc_2", make_pdf_document(&["abc", "a\nb\nc", "4\n5\n6"]))
+            ("doc_1", make_pdf_document_page_per_content(&["abc", "a\nb\nc", "4\n5\n6"], true)),
+            ("doc_2", make_pdf_document_page_per_content(&["abc", "a\nb\nc", "4\n5\n6"], true))
         ];
 
         // Attachments
@@ -785,7 +742,7 @@ use phymes_subject::{
         let batch = create_attachments_batch(filename, extension, bytes_vec, metadata, timestamp).unwrap();
 
         // Extract text from the PDF document
-        let batch = extract_pdf("filename", "bytes", &[batch], &PdfFilterType::Default, &PdfExtractType::Default).unwrap();
+        let batch = extract_pdf("filename", "bytes", &[batch], &DocumentFilterType::Default, &DocumentExtractType::Default).unwrap();
 
         // Check the results
         let table = Subject::get_builder()
@@ -840,6 +797,94 @@ use phymes_subject::{
     }
 
     #[test]
+    fn test_extract_pdf_text_embeddings() {
+        // Create several PDF document in memory
+        let docs = [
+            ("doc_1", make_pdf_document_page_per_content(&["Fanconi anemia (FA) is an autosomal recessive disease caused by a biallelic mutation which mainly occurs in proteins involved in the cell",
+                "cycle, from DNA synthesis to replication and regeneration. The carrier frequency of disease is 1:300 of live births in the general population.", 
+                "The male-to-female ratio is 1.9:1. The chromosomal breakage test was considered the gold standard for the diagnosis of the disease but for the", 
+                "confirmation genetic analysis is mandatory because other syndrome can mimic with the FA. The disease is mainly characterized by physical", 
+                "abnormalities such as microcephaly, short stature with skeletal anomalies of both limbs, defective genitourinary system and abnormalities of", 
+                "the eyes. Bone marrow dysfunction is usually observed from the first decade of life which initially starts as thrombocytopenia or pancytopenia", 
+                "and later progresses to bone marrow failure. As patients enter their teenage or adulthood, they encounter a high risk of myelodysplastic", 
+                "syndrome and acute myeloid leukemia. To date, 22 genes are associated with FA. The genetic foundation of FA highlights several FANC", 
+                "genes, particularly FANCA, FANCC, FANCG, and FANCD2, which are the most commonly mutated. There are distinct patterns of somatic", 
+                "chromosomal abnormalities seen in FA patients, especially unbalanced chromosomal translocations that result in partial duplication or deletions.", 
+                "The mechanisms underlying the hematopoietic defects and clonal evolution in FA are still largely unknown; however, understanding these", 
+                "processes is essential for enhancing patient management and treatment."], false)),
+            ("doc_2", make_pdf_document_page_per_content(&["Endogenouscross-linkersExogenousChemotherapyDNA"], false))
+        ];
+
+        // Attachments
+        let mut filename = Vec::new();
+        let mut extension = Vec::new();
+        let mut bytes_vec = Vec::new();
+        let mut metadata = Vec::new();
+        let mut timestamp = Vec::new();
+        for (name, mut doc) in docs {
+            let mut bytes = Vec::new();           
+            doc.save_to(&mut bytes).unwrap();
+            filename.push(name.to_string());
+            extension.push("pdf".to_string());
+            bytes_vec.push(bytes);
+            metadata.push(String::new());
+            timestamp.push(0);
+        }
+        let batch = create_attachments_batch(filename, extension, bytes_vec, metadata, timestamp).unwrap();
+
+        // Extract text from the PDF document
+        let batch = extract_pdf("filename", "bytes", &[batch], &DocumentFilterType::Text, &DocumentExtractType::TextEmbeddings).unwrap();
+
+        // Check the results
+        let table = Subject::get_builder()
+            .with_name("")
+            .with_record_batches(vec![batch])
+            .unwrap()
+            .build()
+            .unwrap();
+        assert_eq!(table.count_rows(), 3);
+        assert_eq!(
+            table.get_column_as_vec_str("name"),
+            ["PdfDocumentSubject", "PdfPageSubject", "PdfTextSubject"]
+        );
+        assert_eq!(
+            table.get_column_as_vec_str("publisher"),
+            ["extract_pdf", "extract_pdf", "extract_pdf"]
+        );
+        assert_eq!(
+            table.get_column_as_vec_str("subject"),
+            ["PdfDocumentSubject", "PdfPageSubject", "PdfTextSubject"]
+        );
+        assert_eq!(
+            table.get_column_as_vec_str("format"),
+            ["Ipc", "Ipc", "Ipc"]
+        );
+
+        // Extract the subjects
+        let mut subjects = table.get_column_as_vec_nested_primitive::<u8>("bytes").unwrap()
+            .into_iter()
+            .map(|s| SubjectBuilder::new_from_ipc_stream(&s)?
+                .with_name("")
+                .build())
+            .collect::<Vec<_>>();
+        assert_eq!(subjects.len(), 3);
+
+        // Check PdfTextSubject
+        let subject = subjects.pop().unwrap().unwrap();
+        assert_eq!(
+            subject.get_column_as_vec_str("document_id"),
+            ["doc_1"]
+        );
+        assert_eq!(
+            subject.get_column_as_vec_str("chunk_id"),
+            ["doc_11PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }"]);
+        assert_eq!(
+            subject.get_column_as_vec_str("text"),
+            ["Fanconi anemia (FA) is an autosomal recessive disease caused by a biallelic mutation which mainly occurs in proteins involved in the cell\ncycle, from DNA synthesis to replication and regeneration. The carrier frequency of disease is 1:300 of live births in the general population.\nThe male-to-female ratio is 1.9:1. The chromosomal breakage test was considered the gold standard for the diagnosis of the disease but for the\nconfirmation genetic analysis is mandatory because other syndrome can mimic with the FA. The disease is mainly characterized by physical\nabnormalities such as microcephaly, short stature with skeletal anomalies of both limbs, defective genitourinary system and abnormalities of\nthe eyes. Bone marrow dysfunction is usually observed from the first decade of life which initially starts as thrombocytopenia or pancytopenia\nand later progresses to bone marrow failure. As patients enter their teenage or adulthood, they encounter a high risk of myelodysplastic\nsyndrome and acute myeloid leukemia. To date, 22 genes are associated with FA. The genetic foundation of FA highlights several FANC\ngenes, particularly FANCA, FANCC, FANCG, and FANCD2, which are the most commonly mutated. There are distinct patterns of somatic\nchromosomal abnormalities seen in FA patients, especially unbalanced chromosomal translocations that result in partial duplication or deletions.\nThe mechanisms underlying the hematopoietic defects and clonal evolution in FA are still largely unknown; however, understanding these\nprocesses is essential for enhancing patient management and treatment.\n"]
+        );
+    }
+
+    #[test]
     fn test_make_pdf_document() {
         // Make the PDF documents
         let document_texts = &[
@@ -848,7 +893,7 @@ use phymes_subject::{
             "Lipids are a broad group of organic compounds which include fats, waxes, sterols, fat-soluble vitamins (such as vitamins A, D, E and K), monoglycerides, diglycerides, phospholipids, and others. The functions of lipids include storing energy, signaling, and acting as structural components of cell membranes.[3][4] Lipids have applications in the cosmetic and food industries, and in nanotechnology.[5]\n\nLipids may be broadly defined as hydrophobic or amphiphilic small molecules; the amphiphilic nature of some lipids allows them to form structures such as vesicles, multilamellar/unilamellar liposomes, or membranes in an aqueous environment. Biological lipids originate entirely or in part from two distinct types of biochemical subunits or building-blocks: ketoacyl and isoprene groups.[3] Using this approach, lipids may be divided into eight categories: fatty acyls, glycerolipids, glycerophospholipids, sphingolipids, saccharolipids, and polyketides (derived from condensation of ketoacyl subunits); and sterol lipids and prenol lipids (derived from condensation of isoprene subunits).[3]\n\nAlthough the term lipid is sometimes used as a synonym for fats, fats are a subgroup of lipids called triglycerides. Lipids also encompass molecules such as fatty acids and their derivatives (including tri-, di-, monoglycerides, and phospholipids), as well as other sterol-containing metabolites such as cholesterol.[6] Although humans and other mammals use various biosynthetic pathways both to break down and to synthesize lipids, some essential lipids cannot be made this way and must be obtained from the diet.\n\n",
             "The cell is the basic structural and functional unit of all forms of life. Every cell consists of cytoplasm enclosed within a membrane; many cells contain organelles, each with a specific function. The term comes from the Latin word cellula meaning 'small room'. Most cells are only visible under a microscope. Cells emerged on Earth about 4 billion years ago. All cells are capable of replication, protein synthesis, and motility.\n\nCells are broadly categorized into two types: eukaryotic cells, which possess a nucleus, and prokaryotic cells, which lack a nucleus but have a nucleoid region. Prokaryotes are single-celled organisms such as bacteria, whereas eukaryotes can be either single-celled, such as amoebae, or multicellular, such as some algae, plants, animals, and fungi. Eukaryotic cells contain organelles including mitochondria, which provide energy for cell functions, chloroplasts, which in plants create sugars by photosynthesis, and ribosomes, which synthesise proteins.\n\nCells were discovered by Robert Hooke in 1665, who named them after their resemblance to cells inhabited by Christian monks in a monastery. Cell theory, developed in 1839 by Matthias Jakob Schleiden and Theodor Schwann, states that all organisms are composed of one or more cells, that cells are the fundamental unit of structure and function in all living organisms, and that all cells come from pre-existing cells.",
         ];
-        let mut pdf = make_pdf_document(document_texts);
+        let mut pdf = make_pdf_document_page_per_content(document_texts, true);
         let mut bytes = Vec::new();
         pdf.save_to(&mut bytes).unwrap();
 
@@ -856,15 +901,15 @@ use phymes_subject::{
         let pdf_test = load_pdf_document(&bytes).unwrap();
 
         // Check that the original and test PDF documents are the same
-        let batch = extract_pdf_docs(vec![("pdf".to_string(), pdf)], &PdfFilterType::Default, &PdfExtractType::Default);
-        let batch_test = extract_pdf_docs(vec![("pdf".to_string(), pdf_test)], &PdfFilterType::Default, &PdfExtractType::Default);
+        let batch = extract_pdf_docs(vec![("pdf".to_string(), pdf)], &DocumentFilterType::Default, &DocumentExtractType::Default);
+        let batch_test = extract_pdf_docs(vec![("pdf".to_string(), pdf_test)], &DocumentFilterType::Default, &DocumentExtractType::Default);
         assert_eq!(batch, batch_test);
     }
 
     #[test]
     fn test_extract_pdf_extract_fonts() {
         // Create a dummy PDF in memory
-        let doc_1 = make_pdf_document(&["1\n2\n3", "4\n5\n6"]);
+        let doc_1 = make_pdf_document_page_per_content(&["1\n2\n3", "4\n5\n6"], true);
 
         // Extract Fonts        
         let fonts = doc_1.get_pages()
