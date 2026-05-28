@@ -224,7 +224,7 @@ pub struct PdfGraphics {
 
 impl PdfGraphics {
     pub fn as_hash(&self) -> String {
-        let mut cpy = self.clone();
+        let cpy = self.clone();
         format!("{cpy:?}")
     }
     pub fn build_pdf_graphics_subject(self, document_id: &str, chunk_id: &str, page_number: &u32) -> PdfGraphicsSubject {

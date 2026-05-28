@@ -15,13 +15,13 @@ pub enum DocumentFilterType {
     /// No filtering
     #[value(name = "None")]
     None,
-    /// Remove all keys and object except those for text
+    /// Optimized for extraction of text
     #[value(name = "Text")]
     Text,
-    /// Remove all keys and object except those for graphics
+    /// Optimized for extraction of paths, images, and other graphical elements
     #[value(name = "Graphics")]
     Graphics,
-    /// Minimal number of keys and objects
+    /// Document specific filtering defaults
     #[default]
     #[value(name = "Default")]
     #[serde(other)]
@@ -42,19 +42,19 @@ impl std::fmt::Display for DocumentFilterType {
 /// Document Extraction Type
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
 pub enum DocumentExtractType {
-    /// All text including operator metadata
+    /// All text and metadata
     #[value(name = "Text")]
     Text,
     /// All text after applying heuristics optimized for text embeddings
     #[value(name = "TextEmbeddings")]
     TextEmbeddings,
-    /// All graphics include operator metadata
+    /// All graphics and metadata
     #[value(name = "Graphics")]
     Graphics,
-    /// All images after applying heuristics optimized for text embeddings
+    /// All images after applying heuristics optimized for image embeddings
     #[value(name = "ImageEmbeddings")]
     ImageEmbeddings,
-    /// Default extraction; all text excluding operator metadata
+    /// Document specific extraction defaults
     #[default]
     #[value(name = "Default")]
     #[serde(other)]
@@ -261,6 +261,20 @@ pub struct DataConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub doc_input: Option<String>,
+
+    /// Filters to apply to the document when processing
+    ///
+    /// [Value]: serde_json::Value
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub doc_filter: Option<DocumentFilterType>,
+
+    /// Configuration to use when extraction objects from the document
+    ///
+    /// [Value]: serde_json::Value
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub doc_extraction: Option<DocumentExtractType>,
 
     /// The length of the document chunks
     #[arg(long)]

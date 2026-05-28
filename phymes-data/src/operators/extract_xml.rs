@@ -20,7 +20,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::{DataConfig, DataOperatorTrait, ToolTrait, sort};
+use crate::{DataConfig, DataOperatorTrait, DocumentExtractType, DocumentFilterType, ToolTrait, sort};
 
 /// Extract xml tags in either XML or OWL format from Bytes
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -28,6 +28,8 @@ pub struct ExtractXML {
     lhs_name: String,
     lhs_values: String,
     format: DataFormat,
+    doc_filter: DocumentFilterType,
+    doc_extraction: DocumentExtractType,
 }
 
 impl MappableTrait for ExtractXML {
@@ -117,11 +119,21 @@ impl DataOperatorTrait for ExtractXML {
             "Missing `format` for `{}`.",
             Self::get_static_name()
         ))?;
+        let doc_filter = config.doc_filter.clone().ok_or(anyhow!(
+            "Missing `doc_filter` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let doc_extraction = config.doc_extraction.clone().ok_or(anyhow!(
+            "Missing `doc_extraction` for `{}`.",
+            Self::get_static_name()
+        ))?;
 
         Ok(ExtractXML {
             lhs_name,
             lhs_values,
             format,
+            doc_filter,
+            doc_extraction,
         })
     }
     fn forward(
@@ -135,6 +147,8 @@ impl DataOperatorTrait for ExtractXML {
             &self.lhs_values,
             lhs_args,
             &self.format,
+            &self.doc_filter,
+            &self.doc_extraction,
             device,
         )
     }
@@ -467,10 +481,79 @@ fn children_to_po(
     Ok(po)
 }
 
+/// Helper function to extract owl objects
+fn extract_owl_objects(
+    lhs_name: &str,
+    attributes: &HashMap<String, Vec<(XMLType, String)>>,
+    xml_element: &XMLElement, 
+    subject: &str, 
+    children: Vec<(XMLType, String)>,
+    acc: &mut (Vec<String>, Vec<String>, Vec<String>, Vec<String>, Vec<String>, Vec<String>, i32)) {
+    let (predicates, objects) = parse_owl_children(&attributes, children).unwrap();
+    for (predicate, object) in predicates.into_iter().zip(objects) {
+        acc.0.push(lhs_name.to_string());
+        acc.1.push(xml_element.tag.to_string());
+        let graph = format!("{subject}-{predicate}-{object}");
+        acc.2.push(graph.to_string());
+        acc.3.push(subject.to_string());
+        acc.4.push(predicate);
+        acc.5.push(object);
+    }
+}
+
+/// Helper function to extract owl axiums
+fn extract_owl_axiums(
+    lhs_name: &str,
+    attributes: &HashMap<String, Vec<(XMLType, String)>>,
+    children: Vec<(XMLType, String)>,
+    acc: &mut (Vec<String>, Vec<String>, Vec<String>, Vec<String>, Vec<String>, Vec<String>, i32)) {
+    let (predicates, objects) = parse_owl_children(&attributes, children).unwrap();
+
+    // Determine the subject of the axium
+    let subject_triple = predicates
+        .iter()
+        .zip(objects.iter())
+        .filter_map(|(t, c)| {
+            if t == "http://www.w3.org/2002/07/owl#annotatedSource"
+                || t == "http://www.w3.org/2002/07/owl#annotatedProperty"
+                || t == "http://www.w3.org/2002/07/owl#annotatedTarget"
+                // || t == "http://purl.obolibrary.org/obo/RO_0002582"
+                // || t == "http://purl.obolibrary.org/obo/RO_0002581"
+            {
+                Some((t.to_string(), c.to_string()))
+            } else {
+                None
+            }
+        })
+        .collect::<HashMap<_, _>>();
+    let subject = if subject_triple.len() == 3 {
+        format!("{}-{}-{}",
+            subject_triple.get("http://www.w3.org/2002/07/owl#annotatedSource").ok_or(anyhow!("Key `source` missing from Owl:Axiom extracted annotation triples `{:?}`. Available predicates are `{predicates:?}`.", subject_triple.keys())).unwrap(),
+            subject_triple.get("http://www.w3.org/2002/07/owl#annotatedProperty").ok_or(anyhow!("Key `property` missing from Owl:Axiom extracted annotation triples `{:?}`. Available predicates are `{predicates:?}`.", subject_triple.keys())).unwrap(),
+            subject_triple.get("http://www.w3.org/2002/07/owl#annotatedTarget").ok_or(anyhow!("Key `target` missing from Owl:Axiom extracted annotation triples `{:?}`. Available predicates are `{predicates:?}`.", subject_triple.keys())).unwrap()
+        )
+    } else {
+        subject_triple.into_values().collect::<Vec<_>>().join("-")
+    };
+
+    // Continue extracting the predicate/object pairs
+    for (predicate, object) in predicates.into_iter().zip(objects) {
+        acc.0.push(lhs_name.to_string());
+        acc.1.push("http://www.w3.org/2002/07/owl#Axiom".to_string());
+        let graph = format!("{subject}-{predicate}-{object}");
+        acc.2.push(graph.to_string());
+        acc.3.push(subject.to_string());
+        acc.4.push(predicate);
+        acc.5.push(object);
+    }
+}
+
 /// Convert the parsed xml relations to a parsed owl schema
 fn xml_to_parsed_owl_record_batch(
     relations: HashMap<String, Vec<(XMLType, String)>>,
     lhs_name: &str,
+    doc_filter: &DocumentFilterType,
+    doc_extraction: &DocumentExtractType,
     device: &Device,
 ) -> Result<RecordBatch> {
     // Partition into entities and their attributes
@@ -478,46 +561,62 @@ fn xml_to_parsed_owl_record_batch(
     let (entities, attributes): (HashMap<String, Vec<(XMLType, String)>>, HashMap<String, Vec<(XMLType, String)>>) = relations.into_par_iter()
     .filter(|(k, _v)| {
         let xml_element: XMLElement = serde_json::from_str(k).unwrap();
-
+        
         // --- Exclusion list ---
         // DM: The more elements that can be excluded, the faster the parsing of large ontologies
-        // Hierarchical objects are not yet supported (e.g., EquivalentClass, ChainedAxioms, etc.)
-        !((xml_element.tag == "http://www.w3.org/2002/07/owl#Ontology" && !xml_element.attributes.contains_key("rdf:about"))
-        || (xml_element.tag == "http://www.w3.org/2002/07/owl#AnnotationProperty" && !xml_element.attributes.contains_key("rdf:about"))
-        || (xml_element.tag == "http://www.w3.org/2002/07/owl#DatatypeProperty" && !xml_element.attributes.contains_key("rdf:about"))
-        || (xml_element.tag == "http://www.w3.org/2002/07/owl#Class" && !xml_element.attributes.contains_key("rdf:about"))
-        || (xml_element.tag == "http://www.w3.org/2002/07/owl#ObjectProperty" && !xml_element.attributes.contains_key("rdf:about"))
-        || (xml_element.tag == "http://www.w3.org/2002/07/owl#NamedIndividual" && !xml_element.attributes.contains_key("rdf:about"))
-        || (xml_element.tag == "http://www.w3.org/2000/01/rdf-schema#subClassOf" && !xml_element.attributes.contains_key("rdf:resource"))
-        || (xml_element.tag == "http://www.w3.org/2000/01/rdf-schema#subPropertyOf" && !xml_element.attributes.contains_key("rdf:resource"))
-        || (xml_element.tag == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" && !xml_element.attributes.contains_key("rdf:resource"))
-        || xml_element.tag == "http://www.w3.org/2002/07/owl#equivalentClass"
-        || xml_element.tag == "http://www.w3.org/2002/07/owl#Restriction"
-        || xml_element.tag == "http://www.w3.org/2002/07/owl#intersectionOf"
-        || xml_element.tag == "http://www.w3.org/2002/07/owl#onProperty"
-        || xml_element.tag == "http://www.w3.org/2002/07/owl#someValuesFrom"
-        || xml_element.tag == "http://www.w3.org/2002/07/owl#propertyChainAxiom"
+        match doc_filter {
+            DocumentFilterType::Default => !(
+                (xml_element.tag == "http://www.w3.org/2002/07/owl#Ontology" && !xml_element.attributes.contains_key("rdf:about"))
+                || (xml_element.tag == "http://www.w3.org/2002/07/owl#AnnotationProperty" && !xml_element.attributes.contains_key("rdf:about"))
+                || (xml_element.tag == "http://www.w3.org/2002/07/owl#DatatypeProperty" && !xml_element.attributes.contains_key("rdf:about"))
+                || (xml_element.tag == "http://www.w3.org/2002/07/owl#Class" && !xml_element.attributes.contains_key("rdf:about"))
+                || (xml_element.tag == "http://www.w3.org/2002/07/owl#ObjectProperty" && !xml_element.attributes.contains_key("rdf:about"))
+                || (xml_element.tag == "http://www.w3.org/2002/07/owl#NamedIndividual" && !xml_element.attributes.contains_key("rdf:about"))
+                || (xml_element.tag == "http://www.w3.org/2000/01/rdf-schema#subClassOf" && !xml_element.attributes.contains_key("rdf:resource"))
+                || (xml_element.tag == "http://www.w3.org/2000/01/rdf-schema#subPropertyOf" && !xml_element.attributes.contains_key("rdf:resource"))
+                || (xml_element.tag == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" && !xml_element.attributes.contains_key("rdf:resource"))
+            ),
+            DocumentFilterType::Text => !(
+                // Hierarchical objects are not yet supported (e.g., EquivalentClass, ChainedAxioms, etc.)
+                (xml_element.tag == "http://www.w3.org/2002/07/owl#Ontology" && !xml_element.attributes.contains_key("rdf:about"))
+                || (xml_element.tag == "http://www.w3.org/2002/07/owl#AnnotationProperty" && !xml_element.attributes.contains_key("rdf:about"))
+                || (xml_element.tag == "http://www.w3.org/2002/07/owl#DatatypeProperty" && !xml_element.attributes.contains_key("rdf:about"))
+                || (xml_element.tag == "http://www.w3.org/2002/07/owl#Class" && !xml_element.attributes.contains_key("rdf:about"))
+                || (xml_element.tag == "http://www.w3.org/2002/07/owl#ObjectProperty" && !xml_element.attributes.contains_key("rdf:about"))
+                || (xml_element.tag == "http://www.w3.org/2000/01/rdf-schema#subClassOf" && !xml_element.attributes.contains_key("rdf:resource"))
+                || (xml_element.tag == "http://www.w3.org/2000/01/rdf-schema#subPropertyOf" && !xml_element.attributes.contains_key("rdf:resource"))
+                || (xml_element.tag == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" && !xml_element.attributes.contains_key("rdf:resource"))
+                || xml_element.tag == "http://www.w3.org/2002/07/owl#equivalentClass"
+                || xml_element.tag == "http://www.w3.org/2002/07/owl#Restriction"
+                || xml_element.tag == "http://www.w3.org/2002/07/owl#intersectionOf"
+                || xml_element.tag == "http://www.w3.org/2002/07/owl#onProperty"
+                || xml_element.tag == "http://www.w3.org/2002/07/owl#someValuesFrom"
+                || xml_element.tag == "http://www.w3.org/2002/07/owl#propertyChainAxiom"
 
-        // DM: re-instate axiom when testing with GO-CAM
-        || xml_element.tag == "http://www.w3.org/2002/07/owl#Axiom"
+                // DM: re-instate axiom when testing with GO-CAM embeddings
+                || xml_element.tag == "http://www.w3.org/2002/07/owl#Axiom"
+                || xml_element.tag == "http://www.w3.org/2002/07/owl#NamedIndividual"
 
-        // DM: move to seperate config option
-        //   e.g., `exclude_namespace_iri` and `exclude_iri`
-        //   or re-instate different owl profiles
+                // DM: move to seperate config option
+                //   e.g., `exclude_namespace_iri` and `exclude_iri`
+                //   or re-instate different owl profiles
 
-        // Excluse IRIs not used in the embeddings
-        || xml_element.tag == "http://www.w3.org/2002/07/owl#deprecated"
+                // Excluse IRIs not used in the embeddings
+                || xml_element.tag == "http://www.w3.org/2002/07/owl#deprecated"
 
-        // Exclude namespace IRIs not used in the embeddings
-        || xml_element.tag.contains("http://www.w3.org/2004/02/skos/core#")
-        // || (xml_element.tag.contains("http://www.w3.org/2004/02/skos/core#") && xml_element.tag != "http://www.w3.org/2004/02/skos/core#prefLabel")
-        || xml_element.tag.contains("http://xmlns.com/foaf/0.1/")
-        || xml_element.tag.contains("http://purl.org/dc/terms/")
-        // || (xml_element.tag.contains("http://purl.org/dc/terms/") && xml_element.tag != "http://purl.org/dc/terms/description")
-        || xml_element.tag.contains("http://purl.org/dc/elements/1.1/")
-        || (xml_element.tag.contains("http://www.geneontology.org/formats/oboInOwl#") && xml_element.tag != "http://www.geneontology.org/formats/oboInOwl#hasExactSynonym")
-        || (xml_element.tag.contains("http://purl.obolibrary.org/obo/") && xml_element.tag != "http://purl.obolibrary.org/obo/IAO_0000115")
-        )
+                // Exclude namespace IRIs not used in the embeddings
+                || xml_element.tag.contains("http://www.w3.org/2004/02/skos/core#")
+                // || (xml_element.tag.contains("http://www.w3.org/2004/02/skos/core#") && xml_element.tag != "http://www.w3.org/2004/02/skos/core#prefLabel")
+                || xml_element.tag.contains("http://xmlns.com/foaf/0.1/")
+                || xml_element.tag.contains("http://purl.org/dc/terms/")
+                // || (xml_element.tag.contains("http://purl.org/dc/terms/") && xml_element.tag != "http://purl.org/dc/terms/description")
+                || xml_element.tag.contains("http://purl.org/dc/elements/1.1/")
+                || (xml_element.tag.contains("http://www.geneontology.org/formats/oboInOwl#") && xml_element.tag != "http://www.geneontology.org/formats/oboInOwl#hasExactSynonym")
+                || (xml_element.tag.contains("http://purl.obolibrary.org/obo/") && xml_element.tag != "http://purl.obolibrary.org/obo/IAO_0000115")
+            ),
+            DocumentFilterType::Graphics => todo!(),
+            DocumentFilterType::None => true,
+        }
 
     })
     .partition(|(k, _v)| {
@@ -530,8 +629,6 @@ fn xml_to_parsed_owl_record_batch(
         || (xml_element.tag == "http://www.w3.org/2002/07/owl#NamedIndividual" && xml_element.attributes.contains_key("rdf:about"))
         || xml_element.tag == "http://www.w3.org/2002/07/owl#Axiom"
     });
-    dbg!(&entities.len());
-    dbg!(&attributes.len());
 
     // Fold into N-Quad arrays
     let (dataset_vec, entity_vec, graph_vec, subject_vec, predicate_vec, object_vec, _counts) = entities
@@ -544,64 +641,35 @@ fn xml_to_parsed_owl_record_batch(
             let xml_element: XMLElement = serde_json::from_str(&element).unwrap();
 
             // Parse the primary OWL Entities
-            if xml_element.tag == "http://www.w3.org/2002/07/owl#Ontology"
-            || xml_element.tag == "http://www.w3.org/2002/07/owl#AnnotationProperty" 
-            || xml_element.tag == "http://www.w3.org/2002/07/owl#DatatypeProperty" 
-            || xml_element.tag == "http://www.w3.org/2002/07/owl#Class" 
-            || xml_element.tag == "http://www.w3.org/2002/07/owl#ObjectProperty" 
-            || xml_element.tag == "http://www.w3.org/2002/07/owl#NamedIndividual" {
-                if let Some(subject) = xml_element.attributes.get("rdf:about") {
-                    let (predicates, objects) = parse_owl_children(&attributes, children).unwrap();
-                    for (predicate, object) in predicates.into_iter().zip(objects) {
-                        acc.0.push(lhs_name.to_string());
-                        acc.1.push(xml_element.tag.to_string());
-                        let graph = format!("{subject}-{predicate}-{object}");
-                        acc.2.push(graph.to_string());
-                        acc.3.push(subject.to_string());
-                        acc.4.push(predicate);
-                        acc.5.push(object);
+            match doc_extraction {
+                DocumentExtractType::Default=> {
+                    if xml_element.tag == "http://www.w3.org/2002/07/owl#Ontology"
+                    || xml_element.tag == "http://www.w3.org/2002/07/owl#AnnotationProperty" 
+                    || xml_element.tag == "http://www.w3.org/2002/07/owl#DatatypeProperty" 
+                    || xml_element.tag == "http://www.w3.org/2002/07/owl#Class" 
+                    || xml_element.tag == "http://www.w3.org/2002/07/owl#ObjectProperty" 
+                    || xml_element.tag == "http://www.w3.org/2002/07/owl#NamedIndividual" {
+                        if let Some(subject) = xml_element.attributes.get("rdf:about") {
+                            extract_owl_objects(lhs_name, &attributes, &xml_element, &subject, children, &mut acc);
+                        }
+                    } else if xml_element.tag == "http://www.w3.org/2002/07/owl#Axiom" {
+                        extract_owl_axiums(lhs_name, &attributes, children, &mut acc);
                     }
                 }
-            } else if xml_element.tag == "http://www.w3.org/2002/07/owl#Axiom" {
-                let (predicates, objects) = parse_owl_children(&attributes, children).unwrap();
-
-                // Determine the subject of the axium
-                let subject_triple = predicates
-                    .iter()
-                    .zip(objects.iter())
-                    .filter_map(|(t, c)| {
-                        if t == "http://www.w3.org/2002/07/owl#annotatedSource"
-                            || t == "http://www.w3.org/2002/07/owl#annotatedProperty"
-                            || t == "http://www.w3.org/2002/07/owl#annotatedTarget"
-                            // || t == "http://purl.obolibrary.org/obo/RO_0002582"
-                            // || t == "http://purl.obolibrary.org/obo/RO_0002581"
-                        {
-                            Some((t.to_string(), c.to_string()))
-                        } else {
-                            None
+                DocumentExtractType::Text | DocumentExtractType::TextEmbeddings => {
+                    // No NamedIndividual nor Axiom
+                    if xml_element.tag == "http://www.w3.org/2002/07/owl#Ontology"
+                    || xml_element.tag == "http://www.w3.org/2002/07/owl#AnnotationProperty" 
+                    || xml_element.tag == "http://www.w3.org/2002/07/owl#DatatypeProperty" 
+                    || xml_element.tag == "http://www.w3.org/2002/07/owl#Class" 
+                    || xml_element.tag == "http://www.w3.org/2002/07/owl#ObjectProperty" {
+                        if let Some(subject) = xml_element.attributes.get("rdf:about") {
+                            extract_owl_objects(lhs_name, &attributes, &xml_element, &subject, children, &mut acc);
                         }
-                    })
-                    .collect::<HashMap<_, _>>();
-                let subject = if subject_triple.len() == 3 {
-                    format!("{}-{}-{}",
-                        subject_triple.get("http://www.w3.org/2002/07/owl#annotatedSource").ok_or(anyhow!("Key `source` missing from Owl:Axiom extracted annotation triples `{:?}`. Available predicates are `{predicates:?}`.", subject_triple.keys())).unwrap(),
-                        subject_triple.get("http://www.w3.org/2002/07/owl#annotatedProperty").ok_or(anyhow!("Key `property` missing from Owl:Axiom extracted annotation triples `{:?}`. Available predicates are `{predicates:?}`.", subject_triple.keys())).unwrap(),
-                        subject_triple.get("http://www.w3.org/2002/07/owl#annotatedTarget").ok_or(anyhow!("Key `target` missing from Owl:Axiom extracted annotation triples `{:?}`. Available predicates are `{predicates:?}`.", subject_triple.keys())).unwrap()
-                    )
-                } else {
-                    subject_triple.into_values().collect::<Vec<_>>().join("-")
-                };
-
-                // Continue extracting the predicate/object pairs
-                for (predicate, object) in predicates.into_iter().zip(objects) {
-                    acc.0.push(lhs_name.to_string());
-                    acc.1.push("http://www.w3.org/2002/07/owl#Axiom".to_string());
-                    let graph = format!("{subject}-{predicate}-{object}");
-                    acc.2.push(graph.to_string());
-                    acc.3.push(subject.to_string());
-                    acc.4.push(predicate);
-                    acc.5.push(object);
-                }
+                    }
+                },
+                DocumentExtractType::Graphics => todo!(),
+                DocumentExtractType::ImageEmbeddings => todo!(),
             }
             acc
         })
@@ -617,6 +685,7 @@ fn xml_to_parsed_owl_record_batch(
                 acc1
             },
         );
+        // DM: non-parallelized version that reduces the size of the objects at each iteration
         // .into_iter()
         // .enumerate()
         // .filter_map(|(i, (element, children))| {
@@ -728,17 +797,21 @@ fn xml_to_parsed_owl_record_batch(
 /// * `lhs_values` - The column to extract data from (i.e., `bytes`)
 /// * `lhs_args` - Slice of [RecordBatch]es
 /// * `format` - The format of the bytes
+/// * `doc_filter` - [DocumentFilterType] Pre-determined list of XML tags to filter from the XML document before extraction
+/// * `doc_extraction` - [DocumentExtractionType] Pre-determined settings to extract objects from the XML document with
 ///
 /// # Notes
 /// * Hierarchical or nested children structures are supported
 /// *
 /// * See <https://github.com/phillord/horned-owl> for a full-fledged OWL parser
-#[instrument(skip(lhs_values, lhs_args, format, device))]
+#[instrument(skip(lhs_values, lhs_args, format, doc_filter, doc_extraction, device))]
 pub fn extract_xml(
     lhs_name: &str,
     lhs_values: &str,
     lhs_args: &[RecordBatch],
     format: &DataFormat,
+    doc_filter: &DocumentFilterType,
+    doc_extraction: &DocumentExtractType,
     device: &Device,
 ) -> Result<RecordBatch> {
     // Extract out the bytes
@@ -758,7 +831,7 @@ pub fn extract_xml(
         DataFormat::Html | DataFormat::Xml => {
             xml_to_parsed_xml_record_batch(parsed, lhs_name, device)
         }
-        DataFormat::Owl => xml_to_parsed_owl_record_batch(parsed, lhs_name, device),
+        DataFormat::Owl => xml_to_parsed_owl_record_batch(parsed, lhs_name, doc_filter, doc_extraction, device),
         _ => Err(anyhow!(
             "Unsupported format {format:?} for extract_set_data operator."
         )),
@@ -863,7 +936,7 @@ mod tests {
         let device = device(false).unwrap();
 
         // Extract the xml tags
-        let extracted = extract_xml("test", "bytes", &[batch], &DataFormat::Xml, &device).unwrap();
+        let extracted = extract_xml("test", "bytes", &[batch], &DataFormat::Xml, &DocumentFilterType::Default, &DocumentExtractType::Default, &device).unwrap();
 
         // Check the contents of the extracted data
         let table = Subject::get_builder()
@@ -1148,7 +1221,7 @@ WHERE {
         let device = device(false).unwrap();
 
         // Extract the xml tags
-        let extracted = extract_xml("test", "bytes", &[batch], &DataFormat::Owl, &device).unwrap();
+        let extracted = extract_xml("test", "bytes", &[batch], &DataFormat::Owl, &DocumentFilterType::Default, &DocumentExtractType::Default, &device).unwrap();
 
         // Check the contents of the extracted data
         let table = Subject::get_builder()

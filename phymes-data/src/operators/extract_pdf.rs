@@ -22,6 +22,8 @@ use crate::{DataConfig, DataOperatorTrait, DocumentExtractType, DocumentFilterTy
 pub struct ExtractPDF {
     lhs_pk: String,
     lhs_values: String,
+    doc_filter: DocumentFilterType,
+    doc_extraction: DocumentExtractType,
 }
 
 impl MappableTrait for ExtractPDF {
@@ -108,7 +110,15 @@ impl DataOperatorTrait for ExtractPDF {
                 "`lhs_values` is empty for `{}`.",
                 Self::get_static_name()
             ))?;
-        Ok(ExtractPDF { lhs_pk, lhs_values })
+        let doc_filter = config.doc_filter.clone().ok_or(anyhow!(
+            "Missing `doc_filter` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        let doc_extraction = config.doc_extraction.clone().ok_or(anyhow!(
+            "Missing `doc_extraction` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        Ok(ExtractPDF { lhs_pk, lhs_values, doc_filter, doc_extraction })
     }
     fn forward(
         &self,
@@ -116,7 +126,7 @@ impl DataOperatorTrait for ExtractPDF {
         _rhs_args: Option<&[RecordBatch]>,
         _device: &Device,
     ) -> Result<RecordBatch> {
-        extract_pdf(&self.lhs_pk, &self.lhs_values, lhs_args, &DocumentFilterType::Default, &DocumentExtractType::Default)
+        extract_pdf(&self.lhs_pk, &self.lhs_values, lhs_args, &self.doc_filter, &self.doc_extraction)
     }
 }
 
@@ -452,8 +462,8 @@ fn extract_pdf_docs(docs: Vec<(String, Document)>, doc_filter: &DocumentFilterTy
 /// Extract text from a PDF document(s) and return it as an ArrowTable
 ///
 /// # Arguments
-/// * `doc_filter` - [PdfFilterType] Pre-determined list of object to filter from the PDF before extraction using [filter_pdf]
-/// * `doc_extraction` - [PdfExtractionType] Pre-determined settings to extract objects from the PDF including
+/// * `doc_filter` - [DocumentFilterType] Pre-determined list of object to filter from the PDF before extraction using [filter_pdf]
+/// * `doc_extraction` - [DocumentExtractionType] Pre-determined settings to extract objects from the PDF including
 ///   text, graphics, embedding_text, embedding_graphics, etc.
 ///
 /// # Returns
@@ -786,10 +796,12 @@ use phymes_subject::{
         );
         assert_eq!(
             subject.get_column_as_vec_str("chunk_id"),
-            ["doc_11PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"abc\\n\" }", 
-            "doc_12PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"abc\\n\" }", 
-            "doc_13PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"456\\n\" }", "doc_21PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"abc\\n\" }", "doc_22PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"abc\\n\" }", 
-            "doc_23PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"456\\n\" }"]);
+            ["doc_11PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }", 
+            "doc_12PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }", 
+            "doc_13PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }", 
+            "doc_21PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }", 
+            "doc_22PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }", 
+            "doc_23PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }"]);
         assert_eq!(
             subject.get_column_as_vec_str("text"),
             ["abc\n", "abc\n", "456\n", "abc\n", "abc\n", "456\n"]
