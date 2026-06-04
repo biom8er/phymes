@@ -952,6 +952,8 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
     extract_owl_p["extract_owl_p"] {
         Boolean cpu "true"
         Utf8 format "Owl"
+        Utf8 doc_filter "Default"
+        Utf8 doc_extraction "Default"
         Utf8 lhs_name "UserScript"
         List-Utf8 lhs_values "['bytes']"
         Utf8 operator "ExtractXML"
@@ -2859,6 +2861,7 @@ mod tests {
                 .with_name(AvailableSubjects::Documents.to_string().as_str())
                 .with_record_batches(batches)?
                 .build()?;
+            dbg!(&subject); // DM: missing properties
             assert_eq!(subject.count_rows(), 3);
             let mut column = subject.get_column_as_vec_str("chunk_id");
             column.sort();

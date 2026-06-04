@@ -726,17 +726,7 @@ impl Default for OpenAlexNetworkBuilder {
         let open_alex_network_builder = open_alex_network_builder.extend(network_builder).unwrap();
 
         // Extract PDF session
-        let extract_pdf_session = ExtractPDFNetworkBuilder::default();
-        let extract_pdf_network_builder = NetworkBuilder::from_mermaid_flowchart(
-            extract_pdf_session.as_mermaid_flowchart(),
-            false,
-        ).unwrap()
-        .with_subjects_from_mermaid_erdiagram(
-            extract_pdf_session.as_mermaid_erdiagram(),
-            false,
-            true,
-        ).unwrap()
-        .with_name(extract_pdf_session.network_name);
+        let extract_pdf_network_builder = ExtractPDFNetworkBuilder::default().inner.take().unwrap();
         let open_alex_network_builder = open_alex_network_builder.extend(extract_pdf_network_builder).unwrap();
 
         // Get Owl ontology network
@@ -872,6 +862,8 @@ impl Default for OpenAlexNetworkBuilder {
                     lhs_name: Some(AvailableInterfaceSubjects::UserScript.to_string()),
                     lhs_values: Some(["bytes"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
                     format: Some(DataFormat::Owl),
+                    doc_filter: Some(phymes_data::DocumentFilterType::Text),
+                    doc_extraction: Some(phymes_data::DocumentExtractType::TextEmbeddings),
                     cpu: false,
                     operator: AvailableOperators::ExtractXML,
                     lhs_stream: DataStreamManager::Stream,

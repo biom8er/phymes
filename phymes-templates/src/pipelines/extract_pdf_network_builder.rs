@@ -1,89 +1,194 @@
+use std::collections::VecDeque;
+
+use phymes_data::{AvailableOperators, DataConfig, DataStreamManager};
+use phymes_processor::AvailableProcessors;
+use phymes_streams::LimitConfig;
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
+use phymes_event::{Publication, Subscription};
+use phymes_network::NetworkBuilder;
+use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
+
+use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
+
 /// A session for extracting and chunking PDF documents
 ///
 /// # Notes
 ///
 /// * Does not yet include image and table extraction
-pub struct ExtractPDFNetworkBuilder<'a> {
-    /// Session
-    pub network_name: &'a str,
+pub struct ExtractPDFNetworkBuilder {
+    pub inner: Option<NetworkBuilder>,
 }
 
-impl<'a> Default for ExtractPDFNetworkBuilder<'a> {
+impl Default for ExtractPDFNetworkBuilder {
     fn default() -> Self {
-        Self {
-            network_name: "extract_pdf_session",
-        }
-    }
-}
+        // Extract the PDF document into metadata, text, and graphics
+        let extract_pdf_network_builder = {
+            let network_name = "extract_pdf";
+            let config = DataConfig {
+                lhs_name: Some(AvailableInterfaceSubjects::UserPdf.to_string()),
+                lhs_pk: Some("filename".to_string()),
+                lhs_values: Some(vec!["bytes".to_string()]),
+                doc_filter: Some(phymes_data::DocumentFilterType::Text),
+                doc_extraction: Some(phymes_data::DocumentExtractType::TextEmbeddings),
+                cpu: false,
+                operator: AvailableOperators::ExtractPDF,
+                lhs_stream: DataStreamManager::Accumulate,
+                ..Default::default()
+            };
+            let config_json = serde_json::to_vec(&config).unwrap();
+            let subject = SubjectBuilder::new()
+                .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                .with_json(&config_json, 1)
+                .unwrap()
+                .build()
+                .unwrap();
+            let subject_processor = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let subject = AvailableInterfaceSubjects::UserPdf
+                .to_subject(None, None)
+                .unwrap();
+            let subject_lhs = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let subject = AvailableSubjects::Bytes
+                .to_subject(Some(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str()), None)
+                .unwrap();
+            let subject_out = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            // DM, todo: Change to AvailableSubject when possible
+            let subject_routes = ["PdfDocumentSubject", "PdfPageSubject", "PdfTextSubject", "PdfGraphicsSubject"].into_iter()
+                .map(|s| {
+                    let subject = AvailableSubjects::Bytes
+                        .to_subject(Some(s), None)
+                        .unwrap();
+                    SubjectPlan::get_builder()
+                        .with_subject(subject)
+                        .build()
+                        .unwrap()
+                })
+                .collect::<Vec<_>>();
+            let builder = DynamicTaskNetworkBuilder {
+                network_name: network_name.to_string(),
+                is_dynamic: false,
+                processor: AvailableProcessors::ExtractPDF,
+                subscription_lhs: Subscription::OnUpdateDrainRecordBatches {
+                    subject_name: subject_lhs.get_name().to_string(),
+                },
+                publication: Publication::Replace {
+                    subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
+                },
+                subject_lhs: Some(subject_lhs),
+                subject_out: Some(subject_out),
+                subject_processor,
+                subject_routes: Some(subject_routes),
+                ..Default::default()
+            };
+            builder.build_dynamic()
+        };
 
-impl<'a> ExtractPDFNetworkBuilder<'a> {
-    /// Return the Mermaid.js flowchart representation of the session
-    pub fn as_mermaid_flowchart(&self) -> &str {
-        r#"flowchart TD
-	%% ------------------------------------------------------------------------------
-	%% PDF document extraction
-	%% ------------------------------------------------------------------------------
-	subgraph extract_pdf_t
-		UserPdf-subject-.->|OnUpdateDrainRecordBatches|extract_pdf_p-subscribe
-		extract_pdf_p-subscribe-->extract_pdf_p-processor
-		extract_pdf_p-processor-->extract_pdf_p-publish
-		extract_pdf_p-publish-->|Extend|extract_pdf_s-subject
-		extract_pdf_s-subject-->|AllRecordBatches|chunk_documents_p-subscribe
-		chunk_documents_p-subscribe-->chunk_documents_p-processor
-		chunk_documents_p-processor-->chunk_documents_p-publish
-		chunk_documents_p-publish-->|Extend|Documents-subject
-	end
-	extract_pdf_r-rt@{shape: subproc, label: extract_pdf_r}
-	extract_pdf_r-rt-->extract_pdf_t
-	UserPdf-subject@{shape: doc, label: UserPdf}
-	extract_pdf_p-processor@{shape: rect, label: ExtractPDF}
-	extract_pdf_p-publish@{shape: fork}
-	extract_pdf_p-subscribe@{shape: diamond, label: All}
-	extract_pdf_s-subject@{shape: doc, label: chunk_documents_task_1}
-	chunk_documents_p-processor@{shape: rect, label: ChunkDocuments}
-	chunk_documents_p-publish@{shape: fork}
-	chunk_documents_p-subscribe@{shape: diamond, label: All}
-	Documents-subject@{shape: doc, label: Documents}
-	%% ------------------------------------------------------------------------------"#
-    }
-    /// Return the Mermaid.js ER diagram representation of the session
-    pub fn as_mermaid_erdiagram(&self) -> &str {
-        r#"erDiagram
-    UserPdf["UserPdf"] {
-        Utf8 filename
-        Utf8 extension
-        List-UInt8 bytes
-        Utf8 metadata
-        Int64 timestamp
-    }
-    extract_pdf_p["extract_pdf_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "UserPdf"
-        Utf8 lhs_pk "filename"
-        List-Utf8 lhs_values "['bytes']"
-        Utf8 operator "ExtractPDF"
-        Utf8 lhs_stream "Accumulate"
-    }
-    extract_pdf_s["extract_pdf_s"] {
-        Utf8 chunk_id
-        Utf8 document_id
-        Utf8 text
-    }
-    chunk_documents_p["chunk_documents_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_fk "document_id"
-        Utf8 lhs_name "extract_pdf_s"
-        Utf8 lhs_pk "chunk_id"
-        List-Utf8 lhs_values "['text']"
-        Utf8 parser "SentenceSplitter"
-        Utf8 operator "ChunkDocuments"
-        Utf8 lhs_stream "Accumulate"
-    }
-	Documents["Documents"] {
-        Utf8 chunk_id
-        Utf8 document_id
-        Utf8 text
-	}"#
+        // Chunk the text data for embedding
+        let network_builder = {
+            let task_name = "chunk_pdf_text";
+            let mut tasks = VecDeque::new();
+            {
+                let network_name = "coalesce_pdf_text";
+                let subject_name_lhs = "PdfTextSubject";
+                let config = LimitConfig {
+                    fetch: 512,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: task_name.to_string(),
+                    is_dynamic: false,
+                    processor: AvailableProcessors::CoalesceProcessor,
+                    subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                        subject_name: subject_name_lhs.to_string(),
+                    },
+                    publication: Publication::Replace {
+                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
+                    },
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);                
+            }
+            {
+                let network_name = "split_pdf_text";
+                let config = DataConfig {
+                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
+                    lhs_pk: Some("chunk_id".to_string()),
+                    lhs_fk: Some("document_id".to_string()),
+                    lhs_values: Some(vec!["text".to_string()]),
+                    parser: Some(phymes_data::AvailableParsers::SentenceSplitter),
+                    cpu: false,
+                    operator: AvailableOperators::ChunkDocuments,
+                    lhs_stream: DataStreamManager::Stream,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let subject = AvailableSubjects::Documents
+                    .to_subject(None, None)
+                    .unwrap();
+                let subject_out = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: task_name.to_string(),
+                    is_dynamic: false,
+                    processor: AvailableProcessors::ChunkDocuments,
+                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
+                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                    },
+                    publication: Publication::Replace {
+                        subject_name: subject_out.get_name().to_string(),
+                    },
+                    subject_out: Some(subject_out),
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder); 
+            }
+            let mut network_builder = tasks.pop_front().unwrap().build_dynamic();
+            while let Some(task) = tasks.pop_front() {
+                network_builder = network_builder.extend(task.build_dynamic()).unwrap();
+            }
+            network_builder
+        };
+        let extract_pdf_network_builder = extract_pdf_network_builder.extend(network_builder).unwrap();
+
+        // Chunk the graphics data for embedding
+        // DM, TODO
+
+        Self {
+            inner: Some(extract_pdf_network_builder.with_name("extract_pdf_network")),
+        }
     }
 }
 
@@ -97,39 +202,38 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
-        NetworkStreamStep, NetworkStreamStepTrait,
+        NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait, NetworkStreamStep, NetworkStreamStepTrait
     };
     use phymes_schemas::{
         AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjects,
         AvailableSubjectsTrait,
     };
     use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait
     };
     use phymes_task::SubscriptionTrait;
 
-    use super::*;
+    use crate::{extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
+
+use super::*;
 
     #[tokio::test]
     async fn test_extract_pdf_network() -> Result<()> {
         // Initialize the session
-        let extract_pdf_session = ExtractPDFNetworkBuilder::default();
-        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            extract_pdf_session.as_mermaid_flowchart(),
-            false,
-        )?
-        .with_subjects_from_mermaid_erdiagram(
-            extract_pdf_session.as_mermaid_erdiagram(),
-            false,
-            true,
-        )?
-        .with_name(extract_pdf_session.network_name)
-        .with_diagnostics(true)
-        .add_processor_subjects()?
-        .add_next_tasks()?
-        .add_next_supersteps()?
-        .build_with_tables()?;
+        let extract_pdf_network_builder = ExtractPDFNetworkBuilder::default().inner.take().unwrap();
+        dbg!(extract_pdf_network_builder.with_runtime_env(Arc::new(RuntimeEnv::default())).to_mermaid_flowchart(false, false)?);
+        let extract_pdf_network_builder = ExtractPDFNetworkBuilder::default().inner.take().unwrap();
+        let network_name = extract_pdf_network_builder.name.clone().unwrap();
+        let (network, session_messages) = extract_pdf_network_builder
+            .with_runtime_env(RuntimeEnv::get_builder()
+                .with_name(DynamicTaskNetworkNames::RuntimeEnv(&network_name).to_string().as_str())
+                .with_max_steps(100)
+                .build_arc()?)
+            .with_diagnostics(true)
+            .add_processor_subjects()?
+            .add_next_tasks()?
+            .add_next_supersteps()?
+            .build_with_tables()?;
         let network_arc = Arc::new(network);
 
         // Create the document message
@@ -154,7 +258,7 @@ mod tests {
             .with_update(&Publication::Extend {
                 subject_name: blob.get_name().to_string(),
             })
-            .with_publisher(extract_pdf_session.network_name)
+            .with_publisher(&network_name)
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![blob_message]);
@@ -162,37 +266,181 @@ mod tests {
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
 
-        // Run the first superstep
+        // Run the network
         let response = NetworkStreamStep::run_superstep(Arc::clone(&network_arc), message_map)
             .await?
             .unwrap();
 
+        let extended_diagnostic_subjects = extended_diagnostic_subjects();
+        let subject_names = extended_diagnostic_subjects
+            .iter()
+            .map(|s| s.as_str())
+            .chain(["Documents"])
+            .collect::<Vec<_>>();
+        write_diagnostic_subjects_to_csv(
+            &subject_names, 
+            network_arc.runtime_env(), 
+            network_arc.get_name())
+            .await?;
+
         assert_eq!(response.len(), 0);
 
-        {
-            // Test supsersteps
-            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                subject_name: AvailableSubjects::Documents.to_string(),
-            }
-            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
-            let subject = Subject::get_builder()
-                .with_name(AvailableSubjects::Documents.to_string().as_str())
-                .with_record_batches(batches)?
-                .build()?;
-            assert_eq!(subject.count_rows(), 4);
-            let column = subject.get_column_as_vec_str("chunk_id");
-            assert_eq!(column.first().unwrap(), &"WikiBioComponents_1_0");
-            assert_eq!(column.last().unwrap(), &"WikiBioComponents_4_0");
-            let column = subject.get_column_as_vec_str("document_id");
-            assert_eq!(column.first().unwrap(), &"WikiBioComponents");
-            assert_eq!(column.last().unwrap(), &"WikiBioComponents");
-            let column = subject.get_column_as_vec_str("text");
-            assert!(column.first().is_some());
-            assert!(column.last().is_some());
+        // Test supsersteps
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "PdfDocumentSubject".to_string(),
         }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name("PdfDocumentSubject")
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 1);
+        let column = subject.get_column_as_vec_str("document_id");
+        assert_eq!(column.first().unwrap(), &"WikiBioComponents");
+        let column = subject.get_column_as_vec_str("version");
+        assert_eq!(column.first().unwrap(), &"");
+        let column = subject.get_column_as_vec_str("author");
+        assert_eq!(column.first().unwrap(), &"");
+        let column = subject.get_column_as_vec_str("title");
+        assert_eq!(column.first().unwrap(), &"");
+        let column = subject.get_column_as_vec_primitive::<i64>("creation_date")?;
+        assert_eq!(column.first().unwrap(), &0);
+        let column = subject.get_column_as_vec_primitive::<i64>("modification_date")?;
+        assert_eq!(column.first().unwrap(), &0);
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "PdfPageSubject".to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name("PdfPageSubject")
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 4);
+        let column = subject.get_column_as_vec_str("document_id");
+        assert_eq!(column.first().unwrap(), &"WikiBioComponents");
+        assert_eq!(column.last().unwrap(), &"WikiBioComponents");
+        let column = subject.get_column_as_vec_str("units");
+        assert_eq!(column.first().unwrap(), &"");
+        assert_eq!(column.last().unwrap(), &"");
+        let column = subject.get_column_as_vec_primitive::<u32>("page_number")?;
+        assert_eq!(column.first().unwrap(), &1);
+        assert_eq!(column.last().unwrap(), &4);
+        let column = subject.get_column_as_vec_primitive::<f32>("width")?;
+        assert_eq!(column.first().unwrap(), &0_f32);
+        assert_eq!(column.last().unwrap(), &0_f32);
+        let column = subject.get_column_as_vec_primitive::<f32>("height")?;
+        assert_eq!(column.first().unwrap(), &0_f32);
+        assert_eq!(column.last().unwrap(), &0_f32);
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "PdfTextSubject".to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name("PdfTextSubject")
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 4);
+        let column = subject.get_column_as_vec_str("chunk_id");
+        assert_eq!(column.first().unwrap(), &"WikiBioComponents1PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }");
+        assert_eq!(column.last().unwrap(), &"WikiBioComponents4PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }");
+        let column = subject.get_column_as_vec_str("document_id");
+        assert_eq!(column.first().unwrap(), &"WikiBioComponents");
+        assert_eq!(column.last().unwrap(), &"WikiBioComponents");
+        let column = subject.get_column_as_vec_str("text");
+        assert_eq!(column.first().unwrap(), &"Proteins are large biomolecules and macromolecules that comprise one or more long chains of amino acid residues. Proteins perform a vast array of functions within organisms, including catalysing metabolic reactions, DNA replication, responding to stimuli, providing structure to cells and organisms, and transporting molecules from one location to another. Proteins differ from one another primarily in their sequence of amino acids, which is dictated by the nucleotide sequence of their genes, and which usually results in protein folding into a specific 3D structure that determines its activity.A linear chain of amino acid residues is called a polypeptide. A protein contains at least one long polypeptide. Short polypeptides, containing less than 2030 residues, are rarely considered to be proteins and are commonly called peptides. The individual amino acid residues are bonded together by peptide bonds and adjacent amino acid residues. The sequence of amino acid residues in a protein is defined by the sequence of a gene, which is encoded in the genetic code. In general, the genetic code specifies 20 standard amino acids; but in certain organisms the genetic code can include selenocysteine andin certain archaeapyrrolysine. Shortly after or even during synthesis, the residues in a protein are often chemically modified by post-translational modification, which alters the physical and chemical properties, folding, stability, activity, and ultimately, the function of the proteins. Some proteins have non-peptide groups attached, which can be called prosthetic groups or cofactors. Proteins can work together to achieve a particular function, and they often associate to form stable protein complexes.Once formed, proteins only exist for a certain period and are then degraded and recycled by the cell’s machinery through the process of protein turnover. A protein’s lifespan is measured in terms of its half-life and covers a wide range. They can exist for minutes or years with an average lifespan of 1-2 days in mammalian cells. Abnormal or misfolded proteins are degraded more rapidly either due to being targeted for destruction or due to being unstable.Like other biological macromolecules such as polysaccharides and nucleic acids, proteins are essential parts of organisms and participate in virtually every process within cells. Many proteins are enzymes that catalyse biochemical reactions and are vital to metabolism. Some proteins have structural or mechanical functions, such as actin and myosin in muscle, and the cytoskeleton’s scaffolding proteins that maintain cell shape. Other proteins are important in cell signaling, immune responses, cell adhesion, and the cell cycle. In animals, proteins are needed in the diet to provide the essential amino acids that cannot be synthesized. Digestion breaks the proteins down for metabolic use.\n");
+        assert_eq!(column.last().unwrap(), &"The cell is the basic structural and functional unit of all forms of life. Every cell consists of cytoplasm enclosed within a membrane; many cells contain organelles, each with a specific function. The term comes from the Latin word cellula meaning ’small room’. Most cells are only visible under a microscope. Cells emerged on Earth about 4 billion years ago. All cells are capable of replication, protein synthesis, and motility.Cells are broadly categorized into two types: eukaryotic cells, which possess a nucleus, and prokaryotic cells, which lack a nucleus but have a nucleoid region. Prokaryotes are single-celled organisms such as bacteria, whereas eukaryotes can be either single-celled, such as amoebae, or multicellular, such as some algae, plants, animals, and fungi. Eukaryotic cells contain organelles including mitochondria, which provide energy for cell functions, chloroplasts, which in plants create sugars by photosynthesis, and ribosomes, which synthesise proteins.Cells were discovered by Robert Hooke in 1665, who named them after their resemblance to cells inhabited by Christian monks in a monastery. Cell theory, developed in 1839 by Matthias Jakob Schleiden and Theodor Schwann, states that all organisms are composed of one or more cells, that cells are the fundamental unit of structure and function in all living organisms, and that all cells come from pre-existing cells.\n");
+        let column = subject.get_column_as_vec_primitive::<u32>("op")?;
+        assert_eq!(column.first().unwrap(), &4);
+        assert_eq!(column.last().unwrap(), &4);
+        let column = subject.get_column_as_vec_primitive::<u32>("bt")?;
+        assert_eq!(column.first().unwrap(), &0);
+        assert_eq!(column.last().unwrap(), &0);
+        let column = subject.get_column_as_vec_primitive::<u32>("page_number")?;
+        assert_eq!(column.first().unwrap(), &1);
+        assert_eq!(column.last().unwrap(), &4);
+        let column = subject.get_column_as_vec_primitive::<i64>("font_size")?;
+        assert_eq!(column.first().unwrap(), &48);
+        assert_eq!(column.last().unwrap(), &48);
+        let column = subject.get_column_as_vec_primitive::<f32>("tm_a")?;
+        assert_eq!(column.first().unwrap(), &1_f32);
+        assert_eq!(column.last().unwrap(), &1_f32);
+        let column = subject.get_column_as_vec_primitive::<f32>("tm_b")?;
+        assert_eq!(column.first().unwrap(), &0_f32);
+        assert_eq!(column.last().unwrap(), &0_f32);
+        let column = subject.get_column_as_vec_primitive::<f32>("tm_c")?;
+        assert_eq!(column.first().unwrap(), &0_f32);
+        assert_eq!(column.last().unwrap(), &0_f32);
+        let column = subject.get_column_as_vec_primitive::<f32>("tm_d")?;
+        assert_eq!(column.first().unwrap(), &1_f32);
+        assert_eq!(column.last().unwrap(), &1_f32);
+        let column = subject.get_column_as_vec_primitive::<f32>("tm_x")?;
+        assert_eq!(column.first().unwrap(), &0_f32);
+        assert_eq!(column.last().unwrap(), &0_f32);
+        let column = subject.get_column_as_vec_primitive::<f32>("tm_y")?;
+        assert_eq!(column.first().unwrap(), &0_f32);
+        assert_eq!(column.last().unwrap(), &0_f32);
+        let column = subject.get_column_as_vec_primitive::<i64>("td_x")?;
+        assert_eq!(column.first().unwrap(), &0);
+        assert_eq!(column.last().unwrap(), &0);
+        let column = subject.get_column_as_vec_primitive::<i64>("td_y")?;
+        assert_eq!(column.first().unwrap(), &0);
+        assert_eq!(column.last().unwrap(), &0);
+        let column = subject.get_column_as_vec_str("font_name");
+        assert_eq!(column.first().unwrap(), &"F1");
+        assert_eq!(column.last().unwrap(), &"F1");
+        let column = subject.get_column_as_vec_str("font_subtype");
+        assert_eq!(column.first().unwrap(), &"Courier");
+        assert_eq!(column.last().unwrap(), &"Courier");
+        let column = subject.get_column_as_vec_str("base_font");
+        assert_eq!(column.first().unwrap(), &"Type1");
+        assert_eq!(column.last().unwrap(), &"Type1");
+
+        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+        //     subject_name: "PdfGraphicsSubject".to_string(),
+        // }
+        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        // .unwrap()
+        // .try_collect()
+        // .await?;
+        // let subject = Subject::get_builder()
+        //     .with_name("PdfGraphicsSubject")
+        //     .with_record_batches(batches)?
+        //     .build()?;
+        // dbg!(subject.count_rows());
+        // // assert_eq!(subject.count_rows(), 0);
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::Documents.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::Documents.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 4);
+        let column = subject.get_column_as_vec_str("chunk_id");
+        assert_eq!(column.first().unwrap(), &"WikiBioComponents_1_0");
+        assert_eq!(column.last().unwrap(), &"WikiBioComponents_4_0");
+        let column = subject.get_column_as_vec_str("document_id");
+        assert_eq!(column.first().unwrap(), &"WikiBioComponents");
+        assert_eq!(column.last().unwrap(), &"WikiBioComponents");
+        let column = subject.get_column_as_vec_str("text");
+        assert!(column.first().is_some());
+        assert!(column.last().is_some());
         Ok(())
     }
 }
