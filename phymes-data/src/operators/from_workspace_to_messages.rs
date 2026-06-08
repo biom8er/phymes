@@ -32,7 +32,7 @@ impl DataOperatorTrait for FromWorkspaceToMessages {
         from_workspace_to_messages(lhs_args, &self.code_completion, device)
     }
     fn new(config: &DataConfig) -> Result<Self> {
-        let code_completion = config.code_completion.clone().ok_or(anyhow!(
+        let code_completion = config.code_completion.ok_or(anyhow!(
             "Missing `code_completion` for `{}`.",
             Self::get_static_name()
         ))?;
@@ -170,8 +170,8 @@ pub fn from_workspace_to_messages(
     // Create the prompt
     let prompt_vec: Result<Vec<String>> = repository_vec
         .into_iter()
-        .zip(path_vec.into_iter())
-        .zip(content_vec.into_iter())
+        .zip(path_vec)
+        .zip(content_vec)
         .enumerate()
         .map(|(i, ((r, p), c))| {
             // Create the string

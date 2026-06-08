@@ -222,11 +222,7 @@ fn extract_text_chunks(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfTe
                 std::result::Result::Ok(text_chunks) => text_chunks
                     .into_iter()
                     .filter_map(|x| {
-                        if let std::result::Result::Ok(x) = x {
-                            Some(x)
-                        } else {
-                            None
-                        }
+                        x.ok()
                     })
                     .map(Ok)
                     .collect::<Vec<_>>(),
@@ -310,7 +306,7 @@ fn extract_text_chunks_from_page(
                     .map(|f| f.as_f32().unwrap_or_default())
                     .collect::<Vec<_>>();
                 let tm = PdfTm::new(
-                    m.get(0).unwrap_or(&1_f32),
+                    m.first().unwrap_or(&1_f32),
                     m.get(1).unwrap_or(&0_f32),
                     m.get(2).unwrap_or(&0_f32),
                     m.get(3).unwrap_or(&1_f32),
@@ -331,7 +327,7 @@ fn extract_text_chunks_from_page(
                     .iter()
                     .map(|f| f.as_i64().unwrap_or_default())
                     .collect::<Vec<_>>();
-                let td = PdfTd::new(d.get(0).unwrap_or(&0_i64), d.get(1).unwrap_or(&0_i64));
+                let td = PdfTd::new(d.first().unwrap_or(&0_i64), d.get(1).unwrap_or(&0_i64));
                 current_text.td = td;
             }
             "Tf" => {
@@ -371,15 +367,12 @@ fn extract_text_chunks_from_page(
                     current_text.text_mut().clear();
                 }
             }
-            "Tj" | "TJ" => match current_encoding {
-                Some(encoding) => {
-                    let res = collect_text(current_text.text_mut(), encoding, &operation.operands);
-                    if let Err(err) = res {
-                        let err = anyhow!("{err:?}");
-                        collected_chunks_and_errs.push(Err(err));
-                    }
+            "Tj" | "TJ" => if let Some(encoding) = current_encoding {
+                let res = collect_text(current_text.text_mut(), encoding, &operation.operands);
+                if let Err(err) = res {
+                    let err = anyhow!("{err:?}");
+                    collected_chunks_and_errs.push(Err(err));
                 }
-                None => {}
             },
             "ET" => {
                 if !current_text.text.ends_with('\n') {
@@ -680,10 +673,7 @@ fn prepare_pdf_documents(
                         .iter()
                         .map(|v| v.unwrap())
                         .collect::<Vec<u8>>();
-                    match load_pdf_document(&bytes) {
-                        std::result::Result::Ok(doc) => Some(doc),
-                        Err(_err) => None,
-                    }
+                    load_pdf_document(&bytes).ok()
                 })
                 .collect::<Vec<_>>();
             zip(document_id, pdf_data)
@@ -728,7 +718,7 @@ pub fn make_pdf_document_page_per_content(contents: &[&str], page_per_content: b
         }
     } else {
         let operations = contents
-            .into_iter()
+            .iter()
             .flat_map(|content_str| {
                 vec![
                     Operation::new("BT", vec![]),
@@ -740,7 +730,7 @@ pub fn make_pdf_document_page_per_content(contents: &[&str], page_per_content: b
             })
             .collect::<Vec<_>>();
         let content = Content {
-            operations: operations,
+            operations,
         };
         let content_id = doc.add_object(Stream::new(dictionary! {}, content.encode().unwrap()));
         let page_id = doc.add_object(dictionary! {

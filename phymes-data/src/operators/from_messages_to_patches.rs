@@ -34,7 +34,7 @@ impl DataOperatorTrait for FromMessagesToPatches {
         from_messages_to_patches(lhs_args, &self.code_completion, device)
     }
     fn new(config: &DataConfig) -> Result<Self> {
-        let code_completion = config.code_completion.clone().ok_or(anyhow!(
+        let code_completion = config.code_completion.ok_or(anyhow!(
             "Missing `code_completion` for `{}`.",
             Self::get_static_name()
         ))?;

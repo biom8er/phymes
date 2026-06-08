@@ -34,7 +34,7 @@ impl SearchAndReplaceDiff {
 /// Parse a fill-in-the-middle Output diff generated from a fill-in-the-middle coding LLM
 pub fn parse_fill_in_the_middle_output(input: &str) -> Vec<SearchAndReplaceDiff> {
     // Extract the filename (should be first line)
-    let filename = input.split_whitespace().into_iter().collect::<Vec<_>>();
+    let filename = input.split_whitespace().collect::<Vec<_>>();
     let filename = filename.first().unwrap();
 
     // Extract the middle
@@ -44,7 +44,7 @@ pub fn parse_fill_in_the_middle_output(input: &str) -> Vec<SearchAndReplaceDiff>
     let diff =
         format!("{BEGIN_SEARCH}<|fim_suffix|>{END_SEARCH_BEGIN_REPLACE}{middle}{END_REPLACE}");
 
-    let prefix = create_fill_in_the_middle_prefix_diff(*filename);
+    let prefix = create_fill_in_the_middle_prefix_diff(filename);
     let suffix = SearchAndReplaceDiff::new(filename, &diff);
     vec![prefix, suffix]
 }

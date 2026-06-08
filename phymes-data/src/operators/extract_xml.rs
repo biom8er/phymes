@@ -487,6 +487,16 @@ fn children_to_po(
     Ok(po)
 }
 
+type AccHelper = (
+    Vec<String>,
+    Vec<String>,
+    Vec<String>,
+    Vec<String>,
+    Vec<String>,
+    Vec<String>,
+    i32,
+);
+
 /// Helper function to extract owl objects
 fn extract_owl_objects(
     lhs_name: &str,
@@ -494,17 +504,9 @@ fn extract_owl_objects(
     xml_element: &XMLElement,
     subject: &str,
     children: Vec<(XMLType, String)>,
-    acc: &mut (
-        Vec<String>,
-        Vec<String>,
-        Vec<String>,
-        Vec<String>,
-        Vec<String>,
-        Vec<String>,
-        i32,
-    ),
+    acc: &mut AccHelper,
 ) {
-    let (predicates, objects) = parse_owl_children(&attributes, children).unwrap();
+    let (predicates, objects) = parse_owl_children(attributes, children).unwrap();
     for (predicate, object) in predicates.into_iter().zip(objects) {
         acc.0.push(lhs_name.to_string());
         acc.1.push(xml_element.tag.to_string());
@@ -516,22 +518,14 @@ fn extract_owl_objects(
     }
 }
 
-/// Helper function to extract owl axiums
+/// Helper function to extract owl axioms
 fn extract_owl_axiums(
     lhs_name: &str,
     attributes: &HashMap<String, Vec<(XMLType, String)>>,
     children: Vec<(XMLType, String)>,
-    acc: &mut (
-        Vec<String>,
-        Vec<String>,
-        Vec<String>,
-        Vec<String>,
-        Vec<String>,
-        Vec<String>,
-        i32,
-    ),
+    acc: &mut AccHelper,
 ) {
-    let (predicates, objects) = parse_owl_children(&attributes, children).unwrap();
+    let (predicates, objects) = parse_owl_children(attributes, children).unwrap();
 
     // Determine the subject of the axium
     let subject_triple = predicates
@@ -694,7 +688,7 @@ fn xml_to_parsed_owl_record_batch(
                                         lhs_name,
                                         &attributes,
                                         &xml_element,
-                                        &subject,
+                                        subject,
                                         children,
                                         &mut acc,
                                     );
@@ -705,25 +699,23 @@ fn xml_to_parsed_owl_record_batch(
                         }
                         DocumentExtractType::Text | DocumentExtractType::TextEmbeddings => {
                             // No NamedIndividual nor Axiom
-                            if xml_element.tag == "http://www.w3.org/2002/07/owl#Ontology"
+                            if (xml_element.tag == "http://www.w3.org/2002/07/owl#Ontology"
                                 || xml_element.tag
                                     == "http://www.w3.org/2002/07/owl#AnnotationProperty"
                                 || xml_element.tag
                                     == "http://www.w3.org/2002/07/owl#DatatypeProperty"
                                 || xml_element.tag == "http://www.w3.org/2002/07/owl#Class"
-                                || xml_element.tag == "http://www.w3.org/2002/07/owl#ObjectProperty"
-                            {
-                                if let Some(subject) = xml_element.attributes.get("rdf:about") {
+                                || xml_element.tag == "http://www.w3.org/2002/07/owl#ObjectProperty")
+                                && let Some(subject) = xml_element.attributes.get("rdf:about") {
                                     extract_owl_objects(
                                         lhs_name,
                                         &attributes,
                                         &xml_element,
-                                        &subject,
+                                        subject,
                                         children,
                                         &mut acc,
                                     );
                                 }
-                            }
                         }
                         DocumentExtractType::Graphics => todo!(),
                         DocumentExtractType::ImageEmbeddings => todo!(),

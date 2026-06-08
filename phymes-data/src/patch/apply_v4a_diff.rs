@@ -12,6 +12,7 @@
 /// HunkLine  := (" " | "-" | "+") text NEWLINE
 ///
 /// # Example
+/// ```txt
 /// *** Begin Patch
 /// *** Update File: src/auth/middleware.ts
 /// @@ export function validateToken(
@@ -25,7 +26,7 @@
 /// +    logger.warn('Token validation failed');
 /// +    return false;
 /// +  }
-///  }
+/// }
 /// *** Add File: src/auth/__tests__/middleware.test.ts
 /// +import { validateToken } from '../middleware';
 /// +
@@ -35,6 +36,7 @@
 /// +  });
 /// +});
 /// *** End Patch
+/// ```
 use anyhow::{Error, Result, anyhow};
 use std::fmt;
 
