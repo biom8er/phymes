@@ -152,6 +152,42 @@ impl Default for ExtractPDFNetworkBuilder {
                     .with_subject(subject)
                     .build()
                     .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: task_name.to_string(),
+                    is_dynamic: false,
+                    processor: AvailableProcessors::ChunkDocuments,
+                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
+                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                    },
+                    publication: Publication::Replace {
+                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
+                    },
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder); 
+            }
+            {
+                let network_name = "select_pdf_text";
+                let config = DataConfig {
+                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
+                    lhs_values: Some(["chunk_id","document_id","text"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    cpu: false,
+                    operator: AvailableOperators::Select,
+                    lhs_stream: DataStreamManager::Stream,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
                 let subject = AvailableSubjects::Documents
                     .to_subject(None, None)
                     .unwrap();
@@ -162,7 +198,7 @@ impl Default for ExtractPDFNetworkBuilder {
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
                     is_dynamic: false,
-                    processor: AvailableProcessors::ChunkDocuments,
+                    processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
                     },
@@ -173,7 +209,7 @@ impl Default for ExtractPDFNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder); 
+                tasks.push_back(builder);                
             }
             let mut network_builder = tasks.pop_front().unwrap().build_dynamic();
             while let Some(task) = tasks.pop_front() {
@@ -199,11 +235,10 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_data::make_pdf_document_page_per_content;
+    use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
-    use phymes_network::{
-        NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait, NetworkStreamStep, NetworkStreamStepTrait
-    };
+    use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
     use phymes_schemas::{
         AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjects,
         AvailableSubjectsTrait,
@@ -220,8 +255,6 @@ use super::*;
     #[tokio::test]
     async fn test_extract_pdf_network() -> Result<()> {
         // Initialize the session
-        let extract_pdf_network_builder = ExtractPDFNetworkBuilder::default().inner.take().unwrap();
-        dbg!(extract_pdf_network_builder.with_runtime_env(Arc::new(RuntimeEnv::default())).to_mermaid_flowchart(false, false)?);
         let extract_pdf_network_builder = ExtractPDFNetworkBuilder::default().inner.take().unwrap();
         let network_name = extract_pdf_network_builder.name.clone().unwrap();
         let (network, session_messages) = extract_pdf_network_builder
@@ -267,9 +300,8 @@ use super::*;
             .await;
 
         // Run the network
-        let response = NetworkStreamStep::run_superstep(Arc::clone(&network_arc), message_map)
-            .await?
-            .unwrap();
+        let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         let extended_diagnostic_subjects = extended_diagnostic_subjects();
         let subject_names = extended_diagnostic_subjects
@@ -433,8 +465,8 @@ use super::*;
             .build()?;
         assert_eq!(subject.count_rows(), 4);
         let column = subject.get_column_as_vec_str("chunk_id");
-        assert_eq!(column.first().unwrap(), &"WikiBioComponents_1_0");
-        assert_eq!(column.last().unwrap(), &"WikiBioComponents_4_0");
+        assert_eq!(column.first().unwrap(), &"WikiBioComponents1PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_0");
+        assert_eq!(column.last().unwrap(), &"WikiBioComponents4PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_0");
         let column = subject.get_column_as_vec_str("document_id");
         assert_eq!(column.first().unwrap(), &"WikiBioComponents");
         assert_eq!(column.last().unwrap(), &"WikiBioComponents");
