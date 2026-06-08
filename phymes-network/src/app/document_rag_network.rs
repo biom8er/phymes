@@ -777,6 +777,8 @@ impl NetworkBuilderCustomTrait for DocumentRAGNetwork<'_> {
             lhs_name: Some(AvailableInterfaceSubjects::UserPdf.to_string()),
             lhs_pk: Some("filename".to_string()),
             lhs_values: Some(vec!["bytes".to_string()]),
+            doc_filter: Some(phymes_data::DocumentFilterType::Text),
+            doc_extraction: Some(phymes_data::DocumentExtractType::TextEmbeddings),
             operator: AvailableOperators::ExtractPDF,
             ..Default::default()
         };

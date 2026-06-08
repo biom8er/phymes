@@ -847,7 +847,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    concat_cols_object_property_entity_p-subscribe-->concat_cols_object_property_entity_p-processor
 	    concat_cols_object_property_entity_p-processor-->concat_cols_object_property_entity_p-publish
 	    concat_cols_object_property_entity_p-publish-->|Replace|concat_cols_object_property_entity_s-subject
-	    concat_cols_object_property_entity_s-subject-.->|AllRecordBatches|select_cols_object_property_entity_p-subscribe
+	    concat_cols_object_property_entity_s-subject-->|AllRecordBatches|select_cols_object_property_entity_p-subscribe
 	    select_cols_object_property_entity_p-subscribe-->select_cols_object_property_entity_p-processor
 	    select_cols_object_property_entity_p-processor-->select_cols_object_property_entity_p-publish
 	    select_cols_object_property_entity_p-publish-->|Replace|select_cols_object_property_entity_s-subject

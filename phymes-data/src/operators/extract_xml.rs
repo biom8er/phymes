@@ -519,7 +519,7 @@ fn extract_owl_objects(
 }
 
 /// Helper function to extract owl axioms
-fn extract_owl_axiums(
+fn extract_owl_axioms(
     lhs_name: &str,
     attributes: &HashMap<String, Vec<(XMLType, String)>>,
     children: Vec<(XMLType, String)>,
@@ -694,7 +694,7 @@ fn xml_to_parsed_owl_record_batch(
                                     );
                                 }
                             } else if xml_element.tag == "http://www.w3.org/2002/07/owl#Axiom" {
-                                extract_owl_axiums(lhs_name, &attributes, children, &mut acc);
+                                extract_owl_axioms(lhs_name, &attributes, children, &mut acc);
                             }
                         }
                         DocumentExtractType::Text | DocumentExtractType::TextEmbeddings => {
