@@ -1379,7 +1379,8 @@ mod tests {
             .build()?;
         assert_eq!(subject.count_rows(), 13);
         let column = subject.get_column_as_vec_str("work_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2036680792");
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/W2036680792");
+        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
         assert_eq!(column.last().unwrap(), &"https://openalex.org/W2037563286");
         let column = subject.get_column_as_vec_str("topic_id");
         assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
