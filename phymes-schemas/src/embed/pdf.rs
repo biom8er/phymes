@@ -58,15 +58,16 @@ impl Default for PdfTm {
 
 fn create_pdf_tm_fields_vec() -> Vec<Field> {
     let field_names = ["tm_a", "tm_b", "tm_c", "tm_d", "tm_x", "tm_y"];
-    let fields_vec = field_names
+    
+    field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Float32, false))
-        .collect::<Vec<_>>();
-    fields_vec
+        .collect::<Vec<_>>()
 }
 
 /// PdfTm
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct PdfTd {
     /// pos x
     pub x: i64,
@@ -80,19 +81,14 @@ impl PdfTd {
     }
 }
 
-impl Default for PdfTd {
-    fn default() -> Self {
-        Self { x: 0_i64, y: 0_i64 }
-    }
-}
 
 fn create_pdf_td_fields_vec() -> Vec<Field> {
     let field_names = ["td_x", "td_y"];
-    let fields_vec = field_names
+    
+    field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Int64, false))
-        .collect::<Vec<_>>();
-    fields_vec
+        .collect::<Vec<_>>()
 }
 
 /// PDF Font information
@@ -115,11 +111,11 @@ impl PdfFont {
 
 fn create_pdf_font_fields_vec() -> Vec<Field> {
     let field_names = ["font_name", "font_subtype", "base_font"];
-    let fields_vec = field_names
+    
+    field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    fields_vec
+        .collect::<Vec<_>>()
 }
 
 #[derive(Default, Debug, Clone, PartialEq)]
@@ -359,7 +355,7 @@ impl PdfPage {
         let page_number = self.page_number;
         let pdf_page_subject = PdfPageSubject {
             document_id: document_id.to_string(),
-            page_number: page_number,
+            page_number,
             height: self.height,
             width: self.width,
             units: self.units.clone(),
@@ -485,6 +481,7 @@ impl PdfDocument {
             author: self.author.clone(),
             title: self.title.clone(),
         };
+        #[allow(clippy::type_complexity)]
         let ((pdf_page_subject, pdf_text_subject), pdf_graphics_subject): (
             (Vec<PdfPageSubject>, Vec<Vec<PdfTextSubject>>),
             Vec<Vec<PdfGraphicsSubject>>,
