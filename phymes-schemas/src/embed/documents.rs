@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 pub(crate) fn create_documents_fields_vec() -> Vec<Field> {
     let field_names = ["chunk_id", "document_id", "text"];
-    
+
     field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))

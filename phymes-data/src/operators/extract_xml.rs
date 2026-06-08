@@ -705,17 +705,19 @@ fn xml_to_parsed_owl_record_batch(
                                 || xml_element.tag
                                     == "http://www.w3.org/2002/07/owl#DatatypeProperty"
                                 || xml_element.tag == "http://www.w3.org/2002/07/owl#Class"
-                                || xml_element.tag == "http://www.w3.org/2002/07/owl#ObjectProperty")
-                                && let Some(subject) = xml_element.attributes.get("rdf:about") {
-                                    extract_owl_objects(
-                                        lhs_name,
-                                        &attributes,
-                                        &xml_element,
-                                        subject,
-                                        children,
-                                        &mut acc,
-                                    );
-                                }
+                                || xml_element.tag
+                                    == "http://www.w3.org/2002/07/owl#ObjectProperty")
+                                && let Some(subject) = xml_element.attributes.get("rdf:about")
+                            {
+                                extract_owl_objects(
+                                    lhs_name,
+                                    &attributes,
+                                    &xml_element,
+                                    subject,
+                                    children,
+                                    &mut acc,
+                                );
+                            }
                         }
                         DocumentExtractType::Graphics => todo!(),
                         DocumentExtractType::ImageEmbeddings => todo!(),

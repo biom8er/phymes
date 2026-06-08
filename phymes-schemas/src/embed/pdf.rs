@@ -58,7 +58,7 @@ impl Default for PdfTm {
 
 fn create_pdf_tm_fields_vec() -> Vec<Field> {
     let field_names = ["tm_a", "tm_b", "tm_c", "tm_d", "tm_x", "tm_y"];
-    
+
     field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Float32, false))
@@ -66,8 +66,7 @@ fn create_pdf_tm_fields_vec() -> Vec<Field> {
 }
 
 /// PdfTm
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct PdfTd {
     /// pos x
     pub x: i64,
@@ -81,10 +80,9 @@ impl PdfTd {
     }
 }
 
-
 fn create_pdf_td_fields_vec() -> Vec<Field> {
     let field_names = ["td_x", "td_y"];
-    
+
     field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Int64, false))
@@ -111,7 +109,7 @@ impl PdfFont {
 
 fn create_pdf_font_fields_vec() -> Vec<Field> {
     let field_names = ["font_name", "font_subtype", "base_font"];
-    
+
     field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))

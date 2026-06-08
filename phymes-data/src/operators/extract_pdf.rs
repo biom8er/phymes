@@ -221,9 +221,7 @@ fn extract_text_chunks(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfTe
             match result {
                 std::result::Result::Ok(text_chunks) => text_chunks
                     .into_iter()
-                    .filter_map(|x| {
-                        x.ok()
-                    })
+                    .filter_map(|x| x.ok())
                     .map(Ok)
                     .collect::<Vec<_>>(),
                 Err(err) => vec![Err(err)],
@@ -367,13 +365,15 @@ fn extract_text_chunks_from_page(
                     current_text.text_mut().clear();
                 }
             }
-            "Tj" | "TJ" => if let Some(encoding) = current_encoding {
-                let res = collect_text(current_text.text_mut(), encoding, &operation.operands);
-                if let Err(err) = res {
-                    let err = anyhow!("{err:?}");
-                    collected_chunks_and_errs.push(Err(err));
+            "Tj" | "TJ" => {
+                if let Some(encoding) = current_encoding {
+                    let res = collect_text(current_text.text_mut(), encoding, &operation.operands);
+                    if let Err(err) = res {
+                        let err = anyhow!("{err:?}");
+                        collected_chunks_and_errs.push(Err(err));
+                    }
                 }
-            },
+            }
             "ET" => {
                 if !current_text.text.ends_with('\n') {
                     current_text.text_mut().push('\n')
@@ -729,9 +729,7 @@ pub fn make_pdf_document_page_per_content(contents: &[&str], page_per_content: b
                 ]
             })
             .collect::<Vec<_>>();
-        let content = Content {
-            operations,
-        };
+        let content = Content { operations };
         let content_id = doc.add_object(Stream::new(dictionary! {}, content.encode().unwrap()));
         let page_id = doc.add_object(dictionary! {
             "Type" => "Page",
@@ -1016,9 +1014,9 @@ mod tests {
 
         // Extract Fonts
         let fonts = doc_1
-            .get_pages().into_values().map(|page_id| {
-                    extract_fonts_from_page(&doc_1, page_id)
-                })
+            .get_pages()
+            .into_values()
+            .map(|page_id| extract_fonts_from_page(&doc_1, page_id))
             .collect::<Vec<_>>();
         assert_eq!(fonts.len(), 2);
         assert_eq!(

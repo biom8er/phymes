@@ -543,7 +543,7 @@ mod tests {
         assert_eq!(column.first().unwrap(), &"WikiBioComponents");
         assert_eq!(column.last().unwrap(), &"WikiBioComponents");
         let column = subject.get_column_as_vec_str("text");
-        assert!(column.first().is_some());
+        assert!(!column.is_empty());
         assert!(column.last().is_some());
         Ok(())
     }
