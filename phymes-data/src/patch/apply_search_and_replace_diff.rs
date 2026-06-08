@@ -1,14 +1,4 @@
-/// # Search and Replace using diff-fenced
-///
-/// # Example
-/// ```
-/// FILENAME
-/// <<<<<<< SEARCH
-/// Code section containing /* MIDDLE CODE TO COMPLETE */
-/// =======
-/// Same code section with ONLY the middle code implemented
-/// >>>>>>> REPLACE
-/// ```
+/// Search and Replace using diff-fenced
 use crate::{extract_fim_str, extract_tool_calls_str};
 
 pub(crate) const SECTION_OUTPUT: &str = "```";
