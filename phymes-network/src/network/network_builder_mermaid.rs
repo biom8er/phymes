@@ -11,7 +11,8 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_data::{
-    MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE, SubjectScript, extract_tool_calls_str
+    MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE, SubjectScript,
+    extract_tool_calls_str,
 };
 use phymes_diagnostics::{HashMap, HashSet};
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};

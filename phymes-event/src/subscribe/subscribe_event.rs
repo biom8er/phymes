@@ -256,7 +256,8 @@ impl SubscribeEventTrait for ChatContentSubscribe {
         // DM: always subscribe to user messages when there are no tool or error messages
         let user = if updates.contains_key(&self.user_message_table_name)
             && !updates.contains_key(&self.tool_message_table_name)
-            && !updates.contains_key(&self.error_message_table_name) {
+            && !updates.contains_key(&self.error_message_table_name)
+        {
             true
         } else {
             *updates.get(&self.user_message_table_name).unwrap_or(&false)

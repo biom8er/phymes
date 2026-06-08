@@ -1,8 +1,8 @@
 // src/node_parser/code_splitter.rs
-use std::sync::Arc;
-use phymes_subject::MappableTrait;
-use tree_sitter::Parser;
 use crate::parser::{Document, NodeParserTrait, TextNode, TokenizerType, default_tokenizer};
+use phymes_subject::MappableTrait;
+use std::sync::Arc;
+use tree_sitter::Parser;
 pub struct CodeSplitter {
     language: String,
     chunk_lines: usize,
@@ -163,27 +163,32 @@ fn tree_sitter_language(lang: &str) -> Option<tree_sitter::Language> {
 impl NodeParserTrait for CodeSplitter {
     fn parse(&self, text: &str) -> Vec<TextNode> {
         let mut splitter = CodeSplitter::new(
-            &self.language, 
-            self.chunk_lines, 
-            self.chunk_lines_overlap, 
-            self.max_chars, 
-            self.count_mode, 
-            self.max_tokens, 
-            Some(self.tokenizer.clone()), 
-            None);
-        splitter.get_nodes_from_documents(&[Document { text: text.to_string(), metadata: None }])
+            &self.language,
+            self.chunk_lines,
+            self.chunk_lines_overlap,
+            self.max_chars,
+            self.count_mode,
+            self.max_tokens,
+            Some(self.tokenizer.clone()),
+            None,
+        );
+        splitter.get_nodes_from_documents(&[Document {
+            text: text.to_string(),
+            metadata: None,
+        }])
     }
 
     fn parse_with_metadata(&self, text: &str, metadata: &str) -> Vec<TextNode> {
         let mut splitter = CodeSplitter::new(
-            &self.language, 
-            self.chunk_lines, 
-            self.chunk_lines_overlap, 
-            self.max_chars, 
-            self.count_mode, 
-            self.max_tokens, 
-            Some(self.tokenizer.clone()), 
-            None);
+            &self.language,
+            self.chunk_lines,
+            self.chunk_lines_overlap,
+            self.max_chars,
+            self.count_mode,
+            self.max_tokens,
+            Some(self.tokenizer.clone()),
+            None,
+        );
         let chunks = splitter.split_text_metadata_aware(text, metadata);
         let mut offset = 0;
         chunks
@@ -224,7 +229,16 @@ mod tests {
     #[test]
     fn test_token_mode() {
         let tokenizer = Arc::new(|s: &str| s.split_whitespace().map(|x| x.to_string()).collect());
-        let mut splitter = CodeSplitter::new("python", 4, 1, 30, CountMode::Token, 5, Some(tokenizer), None);
+        let mut splitter = CodeSplitter::new(
+            "python",
+            4,
+            1,
+            30,
+            CountMode::Token,
+            5,
+            Some(tokenizer),
+            None,
+        );
         let text = "def foo():\n    print(\"bar\")\n    print(\"another line\")\n\ndef baz():\n    print(\"bbq\")";
         let chunks = splitter.split_text(text);
         assert!(chunks[0].starts_with("def foo():"));
@@ -254,7 +268,8 @@ def complex_function():
             metadata: None,
         };
 
-        let mut splitter = CodeSplitter::new("python", 40, 15, 1500, CountMode::Token, 20, None, None);
+        let mut splitter =
+            CodeSplitter::new("python", 40, 15, 1500, CountMode::Token, 20, None, None);
         let nodes = splitter.get_nodes_from_documents(&[doc]);
         assert!(!nodes.is_empty());
         assert!(nodes[0].content.contains("def complex_function():"));
@@ -262,7 +277,8 @@ def complex_function():
 
     #[test]
     fn test_metadata_aware_split() {
-        let mut splitter = CodeSplitter::new("python", 40, 15, 1500, CountMode::Token, 25, None, None);
+        let mut splitter =
+            CodeSplitter::new("python", 40, 15, 1500, CountMode::Token, 25, None, None);
         let text = "def example_function():\n    result = calculate_something()\n    return result";
         let metadata = "author: test_user, repo: example_repo";
         let chunks = splitter.split_text_metadata_aware(text, metadata);

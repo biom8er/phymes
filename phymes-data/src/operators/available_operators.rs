@@ -7,11 +7,14 @@ use phymes_subject::{BuilderTrait, MappableTrait, Subject, SubjectBuilder, Subje
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Diff, ExtractXML, FromMessagesToPatches, FromWorkspaceToMessages, PackTabular, Patch, ToolTrait, operators::{
+    Diff, ExtractXML, FromMessagesToPatches, FromWorkspaceToMessages, PackTabular, Patch,
+    ToolTrait,
+    operators::{
         ApplyTemplate, ChunkDocuments, ExtractPDF, ExtractTabular, Filter, FromTasksToParticipants,
         FromTracesToMessages, GroupBy, HumanInTheLoop, Join, Melt, NormalizeTime, Pivot, Select,
         Sort, VectorDistance,
-    }, tensor::{DataConfig, DataOperatorTrait}
+    },
+    tensor::{DataConfig, DataOperatorTrait},
 };
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
@@ -112,8 +115,12 @@ impl Display for AvailableOperators {
                 write!(f, "{}", FromTasksToParticipants::get_static_name())
             }
             Self::FromTracesToMessages => write!(f, "{}", FromTracesToMessages::get_static_name()),
-            Self::FromWorkspaceToMessages => write!(f, "{}", FromWorkspaceToMessages::get_static_name()),
-            Self::FromMessagesToPatches => write!(f, "{}", FromMessagesToPatches::get_static_name()),
+            Self::FromWorkspaceToMessages => {
+                write!(f, "{}", FromWorkspaceToMessages::get_static_name())
+            }
+            Self::FromMessagesToPatches => {
+                write!(f, "{}", FromMessagesToPatches::get_static_name())
+            }
         }
     }
 }

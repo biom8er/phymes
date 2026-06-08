@@ -2,18 +2,30 @@ use std::{collections::VecDeque, sync::Arc};
 
 use arrow::datatypes::{DataType, Field, Fields, Schema};
 use object_store::aws::AmazonS3ConfigKey;
-use phymes_data::{AvailableOperators, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataStreamManager};
-use phymes_processor::AvailableProcessors;
-use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
+use phymes_data::{
+    AvailableOperators, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate,
+    DataConfig, DataStreamManager,
+};
 use phymes_event::{Publication, Subscription};
 use phymes_network::{NetworkBuilder, NetworkBuilderMermaidTrait};
+use phymes_processor::AvailableProcessors;
 use phymes_schemas::{
     AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat,
 };
-use phymes_streams::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType, LimitConfig, ObjectStoreConfig, ObjectStoreOptsType};
+use phymes_streams::{
+    HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType, LimitConfig,
+    ObjectStoreConfig, ObjectStoreOptsType,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, Subject, SubjectBuilder,
+    SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait,
+};
 use serde_json::{Map, Value};
 
-use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, EmbedTextNetworkBuilder, ExtractOntologyNetworkBuilder, ExtractPDFNetworkBuilder, RetrieveTextNetworkBuilder};
+use crate::{
+    DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, EmbedTextNetworkBuilder,
+    ExtractOntologyNetworkBuilder, ExtractPDFNetworkBuilder, RetrieveTextNetworkBuilder,
+};
 
 /// OpenAlex network
 pub struct OpenAlexNetworkBuilder {
@@ -119,44 +131,52 @@ impl Default for OpenAlexNetworkBuilder {
                 .build()
                 .unwrap();
             let subject = AvailableSubjects::Bytes
-                .to_subject(Some(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str()), None)
+                .to_subject(
+                    Some(
+                        DynamicTaskNetworkNames::Subject(network_name)
+                            .to_string()
+                            .as_str(),
+                    ),
+                    None,
+                )
                 .unwrap();
             let subject_out = SubjectPlan::get_builder()
                 .with_subject(subject)
                 .build()
                 .unwrap();
-            let subject_routes = ["WorkTable", 
-                "WorkAwardTable", 
-                "WorkAuthorshipTable", 
-                "WorkFunderTable", 
-                "WorkApcInfoTable", 
-                "WorkLocationTable", 
-                "WorkOpenAccessTable", 
-                "WorkBiblioTable", 
-                "WorkCitationPercentileTable", 
-                "WorkCitedByPercentileYearTable", 
-                "WorkCountsByYearTable", 
-                "WorkConceptTable", 
-                "WorkTopicTable", 
-                "WorkKeywordTable", 
-                "WorkMeshTagTable", 
+            let subject_routes = [
+                "WorkTable",
+                "WorkAwardTable",
+                "WorkAuthorshipTable",
+                "WorkFunderTable",
+                "WorkApcInfoTable",
+                "WorkLocationTable",
+                "WorkOpenAccessTable",
+                "WorkBiblioTable",
+                "WorkCitationPercentileTable",
+                "WorkCitedByPercentileYearTable",
+                "WorkCountsByYearTable",
+                "WorkConceptTable",
+                "WorkTopicTable",
+                "WorkKeywordTable",
+                "WorkMeshTagTable",
                 "WorkSdgTagTable",
                 "WorkCorrespondingAuthorTable",
                 "WorkCorrespondingInstitutionTable",
                 "WorkIndexedInTable",
                 "WorkIdsTable",
                 "WorkReferencedWorksTable",
-                "WorkRelatedWorksTable"].into_iter()
-                .map(|s| {
-                    let subject = AvailableSubjects::Bytes
-                        .to_subject(Some(s), None)
-                        .unwrap();
-                    SubjectPlan::get_builder()
-                        .with_subject(subject)
-                        .build()
-                        .unwrap()
-                })
-                .collect::<Vec<_>>();
+                "WorkRelatedWorksTable",
+            ]
+            .into_iter()
+            .map(|s| {
+                let subject = AvailableSubjects::Bytes.to_subject(Some(s), None).unwrap();
+                SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap()
+            })
+            .collect::<Vec<_>>();
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
                 is_dynamic: false,
@@ -212,17 +232,77 @@ impl Default for OpenAlexNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder);                
+                tasks.push_back(builder);
             }
             {
                 let network_name = "cmp_work_topic_table";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
-                    lhs_values: Some(["work_id","topic_id","is_primary","score","cmp_is_primary","cmp_score"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
-                    as_columns: Some(["work_id","topic_id","is_primary","score","cmp_is_primary","cmp_score"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
-                    cast_templates: Some(["","","","","1","0.5"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
-                    cast_datatypes: Some([DataType::Utf8, DataType::Utf8, DataType::UInt8, DataType::Float32, DataType::UInt8, DataType::Float32].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
-                    column_operators: Some([DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::Value, DataColumnOperator::Value].into_iter().collect::<Vec<_>>()),
+                    lhs_name: Some(
+                        tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
+                    ),
+                    lhs_values: Some(
+                        [
+                            "work_id",
+                            "topic_id",
+                            "is_primary",
+                            "score",
+                            "cmp_is_primary",
+                            "cmp_score",
+                        ]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                    ),
+                    as_columns: Some(
+                        [
+                            "work_id",
+                            "topic_id",
+                            "is_primary",
+                            "score",
+                            "cmp_is_primary",
+                            "cmp_score",
+                        ]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                    ),
+                    cast_templates: Some(
+                        ["", "", "", "", "1", "0.5"]
+                            .into_iter()
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>(),
+                    ),
+                    cast_datatypes: Some(
+                        [
+                            DataType::Utf8,
+                            DataType::Utf8,
+                            DataType::UInt8,
+                            DataType::Float32,
+                            DataType::UInt8,
+                            DataType::Float32,
+                        ]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                    ),
+                    column_operators: Some(
+                        [
+                            DataColumnOperator::None,
+                            DataColumnOperator::None,
+                            DataColumnOperator::None,
+                            DataColumnOperator::None,
+                            DataColumnOperator::Value,
+                            DataColumnOperator::Value,
+                        ]
+                        .into_iter()
+                        .collect::<Vec<_>>(),
+                    ),
                     cpu: false,
                     operator: AvailableOperators::Select,
                     lhs_stream: DataStreamManager::Stream,
@@ -244,7 +324,13 @@ impl Default for OpenAlexNetworkBuilder {
                     is_dynamic: false,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                        subject_name: tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
                     },
                     publication: Publication::Replace {
                         subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
@@ -252,15 +338,40 @@ impl Default for OpenAlexNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder);                
+                tasks.push_back(builder);
             }
             {
                 let network_name = "filter_work_topic_table";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
-                    lhs_values: Some(["is_primary","score"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
-                    cmp_columns: Some(["cmp_is_primary","cmp_score"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
-                    cmp_operators: Some([DataComparatorOperator::Equals, DataComparatorOperator::GreaterThan].into_iter().collect::<Vec<_>>()),
+                    lhs_name: Some(
+                        tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
+                    ),
+                    lhs_values: Some(
+                        ["is_primary", "score"]
+                            .into_iter()
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>(),
+                    ),
+                    cmp_columns: Some(
+                        ["cmp_is_primary", "cmp_score"]
+                            .into_iter()
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>(),
+                    ),
+                    cmp_operators: Some(
+                        [
+                            DataComparatorOperator::Equals,
+                            DataComparatorOperator::GreaterThan,
+                        ]
+                        .into_iter()
+                        .collect::<Vec<_>>(),
+                    ),
                     cmp_predicate: Some(DataComparatorPredicate::All),
                     cpu: true,
                     operator: AvailableOperators::Filter,
@@ -283,7 +394,13 @@ impl Default for OpenAlexNetworkBuilder {
                     is_dynamic: false,
                     processor: AvailableProcessors::Filter,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                        subject_name: tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
                     },
                     publication: Publication::Replace {
                         subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
@@ -291,13 +408,26 @@ impl Default for OpenAlexNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder);                
+                tasks.push_back(builder);
             }
             {
                 let network_name = "select_work_topic_table";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
-                    lhs_values: Some(["work_id","topic_id","is_primary","score"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    lhs_name: Some(
+                        tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
+                    ),
+                    lhs_values: Some(
+                        ["work_id", "topic_id", "is_primary", "score"]
+                            .into_iter()
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>(),
+                    ),
                     cpu: false,
                     operator: AvailableOperators::Select,
                     lhs_stream: DataStreamManager::Stream,
@@ -319,7 +449,13 @@ impl Default for OpenAlexNetworkBuilder {
                     is_dynamic: false,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                        subject_name: tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
                     },
                     publication: Publication::Replace {
                         subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
@@ -327,13 +463,21 @@ impl Default for OpenAlexNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder);                
+                tasks.push_back(builder);
             }
             {
                 let network_name = "join_work_topic_table";
                 let subject_name_rhs = "open_alex_topics_s";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
+                    lhs_name: Some(
+                        tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
+                    ),
                     rhs_name: Some(subject_name_rhs.to_string()),
                     lhs_fk: Some("topic_id".to_string()),
                     rhs_fk: Some("topic_id".to_string()),
@@ -362,8 +506,10 @@ impl Default for OpenAlexNetworkBuilder {
                 let subject = Subject::get_builder()
                     .with_name(subject_name_rhs)
                     .with_schema(schema)
-                    .with_record_batches(Vec::new()).unwrap()
-                    .build().unwrap();
+                    .with_record_batches(Vec::new())
+                    .unwrap()
+                    .build()
+                    .unwrap();
                 let subject_rhs = SubjectPlan::get_builder()
                     .with_subject(subject)
                     .build()
@@ -376,10 +522,16 @@ impl Default for OpenAlexNetworkBuilder {
                 ]);
                 let schema = Arc::new(Schema::new(fields));
                 let subject = Subject::get_builder()
-                    .with_name(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str())
+                    .with_name(
+                        DynamicTaskNetworkNames::Subject(network_name)
+                            .to_string()
+                            .as_str(),
+                    )
                     .with_schema(schema)
-                    .with_record_batches(Vec::new()).unwrap()
-                    .build().unwrap();
+                    .with_record_batches(Vec::new())
+                    .unwrap()
+                    .build()
+                    .unwrap();
                 let subject_out = SubjectPlan::get_builder()
                     .with_subject(subject)
                     .build()
@@ -389,7 +541,13 @@ impl Default for OpenAlexNetworkBuilder {
                     is_dynamic: false,
                     processor: AvailableProcessors::Join,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                        subject_name: tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
                     },
                     subscription_rhs: Some(Subscription::AlwaysAllRecordBatches {
                         subject_name: subject_rhs.get_name().to_string(),
@@ -403,7 +561,7 @@ impl Default for OpenAlexNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder);                
+                tasks.push_back(builder);
             }
             let mut network_builder = tasks.pop_front().unwrap().build_dynamic();
             while let Some(task) = tasks.pop_front() {
@@ -448,17 +606,101 @@ impl Default for OpenAlexNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder);                
+                tasks.push_back(builder);
             }
             {
                 let network_name = "cmp_work_location_table";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
-                    lhs_values: Some(["work_id","landing_page_url","pdf_url","source_id","license","version","is_best_oa","is_primary","is_oa","cmp_is_best_oa","pdf_url","cmp_pdf_url_len"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
-                    as_columns: Some(["work_id","landing_page_url","pdf_url","source_id","license","version","is_best_oa","is_primary","is_oa","cmp_is_best_oa","pdf_url_len","cmp_pdf_url_len"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
-                    cast_templates: Some(["","","","","","","","","","1","",""].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
-                    cast_datatypes: Some([DataType::Utf8, DataType::Utf8, DataType::Utf8, DataType::Utf8, DataType::Utf8, DataType::Utf8, DataType::UInt8, DataType::UInt8, DataType::UInt8, DataType::UInt8, DataType::UInt32, DataType::UInt32].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
-                    column_operators: Some([DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::Value, DataColumnOperator::Len, DataColumnOperator::Zeros].into_iter().collect::<Vec<_>>()),
+                    lhs_name: Some(
+                        tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
+                    ),
+                    lhs_values: Some(
+                        [
+                            "work_id",
+                            "landing_page_url",
+                            "pdf_url",
+                            "source_id",
+                            "license",
+                            "version",
+                            "is_best_oa",
+                            "is_primary",
+                            "is_oa",
+                            "cmp_is_best_oa",
+                            "pdf_url",
+                            "cmp_pdf_url_len",
+                        ]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                    ),
+                    as_columns: Some(
+                        [
+                            "work_id",
+                            "landing_page_url",
+                            "pdf_url",
+                            "source_id",
+                            "license",
+                            "version",
+                            "is_best_oa",
+                            "is_primary",
+                            "is_oa",
+                            "cmp_is_best_oa",
+                            "pdf_url_len",
+                            "cmp_pdf_url_len",
+                        ]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                    ),
+                    cast_templates: Some(
+                        ["", "", "", "", "", "", "", "", "", "1", "", ""]
+                            .into_iter()
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>(),
+                    ),
+                    cast_datatypes: Some(
+                        [
+                            DataType::Utf8,
+                            DataType::Utf8,
+                            DataType::Utf8,
+                            DataType::Utf8,
+                            DataType::Utf8,
+                            DataType::Utf8,
+                            DataType::UInt8,
+                            DataType::UInt8,
+                            DataType::UInt8,
+                            DataType::UInt8,
+                            DataType::UInt32,
+                            DataType::UInt32,
+                        ]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                    ),
+                    column_operators: Some(
+                        [
+                            DataColumnOperator::None,
+                            DataColumnOperator::None,
+                            DataColumnOperator::None,
+                            DataColumnOperator::None,
+                            DataColumnOperator::None,
+                            DataColumnOperator::None,
+                            DataColumnOperator::None,
+                            DataColumnOperator::None,
+                            DataColumnOperator::None,
+                            DataColumnOperator::Value,
+                            DataColumnOperator::Len,
+                            DataColumnOperator::Zeros,
+                        ]
+                        .into_iter()
+                        .collect::<Vec<_>>(),
+                    ),
                     cpu: true,
                     operator: AvailableOperators::Select,
                     lhs_stream: DataStreamManager::Stream,
@@ -480,7 +722,13 @@ impl Default for OpenAlexNetworkBuilder {
                     is_dynamic: false,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                        subject_name: tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
                     },
                     publication: Publication::Replace {
                         subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
@@ -488,15 +736,40 @@ impl Default for OpenAlexNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder);                
+                tasks.push_back(builder);
             }
             {
                 let network_name = "filter_work_location_table";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
-                    lhs_values: Some(["is_best_oa","pdf_url_len"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
-                    cmp_columns: Some(["cmp_is_best_oa","cmp_pdf_url_len"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
-                    cmp_operators: Some([DataComparatorOperator::Equals, DataComparatorOperator::GreaterThan].into_iter().collect::<Vec<_>>()),
+                    lhs_name: Some(
+                        tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
+                    ),
+                    lhs_values: Some(
+                        ["is_best_oa", "pdf_url_len"]
+                            .into_iter()
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>(),
+                    ),
+                    cmp_columns: Some(
+                        ["cmp_is_best_oa", "cmp_pdf_url_len"]
+                            .into_iter()
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>(),
+                    ),
+                    cmp_operators: Some(
+                        [
+                            DataComparatorOperator::Equals,
+                            DataComparatorOperator::GreaterThan,
+                        ]
+                        .into_iter()
+                        .collect::<Vec<_>>(),
+                    ),
                     cmp_predicate: Some(DataComparatorPredicate::All),
                     cpu: true,
                     operator: AvailableOperators::Filter,
@@ -519,7 +792,13 @@ impl Default for OpenAlexNetworkBuilder {
                     is_dynamic: false,
                     processor: AvailableProcessors::Filter,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                        subject_name: tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
                     },
                     publication: Publication::Replace {
                         subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
@@ -527,13 +806,36 @@ impl Default for OpenAlexNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder);                
+                tasks.push_back(builder);
             }
             {
                 let network_name = "select_work_location_table";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
-                    lhs_values: Some(["work_id","landing_page_url","pdf_url","source_id","license","version","is_best_oa","is_primary","is_oa"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    lhs_name: Some(
+                        tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
+                    ),
+                    lhs_values: Some(
+                        [
+                            "work_id",
+                            "landing_page_url",
+                            "pdf_url",
+                            "source_id",
+                            "license",
+                            "version",
+                            "is_best_oa",
+                            "is_primary",
+                            "is_oa",
+                        ]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                    ),
                     cpu: true,
                     operator: AvailableOperators::Select,
                     lhs_stream: DataStreamManager::Stream,
@@ -555,7 +857,13 @@ impl Default for OpenAlexNetworkBuilder {
                     is_dynamic: false,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                        subject_name: tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
                     },
                     publication: Publication::Replace {
                         subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
@@ -563,13 +871,21 @@ impl Default for OpenAlexNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder);                
+                tasks.push_back(builder);
             }
             {
                 let network_name = "join_work_location_table";
                 let subject_name_rhs = "join_work_topic_table_s";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
+                    lhs_name: Some(
+                        tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
+                    ),
                     rhs_name: Some(subject_name_rhs.to_string()),
                     lhs_fk: Some("work_id".to_string()),
                     rhs_fk: Some("work_id".to_string()),
@@ -598,7 +914,13 @@ impl Default for OpenAlexNetworkBuilder {
                     is_dynamic: false,
                     processor: AvailableProcessors::Join,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                        subject_name: tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
                     },
                     subscription_rhs: Some(Subscription::OnUpdateAllRecordBatches {
                         subject_name: subject_name_rhs.to_string(),
@@ -609,14 +931,39 @@ impl Default for OpenAlexNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder);                
+                tasks.push_back(builder);
             }
             {
                 let network_name = "select_open_acces_pdf_url";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
-                    as_columns: Some(["","","","content","",""].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
-                    lhs_values: Some(["work_id","topic_id","score","pdf_url","source_id","version"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    lhs_name: Some(
+                        tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
+                    ),
+                    as_columns: Some(
+                        ["", "", "", "content", "", ""]
+                            .into_iter()
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>(),
+                    ),
+                    lhs_values: Some(
+                        [
+                            "work_id",
+                            "topic_id",
+                            "score",
+                            "pdf_url",
+                            "source_id",
+                            "version",
+                        ]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                    ),
                     cpu: false,
                     operator: AvailableOperators::Select,
                     lhs_stream: DataStreamManager::Stream,
@@ -643,10 +990,16 @@ impl Default for OpenAlexNetworkBuilder {
                 ]);
                 let schema = Arc::new(Schema::new(fields));
                 let subject = Subject::get_builder()
-                    .with_name(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str())
+                    .with_name(
+                        DynamicTaskNetworkNames::Subject(network_name)
+                            .to_string()
+                            .as_str(),
+                    )
                     .with_schema(schema)
-                    .with_record_batches(Vec::new()).unwrap()
-                    .build().unwrap();
+                    .with_record_batches(Vec::new())
+                    .unwrap()
+                    .build()
+                    .unwrap();
                 let subject_out = SubjectPlan::get_builder()
                     .with_subject(subject)
                     .build()
@@ -656,7 +1009,13 @@ impl Default for OpenAlexNetworkBuilder {
                     is_dynamic: false,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                        subject_name: tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
                     },
                     publication: Publication::Replace {
                         subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
@@ -665,7 +1024,7 @@ impl Default for OpenAlexNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder);                
+                tasks.push_back(builder);
             }
             let mut network_builder = tasks.pop_front().unwrap().build_dynamic();
             while let Some(task) = tasks.pop_front() {
@@ -727,7 +1086,9 @@ impl Default for OpenAlexNetworkBuilder {
 
         // Extract PDF session
         let extract_pdf_network_builder = ExtractPDFNetworkBuilder::default().inner.take().unwrap();
-        let open_alex_network_builder = open_alex_network_builder.extend(extract_pdf_network_builder).unwrap();
+        let open_alex_network_builder = open_alex_network_builder
+            .extend(extract_pdf_network_builder)
+            .unwrap();
 
         // Get Owl ontology network
         let network_builder = {
@@ -760,8 +1121,10 @@ impl Default for OpenAlexNetworkBuilder {
             let subject = Subject::get_builder()
                 .with_name(subject_name_lhs)
                 .with_schema(schema)
-                .with_record_batches(Vec::new()).unwrap()
-                .build().unwrap();
+                .with_record_batches(Vec::new())
+                .unwrap()
+                .build()
+                .unwrap();
             let subject_lhs = SubjectPlan::get_builder()
                 .with_subject(subject)
                 .build()
@@ -860,7 +1223,12 @@ impl Default for OpenAlexNetworkBuilder {
                 let network_name = "extract_owl";
                 let config = DataConfig {
                     lhs_name: Some(AvailableInterfaceSubjects::UserScript.to_string()),
-                    lhs_values: Some(["bytes"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    lhs_values: Some(
+                        ["bytes"]
+                            .into_iter()
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>(),
+                    ),
                     format: Some(DataFormat::Owl),
                     doc_filter: Some(phymes_data::DocumentFilterType::Text),
                     doc_extraction: Some(phymes_data::DocumentExtractType::TextEmbeddings),
@@ -893,7 +1261,7 @@ impl Default for OpenAlexNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder);                
+                tasks.push_back(builder);
             }
             {
                 let network_name = "coalesce_extract_owl";
@@ -917,7 +1285,13 @@ impl Default for OpenAlexNetworkBuilder {
                     is_dynamic: false,
                     processor: AvailableProcessors::CoalesceProcessor,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                        subject_name: tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
                     },
                     publication: Publication::Replace {
                         subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
@@ -925,20 +1299,77 @@ impl Default for OpenAlexNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder);                
+                tasks.push_back(builder);
             }
-            let schema_cols = ["entity","subject","predicate","object","graph","dataset"];
-            let cmp_cols = ["hasDbXref","creation_date","id","seeAlso","contributor","OMO_0002000","date"];
+            let schema_cols = [
+                "entity",
+                "subject",
+                "predicate",
+                "object",
+                "graph",
+                "dataset",
+            ];
+            let cmp_cols = [
+                "hasDbXref",
+                "creation_date",
+                "id",
+                "seeAlso",
+                "contributor",
+                "OMO_0002000",
+                "date",
+            ];
             {
                 let network_name = "cmp_owl_predicates";
-                let lhs_values = schema_cols.iter().chain(cmp_cols.iter()).map(|s|s.to_string()).collect::<Vec<_>>();
+                let lhs_values = schema_cols
+                    .iter()
+                    .chain(cmp_cols.iter())
+                    .map(|s| s.to_string())
+                    .collect::<Vec<_>>();
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
+                    lhs_name: Some(
+                        tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
+                    ),
                     lhs_values: Some(lhs_values.clone()),
                     as_columns: Some(lhs_values.clone()),
-                    cast_templates: Some(["","","","","","","http://www.geneontology.org/formats/oboInOwl#hasDbXref","http://www.geneontology.org/formats/oboInOwl#creation_date","http://www.geneontology.org/formats/oboInOwl#id","http://www.w3.org/2000/01/rdf-schema#seeAlso","http://purl.org/dc/terms/contributor","http://purl.obolibrary.org/obo/OMO_0002000","http://purl.org/dc/terms/date"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
-                    cast_datatypes: Some(lhs_values.iter().map(|_| DataType::Utf8.to_string()).collect::<Vec<_>>()),
-                    column_operators: Some(schema_cols.iter().map(|_| DataColumnOperator::None).chain(cmp_cols.iter().map(|_| DataColumnOperator::Value)).collect::<Vec<_>>()),
+                    cast_templates: Some(
+                        [
+                            "",
+                            "",
+                            "",
+                            "",
+                            "",
+                            "",
+                            "http://www.geneontology.org/formats/oboInOwl#hasDbXref",
+                            "http://www.geneontology.org/formats/oboInOwl#creation_date",
+                            "http://www.geneontology.org/formats/oboInOwl#id",
+                            "http://www.w3.org/2000/01/rdf-schema#seeAlso",
+                            "http://purl.org/dc/terms/contributor",
+                            "http://purl.obolibrary.org/obo/OMO_0002000",
+                            "http://purl.org/dc/terms/date",
+                        ]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                    ),
+                    cast_datatypes: Some(
+                        lhs_values
+                            .iter()
+                            .map(|_| DataType::Utf8.to_string())
+                            .collect::<Vec<_>>(),
+                    ),
+                    column_operators: Some(
+                        schema_cols
+                            .iter()
+                            .map(|_| DataColumnOperator::None)
+                            .chain(cmp_cols.iter().map(|_| DataColumnOperator::Value))
+                            .collect::<Vec<_>>(),
+                    ),
                     cpu: false,
                     operator: AvailableOperators::Select,
                     lhs_stream: DataStreamManager::Stream,
@@ -960,7 +1391,13 @@ impl Default for OpenAlexNetworkBuilder {
                     is_dynamic: false,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                        subject_name: tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
                     },
                     publication: Publication::Replace {
                         subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
@@ -968,15 +1405,33 @@ impl Default for OpenAlexNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder);                
+                tasks.push_back(builder);
             }
             {
                 let network_name = "filter_owl_predicates";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
-                    lhs_values: Some(cmp_cols.iter().map(|_| "predicate".to_string()).collect::<Vec<_>>()),
-                    cmp_columns: Some(cmp_cols.iter().map(|s|s.to_string()).collect::<Vec<_>>()),
-                    cmp_operators: Some(cmp_cols.iter().map(|_| DataComparatorOperator::NotLike).collect::<Vec<_>>()),
+                    lhs_name: Some(
+                        tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
+                    ),
+                    lhs_values: Some(
+                        cmp_cols
+                            .iter()
+                            .map(|_| "predicate".to_string())
+                            .collect::<Vec<_>>(),
+                    ),
+                    cmp_columns: Some(cmp_cols.iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                    cmp_operators: Some(
+                        cmp_cols
+                            .iter()
+                            .map(|_| DataComparatorOperator::NotLike)
+                            .collect::<Vec<_>>(),
+                    ),
                     cmp_predicate: Some(DataComparatorPredicate::All),
                     cpu: false,
                     operator: AvailableOperators::Filter,
@@ -999,7 +1454,13 @@ impl Default for OpenAlexNetworkBuilder {
                     is_dynamic: false,
                     processor: AvailableProcessors::Filter,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                        subject_name: tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
                     },
                     publication: Publication::Replace {
                         subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
@@ -1007,13 +1468,26 @@ impl Default for OpenAlexNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder);                
+                tasks.push_back(builder);
             }
             {
                 let network_name = "select_owl_predicates";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
-                    lhs_values: Some(schema_cols.iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    lhs_name: Some(
+                        tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
+                    ),
+                    lhs_values: Some(
+                        schema_cols
+                            .iter()
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>(),
+                    ),
                     cpu: false,
                     operator: AvailableOperators::Select,
                     lhs_stream: DataStreamManager::Stream,
@@ -1035,7 +1509,13 @@ impl Default for OpenAlexNetworkBuilder {
                     is_dynamic: false,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                        subject_name: tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
                     },
                     publication: Publication::Replace {
                         subject_name: AvailableSubjects::ParseOwl.to_string(),
@@ -1043,7 +1523,7 @@ impl Default for OpenAlexNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder);                
+                tasks.push_back(builder);
             }
             let mut network_builder = tasks.pop_front().unwrap().build_dynamic();
             while let Some(task) = tasks.pop_front() {
@@ -1055,50 +1535,62 @@ impl Default for OpenAlexNetworkBuilder {
 
         // Extract OWL network
         // DM: the previous networks will overwrite the defaults in this network
-        let extract_owl_network = ExtractOntologyNetworkBuilder { 
-            network_name: "extract_ontology_network", 
-            as_documents: false, 
-            include_extract_owl: false 
+        let extract_owl_network = ExtractOntologyNetworkBuilder {
+            network_name: "extract_ontology_network",
+            as_documents: false,
+            include_extract_owl: false,
         };
         let extract_owl_network_builder = NetworkBuilder::from_mermaid_flowchart(
             &extract_owl_network.as_mermaid_flowchart(),
             false,
-        ).unwrap()
+        )
+        .unwrap()
         .with_subjects_from_mermaid_erdiagram(
             &extract_owl_network.as_mermaid_erdiagram(),
             false,
             true,
-        ).unwrap()
+        )
+        .unwrap()
         .with_name(extract_owl_network.network_name);
-        let open_alex_network_builder = open_alex_network_builder.extend(extract_owl_network_builder).unwrap();
+        let open_alex_network_builder = open_alex_network_builder
+            .extend(extract_owl_network_builder)
+            .unwrap();
 
         // Embed text session
         let embed_text_network = EmbedTextNetworkBuilder::default();
         let embed_text_network_builder = NetworkBuilder::from_mermaid_flowchart(
             &embed_text_network.as_mermaid_flowchart(),
             false,
-        ).unwrap()
+        )
+        .unwrap()
         .with_subjects_from_mermaid_erdiagram(
             &embed_text_network.as_mermaid_erdiagram(),
             false,
             true,
-        ).unwrap()
+        )
+        .unwrap()
         .with_name(embed_text_network.network_name);
-        let open_alex_network_builder = open_alex_network_builder.extend(embed_text_network_builder).unwrap();
+        let open_alex_network_builder = open_alex_network_builder
+            .extend(embed_text_network_builder)
+            .unwrap();
 
         // Retrieve text session
         let retrieve_text_network = RetrieveTextNetworkBuilder::default();
         let retrieve_text_builder = NetworkBuilder::from_mermaid_flowchart(
             retrieve_text_network.as_mermaid_flowchart(),
             false,
-        ).unwrap()
+        )
+        .unwrap()
         .with_subjects_from_mermaid_erdiagram(
             retrieve_text_network.as_mermaid_erdiagram(),
             false,
             true,
-        ).unwrap()
+        )
+        .unwrap()
         .with_name(retrieve_text_network.network_name);
-        let open_alex_network_builder = open_alex_network_builder.extend(retrieve_text_builder).unwrap();
+        let open_alex_network_builder = open_alex_network_builder
+            .extend(retrieve_text_builder)
+            .unwrap();
 
         OpenAlexNetworkBuilder {
             inner: Some(open_alex_network_builder.with_name("open_alex_network")),
@@ -1113,20 +1605,22 @@ mod tests {
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use futures::TryStreamExt;
-    use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait
-    };
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
     use phymes_schemas::{
-        AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, create_object_store_meta_batch,
+        AvailableInterfaceSubjects, AvailableSubjects, create_object_store_meta_batch,
     };
-    use phymes_streams::ChatBuilderTraitExt;
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
+        SubjectBuilderTrait, SubjectTrait,
+    };
     use phymes_task::SubscriptionTrait;
 
-    use crate::{DynamicTaskNetworkNames, extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
+    use crate::{
+        DynamicTaskNetworkNames, extended_diagnostic_subjects, write_diagnostic_subjects_to_csv,
+    };
 
     use super::*;
 
@@ -1138,10 +1632,16 @@ mod tests {
         let open_alex_network_builder = OpenAlexNetworkBuilder::default().inner.take().unwrap();
         let network_name = open_alex_network_builder.name.clone().unwrap();
         let (network, session_messages) = open_alex_network_builder
-            .with_runtime_env(RuntimeEnv::get_builder()
-                .with_name(DynamicTaskNetworkNames::RuntimeEnv(&network_name).to_string().as_str())
-                .with_max_steps(100)
-                .build_arc()?)
+            .with_runtime_env(
+                RuntimeEnv::get_builder()
+                    .with_name(
+                        DynamicTaskNetworkNames::RuntimeEnv(&network_name)
+                            .to_string()
+                            .as_str(),
+                    )
+                    .with_max_steps(100)
+                    .build_arc()?,
+            )
             .with_diagnostics(true)
             .add_processor_subjects()?
             .add_next_tasks()?
@@ -1223,9 +1723,9 @@ mod tests {
             // "Users/dmccl/Downloads/ontologies/eco.owl", // Works with HumanDO
             // "Users/dmccl/Downloads/ontologies/cl.owl", // Works with HumanDO
             "Users/dmccl/Downloads/ontologies/uberon.owl", // Breaks with HumanDO but works on its own
-            // "Users/dmccl/Downloads/ontologies/go.owl", // Works with HumanDO
-            // "Users/dmccl/Downloads/ontologies/taxslim.owl", // Works with HumanDO
-            ];
+                                                           // "Users/dmccl/Downloads/ontologies/go.owl", // Works with HumanDO
+                                                           // "Users/dmccl/Downloads/ontologies/taxslim.owl", // Works with HumanDO
+        ];
         let cl_arr: ArrayRef = Arc::new(StringArray::from(cl_urls));
         // let batch = RecordBatch::try_from_iter(vec![("content", cl_arr)])?;
         let batch = RecordBatch::try_from_iter(vec![("location", cl_arr)])?;
@@ -1258,13 +1758,14 @@ mod tests {
         let subject_names = extended_diagnostic_subjects
             .iter()
             .map(|s| s.as_str())
-            .chain(["EmbeddingScores","Documents","UserQueries"])
+            .chain(["EmbeddingScores", "Documents", "UserQueries"])
             .collect::<Vec<_>>();
         write_diagnostic_subjects_to_csv(
-            &subject_names, 
-            network_arc.runtime_env(), 
-            network_arc.get_name())
-            .await?;
+            &subject_names,
+            network_arc.runtime_env(),
+            network_arc.get_name(),
+        )
+        .await?;
 
         assert_eq!(response.len(), 0);
 
@@ -1485,7 +1986,7 @@ mod tests {
             .with_record_batches(batches)?
             .build()?;
         dbg!(subject.count_rows());
-        
+
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::ParseOwl.to_string(),
         }
@@ -1553,7 +2054,7 @@ mod tests {
         dbg!(column.last().unwrap());
         // assert_eq!(column.first().unwrap(), &"UserScript");
         // assert_eq!(column.last().unwrap(), &"UserScript");
-        
+
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableInterfaceSubjects::UserQueries.to_string(),
         }
@@ -1588,55 +2089,55 @@ mod tests {
         //     &"**definition** An entity that has temporal parts and that happens, unfolds or develops through time.\n**has exact synonym** has temporal part\n**has exact synonym** through time\n**has exact synonym** unfolds in time\n**label** occurrent"
         // );
 
-//         // Make the query data
-//         let mut message_map = HashMap::<String, IPCMessage>::new();
-//         let chat = AvailableInterfaceSubjects::UserMessages
-//             .to_subject_builder(None)
-//             .append_new_user_query_str(
-//                 r#"label: Fanconi syndrome
-// definition: A renal tubular transport disease of the proximal renal tubes characterized by glucosuria, phosphaturia, generalized aminoaciduria and HCO3 wasting.
-// has exact synonym: Lignac-Fanconi syndrome
-// has exact synonym: adult Fanconi Anemia
-// has exact synonym: Congenital Fanconi syndrome
-// has exact synonym: Fanconi-de Toni syndrome
-// has exact synonym: Infantile nephropathic cystinosis
-// has exact synonym: Fanconi-de-Toni syndrome
-// has exact synonym: De Toni-Fanconi syndrome
-// has exact synonym: adult Fanconi syndrome
-// has exact synonym: deToni Fanconi syndrome
-// has exact match: MESH:D005198"#,
-//                 "user",
-//             )?
-//             .build()?;
-//         let _ = message_map.insert(
-//             chat.get_name().to_string(),
-//             IPCMessage::get_builder()
-//                 .with_message(chat.to_ipc_stream()?)
-//                 .with_subject(chat.get_name())
-//                 .with_update(&Publication::Extend {
-//                     subject_name: chat.get_name().to_string(),
-//                 })
-//                 .with_publisher(network_arc.get_name())
-//                 .make_name()?
-//                 .build()?,
-//         );
+        //         // Make the query data
+        //         let mut message_map = HashMap::<String, IPCMessage>::new();
+        //         let chat = AvailableInterfaceSubjects::UserMessages
+        //             .to_subject_builder(None)
+        //             .append_new_user_query_str(
+        //                 r#"label: Fanconi syndrome
+        // definition: A renal tubular transport disease of the proximal renal tubes characterized by glucosuria, phosphaturia, generalized aminoaciduria and HCO3 wasting.
+        // has exact synonym: Lignac-Fanconi syndrome
+        // has exact synonym: adult Fanconi Anemia
+        // has exact synonym: Congenital Fanconi syndrome
+        // has exact synonym: Fanconi-de Toni syndrome
+        // has exact synonym: Infantile nephropathic cystinosis
+        // has exact synonym: Fanconi-de-Toni syndrome
+        // has exact synonym: De Toni-Fanconi syndrome
+        // has exact synonym: adult Fanconi syndrome
+        // has exact synonym: deToni Fanconi syndrome
+        // has exact match: MESH:D005198"#,
+        //                 "user",
+        //             )?
+        //             .build()?;
+        //         let _ = message_map.insert(
+        //             chat.get_name().to_string(),
+        //             IPCMessage::get_builder()
+        //                 .with_message(chat.to_ipc_stream()?)
+        //                 .with_subject(chat.get_name())
+        //                 .with_update(&Publication::Extend {
+        //                     subject_name: chat.get_name().to_string(),
+        //                 })
+        //                 .with_publisher(network_arc.get_name())
+        //                 .make_name()?
+        //                 .build()?,
+        //         );
 
-//         // 2. Run the session
-//         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
-//         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
+        //         // 2. Run the session
+        //         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+        //         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
-//         let subject_names = extended_diagnostic_subjects
-//             .iter()
-//             .map(|s| s.as_str())
-//             .chain(["EmbeddingScores","Documents","UserQueries",
-//                 "pivot_object_property_entity_s","pivot_class_entity_s",
-//                 "select_annotation_property_entity_s","pivot_annotation_property_entity_s"])
-//             .collect::<Vec<_>>();
-//         write_diagnostic_subjects_to_csv(
-//             &subject_names, 
-//             network_arc.runtime_env(), 
-//             network_arc.get_name())
-//             .await?;
+        //         let subject_names = extended_diagnostic_subjects
+        //             .iter()
+        //             .map(|s| s.as_str())
+        //             .chain(["EmbeddingScores","Documents","UserQueries",
+        //                 "pivot_object_property_entity_s","pivot_class_entity_s",
+        //                 "select_annotation_property_entity_s","pivot_annotation_property_entity_s"])
+        //             .collect::<Vec<_>>();
+        //         write_diagnostic_subjects_to_csv(
+        //             &subject_names,
+        //             network_arc.runtime_env(),
+        //             network_arc.get_name())
+        //             .await?;
 
         // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
         //     subject_name: AvailableSubjects::SessionErrors.to_string(),

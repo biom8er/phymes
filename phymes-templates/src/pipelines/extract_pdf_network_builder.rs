@@ -1,12 +1,15 @@
 use std::collections::VecDeque;
 
 use phymes_data::{AvailableOperators, DataConfig, DataStreamManager};
-use phymes_processor::AvailableProcessors;
-use phymes_streams::LimitConfig;
-use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
 use phymes_event::{Publication, Subscription};
 use phymes_network::NetworkBuilder;
+use phymes_processor::AvailableProcessors;
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
+use phymes_streams::LimitConfig;
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
+    SubjectPlanBuilderTrait,
+};
 
 use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
 
@@ -54,24 +57,35 @@ impl Default for ExtractPDFNetworkBuilder {
                 .build()
                 .unwrap();
             let subject = AvailableSubjects::Bytes
-                .to_subject(Some(DynamicTaskNetworkNames::Subject(network_name).to_string().as_str()), None)
+                .to_subject(
+                    Some(
+                        DynamicTaskNetworkNames::Subject(network_name)
+                            .to_string()
+                            .as_str(),
+                    ),
+                    None,
+                )
                 .unwrap();
             let subject_out = SubjectPlan::get_builder()
                 .with_subject(subject)
                 .build()
                 .unwrap();
             // DM, todo: Change to AvailableSubject when possible
-            let subject_routes = ["PdfDocumentSubject", "PdfPageSubject", "PdfTextSubject", "PdfGraphicsSubject"].into_iter()
-                .map(|s| {
-                    let subject = AvailableSubjects::Bytes
-                        .to_subject(Some(s), None)
-                        .unwrap();
-                    SubjectPlan::get_builder()
-                        .with_subject(subject)
-                        .build()
-                        .unwrap()
-                })
-                .collect::<Vec<_>>();
+            let subject_routes = [
+                "PdfDocumentSubject",
+                "PdfPageSubject",
+                "PdfTextSubject",
+                "PdfGraphicsSubject",
+            ]
+            .into_iter()
+            .map(|s| {
+                let subject = AvailableSubjects::Bytes.to_subject(Some(s), None).unwrap();
+                SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap()
+            })
+            .collect::<Vec<_>>();
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
                 is_dynamic: false,
@@ -126,12 +140,20 @@ impl Default for ExtractPDFNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder);                
+                tasks.push_back(builder);
             }
             {
                 let network_name = "split_pdf_text";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
+                    lhs_name: Some(
+                        tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
+                    ),
                     lhs_pk: Some("chunk_id".to_string()),
                     lhs_fk: Some("document_id".to_string()),
                     lhs_values: Some(vec!["text".to_string()]),
@@ -157,7 +179,13 @@ impl Default for ExtractPDFNetworkBuilder {
                     is_dynamic: false,
                     processor: AvailableProcessors::ChunkDocuments,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                        subject_name: tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
                     },
                     publication: Publication::Replace {
                         subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
@@ -165,13 +193,26 @@ impl Default for ExtractPDFNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder); 
+                tasks.push_back(builder);
             }
             {
                 let network_name = "select_pdf_text";
                 let config = DataConfig {
-                    lhs_name: Some(tasks.iter().last().unwrap().publication.subject_name().to_string()),
-                    lhs_values: Some(["chunk_id","document_id","text"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                    lhs_name: Some(
+                        tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
+                    ),
+                    lhs_values: Some(
+                        ["chunk_id", "document_id", "text"]
+                            .into_iter()
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>(),
+                    ),
                     cpu: false,
                     operator: AvailableOperators::Select,
                     lhs_stream: DataStreamManager::Stream,
@@ -188,9 +229,7 @@ impl Default for ExtractPDFNetworkBuilder {
                     .with_subject(subject)
                     .build()
                     .unwrap();
-                let subject = AvailableSubjects::Documents
-                    .to_subject(None, None)
-                    .unwrap();
+                let subject = AvailableSubjects::Documents.to_subject(None, None).unwrap();
                 let subject_out = SubjectPlan::get_builder()
                     .with_subject(subject)
                     .build()
@@ -200,7 +239,13 @@ impl Default for ExtractPDFNetworkBuilder {
                     is_dynamic: false,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks.iter().last().unwrap().publication.subject_name().to_string(),
+                        subject_name: tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
                     },
                     publication: Publication::Replace {
                         subject_name: subject_out.get_name().to_string(),
@@ -209,7 +254,7 @@ impl Default for ExtractPDFNetworkBuilder {
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder);                
+                tasks.push_back(builder);
             }
             let mut network_builder = tasks.pop_front().unwrap().build_dynamic();
             while let Some(task) = tasks.pop_front() {
@@ -217,7 +262,8 @@ impl Default for ExtractPDFNetworkBuilder {
             }
             network_builder
         };
-        let extract_pdf_network_builder = extract_pdf_network_builder.extend(network_builder).unwrap();
+        let extract_pdf_network_builder =
+            extract_pdf_network_builder.extend(network_builder).unwrap();
 
         // Chunk the graphics data for embedding
         // DM, TODO
@@ -244,13 +290,14 @@ mod tests {
         AvailableSubjectsTrait,
     };
     use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
+        SubjectBuilderTrait, SubjectTrait,
     };
     use phymes_task::SubscriptionTrait;
 
     use crate::{extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
 
-use super::*;
+    use super::*;
 
     #[tokio::test]
     async fn test_extract_pdf_network() -> Result<()> {
@@ -258,10 +305,16 @@ use super::*;
         let extract_pdf_network_builder = ExtractPDFNetworkBuilder::default().inner.take().unwrap();
         let network_name = extract_pdf_network_builder.name.clone().unwrap();
         let (network, session_messages) = extract_pdf_network_builder
-            .with_runtime_env(RuntimeEnv::get_builder()
-                .with_name(DynamicTaskNetworkNames::RuntimeEnv(&network_name).to_string().as_str())
-                .with_max_steps(100)
-                .build_arc()?)
+            .with_runtime_env(
+                RuntimeEnv::get_builder()
+                    .with_name(
+                        DynamicTaskNetworkNames::RuntimeEnv(&network_name)
+                            .to_string()
+                            .as_str(),
+                    )
+                    .with_max_steps(100)
+                    .build_arc()?,
+            )
             .with_diagnostics(true)
             .add_processor_subjects()?
             .add_next_tasks()?
@@ -310,10 +363,11 @@ use super::*;
             .chain(["Documents"])
             .collect::<Vec<_>>();
         write_diagnostic_subjects_to_csv(
-            &subject_names, 
-            network_arc.runtime_env(), 
-            network_arc.get_name())
-            .await?;
+            &subject_names,
+            network_arc.runtime_env(),
+            network_arc.get_name(),
+        )
+        .await?;
 
         assert_eq!(response.len(), 0);
 
@@ -384,14 +438,26 @@ use super::*;
             .build()?;
         assert_eq!(subject.count_rows(), 4);
         let column = subject.get_column_as_vec_str("chunk_id");
-        assert_eq!(column.first().unwrap(), &"WikiBioComponents1PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }");
-        assert_eq!(column.last().unwrap(), &"WikiBioComponents4PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }");
+        assert_eq!(
+            column.first().unwrap(),
+            &"WikiBioComponents1PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }"
+        );
+        assert_eq!(
+            column.last().unwrap(),
+            &"WikiBioComponents4PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }"
+        );
         let column = subject.get_column_as_vec_str("document_id");
         assert_eq!(column.first().unwrap(), &"WikiBioComponents");
         assert_eq!(column.last().unwrap(), &"WikiBioComponents");
         let column = subject.get_column_as_vec_str("text");
-        assert_eq!(column.first().unwrap(), &"Proteins are large biomolecules and macromolecules that comprise one or more long chains of amino acid residues. Proteins perform a vast array of functions within organisms, including catalysing metabolic reactions, DNA replication, responding to stimuli, providing structure to cells and organisms, and transporting molecules from one location to another. Proteins differ from one another primarily in their sequence of amino acids, which is dictated by the nucleotide sequence of their genes, and which usually results in protein folding into a specific 3D structure that determines its activity.A linear chain of amino acid residues is called a polypeptide. A protein contains at least one long polypeptide. Short polypeptides, containing less than 2030 residues, are rarely considered to be proteins and are commonly called peptides. The individual amino acid residues are bonded together by peptide bonds and adjacent amino acid residues. The sequence of amino acid residues in a protein is defined by the sequence of a gene, which is encoded in the genetic code. In general, the genetic code specifies 20 standard amino acids; but in certain organisms the genetic code can include selenocysteine andin certain archaeapyrrolysine. Shortly after or even during synthesis, the residues in a protein are often chemically modified by post-translational modification, which alters the physical and chemical properties, folding, stability, activity, and ultimately, the function of the proteins. Some proteins have non-peptide groups attached, which can be called prosthetic groups or cofactors. Proteins can work together to achieve a particular function, and they often associate to form stable protein complexes.Once formed, proteins only exist for a certain period and are then degraded and recycled by the cell’s machinery through the process of protein turnover. A protein’s lifespan is measured in terms of its half-life and covers a wide range. They can exist for minutes or years with an average lifespan of 1-2 days in mammalian cells. Abnormal or misfolded proteins are degraded more rapidly either due to being targeted for destruction or due to being unstable.Like other biological macromolecules such as polysaccharides and nucleic acids, proteins are essential parts of organisms and participate in virtually every process within cells. Many proteins are enzymes that catalyse biochemical reactions and are vital to metabolism. Some proteins have structural or mechanical functions, such as actin and myosin in muscle, and the cytoskeleton’s scaffolding proteins that maintain cell shape. Other proteins are important in cell signaling, immune responses, cell adhesion, and the cell cycle. In animals, proteins are needed in the diet to provide the essential amino acids that cannot be synthesized. Digestion breaks the proteins down for metabolic use.\n");
-        assert_eq!(column.last().unwrap(), &"The cell is the basic structural and functional unit of all forms of life. Every cell consists of cytoplasm enclosed within a membrane; many cells contain organelles, each with a specific function. The term comes from the Latin word cellula meaning ’small room’. Most cells are only visible under a microscope. Cells emerged on Earth about 4 billion years ago. All cells are capable of replication, protein synthesis, and motility.Cells are broadly categorized into two types: eukaryotic cells, which possess a nucleus, and prokaryotic cells, which lack a nucleus but have a nucleoid region. Prokaryotes are single-celled organisms such as bacteria, whereas eukaryotes can be either single-celled, such as amoebae, or multicellular, such as some algae, plants, animals, and fungi. Eukaryotic cells contain organelles including mitochondria, which provide energy for cell functions, chloroplasts, which in plants create sugars by photosynthesis, and ribosomes, which synthesise proteins.Cells were discovered by Robert Hooke in 1665, who named them after their resemblance to cells inhabited by Christian monks in a monastery. Cell theory, developed in 1839 by Matthias Jakob Schleiden and Theodor Schwann, states that all organisms are composed of one or more cells, that cells are the fundamental unit of structure and function in all living organisms, and that all cells come from pre-existing cells.\n");
+        assert_eq!(
+            column.first().unwrap(),
+            &"Proteins are large biomolecules and macromolecules that comprise one or more long chains of amino acid residues. Proteins perform a vast array of functions within organisms, including catalysing metabolic reactions, DNA replication, responding to stimuli, providing structure to cells and organisms, and transporting molecules from one location to another. Proteins differ from one another primarily in their sequence of amino acids, which is dictated by the nucleotide sequence of their genes, and which usually results in protein folding into a specific 3D structure that determines its activity.A linear chain of amino acid residues is called a polypeptide. A protein contains at least one long polypeptide. Short polypeptides, containing less than 2030 residues, are rarely considered to be proteins and are commonly called peptides. The individual amino acid residues are bonded together by peptide bonds and adjacent amino acid residues. The sequence of amino acid residues in a protein is defined by the sequence of a gene, which is encoded in the genetic code. In general, the genetic code specifies 20 standard amino acids; but in certain organisms the genetic code can include selenocysteine andin certain archaeapyrrolysine. Shortly after or even during synthesis, the residues in a protein are often chemically modified by post-translational modification, which alters the physical and chemical properties, folding, stability, activity, and ultimately, the function of the proteins. Some proteins have non-peptide groups attached, which can be called prosthetic groups or cofactors. Proteins can work together to achieve a particular function, and they often associate to form stable protein complexes.Once formed, proteins only exist for a certain period and are then degraded and recycled by the cell’s machinery through the process of protein turnover. A protein’s lifespan is measured in terms of its half-life and covers a wide range. They can exist for minutes or years with an average lifespan of 1-2 days in mammalian cells. Abnormal or misfolded proteins are degraded more rapidly either due to being targeted for destruction or due to being unstable.Like other biological macromolecules such as polysaccharides and nucleic acids, proteins are essential parts of organisms and participate in virtually every process within cells. Many proteins are enzymes that catalyse biochemical reactions and are vital to metabolism. Some proteins have structural or mechanical functions, such as actin and myosin in muscle, and the cytoskeleton’s scaffolding proteins that maintain cell shape. Other proteins are important in cell signaling, immune responses, cell adhesion, and the cell cycle. In animals, proteins are needed in the diet to provide the essential amino acids that cannot be synthesized. Digestion breaks the proteins down for metabolic use.\n"
+        );
+        assert_eq!(
+            column.last().unwrap(),
+            &"The cell is the basic structural and functional unit of all forms of life. Every cell consists of cytoplasm enclosed within a membrane; many cells contain organelles, each with a specific function. The term comes from the Latin word cellula meaning ’small room’. Most cells are only visible under a microscope. Cells emerged on Earth about 4 billion years ago. All cells are capable of replication, protein synthesis, and motility.Cells are broadly categorized into two types: eukaryotic cells, which possess a nucleus, and prokaryotic cells, which lack a nucleus but have a nucleoid region. Prokaryotes are single-celled organisms such as bacteria, whereas eukaryotes can be either single-celled, such as amoebae, or multicellular, such as some algae, plants, animals, and fungi. Eukaryotic cells contain organelles including mitochondria, which provide energy for cell functions, chloroplasts, which in plants create sugars by photosynthesis, and ribosomes, which synthesise proteins.Cells were discovered by Robert Hooke in 1665, who named them after their resemblance to cells inhabited by Christian monks in a monastery. Cell theory, developed in 1839 by Matthias Jakob Schleiden and Theodor Schwann, states that all organisms are composed of one or more cells, that cells are the fundamental unit of structure and function in all living organisms, and that all cells come from pre-existing cells.\n"
+        );
         let column = subject.get_column_as_vec_primitive::<u32>("op")?;
         assert_eq!(column.first().unwrap(), &4);
         assert_eq!(column.last().unwrap(), &4);
@@ -465,8 +531,14 @@ use super::*;
             .build()?;
         assert_eq!(subject.count_rows(), 4);
         let column = subject.get_column_as_vec_str("chunk_id");
-        assert_eq!(column.first().unwrap(), &"WikiBioComponents1PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_0");
-        assert_eq!(column.last().unwrap(), &"WikiBioComponents4PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_0");
+        assert_eq!(
+            column.first().unwrap(),
+            &"WikiBioComponents1PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_0"
+        );
+        assert_eq!(
+            column.last().unwrap(),
+            &"WikiBioComponents4PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_0"
+        );
         let column = subject.get_column_as_vec_str("document_id");
         assert_eq!(column.first().unwrap(), &"WikiBioComponents");
         assert_eq!(column.last().unwrap(), &"WikiBioComponents");

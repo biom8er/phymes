@@ -18,7 +18,10 @@ use serde_json::Value;
 use tracing::instrument;
 
 use crate::{
-    DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataJoinOperator, DataOperatorTrait, PatchOperator, ToolTrait, apply_patch_auto, group_by, operators::{
+    DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator,
+    DataComparatorPredicate, DataConfig, DataJoinOperator, DataOperatorTrait, PatchOperator,
+    ToolTrait, apply_patch_auto, group_by,
+    operators::{
         filter, from_json_object_columns,
         group_by::{
             build_aggregator_column_list_nonprimitive, build_aggregator_column_list_primitive,
@@ -26,7 +29,7 @@ use crate::{
         join::join,
         select::select,
         to_json_object_columns,
-    }
+    },
 };
 
 /// Inject a table into a string template
@@ -549,17 +552,34 @@ pub fn patch(
         )?;
 
         // Group by to combine multiple patches for the same target
-        let group_by_lhs_values = lhs_schema.fields().iter().map(|s| s.name().as_str()).collect::<Vec<_>>();
-        let lhs_update_schema = lhs_update.schema();
-        let group_by_agg_columns = lhs_update_schema.fields()
+        let group_by_lhs_values = lhs_schema
+            .fields()
             .iter()
-            .filter_map(|s| if group_by_lhs_values.contains(&s.name().as_str()) {
-                None
-            } else {
-                Some(s.name().as_str())
-            }).collect::<Vec<_>>();
-        let group_by_agg_operators = rhs_columns.iter().map(|_| DataAggregatorOperator::List).collect::<Vec<_>>();
-        let lhs_update = group_by(&group_by_lhs_values, &[lhs_update], &group_by_agg_columns, &group_by_agg_operators, device)?;
+            .map(|s| s.name().as_str())
+            .collect::<Vec<_>>();
+        let lhs_update_schema = lhs_update.schema();
+        let group_by_agg_columns = lhs_update_schema
+            .fields()
+            .iter()
+            .filter_map(|s| {
+                if group_by_lhs_values.contains(&s.name().as_str()) {
+                    None
+                } else {
+                    Some(s.name().as_str())
+                }
+            })
+            .collect::<Vec<_>>();
+        let group_by_agg_operators = rhs_columns
+            .iter()
+            .map(|_| DataAggregatorOperator::List)
+            .collect::<Vec<_>>();
+        let lhs_update = group_by(
+            &group_by_lhs_values,
+            &[lhs_update],
+            &group_by_agg_columns,
+            &group_by_agg_operators,
+            device,
+        )?;
 
         // Apply `Update`
         // Note: possible to have more than one update per target
@@ -568,7 +588,8 @@ pub fn patch(
             .with_record_batches(vec![lhs_update])?
             .build()?;
         let group_by_diff_column = format!("{diff_column}-List");
-        let patches = lhs_update_table.get_column_as_vec_nested_nonprimitive::<String>(&group_by_diff_column)?;
+        let patches = lhs_update_table
+            .get_column_as_vec_nested_nonprimitive::<String>(&group_by_diff_column)?;
         let original = lhs_update_table.get_column_as_vec_str(lhs_values.first().unwrap());
         let modified: Result<Vec<String>> = original
             .into_iter()
@@ -581,9 +602,9 @@ pub fn patch(
                     for p in p_vec {
                         if !p.is_empty() {
                             patched = apply_patch_auto(&patched, &p, false)?;
-                        }                        
+                        }
                     }
-                    Ok(patched)                    
+                    Ok(patched)
                 }
             })
             .collect();
@@ -1716,13 +1737,10 @@ pub use todo::Todo"#,
 
         // Create the mock patches
         let patch_pks = vec![2, 2];
-        let patch_paths = [
-            "/home/sandbox/src/lib.rs",
-            "/home/sandbox/src/lib.rs",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
+        let patch_paths = ["/home/sandbox/src/lib.rs", "/home/sandbox/src/lib.rs"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
         let operations = vec![
             PatchOperator::Update.to_string(),
             PatchOperator::Update.to_string(),
@@ -1773,17 +1791,21 @@ pub use todo::Todo"#,
         assert_eq!(
             test,
             [
-                "/home/sandbox/Cargo.toml", "/home/sandbox/src/extras/mod.rs", "/home/sandbox/src/lib.rs", "/home/sandbox/src/extras/todo.rs", "/home/sandbox/src/main.rs"
+                "/home/sandbox/Cargo.toml",
+                "/home/sandbox/src/extras/mod.rs",
+                "/home/sandbox/src/lib.rs",
+                "/home/sandbox/src/extras/todo.rs",
+                "/home/sandbox/src/main.rs"
             ]
         );
         let test = result_table.get_column_as_vec_nonprimitive::<String>("code")?;
         assert_eq!(
             test,
             [
-                "[package]\nname = \"phymes_rs\"\nversion = \"0.1.0\"\nedition = \"2024\"\n[dependencies]\nanyhow = { version = \"1\", default-features = false }", 
-                "mod todo;\npub use todo::Todo", 
-                "pub mod extra;\npub mod other2;\npub mod other1;", 
-                "pub struct Todo {}", 
+                "[package]\nname = \"phymes_rs\"\nversion = \"0.1.0\"\nedition = \"2024\"\n[dependencies]\nanyhow = { version = \"1\", default-features = false }",
+                "mod todo;\npub use todo::Todo",
+                "pub mod extra;\npub mod other2;\npub mod other1;",
+                "pub struct Todo {}",
                 "use anyhow::Result;\nfn main() -> Result<()> {\n    Ok(())\n}"
             ]
         );
@@ -1813,7 +1835,11 @@ pub use todo::Todo"#,
         assert_eq!(
             test,
             [
-                "/home/sandbox/Cargo.toml", "/home/sandbox/src/extras/mod.rs", "/home/sandbox/src/lib.rs", "/home/sandbox/src/extras/todo.rs", "/home/sandbox/src/main.rs"
+                "/home/sandbox/Cargo.toml",
+                "/home/sandbox/src/extras/mod.rs",
+                "/home/sandbox/src/lib.rs",
+                "/home/sandbox/src/extras/todo.rs",
+                "/home/sandbox/src/main.rs"
             ]
         );
         let test = result_table.get_column_as_vec_nonprimitive::<String>("code")?;

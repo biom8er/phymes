@@ -33,11 +33,12 @@ pub use data::{
     make_extension, make_filename, parse_str_to_data_type,
 };
 pub use embed::{
-    EmbeddingRequest, EmbeddingResponse, EncodingFormat, create_document_embeddings_fields,
-    create_documents_batch, create_documents_embeddings_batch, create_documents_fields,
-    create_embeddings_scores_fields, create_join_chunks_scores_fields, create_queries_batch,
-    create_queries_fields, create_query_embeddings_batch, create_query_embeddings_fields,
-    PdfDocument, PdfDocumentSubject, PdfDocumentsResponse, PdfPage, PdfPageSubject, PdfTd, PdfTm, PdfFont, PdfText, PdfTextSubject, PdfGraphics, PdfGraphicsSubject,
+    EmbeddingRequest, EmbeddingResponse, EncodingFormat, PdfDocument, PdfDocumentSubject,
+    PdfDocumentsResponse, PdfFont, PdfGraphics, PdfGraphicsSubject, PdfPage, PdfPageSubject, PdfTd,
+    PdfText, PdfTextSubject, PdfTm, create_document_embeddings_fields, create_documents_batch,
+    create_documents_embeddings_batch, create_documents_fields, create_embeddings_scores_fields,
+    create_join_chunks_scores_fields, create_queries_batch, create_queries_fields,
+    create_query_embeddings_batch, create_query_embeddings_fields,
 };
 pub use http::{e_utils, open_alex, semantic_scholar};
 pub use schemas::{

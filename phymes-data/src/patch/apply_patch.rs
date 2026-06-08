@@ -5,7 +5,11 @@ use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::patch::{apply_search_and_replace_diff::{BEGIN_SEARCH, END_REPLACE, END_SEARCH_BEGIN_REPLACE}, apply_search_and_replace_patch, apply_v4a_diff::apply_v4a_patch};
+use crate::patch::{
+    apply_search_and_replace_diff::{BEGIN_SEARCH, END_REPLACE, END_SEARCH_BEGIN_REPLACE},
+    apply_search_and_replace_patch,
+    apply_v4a_diff::apply_v4a_patch,
+};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, ValueEnum, Default)]
 pub enum PatchOperator {
@@ -115,10 +119,10 @@ fn classify_diff(diff: &str) -> DiffType {
                 if dmp_score == 0 {
                     v4a_score += 1;
                 }
-            }
-            else if trimmed.contains(BEGIN_SEARCH.trim())
+            } else if trimmed.contains(BEGIN_SEARCH.trim())
                 || trimmed.contains(END_SEARCH_BEGIN_REPLACE.trim())
-                || trimmed.contains(END_REPLACE.trim()) {
+                || trimmed.contains(END_REPLACE.trim())
+            {
                 sr_score += 1;
             }
         }
@@ -192,9 +196,11 @@ pub fn compute_diff(original: &str, modified: &str, diff: &DiffType) -> Result<S
             Ok(patch)
         }
         DiffType::SR => {
-            let patch = format!("{BEGIN_SEARCH}{original}{END_SEARCH_BEGIN_REPLACE}{modified}{END_REPLACE}");
+            let patch = format!(
+                "{BEGIN_SEARCH}{original}{END_SEARCH_BEGIN_REPLACE}{modified}{END_REPLACE}"
+            );
             Ok(patch)
-        },
+        }
         DiffType::Map => {
             let original_map = serde_json::from_str::<Map<String, Value>>(original)?
                 .into_iter()
@@ -264,12 +270,15 @@ pub mod tests {
         let original = "Old text\n";
         let modified = "New text\n";
         let diff = compute_diff(original, modified, &DiffType::SR).unwrap();
-        assert_eq!(diff,  r#"<<<<<<< SEARCH
+        assert_eq!(
+            diff,
+            r#"<<<<<<< SEARCH
 Old text
 =======
 New text
 >>>>>>> REPLACE
-"#);
+"#
+        );
         let result = apply_patch_auto(original, &diff, false).unwrap();
         assert_eq!(result, "New text\n");
     }

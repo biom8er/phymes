@@ -1,14 +1,21 @@
-use std::{collections::{BTreeMap, HashMap}, io::Error, iter::zip};
+use std::{
+    collections::{BTreeMap, HashMap},
+    io::Error,
+    iter::zip,
+};
 
 use anyhow::{Ok, Result, anyhow};
 use arrow::array::{ListArray, RecordBatch, StringArray, UInt8Array};
 use candle_core::Device;
 use lopdf::{
-    Document, Encoding, Object, Stream, content::{Content, Operation}, dictionary
+    Document, Encoding, Object, Stream,
+    content::{Content, Operation},
+    dictionary,
 };
 
 use phymes_schemas::{
-    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, JsonSchemaTrait, PdfDocument, PdfDocumentsResponse, PdfFont, PdfPage, PdfTd, PdfText, PdfTm, Tool, ToolType
+    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, JsonSchemaTrait, PdfDocument,
+    PdfDocumentsResponse, PdfFont, PdfPage, PdfTd, PdfText, PdfTm, Tool, ToolType,
 };
 use phymes_subject::MappableTrait;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -118,7 +125,12 @@ impl DataOperatorTrait for ExtractPDF {
             "Missing `doc_extraction` for `{}`.",
             Self::get_static_name()
         ))?;
-        Ok(ExtractPDF { lhs_pk, lhs_values, doc_filter, doc_extraction })
+        Ok(ExtractPDF {
+            lhs_pk,
+            lhs_values,
+            doc_filter,
+            doc_extraction,
+        })
     }
     fn forward(
         &self,
@@ -126,7 +138,13 @@ impl DataOperatorTrait for ExtractPDF {
         _rhs_args: Option<&[RecordBatch]>,
         _device: &Device,
     ) -> Result<RecordBatch> {
-        extract_pdf(&self.lhs_pk, &self.lhs_values, lhs_args, &self.doc_filter, &self.doc_extraction)
+        extract_pdf(
+            &self.lhs_pk,
+            &self.lhs_values,
+            lhs_args,
+            &self.doc_filter,
+            &self.doc_extraction,
+        )
     }
 }
 
@@ -158,17 +176,22 @@ fn extract_text_embeddings(doc: &Document, page_numbers: &[u32]) -> Result<Vec<P
     }
 
     // Additional filters of "junk" text
-    let text = text.into_iter()
-        .filter(|pdf_text| {            
+    let text = text
+        .into_iter()
+        .filter(|pdf_text| {
             // Heuristics from <https://doi.org/10.1371/journal.pcbi.1005962> suitable for most articles
             // Notes: removes majority of the Reference sections and all capital section headers...
             let n_chars = pdf_text.text.chars().count();
             let n_num = pdf_text.text.chars().filter(|c| c.is_numeric()).count();
             let num_frac = n_num as f32 / n_chars as f32;
             let num_check = num_frac < 0.1_f32;
-            let n_sym = pdf_text.text.chars().filter(|c| !c.is_alphanumeric()).count();
+            let n_sym = pdf_text
+                .text
+                .chars()
+                .filter(|c| !c.is_alphanumeric())
+                .count();
             let sym_frac = n_sym as f32 / n_chars as f32;
-            let sym_check =  sym_frac < 0.25_f32;
+            let sym_check = sym_frac < 0.25_f32;
             let n_lower = pdf_text.text.chars().filter(|c| c.is_lowercase()).count();
             let lower_frac = n_lower as f32 / n_chars as f32;
             let lower_check = lower_frac > 0.5_f32;
@@ -196,11 +219,14 @@ fn extract_text_chunks(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfTe
         .flat_map(|page_number| {
             let result = extract_text_chunks_from_page(doc, &pages, *page_number);
             match result {
-                std::result::Result::Ok(text_chunks) => text_chunks.into_iter()
-                    .filter_map(|x| if let std::result::Result::Ok(x) = x {
-                        Some(x)
-                    } else {
-                        None
+                std::result::Result::Ok(text_chunks) => text_chunks
+                    .into_iter()
+                    .filter_map(|x| {
+                        if let std::result::Result::Ok(x) = x {
+                            Some(x)
+                        } else {
+                            None
+                        }
                     })
                     .map(Ok)
                     .collect::<Vec<_>>(),
@@ -212,30 +238,36 @@ fn extract_text_chunks(doc: &Document, page_numbers: &[u32]) -> Result<Vec<PdfTe
 
 /// # Notes
 /// - See PDF 1.7 standard <https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf>
-/// 
+///
 /// ## Text objects
 /// - BT, ET
 /// - Operators: TD, PdfTm, PdfTd, Tf, and Tj/TJ
 /// - Other operators: Tc, Tw, Tz, TL, Tr, Ts
-/// 
+///
 /// ## Path objects
 /// - m, re
 /// - Path Construction Operators: m, l, c, v, y, h, re
 /// - Clipping path objects: W, W*
 /// - Path Painting Operators: S, s, f, F, f*, B, B*, b, b*, n
-/// 
+///
 /// ## Shading object
 /// - sh
-/// 
+///
 /// ## In-line image object
 /// - BI, EI
-/// 
+///
 /// ## External object
 /// - Do
-/// 
-fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16)>, page_number: u32) -> Result<Vec<Result<PdfText>>> {
+///
+fn extract_text_chunks_from_page(
+    doc: &Document,
+    pages: &BTreeMap<u32, (u32, u16)>,
+    page_number: u32,
+) -> Result<Vec<Result<PdfText>>> {
     let mut collected_chunks_and_errs = Vec::<Result<PdfText>>::new();
-    let page_id = *pages.get(&page_number).ok_or(anyhow!("Page number {page_number} not found."))?;
+    let page_id = *pages
+        .get(&page_number)
+        .ok_or(anyhow!("Page number {page_number} not found."))?;
 
     // extract out the fonts on the page
     let fonts_map = extract_fonts_from_page(doc, page_id)?
@@ -244,7 +276,7 @@ fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16
         .collect::<HashMap<_, _>>();
 
     // extract out the font encodings
-    let fonts = doc.get_page_fonts(page_id)?;    
+    let fonts = doc.get_page_fonts(page_id)?;
     let encodings: BTreeMap<Vec<u8>, Encoding> = fonts
         .into_iter()
         .filter_map(|(name, font)| match font.get_font_encoding(doc) {
@@ -253,7 +285,7 @@ fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16
                 let err = anyhow!("{err:?}");
                 collected_chunks_and_errs.push(Err(err));
                 None
-            },
+            }
         })
         .collect();
     let content_data = doc.get_page_content(page_id)?;
@@ -277,7 +309,8 @@ fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16
                     .iter()
                     .map(|f| f.as_f32().unwrap_or_default())
                     .collect::<Vec<_>>();
-                let tm = PdfTm::new(m.get(0).unwrap_or(&1_f32),
+                let tm = PdfTm::new(
+                    m.get(0).unwrap_or(&1_f32),
                     m.get(1).unwrap_or(&0_f32),
                     m.get(2).unwrap_or(&0_f32),
                     m.get(3).unwrap_or(&1_f32),
@@ -298,9 +331,7 @@ fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16
                     .iter()
                     .map(|f| f.as_i64().unwrap_or_default())
                     .collect::<Vec<_>>();
-                let td = PdfTd::new(d.get(0).unwrap_or(&0_i64),
-                    d.get(1).unwrap_or(&0_i64),
-                );
+                let td = PdfTd::new(d.get(0).unwrap_or(&0_i64), d.get(1).unwrap_or(&0_i64));
                 current_text.td = td;
             }
             "Tf" => {
@@ -315,15 +346,22 @@ fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16
                     .ok_or_else(|| anyhow!("missing font size operand".to_string()))?
                     .as_i64()?;
                 let (current_enc, font_name) = match current_font {
-                    std::result::Result::Ok(font) => (encodings.get(font), String::from_utf8(font.to_vec()).unwrap()),
+                    std::result::Result::Ok(font) => (
+                        encodings.get(font),
+                        String::from_utf8(font.to_vec()).unwrap(),
+                    ),
                     Err(err) => {
                         let err = anyhow!("{err:?}");
                         collected_chunks_and_errs.push(Err(err));
                         (None, String::new())
-                    },
+                    }
                 };
                 current_encoding = current_enc;
-                let pdf_font = PdfFont::new(&font_name, fonts_map.get(&font_name).unwrap().0.as_str(), fonts_map.get(&font_name).unwrap().1.as_str());
+                let pdf_font = PdfFont::new(
+                    &font_name,
+                    fonts_map.get(&font_name).unwrap().0.as_str(),
+                    fonts_map.get(&font_name).unwrap().1.as_str(),
+                );
                 current_text.font = pdf_font;
                 current_text.font_size = font_size;
 
@@ -341,7 +379,7 @@ fn extract_text_chunks_from_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16
                         collected_chunks_and_errs.push(Err(err));
                     }
                 }
-                None => {},
+                None => {}
             },
             "ET" => {
                 if !current_text.text.ends_with('\n') {
@@ -387,7 +425,10 @@ fn collect_text(text: &mut String, encoding: &Encoding, operands: &[Object]) -> 
 }
 
 /// Extract all fonts from the document pages
-fn extract_fonts_from_page(doc: &Document, page_id: (u32, u16)) -> Result<Vec<(String, String, String)>> {
+fn extract_fonts_from_page(
+    doc: &Document,
+    page_id: (u32, u16),
+) -> Result<Vec<(String, String, String)>> {
     let font_refs = doc.get_page_fonts(page_id)?;
     let mut fonts_found = Vec::<(String, String, String)>::new();
     for (font_name, &font_dict) in font_refs.iter() {
@@ -399,16 +440,21 @@ fn extract_fonts_from_page(doc: &Document, page_id: (u32, u16)) -> Result<Vec<(S
             .get(b"Subtype")
             .and_then(|st| st.as_name())
             .unwrap_or(b"<Unknown>");
-        fonts_found.push((String::from_utf8_lossy(font_name).to_string(), 
+        fonts_found.push((
+            String::from_utf8_lossy(font_name).to_string(),
             String::from_utf8_lossy(base_font).to_string(),
-            String::from_utf8_lossy(subtype).to_string()),
-        );
+            String::from_utf8_lossy(subtype).to_string(),
+        ));
     }
     Ok(fonts_found)
 }
 
 /// Extract the documents to [PdfDocument]s
-fn extract_pdf_docs(docs: Vec<(String, Document)>, doc_filter: &DocumentFilterType, doc_extraction: &DocumentExtractType) -> Vec<PdfDocument> {
+fn extract_pdf_docs(
+    docs: Vec<(String, Document)>,
+    doc_filter: &DocumentFilterType,
+    doc_extraction: &DocumentExtractType,
+) -> Vec<PdfDocument> {
     docs
         .into_par_iter()
         .map(|(id, doc)| -> std::result::Result<PdfDocument, Error> {
@@ -444,8 +490,7 @@ fn extract_pdf_docs(docs: Vec<(String, Document)>, doc_filter: &DocumentFilterTy
                                 PdfPage::new(&page_num, &0_f32, &0_f32, "", &text, &[])
                             },
                             DocumentExtractType::ImageEmbeddings => todo!(),
-                        };                        
-
+                        };
                         // Todo, Extract graphics from the page
                         std::result::Result::Ok(content)
                     },
@@ -480,9 +525,10 @@ fn extract_pdf_docs(docs: Vec<(String, Document)>, doc_filter: &DocumentFilterTy
 pub fn extract_pdf(
     lhs_pk: &str,
     lhs_values: &str,
-    lhs_args: &[RecordBatch], 
+    lhs_args: &[RecordBatch],
     doc_filter: &DocumentFilterType,
-    doc_extraction: &DocumentExtractType) -> Result<RecordBatch> {
+    doc_extraction: &DocumentExtractType,
+) -> Result<RecordBatch> {
     // Prepare the documents for processing
     let docs = prepare_pdf_documents(lhs_pk, lhs_values, lhs_args);
 
@@ -606,7 +652,8 @@ fn prepare_pdf_documents(
     lhs_values: &str,
     lhs_args: &[RecordBatch],
 ) -> Vec<(String, Document)> {
-    lhs_args.iter()
+    lhs_args
+        .iter()
         .flat_map(|batch| {
             let document_id = batch
                 .column_by_name(lhs_pk)
@@ -635,7 +682,7 @@ fn prepare_pdf_documents(
                         .collect::<Vec<u8>>();
                     match load_pdf_document(&bytes) {
                         std::result::Result::Ok(doc) => Some(doc),
-                        Err(_err) => None
+                        Err(_err) => None,
                     }
                 })
                 .collect::<Vec<_>>();
@@ -677,17 +724,20 @@ pub fn make_pdf_document_page_per_content(contents: &[&str], page_per_content: b
                 "Parent" => pages_id,
                 "Contents" => content_id,
             });
-			page_id_vec.push(page_id.into());
+            page_id_vec.push(page_id.into());
         }
     } else {
-        let operations = contents.into_iter()
-            .flat_map(|content_str| vec![
-                Operation::new("BT", vec![]),
-                Operation::new("Tf", vec!["F1".into(), 48.into()]),
-                Operation::new("PdfTd", vec![100.into(), 600.into()]),
-                Operation::new("Tj", vec![Object::string_literal(*content_str)]),
-                Operation::new("ET", vec![]),
-            ])
+        let operations = contents
+            .into_iter()
+            .flat_map(|content_str| {
+                vec![
+                    Operation::new("BT", vec![]),
+                    Operation::new("Tf", vec!["F1".into(), 48.into()]),
+                    Operation::new("PdfTd", vec![100.into(), 600.into()]),
+                    Operation::new("Tj", vec![Object::string_literal(*content_str)]),
+                    Operation::new("ET", vec![]),
+                ]
+            })
             .collect::<Vec<_>>();
         let content = Content {
             operations: operations,
@@ -698,7 +748,7 @@ pub fn make_pdf_document_page_per_content(contents: &[&str], page_per_content: b
             "Parent" => pages_id,
             "Contents" => content_id,
         });
-		page_id_vec.push(page_id.into());
+        page_id_vec.push(page_id.into());
     }
     let pages = dictionary! {
         "Type" => "Pages",
@@ -720,8 +770,8 @@ pub fn make_pdf_document_page_per_content(contents: &[&str], page_per_content: b
 #[cfg(test)]
 mod tests {
     use phymes_schemas::create_attachments_batch;
-use phymes_subject::{
-        BuildableTrait, BuilderTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
     };
 
     use super::*;
@@ -730,8 +780,14 @@ use phymes_subject::{
     fn test_extract_pdf_text_chunks() {
         // Create several PDF document in memory
         let docs = [
-            ("doc_1", make_pdf_document_page_per_content(&["abc", "a\nb\nc", "4\n5\n6"], true)),
-            ("doc_2", make_pdf_document_page_per_content(&["abc", "a\nb\nc", "4\n5\n6"], true))
+            (
+                "doc_1",
+                make_pdf_document_page_per_content(&["abc", "a\nb\nc", "4\n5\n6"], true),
+            ),
+            (
+                "doc_2",
+                make_pdf_document_page_per_content(&["abc", "a\nb\nc", "4\n5\n6"], true),
+            ),
         ];
 
         // Attachments
@@ -741,7 +797,7 @@ use phymes_subject::{
         let mut metadata = Vec::new();
         let mut timestamp = Vec::new();
         for (name, mut doc) in docs {
-            let mut bytes = Vec::new();           
+            let mut bytes = Vec::new();
             doc.save_to(&mut bytes).unwrap();
             filename.push(name.to_string());
             extension.push("pdf".to_string());
@@ -749,10 +805,18 @@ use phymes_subject::{
             metadata.push(String::new());
             timestamp.push(0);
         }
-        let batch = create_attachments_batch(filename, extension, bytes_vec, metadata, timestamp).unwrap();
+        let batch =
+            create_attachments_batch(filename, extension, bytes_vec, metadata, timestamp).unwrap();
 
         // Extract text from the PDF document
-        let batch = extract_pdf("filename", "bytes", &[batch], &DocumentFilterType::Default, &DocumentExtractType::Default).unwrap();
+        let batch = extract_pdf(
+            "filename",
+            "bytes",
+            &[batch],
+            &DocumentFilterType::Default,
+            &DocumentExtractType::Default,
+        )
+        .unwrap();
 
         // Check the results
         let table = Subject::get_builder()
@@ -774,17 +838,18 @@ use phymes_subject::{
             table.get_column_as_vec_str("subject"),
             ["PdfDocumentSubject", "PdfPageSubject", "PdfTextSubject"]
         );
-        assert_eq!(
-            table.get_column_as_vec_str("format"),
-            ["Ipc", "Ipc", "Ipc"]
-        );
+        assert_eq!(table.get_column_as_vec_str("format"), ["Ipc", "Ipc", "Ipc"]);
 
         // Extract the subjects
-        let mut subjects = table.get_column_as_vec_nested_primitive::<u8>("bytes").unwrap()
+        let mut subjects = table
+            .get_column_as_vec_nested_primitive::<u8>("bytes")
+            .unwrap()
             .into_iter()
-            .map(|s| SubjectBuilder::new_from_ipc_stream(&s)?
-                .with_name("")
-                .build())
+            .map(|s| {
+                SubjectBuilder::new_from_ipc_stream(&s)?
+                    .with_name("")
+                    .build()
+            })
             .collect::<Vec<_>>();
         assert_eq!(subjects.len(), 3);
 
@@ -796,12 +861,15 @@ use phymes_subject::{
         );
         assert_eq!(
             subject.get_column_as_vec_str("chunk_id"),
-            ["doc_11PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }", 
-            "doc_12PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }", 
-            "doc_13PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }", 
-            "doc_21PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }", 
-            "doc_22PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }", 
-            "doc_23PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }"]);
+            [
+                "doc_11PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }",
+                "doc_12PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }",
+                "doc_13PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }",
+                "doc_21PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }",
+                "doc_22PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }",
+                "doc_23PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }"
+            ]
+        );
         assert_eq!(
             subject.get_column_as_vec_str("text"),
             ["abc\n", "abc\n", "456\n", "abc\n", "abc\n", "456\n"]
@@ -812,19 +880,33 @@ use phymes_subject::{
     fn test_extract_pdf_text_embeddings() {
         // Create several PDF document in memory
         let docs = [
-            ("doc_1", make_pdf_document_page_per_content(&["Fanconi anemia (FA) is an autosomal recessive disease caused by a biallelic mutation which mainly occurs in proteins involved in the cell",
-                "cycle, from DNA synthesis to replication and regeneration. The carrier frequency of disease is 1:300 of live births in the general population.", 
-                "The male-to-female ratio is 1.9:1. The chromosomal breakage test was considered the gold standard for the diagnosis of the disease but for the", 
-                "confirmation genetic analysis is mandatory because other syndrome can mimic with the FA. The disease is mainly characterized by physical", 
-                "abnormalities such as microcephaly, short stature with skeletal anomalies of both limbs, defective genitourinary system and abnormalities of", 
-                "the eyes. Bone marrow dysfunction is usually observed from the first decade of life which initially starts as thrombocytopenia or pancytopenia", 
-                "and later progresses to bone marrow failure. As patients enter their teenage or adulthood, they encounter a high risk of myelodysplastic", 
-                "syndrome and acute myeloid leukemia. To date, 22 genes are associated with FA. The genetic foundation of FA highlights several FANC", 
-                "genes, particularly FANCA, FANCC, FANCG, and FANCD2, which are the most commonly mutated. There are distinct patterns of somatic", 
-                "chromosomal abnormalities seen in FA patients, especially unbalanced chromosomal translocations that result in partial duplication or deletions.", 
-                "The mechanisms underlying the hematopoietic defects and clonal evolution in FA are still largely unknown; however, understanding these", 
-                "processes is essential for enhancing patient management and treatment."], false)),
-            ("doc_2", make_pdf_document_page_per_content(&["Endogenouscross-linkersExogenousChemotherapyDNA"], false))
+            (
+                "doc_1",
+                make_pdf_document_page_per_content(
+                    &[
+                        "Fanconi anemia (FA) is an autosomal recessive disease caused by a biallelic mutation which mainly occurs in proteins involved in the cell",
+                        "cycle, from DNA synthesis to replication and regeneration. The carrier frequency of disease is 1:300 of live births in the general population.",
+                        "The male-to-female ratio is 1.9:1. The chromosomal breakage test was considered the gold standard for the diagnosis of the disease but for the",
+                        "confirmation genetic analysis is mandatory because other syndrome can mimic with the FA. The disease is mainly characterized by physical",
+                        "abnormalities such as microcephaly, short stature with skeletal anomalies of both limbs, defective genitourinary system and abnormalities of",
+                        "the eyes. Bone marrow dysfunction is usually observed from the first decade of life which initially starts as thrombocytopenia or pancytopenia",
+                        "and later progresses to bone marrow failure. As patients enter their teenage or adulthood, they encounter a high risk of myelodysplastic",
+                        "syndrome and acute myeloid leukemia. To date, 22 genes are associated with FA. The genetic foundation of FA highlights several FANC",
+                        "genes, particularly FANCA, FANCC, FANCG, and FANCD2, which are the most commonly mutated. There are distinct patterns of somatic",
+                        "chromosomal abnormalities seen in FA patients, especially unbalanced chromosomal translocations that result in partial duplication or deletions.",
+                        "The mechanisms underlying the hematopoietic defects and clonal evolution in FA are still largely unknown; however, understanding these",
+                        "processes is essential for enhancing patient management and treatment.",
+                    ],
+                    false,
+                ),
+            ),
+            (
+                "doc_2",
+                make_pdf_document_page_per_content(
+                    &["Endogenouscross-linkersExogenousChemotherapyDNA"],
+                    false,
+                ),
+            ),
         ];
 
         // Attachments
@@ -834,7 +916,7 @@ use phymes_subject::{
         let mut metadata = Vec::new();
         let mut timestamp = Vec::new();
         for (name, mut doc) in docs {
-            let mut bytes = Vec::new();           
+            let mut bytes = Vec::new();
             doc.save_to(&mut bytes).unwrap();
             filename.push(name.to_string());
             extension.push("pdf".to_string());
@@ -842,10 +924,18 @@ use phymes_subject::{
             metadata.push(String::new());
             timestamp.push(0);
         }
-        let batch = create_attachments_batch(filename, extension, bytes_vec, metadata, timestamp).unwrap();
+        let batch =
+            create_attachments_batch(filename, extension, bytes_vec, metadata, timestamp).unwrap();
 
         // Extract text from the PDF document
-        let batch = extract_pdf("filename", "bytes", &[batch], &DocumentFilterType::Text, &DocumentExtractType::TextEmbeddings).unwrap();
+        let batch = extract_pdf(
+            "filename",
+            "bytes",
+            &[batch],
+            &DocumentFilterType::Text,
+            &DocumentExtractType::TextEmbeddings,
+        )
+        .unwrap();
 
         // Check the results
         let table = Subject::get_builder()
@@ -867,32 +957,35 @@ use phymes_subject::{
             table.get_column_as_vec_str("subject"),
             ["PdfDocumentSubject", "PdfPageSubject", "PdfTextSubject"]
         );
-        assert_eq!(
-            table.get_column_as_vec_str("format"),
-            ["Ipc", "Ipc", "Ipc"]
-        );
+        assert_eq!(table.get_column_as_vec_str("format"), ["Ipc", "Ipc", "Ipc"]);
 
         // Extract the subjects
-        let mut subjects = table.get_column_as_vec_nested_primitive::<u8>("bytes").unwrap()
+        let mut subjects = table
+            .get_column_as_vec_nested_primitive::<u8>("bytes")
+            .unwrap()
             .into_iter()
-            .map(|s| SubjectBuilder::new_from_ipc_stream(&s)?
-                .with_name("")
-                .build())
+            .map(|s| {
+                SubjectBuilder::new_from_ipc_stream(&s)?
+                    .with_name("")
+                    .build()
+            })
             .collect::<Vec<_>>();
         assert_eq!(subjects.len(), 3);
 
         // Check PdfTextSubject
         let subject = subjects.pop().unwrap().unwrap();
-        assert_eq!(
-            subject.get_column_as_vec_str("document_id"),
-            ["doc_1"]
-        );
+        assert_eq!(subject.get_column_as_vec_str("document_id"), ["doc_1"]);
         assert_eq!(
             subject.get_column_as_vec_str("chunk_id"),
-            ["doc_11PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }"]);
+            [
+                "doc_11PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }"
+            ]
+        );
         assert_eq!(
             subject.get_column_as_vec_str("text"),
-            ["Fanconi anemia (FA) is an autosomal recessive disease caused by a biallelic mutation which mainly occurs in proteins involved in the cell\ncycle, from DNA synthesis to replication and regeneration. The carrier frequency of disease is 1:300 of live births in the general population.\nThe male-to-female ratio is 1.9:1. The chromosomal breakage test was considered the gold standard for the diagnosis of the disease but for the\nconfirmation genetic analysis is mandatory because other syndrome can mimic with the FA. The disease is mainly characterized by physical\nabnormalities such as microcephaly, short stature with skeletal anomalies of both limbs, defective genitourinary system and abnormalities of\nthe eyes. Bone marrow dysfunction is usually observed from the first decade of life which initially starts as thrombocytopenia or pancytopenia\nand later progresses to bone marrow failure. As patients enter their teenage or adulthood, they encounter a high risk of myelodysplastic\nsyndrome and acute myeloid leukemia. To date, 22 genes are associated with FA. The genetic foundation of FA highlights several FANC\ngenes, particularly FANCA, FANCC, FANCG, and FANCD2, which are the most commonly mutated. There are distinct patterns of somatic\nchromosomal abnormalities seen in FA patients, especially unbalanced chromosomal translocations that result in partial duplication or deletions.\nThe mechanisms underlying the hematopoietic defects and clonal evolution in FA are still largely unknown; however, understanding these\nprocesses is essential for enhancing patient management and treatment.\n"]
+            [
+                "Fanconi anemia (FA) is an autosomal recessive disease caused by a biallelic mutation which mainly occurs in proteins involved in the cell\ncycle, from DNA synthesis to replication and regeneration. The carrier frequency of disease is 1:300 of live births in the general population.\nThe male-to-female ratio is 1.9:1. The chromosomal breakage test was considered the gold standard for the diagnosis of the disease but for the\nconfirmation genetic analysis is mandatory because other syndrome can mimic with the FA. The disease is mainly characterized by physical\nabnormalities such as microcephaly, short stature with skeletal anomalies of both limbs, defective genitourinary system and abnormalities of\nthe eyes. Bone marrow dysfunction is usually observed from the first decade of life which initially starts as thrombocytopenia or pancytopenia\nand later progresses to bone marrow failure. As patients enter their teenage or adulthood, they encounter a high risk of myelodysplastic\nsyndrome and acute myeloid leukemia. To date, 22 genes are associated with FA. The genetic foundation of FA highlights several FANC\ngenes, particularly FANCA, FANCC, FANCG, and FANCD2, which are the most commonly mutated. There are distinct patterns of somatic\nchromosomal abnormalities seen in FA patients, especially unbalanced chromosomal translocations that result in partial duplication or deletions.\nThe mechanisms underlying the hematopoietic defects and clonal evolution in FA are still largely unknown; however, understanding these\nprocesses is essential for enhancing patient management and treatment.\n"
+            ]
         );
     }
 
@@ -913,8 +1006,16 @@ use phymes_subject::{
         let pdf_test = load_pdf_document(&bytes).unwrap();
 
         // Check that the original and test PDF documents are the same
-        let batch = extract_pdf_docs(vec![("pdf".to_string(), pdf)], &DocumentFilterType::Default, &DocumentExtractType::Default);
-        let batch_test = extract_pdf_docs(vec![("pdf".to_string(), pdf_test)], &DocumentFilterType::Default, &DocumentExtractType::Default);
+        let batch = extract_pdf_docs(
+            vec![("pdf".to_string(), pdf)],
+            &DocumentFilterType::Default,
+            &DocumentExtractType::Default,
+        );
+        let batch_test = extract_pdf_docs(
+            vec![("pdf".to_string(), pdf_test)],
+            &DocumentFilterType::Default,
+            &DocumentExtractType::Default,
+        );
         assert_eq!(batch, batch_test);
     }
 
@@ -923,19 +1024,88 @@ use phymes_subject::{
         // Create a dummy PDF in memory
         let doc_1 = make_pdf_document_page_per_content(&["1\n2\n3", "4\n5\n6"], true);
 
-        // Extract Fonts        
-        let fonts = doc_1.get_pages()
+        // Extract Fonts
+        let fonts = doc_1
+            .get_pages()
             .into_iter()
-            .map(|(_page_num, page_id): (u32, (u32, u16))| -> Result<Vec<(String, String, String)>> {
-                extract_fonts_from_page(&doc_1, page_id)
-            })
+            .map(
+                |(_page_num, page_id): (u32, (u32, u16))| -> Result<Vec<(String, String, String)>> {
+                    extract_fonts_from_page(&doc_1, page_id)
+                },
+            )
             .collect::<Vec<_>>();
         assert_eq!(fonts.len(), 2);
-        assert_eq!(fonts.first().as_ref().unwrap().as_ref().unwrap().first().unwrap().0, "F1");
-        assert_eq!(fonts.first().as_ref().unwrap().as_ref().unwrap().first().unwrap().1, "Courier");
-        assert_eq!(fonts.first().as_ref().unwrap().as_ref().unwrap().first().unwrap().2, "Type1");
-        assert_eq!(fonts.get(1).as_ref().unwrap().as_ref().unwrap().first().unwrap().0, "F1");
-        assert_eq!(fonts.get(1).as_ref().unwrap().as_ref().unwrap().first().unwrap().1, "Courier");
-        assert_eq!(fonts.get(1).as_ref().unwrap().as_ref().unwrap().first().unwrap().2, "Type1");
+        assert_eq!(
+            fonts
+                .first()
+                .as_ref()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .first()
+                .unwrap()
+                .0,
+            "F1"
+        );
+        assert_eq!(
+            fonts
+                .first()
+                .as_ref()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .first()
+                .unwrap()
+                .1,
+            "Courier"
+        );
+        assert_eq!(
+            fonts
+                .first()
+                .as_ref()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .first()
+                .unwrap()
+                .2,
+            "Type1"
+        );
+        assert_eq!(
+            fonts
+                .get(1)
+                .as_ref()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .first()
+                .unwrap()
+                .0,
+            "F1"
+        );
+        assert_eq!(
+            fonts
+                .get(1)
+                .as_ref()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .first()
+                .unwrap()
+                .1,
+            "Courier"
+        );
+        assert_eq!(
+            fonts
+                .get(1)
+                .as_ref()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .first()
+                .unwrap()
+                .2,
+            "Type1"
+        );
     }
 }

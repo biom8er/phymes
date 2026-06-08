@@ -3,7 +3,10 @@ use phymes_subject::MappableTrait;
 use regex::Regex;
 use std::sync::Arc;
 
-use crate::parser::{TokenizerType, default_tokenizer, parser_trait::{NodeParserTrait, TextParserTrait}};
+use crate::parser::{
+    TokenizerType, default_tokenizer,
+    parser_trait::{NodeParserTrait, TextParserTrait},
+};
 
 #[derive(Clone)]
 pub struct SentenceSplitter {
@@ -62,7 +65,10 @@ impl SentenceSplitter {
     }
 
     fn get_splits_by_fns(&self, text: &str) -> (Vec<String>, bool) {
-        let paragraph_splits: Vec<String> = text.split(&self.paragraph_separator).map(|s| s.to_string()).collect();
+        let paragraph_splits: Vec<String> = text
+            .split(&self.paragraph_separator)
+            .map(|s| s.to_string())
+            .collect();
         if paragraph_splits.len() > 1 {
             return (paragraph_splits, true);
         }
@@ -77,13 +83,21 @@ impl SentenceSplitter {
             }
         }
 
-        let word_splits: Vec<String> = text.split(&self.separator).map(|s| [s, &self.separator].join("")).collect();
+        let word_splits: Vec<String> = text
+            .split(&self.separator)
+            .map(|s| [s, &self.separator].join(""))
+            .collect();
         (word_splits, false)
     }
 }
 
 fn join_text(chunks: &[(String, usize)]) -> String {
-    chunks.iter().map(|(t, _)| t).cloned().collect::<Vec<_>>().join("")
+    chunks
+        .iter()
+        .map(|(t, _)| t)
+        .cloned()
+        .collect::<Vec<_>>()
+        .join("")
 }
 
 impl TextParserTrait for SentenceSplitter {
@@ -188,7 +202,7 @@ impl TextParserTrait for SentenceSplitter {
         }
         nodes
     }
-    
+
     fn split(&self, text: &str, chunk_size: usize) -> Vec<Split> {
         let token_size = self.token_size(text);
         if token_size <= chunk_size {
@@ -227,13 +241,23 @@ impl Default for SentenceSplitter {
     fn default() -> Self {
         let regex = Regex::new("[^,.;。？！]+[,.;。？！]?|[,.;。？！]").unwrap();
         let tokenizer = Arc::new(default_tokenizer);
-        Self { chunk_size: 512, chunk_overlap: 0, separator: " ".to_string(), paragraph_separator: "\n\n\n".to_string(), secondary_chunking_regex: Some(regex), tokenizer }
+        Self {
+            chunk_size: 512,
+            chunk_overlap: 0,
+            separator: " ".to_string(),
+            paragraph_separator: "\n\n\n".to_string(),
+            secondary_chunking_regex: Some(regex),
+            tokenizer,
+        }
     }
 }
 
 impl NodeParserTrait for SentenceSplitter {
     fn parse(&self, text: &str) -> Vec<TextNode> {
-        self.get_nodes_from_documents(&[Document { text: text.to_string(), metadata: None }])
+        self.get_nodes_from_documents(&[Document {
+            text: text.to_string(),
+            metadata: None,
+        }])
     }
 
     fn parse_with_metadata(&self, text: &str, metadata: &str) -> Vec<TextNode> {
@@ -257,29 +281,65 @@ mod tests {
 
     #[test]
     fn test_paragraphs() {
-        let splitter = SentenceSplitter::new(20, 0, " ", "\n\n\n", Some("[^,.;。？！]+[,.;。？！]?|[,.;。？！]"), None);
+        let splitter = SentenceSplitter::new(
+            20,
+            0,
+            " ",
+            "\n\n\n",
+            Some("[^,.;。？！]+[,.;。？！]?|[,.;。？！]"),
+            None,
+        );
         let text = format!("{}{}{}", "foo ".repeat(15), "\n\n\n", "bar ".repeat(15));
         let chunks = splitter.split_text(&text);
-        assert_eq!(chunks[0].trim(), "foo foo foo foo foo foo foo foo foo foo foo foo foo foo foo");
-        assert_eq!(chunks[1].trim(), "bar bar bar bar bar bar bar bar bar bar bar bar bar bar bar");
+        assert_eq!(
+            chunks[0].trim(),
+            "foo foo foo foo foo foo foo foo foo foo foo foo foo foo foo"
+        );
+        assert_eq!(
+            chunks[1].trim(),
+            "bar bar bar bar bar bar bar bar bar bar bar bar bar bar bar"
+        );
     }
 
     #[test]
     fn test_sentences() {
-        let splitter = SentenceSplitter::new(20, 0, " ", "\n\n\n", Some("[^,.;。？！]+[,.;。？！]?|[,.;。？！]"), None);
+        let splitter = SentenceSplitter::new(
+            20,
+            0,
+            " ",
+            "\n\n\n",
+            Some("[^,.;。？！]+[,.;。？！]?|[,.;。？！]"),
+            None,
+        );
         let text = format!("{}{}{}", "foo ".repeat(15), ". ", "bar ".repeat(15));
         let chunks = splitter.split_text(&text);
         dbg!(&chunks);
-        assert_eq!(chunks[0], "foo foo foo foo foo foo foo foo foo foo foo foo foo foo foo .");
-        assert_eq!(chunks[1], "bar bar bar bar bar bar bar bar bar bar bar bar bar bar bar");
+        assert_eq!(
+            chunks[0],
+            "foo foo foo foo foo foo foo foo foo foo foo foo foo foo foo ."
+        );
+        assert_eq!(
+            chunks[1],
+            "bar bar bar bar bar bar bar bar bar bar bar bar bar bar bar"
+        );
     }
 
     #[test]
     fn test_overlap() {
-        let splitter = SentenceSplitter::new(15, 10, " ", "\n\n\n", Some("[^,.;。？！]+[,.;。？！]?|[,.;。？！]"), None);
+        let splitter = SentenceSplitter::new(
+            15,
+            10,
+            " ",
+            "\n\n\n",
+            Some("[^,.;。？！]+[,.;。？！]?|[,.;。？！]"),
+            None,
+        );
         let chunks = splitter.split_text("Hello! How are you? I am fine. And you?");
         assert_eq!(chunks.len(), 1);
-        assert_eq!(chunks.first().unwrap(),  "Hello! How are you? I am fine. And you?");
+        assert_eq!(
+            chunks.first().unwrap(),
+            "Hello! How are you? I am fine. And you?"
+        );
     }
     #[test]
     fn test_start_end_char_idx() {
@@ -287,7 +347,14 @@ mod tests {
             text: "foo ".repeat(15) + "\n\n\n" + &"bar ".repeat(15),
             metadata: None,
         };
-        let splitter = SentenceSplitter::new(2, 1, " ", "\n\n\n", Some("[^,.;。？！]+[,.;。？！]?|[,.;。？！]"), None);
+        let splitter = SentenceSplitter::new(
+            2,
+            1,
+            " ",
+            "\n\n\n",
+            Some("[^,.;。？！]+[,.;。？！]?|[,.;。？！]"),
+            None,
+        );
         let nodes = splitter.get_nodes_from_documents(&[doc]);
         for node in nodes {
             assert_eq!(node.end_char_idx - node.start_char_idx, node.content.len());
@@ -353,9 +420,12 @@ mod tests {
             "Hello! How are you? I am fine. And you? This is a slightly longer sentence.",
         );
         assert_eq!(chunks2.len(), 2);
-        assert_eq!(chunks2, [
-            "Hello! How are you? I am fine. And you? This",
-            "am fine. And you? This is a slightly longer sentence.",
-        ]);
+        assert_eq!(
+            chunks2,
+            [
+                "Hello! How are you? I am fine. And you? This",
+                "am fine. And you? This is a slightly longer sentence.",
+            ]
+        );
     }
 }

@@ -6,18 +6,22 @@ mod tensor;
 
 pub use operators::{
     ApplyTemplate, AvailableOperators, ChunkDocuments, Diff, ExtractPDF, ExtractTabular,
-    ExtractXML, Filter, FromTasksToParticipants, FromTracesToMessages, FromWorkspaceToMessages, FromMessagesToPatches, GroupBy, HumanInTheLoop,
-    Join, NormalizeTime, PackTabular, Patch, Pivot, Select, Sort, VectorDistance,
-    convert_destinations_to_tools, extract_pdf, extract_xml, filter, group_by,
-    load_pdf_document, make_pdf_document_page_per_content, pack_tabular, sort,
+    ExtractXML, Filter, FromMessagesToPatches, FromTasksToParticipants, FromTracesToMessages,
+    FromWorkspaceToMessages, GroupBy, HumanInTheLoop, Join, NormalizeTime, PackTabular, Patch,
+    Pivot, Select, Sort, VectorDistance, convert_destinations_to_tools, extract_pdf, extract_xml,
+    filter, group_by, load_pdf_document, make_pdf_document_page_per_content, pack_tabular, sort,
     table_and_data_format_to_record_batch, test_candle_ops, test_extract_tabular_data,
 };
-pub use parser::{AvailableParsers, NodeParserTrait, TextParserTrait, CodeSplitter, SentenceSplitter, TokenTextSplitter};
+pub use parser::{
+    AvailableParsers, CodeSplitter, NodeParserTrait, SentenceSplitter, TextParserTrait,
+    TokenTextSplitter,
+};
 #[cfg(feature = "api")]
 pub use patch::WorkspaceEditor;
 pub use patch::{
-    ApplyDiffMode, CodeCompletionType, DiffType, PatchOperation, PatchOperator, apply_patch_auto, apply_v4a_diff,
-    compute_diff, extract_tool_calls_str, extract_fim_str, format_tool_calls_str, parse_search_and_replace_output, parse_fill_in_the_middle_output
+    ApplyDiffMode, CodeCompletionType, DiffType, PatchOperation, PatchOperator, apply_patch_auto,
+    apply_v4a_diff, compute_diff, extract_fim_str, extract_tool_calls_str, format_tool_calls_str,
+    parse_fill_in_the_middle_output, parse_search_and_replace_output,
 };
 pub use template::{
     AvailableJinja2Templates, MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_INPUT,
@@ -35,5 +39,6 @@ pub use template::{
 pub use tensor::{
     DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator,
     DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataJoinOperator,
-    DataOperatorTrait, DataStreamManager, ToolTrait, DocumentFilterType, DocumentExtractType, device,
+    DataOperatorTrait, DataStreamManager, DocumentExtractType, DocumentFilterType, ToolTrait,
+    device,
 };

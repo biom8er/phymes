@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_schemas::create_workspace_patch_batch;
@@ -7,7 +7,10 @@ use phymes_subject::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{CodeCompletionType, DataConfig, DataOperatorTrait, PatchOperator, parse_fill_in_the_middle_output, parse_search_and_replace_output};
+use crate::{
+    CodeCompletionType, DataConfig, DataOperatorTrait, PatchOperator,
+    parse_fill_in_the_middle_output, parse_search_and_replace_output,
+};
 
 /// Compute the normalized start and end times in a [RecordBatch]
 #[derive(Debug, Serialize, Deserialize)]
@@ -64,20 +67,35 @@ pub fn from_messages_to_patches(
 
     // Get the content
     let content_str = lhs_table.get_column_as_vec_nonprimitive::<String>("content")?;
-    let content_str = content_str.last().ok_or(anyhow!("Missing code completion content."))?;
+    let content_str = content_str
+        .last()
+        .ok_or(anyhow!("Missing code completion content."))?;
 
     // Parse the content
     let (filenames, diffs, operators) = match code_completion {
         CodeCompletionType::FIM => {
-            let diffs = parse_fill_in_the_middle_output(content_str);            
-            let filename = vec![diffs.first().unwrap().filename.clone(), diffs.last().unwrap().filename.clone()];
-            let diff = vec![diffs.first().unwrap().diff.clone(), diffs.last().unwrap().diff.clone()];
-            let operator = vec![PatchOperator::Update.to_string(), PatchOperator::Update.to_string()];
+            let diffs = parse_fill_in_the_middle_output(content_str);
+            let filename = vec![
+                diffs.first().unwrap().filename.clone(),
+                diffs.last().unwrap().filename.clone(),
+            ];
+            let diff = vec![
+                diffs.first().unwrap().diff.clone(),
+                diffs.last().unwrap().diff.clone(),
+            ];
+            let operator = vec![
+                PatchOperator::Update.to_string(),
+                PatchOperator::Update.to_string(),
+            ];
             (filename, diff, operator)
-        },
+        }
         CodeCompletionType::SRI => {
             let diff = parse_search_and_replace_output(content_str);
-            (vec![diff.filename], vec![diff.diff], vec![PatchOperator::Update.to_string()])
+            (
+                vec![diff.filename],
+                vec![diff.diff],
+                vec![PatchOperator::Update.to_string()],
+            )
         }
     };
 
@@ -95,13 +113,10 @@ mod tests {
     #[test]
     fn test_from_messages_to_patches_sri() -> Result<()> {
         // Create the mock repository
-        let role = [
-            "user",
-            "assistant",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
+        let role = ["user", "assistant"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
         let content = [
             r#"<|repo_name|>library-system
 <|file_sep|>/src/library.py
@@ -191,10 +206,7 @@ if __name__ == "__main__":
         .into_iter()
         .map(|s| s.to_string())
         .collect::<Vec<_>>();
-        let timestamp = [0, 1]
-        .into_iter()
-        .map(|s| s as i64)
-        .collect::<Vec<_>>();
+        let timestamp = [0, 1].into_iter().map(|s| s as i64).collect::<Vec<_>>();
         let batch = create_chat_record_batch(role, content, timestamp)?;
 
         // Make the device
@@ -209,7 +221,12 @@ if __name__ == "__main__":
         let cols = result_table.get_column_as_vec_str("filename");
         assert_eq!(cols, ["/src/main.py"]);
         let cols = result_table.get_column_as_vec_str("diff");
-        assert_eq!(cols, ["<<<<<<< SEARCH\n    /* MIDDLE CODE TO COMPLETE */\n=======\n    book = library.find_book(\"1234567890\")\n>>>>>>> REPLACE\n"]);
+        assert_eq!(
+            cols,
+            [
+                "<<<<<<< SEARCH\n    /* MIDDLE CODE TO COMPLETE */\n=======\n    book = library.find_book(\"1234567890\")\n>>>>>>> REPLACE\n"
+            ]
+        );
         let cols = result_table.get_column_as_vec_str("operator");
         assert_eq!(cols, ["Update"]);
 
@@ -219,13 +236,10 @@ if __name__ == "__main__":
     #[test]
     fn test_from_messages_to_patches_fim() -> Result<()> {
         // Create the mock repository
-        let role = [
-            "user",
-            "assistant",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
+        let role = ["user", "assistant"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
         let content = [
             r#"<|repo_name|>library-system
 <|file_sep|>/src/library.py
@@ -314,10 +328,7 @@ if __name__ == "__main__":
         .into_iter()
         .map(|s| s.to_string())
         .collect::<Vec<_>>();
-        let timestamp = [0, 1]
-        .into_iter()
-        .map(|s| s as i64)
-        .collect::<Vec<_>>();
+        let timestamp = [0, 1].into_iter().map(|s| s as i64).collect::<Vec<_>>();
         let batch = create_chat_record_batch(role, content, timestamp)?;
 
         // Make the device
@@ -332,10 +343,13 @@ if __name__ == "__main__":
         let cols = result_table.get_column_as_vec_str("filename");
         assert_eq!(cols, ["/src/main.py", "/src/main.py"]);
         let cols = result_table.get_column_as_vec_str("diff");
-        assert_eq!(cols, [
-            "<<<<<<< SEARCH\n<|fim_prefix|>=======\n>>>>>>> REPLACE\n",
-            "<<<<<<< SEARCH\n<|fim_suffix|>=======\n\n    book = library.find_book(\"1234567890\")\n>>>>>>> REPLACE\n",
-            ]);
+        assert_eq!(
+            cols,
+            [
+                "<<<<<<< SEARCH\n<|fim_prefix|>=======\n>>>>>>> REPLACE\n",
+                "<<<<<<< SEARCH\n<|fim_suffix|>=======\n\n    book = library.find_book(\"1234567890\")\n>>>>>>> REPLACE\n",
+            ]
+        );
         let cols = result_table.get_column_as_vec_str("operator");
         assert_eq!(cols, ["Update", "Update"]);
 

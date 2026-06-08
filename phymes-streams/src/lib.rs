@@ -14,7 +14,7 @@ pub use other::{AggregatorStream, CoalesceStream, LimitConfig, LimitStream};
 pub use tensor::CandleDataStream;
 pub use token::{
     CandleChatStream, CandleEmbedStream, ChatBuilderTraitExt, ChatTraitExt, MessageParserStream,
-    ToolCallConfig, ToolCallStream
+    ToolCallConfig, ToolCallStream,
 };
 #[cfg(feature = "api")]
 pub use token::{OpenAIChatStream, OpenAIEmbedStream};

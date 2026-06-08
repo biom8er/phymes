@@ -7,7 +7,11 @@ use phymes_schemas::{
 use phymes_subject::{MappableTrait, Subject, SubjectTrait};
 use serde::{Deserialize, Serialize};
 
-use crate::{AvailableJinja2Templates, AvailableOperators, AvailableParsers, CodeCompletionType, DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataDistanceOperator, DataJoinOperator, DataStreamManager, DiffType};
+use crate::{
+    AvailableJinja2Templates, AvailableOperators, AvailableParsers, CodeCompletionType,
+    DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator,
+    DataComparatorPredicate, DataDistanceOperator, DataJoinOperator, DataStreamManager, DiffType,
+};
 
 /// Document Filter Type
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]

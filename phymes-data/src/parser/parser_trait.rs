@@ -1,4 +1,7 @@
-use crate::parser::{TextNode, sentence::{Document, Split}};
+use crate::parser::{
+    TextNode,
+    sentence::{Document, Split},
+};
 
 pub trait NodeParserTrait {
     fn parse(&self, text: &str) -> Vec<TextNode>;
@@ -22,11 +25,7 @@ pub trait TextParserTrait {
     fn split_texts(&self, texts: &[String]) -> Vec<String> {
         texts.iter().flat_map(|t| self.split_text(t)).collect()
     }
-    fn split_texts_metadata_aware(
-        &self,
-        texts: &[String],
-        metadata: &[String],
-    ) -> Vec<String> {
+    fn split_texts_metadata_aware(&self, texts: &[String], metadata: &[String]) -> Vec<String> {
         texts
             .iter()
             .zip(metadata.iter())

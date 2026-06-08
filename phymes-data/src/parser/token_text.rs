@@ -1,8 +1,11 @@
 // src/node_parser/token_text.rs
-use std::sync::Arc;
 use phymes_subject::MappableTrait;
+use std::sync::Arc;
 
-use crate::parser::{Document, NodeParserTrait, TextNode, TokenizerType, default_tokenizer, parser_trait::TextParserTrait, sentence::Split};
+use crate::parser::{
+    Document, NodeParserTrait, TextNode, TokenizerType, default_tokenizer,
+    parser_trait::TextParserTrait, sentence::Split,
+};
 
 #[derive(Clone)]
 pub struct TokenTextSplitter {
@@ -44,7 +47,14 @@ impl TokenTextSplitter {
 impl Default for TokenTextSplitter {
     fn default() -> Self {
         let tokenizer = Arc::new(default_tokenizer);
-        Self { chunk_size: 512, chunk_overlap: 64, separator: " ".to_string(), backup_separators: vec!["\n".to_string()], keep_whitespaces: false, tokenizer }
+        Self {
+            chunk_size: 512,
+            chunk_overlap: 64,
+            separator: " ".to_string(),
+            backup_separators: vec!["\n".to_string()],
+            keep_whitespaces: false,
+            tokenizer,
+        }
     }
 }
 
@@ -163,7 +173,10 @@ impl TextParserTrait for TokenTextSplitter {
 
 impl NodeParserTrait for TokenTextSplitter {
     fn parse(&self, text: &str) -> Vec<TextNode> {
-        self.get_nodes_from_documents(&[Document { text: text.to_string(), metadata: None }])
+        self.get_nodes_from_documents(&[Document {
+            text: text.to_string(),
+            metadata: None,
+        }])
     }
 
     fn parse_with_metadata(&self, text: &str, metadata: &str) -> Vec<TextNode> {
@@ -208,7 +221,10 @@ mod tests {
 
     #[test]
     fn test_start_end_char_idx() {
-        let doc = Document { text: "foo bar hello world baz bbq".to_string(), metadata: None };
+        let doc = Document {
+            text: "foo bar hello world baz bbq".to_string(),
+            metadata: None,
+        };
         let splitter = TokenTextSplitter::new(3, 1, " ", None, false, None);
         let nodes = splitter.get_nodes_from_documents(&[doc]);
         for node in nodes {

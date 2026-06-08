@@ -191,7 +191,9 @@ impl NetworkBuilderCustomTrait for DynamicTaskNetworkBuilder {
 
         // Alternative publishing routes
         for subject in self.subject_routes.as_ref().unwrap_or(&Vec::new()) {
-            let publication = Publication::from_str_fuzzy(self.publication.short_name(), subject.get_name()).unwrap();
+            let publication =
+                Publication::from_str_fuzzy(self.publication.short_name(), subject.get_name())
+                    .unwrap();
             publications.push(publication);
         }
 

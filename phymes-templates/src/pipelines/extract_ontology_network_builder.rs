@@ -30,7 +30,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         } else {
             "UserQueries"
         };
-        let extract_owl = if self. include_extract_owl {
+        let extract_owl = if self.include_extract_owl {
             r#"
 	%% ------------------------------------------------------------------------------
 	%% OWL ontology extraction
@@ -49,7 +49,8 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         } else {
             ""
         };
-        format!(r#"flowchart TD{extract_owl}
+        format!(
+            r#"flowchart TD{extract_owl}
 	%% ------------------------------------------------------------------------------
 	%% Filter on Owl:Ontology entities
 	%% ------------------------------------------------------------------------------
@@ -883,7 +884,8 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	apply_template_object_property_entity_p-processor@{{shape: rect, label: Select}}
 	apply_template_object_property_entity_p-publish@{{shape: fork}}
 	apply_template_object_property_entity_p-subscribe@{{shape: diamond, label: All}}
-	%% ------------------------------------------------------------------------------"#)
+	%% ------------------------------------------------------------------------------"#
+        )
     }
     pub fn as_mermaid_erdiagram(&self) -> String {
         let subject_o = if self.as_documents {
@@ -940,7 +942,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         Utf8 text
 	}"#
         };
-        let extract_owl = if self. include_extract_owl {
+        let extract_owl = if self.include_extract_owl {
             r#"
     UserScript["UserScript"] {
         Utf8 filename
@@ -962,7 +964,8 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         } else {
             ""
         };
-        format!(r#"erDiagram{extract_owl}
+        format!(
+            r#"erDiagram{extract_owl}
     ParseOwl["ParseOwl"] {{
         Utf8 entity
         Utf8 subject
@@ -1900,7 +1903,8 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         Utf8 operator "Select"
         Utf8 lhs_stream "Stream"
         Utf8 rhs_stream "Stream"
-    }}{subject_o}"#)
+    }}{subject_o}"#
+        )
     }
 }
 

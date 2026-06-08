@@ -1,13 +1,19 @@
 use phymes_data::{AvailableOperators, DataConfig, DataStreamManager};
-use phymes_processor::{AvailableProcessors, test_command_sandbox_processor};
-use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
 use phymes_event::{Publication, Subscription};
 use phymes_network::{NetworkBuilder, NetworkBuilderMermaidTrait};
+use phymes_processor::{AvailableProcessors, test_command_sandbox_processor};
 use phymes_schemas::{
-    AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat
+    AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
+    SubjectPlanBuilderTrait,
 };
 
-use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, GenerateTextNetworkBuilder, PatchWorkspaceNetworkBuilderStaticWSubject};
+use crate::{
+    DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, GenerateTextNetworkBuilder,
+    PatchWorkspaceNetworkBuilderStaticWSubject,
+};
 
 /// OpenAlex network
 pub struct GenerateCodeNetworkBuilder {
@@ -93,7 +99,9 @@ impl Default for GenerateCodeNetworkBuilder {
             };
             builder.build_dynamic()
         };
-        let generate_code_network_builder = generate_code_network_builder.extend(network_builder).unwrap();
+        let generate_code_network_builder = generate_code_network_builder
+            .extend(network_builder)
+            .unwrap();
 
         // Generate code
         let generate_text_network = GenerateTextNetworkBuilder::new(
@@ -110,30 +118,41 @@ impl Default for GenerateCodeNetworkBuilder {
         let network_builder = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_network.as_mermaid_flowchart(),
             false,
-        ).unwrap()
+        )
+        .unwrap()
         .with_subjects_from_mermaid_erdiagram(
             &generate_text_network.as_mermaid_erdiagram(),
             false,
             true,
-        ).unwrap()
+        )
+        .unwrap()
         .with_name(generate_text_network.network_name);
-        let generate_code_network_builder = generate_code_network_builder.extend(network_builder).unwrap();
+        let generate_code_network_builder = generate_code_network_builder
+            .extend(network_builder)
+            .unwrap();
 
         // Patch workspace
         let patch_workspace_network = PatchWorkspaceNetworkBuilderStaticWSubject::default();
-        let network_builder = patch_workspace_network
-            .inner
-            .build_dynamic();        
-        let generate_code_network_builder = generate_code_network_builder.extend(network_builder).unwrap();
+        let network_builder = patch_workspace_network.inner.build_dynamic();
+        let generate_code_network_builder = generate_code_network_builder
+            .extend(network_builder)
+            .unwrap();
 
         // Input table from CSV
         let subject_name_i = "subject_name_i";
-        let subject_schema_io = test_command_sandbox_processor::create_messages().unwrap().schema();
+        let subject_schema_io = test_command_sandbox_processor::create_messages()
+            .unwrap()
+            .schema();
         let network_builder = {
             let network_name = "extract_csv";
             let config = DataConfig {
                 lhs_name: Some(AvailableInterfaceSubjects::UserCsv.to_string()),
-                lhs_values: Some(["bytes"].into_iter().map(|s|s.to_string()).collect::<Vec<_>>()),
+                lhs_values: Some(
+                    ["bytes"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
                 format: Some(DataFormat::CsvDefault),
                 encoding: Some(DataEncoding::None),
                 schema: Some(AvailableSubjects::Empty),
@@ -163,8 +182,10 @@ impl Default for GenerateCodeNetworkBuilder {
             let subject = Subject::get_builder()
                 .with_name(subject_name_i)
                 .with_schema(subject_schema_io.clone())
-                .with_record_batches(Vec::new()).unwrap()
-                .build().unwrap();
+                .with_record_batches(Vec::new())
+                .unwrap()
+                .build()
+                .unwrap();
             let subject_out = SubjectPlan::get_builder()
                 .with_subject(subject)
                 .build()
@@ -186,7 +207,9 @@ impl Default for GenerateCodeNetworkBuilder {
             };
             builder.build_dynamic()
         };
-        let generate_code_network_builder = generate_code_network_builder.extend(network_builder).unwrap();
+        let generate_code_network_builder = generate_code_network_builder
+            .extend(network_builder)
+            .unwrap();
 
         // Output table to CSV
         let subject_name_o = "subject_name_o";
@@ -217,8 +240,10 @@ impl Default for GenerateCodeNetworkBuilder {
             let subject = Subject::get_builder()
                 .with_name(subject_name_o)
                 .with_schema(subject_schema_io.clone())
-                .with_record_batches(Vec::new()).unwrap()
-                .build().unwrap();
+                .with_record_batches(Vec::new())
+                .unwrap()
+                .build()
+                .unwrap();
             let subject_lhs = SubjectPlan::get_builder()
                 .with_subject(subject)
                 .build()
@@ -247,7 +272,9 @@ impl Default for GenerateCodeNetworkBuilder {
             };
             builder.build_dynamic()
         };
-        let generate_code_network_builder = generate_code_network_builder.extend(network_builder).unwrap();
+        let generate_code_network_builder = generate_code_network_builder
+            .extend(network_builder)
+            .unwrap();
 
         GenerateCodeNetworkBuilder {
             inner: Some(generate_code_network_builder.with_name("generate_code_network")),
@@ -261,20 +288,25 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_streams::CommandSandboxEnvironments;
-use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait
-    };
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
     use phymes_schemas::{
-        AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, CsvFormat, create_workspace_batch
+        AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjects,
+        AvailableSubjectsTrait, CsvFormat, create_workspace_batch,
+    };
+    use phymes_streams::CommandSandboxEnvironments;
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
+        SubjectBuilderTrait, SubjectTrait,
     };
     use phymes_task::SubscriptionTrait;
 
-    use crate::{DynamicTaskNetworkNames, ExecuteWorkspaceNetwork, extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
+    use crate::{
+        DynamicTaskNetworkNames, ExecuteWorkspaceNetwork, extended_diagnostic_subjects,
+        write_diagnostic_subjects_to_csv,
+    };
 
     use super::*;
 
@@ -291,7 +323,8 @@ use phymes_subject::{
         let workspace_name = "apply_patch_s";
 
         // Initialize the session
-        let generate_code_network_builder = GenerateCodeNetworkBuilder::default().inner.take().unwrap();
+        let generate_code_network_builder =
+            GenerateCodeNetworkBuilder::default().inner.take().unwrap();
 
         // Extend with execute_workspace_network
         let execute_workspace_network = ExecuteWorkspaceNetwork::new(
@@ -304,21 +337,30 @@ use phymes_subject::{
         let network_builder = NetworkBuilder::from_mermaid_flowchart(
             &execute_workspace_network.as_mermaid_flowchart(),
             false,
-        ).unwrap()
+        )
+        .unwrap()
         .with_subjects_from_mermaid_erdiagram(
             &execute_workspace_network.as_mermaid_erdiagram().unwrap(),
             false,
             true,
-        ).unwrap()
+        )
+        .unwrap()
         .with_name(execute_workspace_network.network_name);
-        let generate_code_network_builder = generate_code_network_builder.extend(network_builder)?;
+        let generate_code_network_builder =
+            generate_code_network_builder.extend(network_builder)?;
 
         let network_name = generate_code_network_builder.name.clone().unwrap();
         let (network, session_messages) = generate_code_network_builder
-            .with_runtime_env(RuntimeEnv::get_builder()
-                .with_name(DynamicTaskNetworkNames::RuntimeEnv(&network_name).to_string().as_str())
-                .with_max_steps(100)
-                .build_arc()?)
+            .with_runtime_env(
+                RuntimeEnv::get_builder()
+                    .with_name(
+                        DynamicTaskNetworkNames::RuntimeEnv(&network_name)
+                            .to_string()
+                            .as_str(),
+                    )
+                    .with_max_steps(100)
+                    .build_arc()?,
+            )
             .with_diagnostics(true)
             .add_processor_subjects()?
             .add_next_tasks()?
@@ -330,14 +372,10 @@ use phymes_subject::{
         let mut message_map = HashMap::<String, IPCMessage>::new();
 
         // Make the workspace data ready for SRI
-        let path = [
-            "requirements.txt",
-            "src/main.py",
-            "install.sh",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
+        let path = ["requirements.txt", "src/main.py", "install.sh"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
         let content = [
             r#"pandas==2.2.3
 pyarrow==17.0.0"#,
@@ -394,8 +432,7 @@ pip install --no-cache-dir -r requirements.txt"#,
         .map(|s| s.to_string())
         .collect::<Vec<_>>();
         let batch = create_workspace_batch(path, content)?;
-        let workspace_subject = AvailableSubjects::Workspace
-            .to_subject(None, Some(vec![batch]))?;
+        let workspace_subject = AvailableSubjects::Workspace.to_subject(None, Some(vec![batch]))?;
         let _ = message_map.insert(
             workspace_subject.get_name().to_string(),
             IPCMessage::get_builder()
@@ -453,13 +490,15 @@ pip install --no-cache-dir -r requirements.txt"#,
                 "aggregate_messages_generate_text_s",
                 subject_name_i,
                 subject_name_o,
-                workspace_name])
+                workspace_name,
+            ])
             .collect::<Vec<_>>();
         write_diagnostic_subjects_to_csv(
-            &subject_names, 
+            &subject_names,
             network_arc.runtime_env(),
-            network_arc.get_name())
-            .await?;
+            network_arc.get_name(),
+        )
+        .await?;
 
         assert_eq!(response.len(), 0);
 
@@ -484,7 +523,12 @@ pip install --no-cache-dir -r requirements.txt"#,
         assert_eq!(column.get(1).unwrap(), &"assistant");
         let column = subject.get_column_as_vec_str("content");
         assert!(column.first().unwrap().contains("src/main.py"));
-        assert!(column.first().unwrap().contains("table_out = pa.Table.from_pandas(df)"));
+        assert!(
+            column
+                .first()
+                .unwrap()
+                .contains("table_out = pa.Table.from_pandas(df)")
+        );
         assert!(column.get(1).unwrap().contains("src/main.py"));
         assert!(column.get(1).unwrap().contains("new_schema = pa.schema([pa.field(f.name, f.type, nullable=False) for f in table_out.schema])"));
         let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
@@ -507,8 +551,18 @@ pip install --no-cache-dir -r requirements.txt"#,
         let column = subject.get_column_as_vec_str("path");
         assert_eq!(column.get(4).unwrap(), &"src/main.py");
         let column = subject.get_column_as_vec_str("content");
-        assert!(!column.get(4).unwrap().contains("/* MIDDLE CODE TO COMPLETE */"));
-        assert!(column.get(4).unwrap().contains("table_out = pa.Table.from_pandas(df)"));
+        assert!(
+            !column
+                .get(4)
+                .unwrap()
+                .contains("/* MIDDLE CODE TO COMPLETE */")
+        );
+        assert!(
+            column
+                .get(4)
+                .unwrap()
+                .contains("table_out = pa.Table.from_pandas(df)")
+        );
         assert!(column.get(4).unwrap().contains("new_schema = pa.schema([pa.field(f.name, f.type, nullable=False) for f in table_out.schema])"));
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
@@ -543,7 +597,8 @@ pip install --no-cache-dir -r requirements.txt"#,
         let workspace_name = "apply_patch_s";
 
         // Initialize the session
-        let generate_code_network_builder = GenerateCodeNetworkBuilder::default().inner.take().unwrap();
+        let generate_code_network_builder =
+            GenerateCodeNetworkBuilder::default().inner.take().unwrap();
 
         // Extend with execute_workspace_network
         let execute_workspace_network = ExecuteWorkspaceNetwork::new(
@@ -556,21 +611,30 @@ pip install --no-cache-dir -r requirements.txt"#,
         let network_builder = NetworkBuilder::from_mermaid_flowchart(
             &execute_workspace_network.as_mermaid_flowchart(),
             false,
-        ).unwrap()
+        )
+        .unwrap()
         .with_subjects_from_mermaid_erdiagram(
             &execute_workspace_network.as_mermaid_erdiagram().unwrap(),
             false,
             true,
-        ).unwrap()
+        )
+        .unwrap()
         .with_name(execute_workspace_network.network_name);
-        let generate_code_network_builder = generate_code_network_builder.extend(network_builder)?;
+        let generate_code_network_builder =
+            generate_code_network_builder.extend(network_builder)?;
 
         let network_name = generate_code_network_builder.name.clone().unwrap();
         let (network, session_messages) = generate_code_network_builder
-            .with_runtime_env(RuntimeEnv::get_builder()
-                .with_name(DynamicTaskNetworkNames::RuntimeEnv(&network_name).to_string().as_str())
-                .with_max_steps(100)
-                .build_arc()?)
+            .with_runtime_env(
+                RuntimeEnv::get_builder()
+                    .with_name(
+                        DynamicTaskNetworkNames::RuntimeEnv(&network_name)
+                            .to_string()
+                            .as_str(),
+                    )
+                    .with_max_steps(100)
+                    .build_arc()?,
+            )
             .with_diagnostics(true)
             .add_processor_subjects()?
             .add_next_tasks()?
@@ -582,14 +646,10 @@ pip install --no-cache-dir -r requirements.txt"#,
         let mut message_map = HashMap::<String, IPCMessage>::new();
 
         // Make the workspace data ready for SRI
-        let path = [
-            "Cargo.toml",
-            "src/main.rs",
-            "install.sh",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
+        let path = ["Cargo.toml", "src/main.rs", "install.sh"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
         let content = [
             r#"[package]
 name = "phymes_rs"
@@ -684,8 +744,7 @@ apt install --assume-yes protobuf-compiler clang"#,
         .map(|s| s.to_string())
         .collect::<Vec<_>>();
         let batch = create_workspace_batch(path, content)?;
-        let workspace_subject = AvailableSubjects::Workspace
-            .to_subject(None, Some(vec![batch]))?;
+        let workspace_subject = AvailableSubjects::Workspace.to_subject(None, Some(vec![batch]))?;
         let _ = message_map.insert(
             workspace_subject.get_name().to_string(),
             IPCMessage::get_builder()
@@ -743,13 +802,15 @@ apt install --assume-yes protobuf-compiler clang"#,
                 "aggregate_messages_generate_text_s",
                 subject_name_i,
                 subject_name_o,
-                workspace_name])
+                workspace_name,
+            ])
             .collect::<Vec<_>>();
         write_diagnostic_subjects_to_csv(
-            &subject_names, 
+            &subject_names,
             network_arc.runtime_env(),
-            network_arc.get_name())
-            .await?;
+            network_arc.get_name(),
+        )
+        .await?;
 
         assert_eq!(response.len(), 0);
 
@@ -774,11 +835,14 @@ apt install --assume-yes protobuf-compiler clang"#,
         assert_eq!(column.get(1).unwrap(), &"assistant");
         let column = subject.get_column_as_vec_str("content");
         assert!(column.first().unwrap().contains("src/main.rs"));
-        assert!(column.first().unwrap().contains(r#"    let batches = batches.into_iter()
+        assert!(column.first().unwrap().contains(
+            r#"    let batches = batches.into_iter()
         .map(|batch| add_10_yrs_to_age(&batch).unwrap())
-        .collect::<Vec<_>>();"#));
+        .collect::<Vec<_>>();"#
+        ));
         assert!(column.get(1).unwrap().contains("src/main.rs"));
-        assert!(column.get(1).unwrap().contains(r#"    let ages = batch
+        assert!(column.get(1).unwrap().contains(
+            r#"    let ages = batch
         .column_by_name("age")
         .unwrap()
         .as_any()
@@ -786,7 +850,8 @@ apt install --assume-yes protobuf-compiler clang"#,
         .unwrap()
         .iter()
         .map(|s| s.unwrap_or_default() + 10)
-        .collect::<Vec<i64>>();"#));
+        .collect::<Vec<i64>>();"#
+        ));
         let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
         for t in column {
             assert!(t > 0);
@@ -807,11 +872,19 @@ apt install --assume-yes protobuf-compiler clang"#,
         let column = subject.get_column_as_vec_str("path");
         assert_eq!(column.get(5).unwrap(), &"src/main.rs");
         let column = subject.get_column_as_vec_str("content");
-        assert!(!column.get(5).unwrap().contains("/* MIDDLE CODE TO COMPLETE */"));
-        assert!(column.get(5).unwrap().contains(r#"    let batches = batches.into_iter()
+        assert!(
+            !column
+                .get(5)
+                .unwrap()
+                .contains("/* MIDDLE CODE TO COMPLETE */")
+        );
+        assert!(column.get(5).unwrap().contains(
+            r#"    let batches = batches.into_iter()
         .map(|batch| add_10_yrs_to_age(&batch).unwrap())
-        .collect::<Vec<_>>();"#));
-        assert!(column.get(5).unwrap().contains(r#"    let ages = batch
+        .collect::<Vec<_>>();"#
+        ));
+        assert!(column.get(5).unwrap().contains(
+            r#"    let ages = batch
         .column_by_name("age")
         .unwrap()
         .as_any()
@@ -819,7 +892,8 @@ apt install --assume-yes protobuf-compiler clang"#,
         .unwrap()
         .iter()
         .map(|s| s.unwrap_or_default() + 10)
-        .collect::<Vec<i64>>();"#));
+        .collect::<Vec<i64>>();"#
+        ));
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: subject_name_o.to_string(),

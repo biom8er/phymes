@@ -5,7 +5,9 @@ use futures::TryStreamExt;
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_event::Subscription;
 use phymes_schemas::AvailableSubjects;
-use phymes_subject::{BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectTrait,
+};
 use phymes_task::SubscriptionTrait;
 
 /// Default diagnostic subjects for Errors, Events, Traces, and Metrics
@@ -14,7 +16,7 @@ pub fn default_diagnostic_subjects() -> Vec<String> {
         AvailableSubjects::SessionErrors.to_string(),
         AvailableSubjects::SessionEvents.to_string(),
         AvailableSubjects::SessionTraces.to_string(),
-        AvailableSubjects::SessionMetrics.to_string()
+        AvailableSubjects::SessionMetrics.to_string(),
     ]
 }
 
@@ -30,8 +32,11 @@ pub fn extended_diagnostic_subjects() -> Vec<String> {
 }
 
 /// Writes diagnostic (and any other network) subjects to `HOME` as CSV
-pub async fn write_diagnostic_subjects_to_csv(subject_names: &[&str], runtime_env: &std::sync::Arc<RuntimeEnv>, network_name: &str) -> Result<()> {
-
+pub async fn write_diagnostic_subjects_to_csv(
+    subject_names: &[&str],
+    runtime_env: &std::sync::Arc<RuntimeEnv>,
+    network_name: &str,
+) -> Result<()> {
     // Create directory and subdirectories
     let tmp_dir_str = "../target";
     // let tmp_dir_str = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
@@ -49,9 +54,11 @@ pub async fn write_diagnostic_subjects_to_csv(subject_names: &[&str], runtime_en
         .try_collect()
         .await?;
         if !batches.is_empty() {
-
             // Create the diagnostics subject file
-            let diagnostics_file_path = format!("{}/{subject_name}.csv", diagnostic_path.as_path().to_str().unwrap());
+            let diagnostics_file_path = format!(
+                "{}/{subject_name}.csv",
+                diagnostic_path.as_path().to_str().unwrap()
+            );
             let mut diagnostics_file = std::fs::File::create(&diagnostics_file_path)?;
 
             // Write the subject file to disk

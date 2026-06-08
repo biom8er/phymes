@@ -4,7 +4,12 @@ use clap::ValueEnum;
 use phymes_subject::MappableTrait;
 use serde::{Deserialize, Serialize};
 
-use crate::{parser::{code_splitter::{CodeSplitter, CountMode}, parser_trait::NodeParserTrait, sentence::SentenceSplitter, token_text::TokenTextSplitter}};
+use crate::parser::{
+    code_splitter::{CodeSplitter, CountMode},
+    parser_trait::NodeParserTrait,
+    sentence::SentenceSplitter,
+    token_text::TokenTextSplitter,
+};
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableParsers {
@@ -36,11 +41,42 @@ impl Display for AvailableParsers {
 impl AvailableParsers {
     pub fn build(&self) -> Box<dyn NodeParserTrait> {
         match self {
-            Self::TokenTextSplitter => Box::new(TokenTextSplitter::default()) as Box<dyn NodeParserTrait>,
-            Self::SentenceSplitter => Box::new(SentenceSplitter::default()) as Box<dyn NodeParserTrait>,
-            Self::PythonSplitter => Box::new(CodeSplitter::new("python", 40, 15, 1500, CountMode::Char, 512, None, None)) as Box<dyn NodeParserTrait>,
-            Self::RustSplitter => Box::new(CodeSplitter::new("rust", 40, 15, 1500, CountMode::Char, 512, None, None)) as Box<dyn NodeParserTrait>,
-            Self::HtmlSplitter => Box::new(CodeSplitter::new("html", 40, 15, 1500, CountMode::Char, 512, None, None)) as Box<dyn NodeParserTrait>,
+            Self::TokenTextSplitter => {
+                Box::new(TokenTextSplitter::default()) as Box<dyn NodeParserTrait>
+            }
+            Self::SentenceSplitter => {
+                Box::new(SentenceSplitter::default()) as Box<dyn NodeParserTrait>
+            }
+            Self::PythonSplitter => Box::new(CodeSplitter::new(
+                "python",
+                40,
+                15,
+                1500,
+                CountMode::Char,
+                512,
+                None,
+                None,
+            )) as Box<dyn NodeParserTrait>,
+            Self::RustSplitter => Box::new(CodeSplitter::new(
+                "rust",
+                40,
+                15,
+                1500,
+                CountMode::Char,
+                512,
+                None,
+                None,
+            )) as Box<dyn NodeParserTrait>,
+            Self::HtmlSplitter => Box::new(CodeSplitter::new(
+                "html",
+                40,
+                15,
+                1500,
+                CountMode::Char,
+                512,
+                None,
+                None,
+            )) as Box<dyn NodeParserTrait>,
         }
     }
 }

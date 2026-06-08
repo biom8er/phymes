@@ -108,9 +108,9 @@ impl DataOperatorTrait for ChunkDocuments {
                 Self::get_static_name()
             ))?;
         let parser = config.parser.ok_or(anyhow!(
-                "Missing `parser` for `{}`.",
-                Self::get_static_name()
-            ))?;
+            "Missing `parser` for `{}`.",
+            Self::get_static_name()
+        ))?;
 
         Ok(ChunkDocuments {
             lhs_pk,
@@ -125,13 +125,7 @@ impl DataOperatorTrait for ChunkDocuments {
         device: &Device,
     ) -> Result<RecordBatch> {
         let parser = self.parser.build();
-        chunk_documents(
-            &self.lhs_pk,
-            &self.lhs_values,
-            lhs_args,
-            parser,
-            device,
-        )
+        chunk_documents(&self.lhs_pk, &self.lhs_values, lhs_args, parser, device)
     }
 }
 
@@ -180,7 +174,13 @@ fn chunk_documents(
                 .map(|s| s.unwrap_or_default())
                 .collect::<Vec<_>>()
         })
-        .map(|s| parser.parse(s).into_iter().map(|s| s.content).collect::<Vec<_>>())
+        .map(|s| {
+            parser
+                .parse(s)
+                .into_iter()
+                .map(|s| s.content)
+                .collect::<Vec<_>>()
+        })
         .collect::<Vec<_>>();
 
     // Wrap the output into a record batch
@@ -597,7 +597,10 @@ mod tests {
         let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_1));
         let lhs_metadata_vec_1: Vec<u32> = vec![1, 2];
         let lhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(lhs_metadata_vec_1));
-        let lhs_text_vec_1 = vec!["0 1 2 3 4 5 9 7 8 9 0 1 2 3 4 5 6 7 8 9", "0 1 2 3 4 5 9 7 8 9"];
+        let lhs_text_vec_1 = vec![
+            "0 1 2 3 4 5 9 7 8 9 0 1 2 3 4 5 6 7 8 9",
+            "0 1 2 3 4 5 9 7 8 9",
+        ];
         let lhs_text_array: ArrayRef = Arc::new(StringArray::from(lhs_text_vec_1));
         let batch_1 = RecordBatch::try_from_iter(vec![
             ("lhs_pk", lhs_ids_array),
@@ -608,7 +611,10 @@ mod tests {
         let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_2));
         let lhs_metadata_vec_2: Vec<u32> = vec![3, 4];
         let lhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(lhs_metadata_vec_2));
-        let lhs_text_vec_2 = vec!["0 1 2 3 4 5 9 7 8 9 0 1 2 3 4 5 6 7 8 9", "0 1 2 3 4 5 9 7 8 9"];
+        let lhs_text_vec_2 = vec![
+            "0 1 2 3 4 5 9 7 8 9 0 1 2 3 4 5 6 7 8 9",
+            "0 1 2 3 4 5 9 7 8 9",
+        ];
         let lhs_text_array: ArrayRef = Arc::new(StringArray::from(lhs_text_vec_2));
         let batch_2 = RecordBatch::try_from_iter(vec![
             ("lhs_pk", lhs_ids_array),
@@ -620,7 +626,8 @@ mod tests {
         let device = device(false)?;
 
         // Chunk the documents
-        let parser = Box::new(TokenTextSplitter::new(10, 2, " ", None, false, None)) as Box<dyn NodeParserTrait>;
+        let parser = Box::new(TokenTextSplitter::new(10, 2, " ", None, false, None))
+            as Box<dyn NodeParserTrait>;
         let result = chunk_documents("lhs_pk", "text", &[batch_1, batch_2], parser, &device)?;
 
         let lhs_id = result

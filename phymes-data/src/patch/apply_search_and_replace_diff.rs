@@ -1,5 +1,5 @@
 /// # Search and Replace using diff-fenced
-/// 
+///
 /// # Example
 /// ```
 /// FILENAME
@@ -9,7 +9,6 @@
 /// Same code section with ONLY the middle code implemented
 /// >>>>>>> REPLACE
 /// ```
-
 use crate::{extract_fim_str, extract_tool_calls_str};
 
 pub(crate) const SECTION_OUTPUT: &str = "```";
@@ -25,7 +24,10 @@ pub struct SearchAndReplaceDiff {
 
 impl SearchAndReplaceDiff {
     pub fn new(filename: &str, diff: &str) -> Self {
-        Self { filename: filename.to_string(), diff: diff.to_string() }
+        Self {
+            filename: filename.to_string(),
+            diff: diff.to_string(),
+        }
     }
 }
 
@@ -39,7 +41,8 @@ pub fn parse_fill_in_the_middle_output(input: &str) -> Vec<SearchAndReplaceDiff>
     let middle = extract_fim_str(input, None, None);
 
     // Create the diff
-    let diff = format!("{BEGIN_SEARCH}<|fim_suffix|>{END_SEARCH_BEGIN_REPLACE}{middle}{END_REPLACE}");
+    let diff =
+        format!("{BEGIN_SEARCH}<|fim_suffix|>{END_SEARCH_BEGIN_REPLACE}{middle}{END_REPLACE}");
 
     let prefix = create_fill_in_the_middle_prefix_diff(*filename);
     let suffix = SearchAndReplaceDiff::new(filename, &diff);
@@ -67,15 +70,17 @@ pub fn parse_search_and_replace_output(input: &str) -> SearchAndReplaceDiff {
 
 pub fn apply_search_and_replace_patch(input: &str, diff: &str) -> String {
     // Extract the original and new text
-    let original_snippet = extract_tool_calls_str(diff, Some(BEGIN_SEARCH), Some(END_SEARCH_BEGIN_REPLACE));
-    let new_snippet = extract_tool_calls_str(diff, Some(END_SEARCH_BEGIN_REPLACE), Some(END_REPLACE));
+    let original_snippet =
+        extract_tool_calls_str(diff, Some(BEGIN_SEARCH), Some(END_SEARCH_BEGIN_REPLACE));
+    let new_snippet =
+        extract_tool_calls_str(diff, Some(END_SEARCH_BEGIN_REPLACE), Some(END_REPLACE));
 
     // Patch the input
     if input.is_empty() {
         new_snippet.to_string()
     } else {
         input.replace(original_snippet, new_snippet)
-    }    
+    }
 }
 
 #[cfg(test)]
@@ -87,9 +92,15 @@ pub mod tests {
         let input = "main.py\n```python\n    New text\n```";
         let diffs = parse_fill_in_the_middle_output(input);
         assert_eq!(diffs.first().unwrap().filename, "main.py");
-        assert_eq!(diffs.first().unwrap().diff, "<<<<<<< SEARCH\n<|fim_prefix|>=======\n>>>>>>> REPLACE\n");
+        assert_eq!(
+            diffs.first().unwrap().diff,
+            "<<<<<<< SEARCH\n<|fim_prefix|>=======\n>>>>>>> REPLACE\n"
+        );
         assert_eq!(diffs.last().unwrap().filename, "main.py");
-        assert_eq!(diffs.last().unwrap().diff, "<<<<<<< SEARCH\n<|fim_suffix|>=======\n\n    New text\n>>>>>>> REPLACE\n");
+        assert_eq!(
+            diffs.last().unwrap().diff,
+            "<<<<<<< SEARCH\n<|fim_suffix|>=======\n\n    New text\n>>>>>>> REPLACE\n"
+        );
     }
 
     #[test]
@@ -104,12 +115,15 @@ New text
 ```"#;
         let diff = parse_search_and_replace_output(input);
         assert_eq!(diff.filename, "test.rs");
-        assert_eq!(diff.diff, r#"<<<<<<< SEARCH
+        assert_eq!(
+            diff.diff,
+            r#"<<<<<<< SEARCH
 Old text
 =======
 New text
 >>>>>>> REPLACE
-"#);
+"#
+        );
     }
 
     #[test]

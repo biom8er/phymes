@@ -235,7 +235,8 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
 	parse_generated_text_p-processor@{{shape: rect, label: MessageParserProcessor}}
 	parse_generated_text_p-publish@{{shape: fork}}
 	parse_generated_text_p-subscribe@{{shape: diamond, label: All}}
-	%% ------------------------------------------------------------------------------"#)
+	%% ------------------------------------------------------------------------------"#
+        )
     }
 
     /// Return the Mermaid.js ER diagram representation of the session
@@ -321,7 +322,8 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
         Boolean split_prompt "false"
         Float64 temperature "0.8"
         {parse_generated_text_p}
-    }}"#)
+    }}"#
+        )
     }
 }
 

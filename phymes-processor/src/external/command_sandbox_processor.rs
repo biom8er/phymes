@@ -77,7 +77,7 @@ impl ProcessorTrait for CommandSandboxProcessor {
 }
 
 pub mod test_command_sandbox_processor {
-    use arrow::array::{ArrayRef, RecordBatch, StringArray, Int64Array};
+    use arrow::array::{ArrayRef, Int64Array, RecordBatch, StringArray};
 
     use super::*;
 
@@ -93,7 +93,7 @@ pub mod test_command_sandbox_processor {
 
 #[cfg(test)]
 mod tests {
-    use arrow::array::{ArrayRef, RecordBatch, StringArray, Int64Array};
+    use arrow::array::{ArrayRef, Int64Array, RecordBatch, StringArray};
     use futures::TryStreamExt;
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
     use phymes_event::Publication;

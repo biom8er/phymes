@@ -24,14 +24,14 @@ pub use get_json_network_builder::{
     GetJsonNetworkBuilderStaticWSubject,
 };
 #[cfg(feature = "api")]
-pub use get_pdf_network_builder::{
-    GetPdfNetworkBuilderDynamicWOSubject, GetPdfNetworkBuilderDynamicWSubject,
-    GetPdfNetworkBuilderStaticWSubject,
-};
-#[cfg(feature = "api")]
 pub use get_object_network_builder::{
     GetObjectNetworkBuilderDynamicWOSubject, GetObjectNetworkBuilderDynamicWSubject,
     GetObjectNetworkBuilderStaticWSubject,
+};
+#[cfg(feature = "api")]
+pub use get_pdf_network_builder::{
+    GetPdfNetworkBuilderDynamicWOSubject, GetPdfNetworkBuilderDynamicWSubject,
+    GetPdfNetworkBuilderStaticWSubject,
 };
 pub use invoke_task_network_builder::InvokeTaskNetworkBuilder;
 pub use patch_workspace_network_builder::{

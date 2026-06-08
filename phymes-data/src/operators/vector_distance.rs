@@ -549,8 +549,7 @@ fn vector_distance(
 pub fn normalized_dot_product(lhs: &Tensor, rhs: &Tensor) -> Result<Tensor> {
     let embd = Tensor::cat(&[&lhs, &rhs], 0)?;
     // L2 Norm for each embedding
-    let norm = embd
-        .broadcast_div(&embd.sqr()?.sum_keepdim(candle_core::D::Minus1)?.sqrt()?)?;
+    let norm = embd.broadcast_div(&embd.sqr()?.sum_keepdim(candle_core::D::Minus1)?.sqrt()?)?;
     let scores = norm
         .narrow(0, 0, lhs.dims2()?.0)?
         .matmul(&norm.narrow(0, lhs.dims2()?.0, rhs.dims2()?.0)?.t()?)?;

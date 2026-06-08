@@ -400,9 +400,7 @@ mod tests {
         NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
         NetworkStream,
     };
-    use phymes_schemas::{
-        AvailableSubjects, create_bytes_record_batch, create_object_store_meta_batch,
-    };
+    use phymes_schemas::{create_bytes_record_batch, create_object_store_meta_batch};
     use phymes_streams::{ObjectStoreConfig, ObjectStoreOptsType};
     use phymes_subject::{
         BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,

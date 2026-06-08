@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use phymes_data::{
-    AvailableOperators, AvailableParsers, DataCastOperator, DataColumnOperator, DataConfig, DataDistanceOperator, DataJoinOperator, DataStreamManager
+    AvailableOperators, AvailableParsers, DataCastOperator, DataColumnOperator, DataConfig,
+    DataDistanceOperator, DataJoinOperator, DataStreamManager,
 };
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 #[cfg(all(not(feature = "candle"), feature = "api"))]

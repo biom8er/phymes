@@ -122,80 +122,63 @@ pub mod bench_chat_processor {
         // Make the system prompt and add the user query
         let message_builder = SubjectBuilder::new()
             .with_name(&config.messages)
-//             .insert_system_template_str(r#"You are a code completion assistant. Use the minimal amount of tokens to fill in the middle code.
-            
-// Requirements:
-
-// 1. Encapsulate the MIDDLE code in MarkDown code block that includes the LANGUAGE of the code. 
-// 2. Provide the PATH for the middle code above the code block.
-// 3. Do not repeat or modify any existing code from the context, prefix, or suffix
-// 4. Do not add any other text or comments
-
-// Output template:
-
-// PATH
-// ```LANGUAGE
-// MIDDLE
-// ```
-
-// Example output:
-
-// /src/hello.py
-// ```python
-//     print("Hello world!")
-// ```
-
-// "#)?
-//             .insert_system_template_str(r#"You are a code edit assistant. Your task is to implement ONLY the middle code that needs to be completed while keeping all other code exactly as is. When you see a code file containing special comment markers /* MIDDLE CODE TO COMPLETE*/, you should:
-
-// 1. Generate a search/replace format output that:
-
-// - Identifies the PATH containing the /* MIDDLE CODE TO COMPLETE */ marker
-// - Identifies the exact region containing the /* MIDDLE CODE TO COMPLETE */ marker
-// - Provides the code that should replace the marker
-
-// 2.a. Output format:
-
-// ```
-// PATH
-// <<<<<<< SEARCH
-// Code section containing /* MIDDLE CODE TO COMPLETE */
-// =======
-// Same code section with ONLY the middle code implemented
-// >>>>>>> REPLACE
-// ```
-
-// 2.b. Example output (no bugs within a 10-line window):
-
-// ```
-// /src/hello.py
-// <<<<<<< SEARCH
-//     /* MIDDLE CODE TO COMPLETE */
-// =======
-//     print("Hello world!")
-// >>>>>>> REPLACE
-// ```
-
-// 2.c. Example output (bugs within a 10-line window):
-
-// ```
-// /src/hello.py
-// <<<<<<< SEARCH
-//     three = 4
-//     assert(2 + 1 == three)
-//     /* MIDDLE CODE TO COMPLETE */
-// =======
-//     three = 3
-//     assert(2 + 1 == three)
-//     print("Hello world!")
-// >>>>>>> REPLACE
-// ```
-
-// 3. Requirements:
-
-// - Only edit the code within a 10-line window around the identifier.
-// - The search section MUST contain the /* MIDDLE CODE TO COMPLETE */ marker
-// "#)?
+            //             .insert_system_template_str(r#"You are a code completion assistant. Use the minimal amount of tokens to fill in the middle code.
+            // Requirements:
+            // 1. Encapsulate the MIDDLE code in MarkDown code block that includes the LANGUAGE of the code.
+            // 2. Provide the PATH for the middle code above the code block.
+            // 3. Do not repeat or modify any existing code from the context, prefix, or suffix
+            // 4. Do not add any other text or comments
+            // Output template:
+            // PATH
+            // ```LANGUAGE
+            // MIDDLE
+            // ```
+            // Example output:
+            // /src/hello.py
+            // ```python
+            //     print("Hello world!")
+            // ```
+            // "#)?
+            //             .insert_system_template_str(r#"You are a code edit assistant. Your task is to implement ONLY the middle code that needs to be completed while keeping all other code exactly as is. When you see a code file containing special comment markers /* MIDDLE CODE TO COMPLETE*/, you should:
+            // 1. Generate a search/replace format output that:
+            // - Identifies the PATH containing the /* MIDDLE CODE TO COMPLETE */ marker
+            // - Identifies the exact region containing the /* MIDDLE CODE TO COMPLETE */ marker
+            // - Provides the code that should replace the marker
+            // 2.a. Output format:
+            // ```
+            // PATH
+            // <<<<<<< SEARCH
+            // Code section containing /* MIDDLE CODE TO COMPLETE */
+            // =======
+            // Same code section with ONLY the middle code implemented
+            // >>>>>>> REPLACE
+            // ```
+            // 2.b. Example output (no bugs within a 10-line window):
+            // ```
+            // /src/hello.py
+            // <<<<<<< SEARCH
+            //     /* MIDDLE CODE TO COMPLETE */
+            // =======
+            //     print("Hello world!")
+            // >>>>>>> REPLACE
+            // ```
+            // 2.c. Example output (bugs within a 10-line window):
+            // ```
+            // /src/hello.py
+            // <<<<<<< SEARCH
+            //     three = 4
+            //     assert(2 + 1 == three)
+            //     /* MIDDLE CODE TO COMPLETE */
+            // =======
+            //     three = 3
+            //     assert(2 + 1 == three)
+            //     print("Hello world!")
+            // >>>>>>> REPLACE
+            // ```
+            // 3. Requirements:
+            // - Only edit the code within a 10-line window around the identifier.
+            // - The search section MUST contain the /* MIDDLE CODE TO COMPLETE */ marker
+            // "#)?
             .insert_system_template_str("You are a helpful assistant.")?
             .append_new_user_query_str(user_content, "user")?;
 

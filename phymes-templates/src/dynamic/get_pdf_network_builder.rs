@@ -259,13 +259,21 @@ mod tests {
             .with_name(get_content_network.inner.subscription_lhs.subject_name())
             .append_new_user_query_str(&get_url, "user")?;
         let _ = message_map.insert(
-            get_content_network.inner.subscription_lhs.subject_name().to_string(),
+            get_content_network
+                .inner
+                .subscription_lhs
+                .subject_name()
+                .to_string(),
             IPCMessage::get_builder()
                 .with_name(get_content_network.inner.subscription_lhs.subject_name())
                 .with_publisher(&get_content_network.inner.network_name)
                 .with_subject(get_content_network.inner.subscription_lhs.subject_name())
                 .with_update(&Publication::Replace {
-                    subject_name: get_content_network.inner.subscription_lhs.subject_name().to_string(),
+                    subject_name: get_content_network
+                        .inner
+                        .subscription_lhs
+                        .subject_name()
+                        .to_string(),
                 })
                 .with_message(message_builder.clone().build()?.to_ipc_stream()?)
                 .build()?,
@@ -342,7 +350,13 @@ mod tests {
             poll_error: true,
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: "https://arxiv.org/".to_string(),
-            subject_name: Some(get_content_network.inner.subscription_lhs.subject_name().to_string()),
+            subject_name: Some(
+                get_content_network
+                    .inner
+                    .subscription_lhs
+                    .subject_name()
+                    .to_string(),
+            ),
             request_schema: HTTPClientRequestSchemas::Attachments,
             ..Default::default()
         };
@@ -374,7 +388,7 @@ mod tests {
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
-        
+
         assert_eq!(response.len(), 0);
 
         // Test supsersteps

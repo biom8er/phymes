@@ -412,7 +412,7 @@ pub trait NetworkStreamStepTrait {
                 Err(_err) => {
                     dbg!(&_err);
                     HashMap::<(String, String), ProcessorSubjectsMap>::new()
-                },
+                }
             }
         }
     }

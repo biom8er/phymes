@@ -187,7 +187,8 @@ impl<'a> EmbedTextNetworkBuilder<'a> {
 	embed_documents_p-publish@{{shape: fork}}
 	embed_documents_p-subscribe@{{shape: diamond, label: All}}
 	DocumentEmbeddings-subject@{{shape: doc, label: DocumentEmbeddings}}
-	%% ------------------------------------------------------------------------------"#)
+	%% ------------------------------------------------------------------------------"#
+        )
     }
     /// Return the Mermaid.js ER diagram representation of the session
     ///
@@ -257,7 +258,8 @@ impl<'a> EmbedTextNetworkBuilder<'a> {
 	    Utf8 chunk_id
 	    Utf8 document_id
 	    List-Float32 embedding
-	}}"#)
+	}}"#
+        )
     }
 }
 

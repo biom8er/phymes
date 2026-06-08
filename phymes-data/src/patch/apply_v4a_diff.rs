@@ -1,5 +1,5 @@
 /// # V4A diff Grammar
-/// 
+///
 /// Patch     := Begin { FileOp } End
 /// Begin     := "*** Begin Patch" NEWLINE
 /// End       := "*** End Patch" NEWLINE
@@ -10,7 +10,7 @@
 /// MoveTo    := "*** Move to: " newPath NEWLINE
 /// Hunk      := "@@" [ header ] NEWLINE { HunkLine }
 /// HunkLine  := (" " | "-" | "+") text NEWLINE
-/// 
+///
 /// # Example
 /// *** Begin Patch
 /// *** Update File: src/auth/middleware.ts
@@ -35,7 +35,6 @@
 /// +  });
 /// +});
 /// *** End Patch
-
 use anyhow::{Error, Result, anyhow};
 use std::fmt;
 

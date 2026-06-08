@@ -7,9 +7,12 @@ mod tool_parser;
 mod workspace_editor;
 
 pub use apply_patch::{DiffType, PatchOperation, PatchOperator, apply_patch_auto, compute_diff};
-pub use apply_search_and_replace_diff::{parse_search_and_replace_output, parse_fill_in_the_middle_output, apply_search_and_replace_patch};
+pub use apply_search_and_replace_diff::{
+    apply_search_and_replace_patch, parse_fill_in_the_middle_output,
+    parse_search_and_replace_output,
+};
 pub use apply_v4a_diff::{ApplyDiffMode, apply_v4a_diff};
-pub use tool_parser::{extract_tool_calls_str, extract_fim_str, format_tool_calls_str};
+pub use tool_parser::{extract_fim_str, extract_tool_calls_str, format_tool_calls_str};
 
 #[cfg(feature = "api")]
 pub use workspace_editor::WorkspaceEditor;
@@ -26,5 +29,5 @@ pub enum CodeCompletionType {
     /// Search and Replace Infilling
     #[default]
     #[value(name = "SRI")]
-    SRI
+    SRI,
 }

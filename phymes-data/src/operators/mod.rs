@@ -21,7 +21,9 @@ pub use apply_template::ApplyTemplate;
 pub use available_operators::{AvailableOperators, convert_destinations_to_tools};
 pub use chunk_documents::ChunkDocuments;
 pub use diff::{Diff, from_json_object_columns, to_json_object_columns};
-pub use extract_pdf::{ExtractPDF, extract_pdf, load_pdf_document, make_pdf_document_page_per_content};
+pub use extract_pdf::{
+    ExtractPDF, extract_pdf, load_pdf_document, make_pdf_document_page_per_content,
+};
 pub use extract_tabular::{ExtractTabular, test_extract_tabular_data};
 pub use extract_xml::{ExtractXML, extract_xml};
 pub use filter::{Filter, filter};
@@ -47,9 +49,9 @@ pub use from_tasks_to_participants::FromTasksToParticipants;
 pub use from_traces_to_messages::FromTracesToMessages;
 pub use normalize_time::NormalizeTime;
 
+mod from_messages_to_patches;
 /// Custom functions for code generation
 mod from_workspace_to_messages;
-mod from_messages_to_patches;
 
-pub use from_workspace_to_messages::FromWorkspaceToMessages;
 pub use from_messages_to_patches::FromMessagesToPatches;
+pub use from_workspace_to_messages::FromWorkspaceToMessages;
