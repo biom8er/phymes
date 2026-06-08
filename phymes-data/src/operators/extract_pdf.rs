@@ -1016,13 +1016,9 @@ mod tests {
 
         // Extract Fonts
         let fonts = doc_1
-            .get_pages()
-            .into_iter()
-            .map(
-                |(_page_num, page_id): (u32, (u32, u16))| -> Result<Vec<(String, String, String)>> {
+            .get_pages().into_values().map(|page_id| {
                     extract_fonts_from_page(&doc_1, page_id)
-                },
-            )
+                })
             .collect::<Vec<_>>();
         assert_eq!(fonts.len(), 2);
         assert_eq!(
