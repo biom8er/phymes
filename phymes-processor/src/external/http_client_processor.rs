@@ -82,7 +82,7 @@ mod tests {
     use phymes_event::Publication;
     use phymes_schemas::{create_chat_record_batch, open_alex, semantic_scholar};
     use phymes_streams::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
-    use phymes_subject::{SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+    use phymes_subject::{Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
     use serde_json::{Map, Value};
 
     #[tokio::test]
@@ -686,43 +686,58 @@ mod tests {
         assert_eq!(filenames, ["https://arxiv.org/pdf/2508.18700"]);
         let result = table.get_column_as_vec_str("extension");
         assert_eq!(result, ["application/pdf"]);
+        let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<u8>>();
+        assert!(result.len() > 0);
 
-        // Check the PDF
+        // Check the extracted PDF contents
         let pdf_batch = extract_pdf(
             "filename",
             "bytes",
             table.get_record_batches(),
-            &DocumentFilterType::Default,
-            &DocumentExtractType::Default,
+            &DocumentFilterType::Text,
+            &DocumentExtractType::TextEmbeddings,
         )?;
-        let table = SubjectBuilder::new()
-            .with_record_batches(vec![pdf_batch])?
+        let table = Subject::get_builder()
             .with_name("")
+            .with_record_batches(vec![pdf_batch])?
             .build()?;
-        let result = table.get_column_as_vec_str("chunk_id");
+        assert_eq!(table.count_rows(), 3);
         assert_eq!(
-            result,
-            [
-                "https://arxiv.org/pdf/2508.18700_1",
-                "https://arxiv.org/pdf/2508.18700_2",
-                "https://arxiv.org/pdf/2508.18700_3"
-            ]
+            table.get_column_as_vec_str("name"),
+            ["PdfDocumentSubject", "PdfPageSubject", "PdfTextSubject"]
         );
-        let result = table.get_column_as_vec_str("document_id");
         assert_eq!(
-            result,
-            [
-                "https://arxiv.org/pdf/2508.18700",
-                "https://arxiv.org/pdf/2508.18700",
-                "https://arxiv.org/pdf/2508.18700"
-            ]
+            table.get_column_as_vec_str("publisher"),
+            ["extract_pdf", "extract_pdf", "extract_pdf"]
         );
-        let result = table.get_column_as_vec_str("text");
+        assert_eq!(
+            table.get_column_as_vec_str("subject"),
+            ["PdfDocumentSubject", "PdfPageSubject", "PdfTextSubject"]
+        );
+        assert_eq!(table.get_column_as_vec_str("format"), ["Ipc", "Ipc", "Ipc"]);
+
+        // Extract the PDF subjects
+        let mut subjects = table
+            .get_column_as_vec_nested_primitive::<u8>("bytes")
+            .unwrap()
+            .into_iter()
+            .map(|s| {
+                SubjectBuilder::new_from_ipc_stream(&s)?
+                    .with_name("")
+                    .build()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(subjects.len(), 3);
+
+        // Check PdfTextSubject
+        let subject = subjects.pop().unwrap().unwrap();
+        let result = subject.get_column_as_vec_str("chunk_id");
+        assert_eq!(result.first().unwrap(), &"https://arxiv.org/pdf/2508.187001PdfText { op: 13, bt: 7, tm: PdfTm { a: 0.0, b: 0.0, c: 0.0, d: 0.0, x: 115.072, y: 676.45 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F187\", font_subtype: \"ZINQKW+LinLibertineT\", base_font: \"Type1\" }, font_size: 11, text: \"\" }");
+        let result = subject.get_column_as_vec_str("document_id");
+        assert_eq!(result.first().unwrap(), &"https://arxiv.org/pdf/2508.18700");
+        let result = subject.get_column_as_vec_str("text");
         let snippet = result.first().unwrap().to_string();
-        assert_eq!(
-            snippet[..100],
-            *"Taming the One-Epoch Phenomenon in Online Recommendation System by Two-stage Contrastive ID Pre-trai"
-        );
+        assert_eq!(snippet[..100], *"Taming the One-Epoch Phenomenon in Online Recommendation System by Two-stage Contrastive ID Pre-trai");
 
         Ok(())
     }

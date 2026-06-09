@@ -338,7 +338,7 @@ fn extract_text_chunks_from_page(
                     .operands
                     .last()
                     .ok_or_else(|| anyhow!("missing font size operand".to_string()))?
-                    .as_i64()?;
+                    .as_float()?;
                 let (current_enc, font_name) = match current_font {
                     std::result::Result::Ok(font) => (
                         encodings.get(font),
@@ -357,7 +357,7 @@ fn extract_text_chunks_from_page(
                     fonts_map.get(&font_name).unwrap().1.as_str(),
                 );
                 current_text.font = pdf_font;
-                current_text.font_size = font_size;
+                current_text.font_size = font_size as i64;
 
                 if !current_text.text.is_empty() {
                     current_text.op = index;
@@ -490,6 +490,12 @@ fn extract_pdf_docs(
                 )
                 .collect::<Vec<_>>();
             let pages: std::result::Result<Vec<PdfPage>, Error> = pages_extracted.into_iter().collect();
+            // // DM: debugging errors encountered when parsing...
+            // if let Err(err) = &pages {
+            //     dbg!(err);
+            // } else if let std::result::Result::Ok(p) = &pages {
+            //     dbg!(p.len());
+            // }
             let doc_extracted = PdfDocument::new(&id, "", &0_i64, &0_i64, "", "", &pages?);
             std::result::Result::Ok(doc_extracted)
         })
