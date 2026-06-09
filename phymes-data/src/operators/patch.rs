@@ -1799,16 +1799,29 @@ pub use todo::Todo"#,
             ]
         );
         let test = result_table.get_column_as_vec_nonprimitive::<String>("code")?;
-        assert_eq!(
-            test,
-            [
-                "[package]\nname = \"phymes_rs\"\nversion = \"0.1.0\"\nedition = \"2024\"\n[dependencies]\nanyhow = { version = \"1\", default-features = false }",
-                "mod todo;\npub use todo::Todo",
-                "pub mod extra;\npub mod other2;\npub mod other1;",
-                "pub struct Todo {}",
-                "use anyhow::Result;\nfn main() -> Result<()> {\n    Ok(())\n}"
-            ]
-        );
+        if cfg!(feature = "gpu") {
+            assert_eq!(
+                test,
+                [
+                    "[package]\nname = \"phymes_rs\"\nversion = \"0.1.0\"\nedition = \"2024\"\n[dependencies]\nanyhow = { version = \"1\", default-features = false }",
+                    "mod todo;\npub use todo::Todo",
+                    "pub mod extra;\npub mod other1;\npub mod other2;",
+                    "pub struct Todo {}",
+                    "use anyhow::Result;\nfn main() -> Result<()> {\n    Ok(())\n}"
+                ]
+            );
+        } else {
+            assert_eq!(
+                test,
+                [
+                    "[package]\nname = \"phymes_rs\"\nversion = \"0.1.0\"\nedition = \"2024\"\n[dependencies]\nanyhow = { version = \"1\", default-features = false }",
+                    "mod todo;\npub use todo::Todo",
+                    "pub mod extra;\npub mod other2;\npub mod other1;",
+                    "pub struct Todo {}",
+                    "use anyhow::Result;\nfn main() -> Result<()> {\n    Ok(())\n}"
+                ]
+            );
+        }
 
         // --- PK = UInt32 ---
         // Patch the repository

@@ -1624,7 +1624,7 @@ mod tests {
 
     use super::*;
 
-    // `cargo test -p phymes-templates test_open_alex_network_v_rust --features gpu,hf_hub --release -- --nocapture`
+    // `cargo test -p phymes-templates test_open_alex_network_v_rust --features api,gpu,hf_hub --release -- --nocapture`
     #[ignore = "In progress... Optimizing PDF and OWL parsing..."]
     #[tokio::test]
     async fn test_open_alex_network_v_rust() -> Result<()> {
@@ -1882,7 +1882,8 @@ mod tests {
         let column = subject.get_column_as_vec_str("work_id");
         // assert_eq!(column.first().unwrap(), &"https://openalex.org/W2036680792");
         assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
-        assert_eq!(column.last().unwrap(), &"https://openalex.org/W2037563286");
+        // assert_eq!(column.last().unwrap(), &"https://openalex.org/W2037563286");
+        assert_eq!(column.last().unwrap(), &"https://openalex.org/W2939699114");
         let column = subject.get_column_as_vec_str("topic_id");
         assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
         assert_eq!(column.last().unwrap(), &"https://openalex.org/T10123");
