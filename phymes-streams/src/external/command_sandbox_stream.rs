@@ -1467,6 +1467,7 @@ impl Stream for CommandSandboxStream {
                     // Check for an error
                     if let Some(_exit_code) = &output.status.code()
                         && !output.status.success()
+                        && !output.stderr.is_empty()
                     {
                         self.stream_state = CommandSandboxStreamState::Done;
                         let stderr = String::from_utf8_lossy(&output.stderr);

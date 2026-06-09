@@ -228,8 +228,8 @@ arrow = "58.0.0"
 serde_json = "1.0.133"
 serde = { version = "1.0.215", features = ["derive"] }
 clap = { version = "4.5.4", features = ["derive"] }"#,
-                    r#"use arrow::array::{ArrayRef, StringArray, UInt32Array};
-use arrow::error::{ArrowError, Result};
+                    r#"use arrow::array::{ArrayRef, StringArray, Int64Array};
+use arrow::error::Result;
 use arrow::ipc::reader::FileReader;
 use arrow::ipc::writer::FileWriter;
 use arrow::record_batch::RecordBatch;
@@ -264,13 +264,13 @@ fn add_10_yrs_to_age(batch: &RecordBatch) -> arrow::error::Result<RecordBatch> {
         .column_by_name("age")
         .unwrap()
         .as_any()
-        .downcast_ref::<UInt32Array>()
+        .downcast_ref::<Int64Array>()
         .unwrap()
         .iter()
         .map(|s| s.unwrap_or_default() + 10)
-        .collect::<Vec<u32>>();
+        .collect::<Vec<i64>>();
     let names_arr: ArrayRef = Arc::new(StringArray::from(names));
-    let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
+    let ages_arr: ArrayRef = Arc::new(Int64Array::from(ages));
     RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])
 }
 

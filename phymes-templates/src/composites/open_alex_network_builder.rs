@@ -1625,7 +1625,7 @@ mod tests {
     use super::*;
 
     // `cargo test -p phymes-templates test_open_alex_network_v_rust --features gpu,hf_hub --release -- --nocapture`
-    // #[ignore = "In progress... Some issues with embeddings and retrieval."]
+    #[ignore = "In progress... Optimizing PDF and OWL parsing..."]
     #[tokio::test]
     async fn test_open_alex_network_v_rust() -> Result<()> {
         // Initialize the session

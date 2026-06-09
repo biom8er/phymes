@@ -1126,7 +1126,7 @@ mod tests {
 
         let result = table.get_column_as_vec_str("name");
         assert_eq!(result, ["Alice", "Bob"]);
-        let result = table.get_column_as_vec_primitive::<u32>("age")?;
+        let result = table.get_column_as_vec_primitive::<i64>("age")?;
         assert_eq!(result, [40, 35]);
 
         Ok(())
@@ -1286,7 +1286,7 @@ if __name__ == '__main__':
 
         let result = table.get_column_as_vec_str("name");
         assert_eq!(result, ["Alice", "Bob"]);
-        let result = table.get_column_as_vec_primitive::<u32>("age")?;
+        let result = table.get_column_as_vec_primitive::<i64>("age")?;
         assert_eq!(result, [40, 35]);
 
         Ok(())
@@ -1402,7 +1402,7 @@ if __name__ == '__main__':
 
         let result = table.get_column_as_vec_str("name");
         assert_eq!(result, ["Alice", "Bob"]);
-        let result = table.get_column_as_vec_primitive::<u32>("age")?;
+        let result = table.get_column_as_vec_primitive::<i64>("age")?;
         assert_eq!(result, [40, 35]);
 
         Ok(())
@@ -1749,14 +1749,14 @@ fn main() -> Result<()> {
 
         let result = table.get_column_as_vec_str("name");
         assert_eq!(result, ["Alice", "Bob"]);
-        let result = table.get_column_as_vec_primitive::<u32>("age")?;
+        let result = table.get_column_as_vec_primitive::<i64>("age")?;
         assert_eq!(result, [40, 35]);
 
         // --- from TempFile, no initialization ---
 
         // Create the run script
         let run_str = r#"use arrow::array::{ArrayRef, StringArray, Int64Array};
-use arrow::error::{ArrowError, Result};
+use arrow::error::Result;
 use arrow::ipc::reader::FileReader;
 use arrow::ipc::writer::FileWriter;
 use arrow::record_batch::RecordBatch;
@@ -1795,7 +1795,7 @@ fn add_10_yrs_to_age(batch: &RecordBatch) -> arrow::error::Result<RecordBatch> {
         .unwrap()
         .iter()
         .map(|s| s.unwrap_or_default() + 10)
-        .collect::<Vec<u32>>();
+        .collect::<Vec<i64>>();
     let names_arr: ArrayRef = Arc::new(StringArray::from(names));
     let ages_arr: ArrayRef = Arc::new(Int64Array::from(ages));
     RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])
@@ -1904,7 +1904,7 @@ fn main() -> Result<()> {
 
         let result = table.get_column_as_vec_str("name");
         assert_eq!(result, ["Alice", "Bob"]);
-        let result = table.get_column_as_vec_primitive::<u32>("age")?;
+        let result = table.get_column_as_vec_primitive::<i64>("age")?;
         assert_eq!(result, [40, 35]);
 
         // --- from TempFile (multiple batches), no initialization ---
@@ -1972,7 +1972,7 @@ fn main() -> Result<()> {
 
         let result = table.get_column_as_vec_str("name");
         assert_eq!(result, ["Alice", "Bob", "Joe"]);
-        let result = table.get_column_as_vec_primitive::<u32>("age")?;
+        let result = table.get_column_as_vec_primitive::<i64>("age")?;
         assert_eq!(result, [40, 35, 50]);
 
         // --- from TempFile, initialization ---
@@ -2059,7 +2059,7 @@ apt install --assume-yes protobuf-compiler clang"#;
 
         let result = table.get_column_as_vec_str("name");
         assert_eq!(result, ["Alice", "Bob"]);
-        let result = table.get_column_as_vec_primitive::<u32>("age")?;
+        let result = table.get_column_as_vec_primitive::<i64>("age")?;
         assert_eq!(result, [40, 35]);
 
         Ok(())
@@ -2177,7 +2177,7 @@ apt install --assume-yes protobuf-compiler clang"#;
 
         let result = table.get_column_as_vec_str("name");
         assert_eq!(result, ["Alice", "Bob"]);
-        let result = table.get_column_as_vec_primitive::<u32>("age")?;
+        let result = table.get_column_as_vec_primitive::<i64>("age")?;
         assert_eq!(result, [40, 35]);
 
         Ok(())
