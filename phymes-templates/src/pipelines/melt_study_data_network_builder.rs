@@ -57,7 +57,7 @@ pub struct MeltStudyDataNetworkBuilder<'a> {
 }
 
 impl<'a> MeltStudyDataNetworkBuilder<'a> {
-    /// New [MeltStudyDataNetwork]
+    /// New [MeltStudyDataNetworkBuilder]
     pub fn new(
         network_name: Option<&'a str>,
         sample_name_col: &'a str,

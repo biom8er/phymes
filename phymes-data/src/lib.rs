@@ -12,9 +12,10 @@ pub use operators::{
     filter, group_by, load_pdf_document, make_pdf_document_page_per_content, pack_tabular, sort,
     table_and_data_format_to_record_batch, test_candle_ops, test_extract_tabular_data,
 };
+#[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
+pub use parser::CodeSplitter;
 pub use parser::{
-    AvailableParsers, CodeSplitter, NodeParserTrait, SentenceSplitter, TextParserTrait,
-    TokenTextSplitter,
+    AvailableParsers, NodeParserTrait, SentenceSplitter, TextParserTrait, TokenTextSplitter,
 };
 #[cfg(feature = "api")]
 pub use patch::WorkspaceEditor;

@@ -29,7 +29,7 @@ use crate::{
 
 /// Traits for running a static or dynamic [NetworkStream] step
 ///
-/// [NetworkStream]: crate::session::network_stream::NetworkStream
+/// [NetworkStream]: crate::NetworkStream
 pub trait NetworkStreamStepTrait {
     /// Run a super-step
     ///

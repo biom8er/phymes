@@ -387,6 +387,7 @@ impl<'a> SyncContentNetworkBuilder<'a> {
     }
 }
 
+#[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -407,14 +408,12 @@ mod tests {
         SubjectBuilder, SubjectBuilderTrait, SubjectTrait, make_store, test_subject,
     };
     use phymes_task::{PublicationTrait, SubscriptionTrait};
-    #[cfg(not(target_family = "wasm"))]
     use tempfile::TempDir;
 
     use crate::InvokeTaskNetworkBuilder;
 
     use super::*;
 
-    #[cfg(not(target_family = "wasm"))]
     #[tokio::test]
     async fn test_sync_content_network_w_subjects() -> Result<()> {
         // Local and remote object stores
@@ -828,7 +827,6 @@ mod tests {
         Ok(())
     }
 
-    #[cfg(not(target_family = "wasm"))]
     #[tokio::test]
     async fn test_sync_content_network_wo_subjects() -> Result<()> {
         // Local and remote object stores

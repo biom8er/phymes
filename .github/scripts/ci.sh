@@ -154,7 +154,7 @@ cargo doc --document-private-items --no-deps -p phymes-event
 cargo doc --document-private-items --no-deps -p phymes-message
 cargo doc --document-private-items --no-deps -p phymes-data
 cargo doc --document-private-items --no-deps -p phymes-ml
-cargo doc --document-private-items --no-deps -p phymes-stream
+cargo doc --document-private-items --no-deps -p phymes-streams
 cargo doc --document-private-items --no-deps -p phymes-processor
 cargo doc --document-private-items --no-deps -p phymes-task
 cargo doc --document-private-items --no-deps -p phymes-network
@@ -164,3 +164,6 @@ cargo doc --document-private-items --no-deps -p phymes-app
 
 echo "-----------------------------------------------"
 echo "Local CI run finished."
+
+cargo clippy --all-targets -- -D warnings
+cargo fmt --all -- --check

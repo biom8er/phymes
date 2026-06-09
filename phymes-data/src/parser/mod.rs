@@ -12,6 +12,7 @@
 //! }
 
 mod available_parsers;
+#[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
 mod code_splitter;
 mod parser_trait;
 mod sentence;
@@ -20,6 +21,7 @@ mod token_text;
 use std::sync::Arc;
 
 pub use available_parsers::AvailableParsers;
+#[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
 pub use code_splitter::CodeSplitter;
 pub use parser_trait::{NodeParserTrait, TextParserTrait};
 pub use sentence::{Document, SentenceSplitter, TextNode};

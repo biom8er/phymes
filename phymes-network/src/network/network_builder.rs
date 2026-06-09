@@ -29,13 +29,13 @@ pub trait NetworkBuilderTrait: BuilderTrait {
     fn check_tasks(&self) -> Result<()>;
     /// Check that all [ProcessorTrait]s defined in the [TaskPlan] are accounted for
     ///
-    /// [ProcessorTrait]: phymes_subject::ProcessorTrait
+    /// [ProcessorTrait]: phymes_processor::ProcessorTrait
     fn check_processors(&self) -> Result<()>;
     /// Check the [RuntimeEnv]
     fn check_runtime_env(&self) -> Result<()>;
     /// Check that all subject [Subject]s defined in the subjects and subscribed to by the [ProcessorTrait]s are accounted for
     ///
-    /// [ProcessorTrait]: phymes_subject::ProcessorTrait
+    /// [ProcessorTrait]: phymes_processor::ProcessorTrait
     fn check_subjects(&self) -> Result<()>;
 }
 

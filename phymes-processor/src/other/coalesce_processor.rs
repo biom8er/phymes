@@ -12,7 +12,7 @@ use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv};
 
 use crate::ProcessorTrait;
 
-/// Processor that implements the [RecordBatch] coalesce operator to combine smaller [RecordBatch]es into larger [RecordBatch]es of a specified size
+/// Processor that implements the `RecordBatch` coalesce operator to combine smaller `RecordBatch`es into larger `RecordBatch`es of a specified size
 #[derive(Debug)]
 pub struct CoalesceProcessor {
     name: String,

@@ -507,7 +507,7 @@ fn extract_pdf_docs(
 ///
 /// # Arguments
 /// * `doc_filter` - [DocumentFilterType] Pre-determined list of object to filter from the PDF before extraction using [filter_pdf]
-/// * `doc_extraction` - [DocumentExtractionType] Pre-determined settings to extract objects from the PDF including
+/// * `doc_extraction` - [DocumentExtractType] Pre-determined settings to extract objects from the PDF including
 ///   text, graphics, embedding_text, embedding_graphics, etc.
 ///
 /// # Returns

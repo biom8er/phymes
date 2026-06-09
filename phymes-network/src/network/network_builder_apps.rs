@@ -52,7 +52,7 @@ pub trait NetworkBuilderAppsTrait {
     /// 1. Check for consistency between the `lhs_name` and `rhs_name` in any [DataConfig]s and the subscriptions of the [ProcessorTrait]s
     /// 2. Check for consistency between the `lhs_pk`, `rhs_pk`, `lhs_fk`, `rhs_fk`, `lhs_values`, and `rhs_values` in any [DataConfig]s and the subscriptions of the [ProcessorTrait]s
     ///
-    /// [ProcessorTrait]: phymes_subject::ProcessorTrait
+    /// [ProcessorTrait]: phymes_processor::ProcessorTrait
     fn check_data_config_subjects(&self) -> Result<()>;
 
     /// Check that all processor configs can be built
@@ -63,12 +63,12 @@ pub trait NetworkBuilderAppsTrait {
     /// 3. Check that all config schemas match their processor
     ///
     /// [DataOperatorTrait]: phymes_data::DataOperatorTrait
-    /// [CandleDataProcessor]: phymes_data::CandleDataProcessor
+    /// [CandleDataProcessor]: phymes_processor::CandleDataProcessor
     fn check_processor_config_builds(&self) -> Result<()>;
 
     /// Check that all [ProcessorTrait]s subscribe to a subject of the same name
     ///
-    /// [ProcessorTrait]: phymes_subject::ProcessorTrait
+    /// [ProcessorTrait]: phymes_processor::ProcessorTrait
     fn check_processor_config_subjects(&self) -> Result<()>;
 
     /// Add processor subjects to the state with defaults

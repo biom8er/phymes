@@ -12,10 +12,9 @@ use crate::{
     IPCMessageBuilder, IPCMessageMap, MessageBuilderTrait, SendableRecordBatchStreamMessageBuilder,
 };
 
-/// An [RecordBatch], `IPCStream`, or [SendableRecordBatch] with additional
+/// An [RecordBatch], `IPCStream`, or [SendableRecordBatchStream] with additional
 /// metadata for subject, publisher, and update
 ///
-/// [SendableRecordBatch]: crate::SendableRecordBatchStream
 /// [RecordBatch]: arrow::record_batch::RecordBatch
 pub trait MessageTrait: MappableTrait + BuildableTrait + Send {
     type T;

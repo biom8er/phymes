@@ -26,9 +26,9 @@ use crate::NetworkBuilder;
 /// The [Network] creates a (dynamic) execution graph based on a [TaskPlan]
 ///   and manages the running of individual [Task]s and the [Message]s passed between them.
 ///
-/// [TaskPlan]: crate::TaskPlan
-/// [Task]: crate::TaskTrait
-/// [Message]: phymes_subject::MessageTrait
+/// [TaskPlan]: phymes_task::TaskPlan
+/// [Task]: phymes_task::TaskTrait
+/// [Message]: phymes_message::MessageTrait
 #[derive(Debug, Clone, Default)]
 pub struct Network {
     /// A unique UUID that identifies the session

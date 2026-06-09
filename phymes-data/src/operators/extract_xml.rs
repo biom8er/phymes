@@ -860,7 +860,7 @@ fn xml_to_parsed_owl_record_batch(
 /// * `lhs_args` - Slice of [RecordBatch]es
 /// * `format` - The format of the bytes
 /// * `doc_filter` - [DocumentFilterType] Pre-determined list of XML tags to filter from the XML document before extraction
-/// * `doc_extraction` - [DocumentExtractionType] Pre-determined settings to extract objects from the XML document with
+/// * `doc_extraction` - [DocumentExtractType] Pre-determined settings to extract objects from the XML document with
 ///
 /// # Notes
 /// * Hierarchical or nested children structures are supported

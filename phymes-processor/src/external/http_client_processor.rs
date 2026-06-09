@@ -686,7 +686,11 @@ mod tests {
         assert_eq!(filenames, ["https://arxiv.org/pdf/2508.18700"]);
         let result = table.get_column_as_vec_str("extension");
         assert_eq!(result, ["application/pdf"]);
-        let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<u8>>();
+        let result = table
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<u8>>();
         assert!(result.len() > 0);
 
         // Check the extracted PDF contents
@@ -732,12 +736,18 @@ mod tests {
         // Check PdfTextSubject
         let subject = subjects.pop().unwrap().unwrap();
         let result = subject.get_column_as_vec_str("chunk_id");
-        assert_eq!(result.first().unwrap(), &"https://arxiv.org/pdf/2508.187001PdfText { op: 13, bt: 7, tm: PdfTm { a: 0.0, b: 0.0, c: 0.0, d: 0.0, x: 115.072, y: 676.45 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F187\", font_subtype: \"ZINQKW+LinLibertineT\", base_font: \"Type1\" }, font_size: 11, text: \"\" }");
+        assert_eq!(
+            result.first().unwrap(),
+            &"https://arxiv.org/pdf/2508.187001PdfText { op: 13, bt: 7, tm: PdfTm { a: 0.0, b: 0.0, c: 0.0, d: 0.0, x: 115.072, y: 676.45 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F187\", font_subtype: \"ZINQKW+LinLibertineT\", base_font: \"Type1\" }, font_size: 11, text: \"\" }"
+        );
         let result = subject.get_column_as_vec_str("document_id");
         assert_eq!(result.first().unwrap(), &"https://arxiv.org/pdf/2508.18700");
         let result = subject.get_column_as_vec_str("text");
         let snippet = result.first().unwrap().to_string();
-        assert_eq!(snippet[..100], *"Taming the One-Epoch Phenomenon in Online Recommendation System by Two-stage Contrastive ID Pre-trai");
+        assert_eq!(
+            snippet[..100],
+            *"Taming the One-Epoch Phenomenon in Online Recommendation System by Two-stage Contrastive ID Pre-trai"
+        );
 
         Ok(())
     }

@@ -87,9 +87,9 @@ mod tests {
 
     use phymes_schemas::{create_object_store_batch, create_object_store_meta_batch};
     use phymes_streams::{ObjectStoreConfig, ObjectStoreOptsType};
-    #[cfg(not(target_family = "wasm"))]
+    #[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
     use serde_json::{Map, Value};
-    #[cfg(not(target_family = "wasm"))]
+    #[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
     use tempfile::TempDir;
 
     #[tokio::test]
@@ -577,7 +577,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg(not(target_family = "wasm"))]
+    #[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
     #[tokio::test]
     async fn test_object_store_processor_put_get_local_fs_messages() -> Result<()> {
         let name = "ObjectStoreProcessor";

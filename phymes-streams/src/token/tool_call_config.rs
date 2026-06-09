@@ -5,9 +5,9 @@ use phymes_diagnostics::HashSet;
 use phymes_subject::{MappableTrait, Subject, SubjectTrait};
 use serde::{Deserialize, Serialize};
 
-/// Configuration for [ToolCallProcessor]
+/// Configuration for [ToolCallStream]
 ///
-/// [ToolCallProcessor]: crate::ToolCallProcessor
+/// [ToolCallStream]: crate::ToolCallStream
 #[derive(Parser, Debug, Serialize, Deserialize, Default, Clone)]
 #[command(author, version, about, long_about = None)]
 pub struct ToolCallConfig {

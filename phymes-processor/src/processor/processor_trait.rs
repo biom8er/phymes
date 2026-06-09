@@ -45,7 +45,7 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     /// [`Stream`]: futures::stream::Stream
     /// [`StreamExt`]: futures::stream::StreamExt
     /// [`TryStreamExt`]: futures::stream::TryStreamExt
-    /// [`RecordBatchStreamAdapter`]: crate::RecordBatchStreamAdapter
+    /// [`RecordBatchStreamAdapter`]: phymes_subject::RecordBatchStreamAdapter
     ///
     /// # Error handling
     ///
@@ -70,7 +70,7 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     ///
     /// [`spawn`]: tokio::task::spawn
     /// [`JoinSet`]: tokio::task::JoinSet
-    /// [`RecordBatchReceiverStreamBuilder`]: crate::RecordBatchReceiverStreamBuilder
+    /// [`RecordBatchReceiverStreamBuilder`]: phymes_subject::RecordBatchReceiverStreamBuilder
     ///
     /// # Messages handling
     ///

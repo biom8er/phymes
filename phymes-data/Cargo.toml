@@ -16,7 +16,9 @@ mkl-dynamic = ["dep:intel-mkl-src", "intel-mkl-src/mkl-dynamic-lp64-iomp", "cand
 cuda = ["candle-core/cuda"]
 cudnn = ["candle-core/cudnn"]
 nccl = ["cuda", "cudarc/nccl"]
-wasip2 = ["phymes-subject/wasip2", "phymes-diagnostics/wasip2", "phymes-schemas/wasip2", "lopdf/wasm_js", "dep:quick-xml", "tree-sitter/wasm", "dep:tree-sitter-python", "dep:tree-sitter-html", "dep:tree-sitter-rust", "dep:regex"]
+wasip2 = ["phymes-subject/wasip2", "phymes-diagnostics/wasip2", "phymes-schemas/wasip2", "lopdf/wasm_js", "dep:quick-xml",
+    #"tree-sitter/wasm", DM: issue building for target wasm32-unknown-unknown and wasm32-wasip2 (see open issues on GitHub)
+    "dep:regex"]
 wsl = ["phymes-subject/wsl", "phymes-diagnostics/wsl", "phymes-schemas/wsl", "lopdf/async", "lopdf/rayon", "quick-xml/tokio", "dep:tempfile", "tree-sitter/std", "dep:tree-sitter-python", "dep:tree-sitter-html", "dep:tree-sitter-rust", "regex/std"]
 gpu = ["cuda", "cudnn", "nccl"]
 api = ["phymes-subject/api", "phymes-schemas/api", "quick-xml/serialize",]
