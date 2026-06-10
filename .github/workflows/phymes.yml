@@ -293,7 +293,7 @@ jobs:
       #   run: |
       #     export WASMTIME_HOME="$HOME/.wasmtime"
       #     export PATH="$PATH:$WASMTIME_HOME/bin"
-      #     for file in target/wasm32-wasip2/release/deps/phymes_processor-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
+      #     for file in target/wasm32-wasip2/release/deps/phymes_processor-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
       - name: Build wasm32-wasip2 -p phymes-ml examples
         run: |
           cargo build --package phymes-ml --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat
@@ -340,7 +340,7 @@ jobs:
       #   run: |
       #     export WASMTIME_HOME="$HOME/.wasmtime"
       #     export PATH="$PATH:$WASMTIME_HOME/bin"
-      #     for file in target/wasm32-wasip2/release/deps/phymes_templates-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done 
+      #     for file in target/wasm32-wasip2/release/deps/phymes_templates-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done 
       - name: Build wasm32-unknown-unknown -p phymes-server
         run: cargo check -p phymes-server --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
       - name: Build wasm32-wasip2 -p phymes-server tests

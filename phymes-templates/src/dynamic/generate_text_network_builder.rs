@@ -753,6 +753,7 @@ mod tests {
         Ok(())
     }
 
+    // #[ignore = "Failing on WASM for unknown reason..."]
     #[tokio::test(flavor = "current_thread")]
     async fn test_generate_text_network_tool_response() -> Result<()> {
         // Initialize the session

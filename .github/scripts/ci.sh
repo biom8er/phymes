@@ -120,7 +120,7 @@ cargo test -p phymes-streams --features wasip2 --no-default-features --target wa
 for file in target/wasm32-wasip2/release/deps/phymes_streams-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
 cargo check -p phymes-processor --features wasip2 --no-default-features --target wasm32-unknown-unknown
 cargo test -p phymes-processor --features wasip2 --no-default-features --target wasm32-wasip2 --no-run --release
-for file in target/wasm32-wasip2/release/deps/phymes_processor-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
+for file in target/wasm32-wasip2/release/deps/phymes_processor-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
 cargo build --package phymes-processor --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat
 wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat.wasm --messages "messages" --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
 cargo check -p phymes-task --features wasip2 --no-default-features --target wasm32-unknown-unknown
@@ -137,7 +137,7 @@ cargo build --package phymes-network --target wasm32-wasip2 --no-default-feature
 wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/tool_agent_network.wasm
 cargo check -p phymes-templates --features wasip2 --no-default-features --target wasm32-unknown-unknown
 cargo test -p phymes-templates --features wasip2 --no-default-features --target wasm32-wasip2 --no-run --release
-for file in target/wasm32-wasip2/release/deps/phymes_templates-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
+for file in target/wasm32-wasip2/release/deps/phymes_templates-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
 cargo check -p phymes-server --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
 cargo test -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
 for file in target/wasm32-wasip2/release/deps/phymes_server-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
