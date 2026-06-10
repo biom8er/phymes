@@ -3,18 +3,22 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
-use phymes_agents::{
-    AvailableSessionPlans, SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-    SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
-    SubscriptionTrait, create_message_map,
-};
-use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder,
-    JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, Publication,
-    RuntimeEnv, Subject, SubjectBuilderTrait, SubjectTrait, Subscription, UserSubject,
-    create_session_mermaid_batch, create_user_inbox_batch, create_user_session_contexts_batch,
-};
 use phymes_diagnostics::HashMap;
+use phymes_event::{Publication, Subscription};
+use phymes_message::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, create_message_map};
+use phymes_network::{
+    AvailableNetworks, Network, NetworkBuilder, NetworkBuilderAppsTrait,
+    NetworkBuilderMermaidTrait, NetworkBuilderTrait, NetworkStream,
+};
+use phymes_schemas::{
+    AvailableSubjects, JoinUserInboxNetworksMermaidDiagrams, UserSubject,
+    create_session_mermaid_batch, create_user_inbox_batch, create_user_networks_batch,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait,
+    SubjectTrait,
+};
+use phymes_task::SubscriptionTrait;
 
 use crate::handlers::create_session_name;
 
@@ -29,41 +33,35 @@ use crate::handlers::create_session_name;
 #[derive(Clone)]
 pub struct UserState {
     /// Users information
-    pub users: Arc<SessionContext>,
+    pub users: Arc<Network>,
 }
 
 impl UserState {
     /// Make a new [UserState] with an optional name for the user state
     ///   and initialize with the default user
     pub async fn new(
-        user_session_context_name: Option<&str>,
+        user_network_name: Option<&str>,
         runtime_env: &Arc<RuntimeEnv>,
     ) -> Result<Self> {
-        let session_name = user_session_context_name.unwrap_or("Users");
-        let (session_ctx_arc, session_messages) =
-            AvailableSessionPlans::get_session_stream_state_by_name(
-                "Users",
-                session_name,
-                runtime_env,
-            )?;
+        let session_name = user_network_name.unwrap_or("Users");
+        let (network_arc, session_messages) = AvailableNetworks::get_network_stream_state_by_name(
+            "Users",
+            session_name,
+            runtime_env,
+        )?;
 
         // Write the session messages to the store
-        let _ = session_ctx_arc
+        let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
-        Ok(Self {
-            users: session_ctx_arc,
-        })
+        Ok(Self { users: network_arc })
     }
 
     /// Get the user information by their email
     pub async fn get_user_by_email(
         &self,
         email: &str,
-    ) -> Result<(
-        Vec<UserSubject>,
-        Vec<JoinUserInboxSessionContextsMermaidDiagrams>,
-    )> {
+    ) -> Result<(Vec<UserSubject>, Vec<JoinUserInboxNetworksMermaidDiagrams>)> {
         // Prepare the input message
         let batch = create_user_inbox_batch(vec![email.to_string()])?;
         let table = Subject::get_builder()
@@ -82,8 +80,8 @@ impl UserState {
         let message_map = create_message_map(vec![message]);
 
         // Run the tasks for the user session
-        let session_stream = SessionStream::new(message_map, self.users.clone());
-        let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let network_stream = NetworkStream::new(message_map, self.users.clone());
+        let _response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         // Parse out the results
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::User.to_string() }
@@ -100,46 +98,45 @@ impl UserState {
             .build()?
             .to_struct::<UserSubject>()?;
 
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string() }
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::JoinUserInboxNetworksMermaid.to_string() }
 			.subscribe_to_subject(self.users.runtime_env(), self.users.get_name())?
 			.ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` while getting the user by email.", 
-				AvailableSubjects::JoinUserInboxSessionContextsMermaid,
+				AvailableSubjects::JoinUserInboxNetworksMermaid,
 				self.users.get_name()
 			))?
 			.try_collect()
 			.await?;
         let join = Subject::get_builder()
-            .with_name(&AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string())
+            .with_name(&AvailableSubjects::JoinUserInboxNetworksMermaid.to_string())
             .with_record_batches(batches)?
             .build()?
-            .to_struct::<JoinUserInboxSessionContextsMermaidDiagrams>()?;
+            .to_struct::<JoinUserInboxNetworksMermaidDiagrams>()?;
 
         Ok((user, join))
     }
 
     /// Get the user information by their email
-    pub async fn update_user_session_contexts(
+    pub async fn update_user_networks(
         &self,
         email: &str,
-        session_context_name: &[String],
+        network_name: &[String],
         flowchart_diagram: &[String],
         er_diagram: &[String],
         timestamp: &[i64],
     ) -> Result<()> {
         // Prepare the update messages
-        let email_vec = session_context_name
+        let email_vec = network_name
             .iter()
             .map(|_| email.to_string())
             .collect::<Vec<_>>();
-        let user_session_contexts =
-            create_user_session_contexts_batch(email_vec, session_context_name.to_owned())?;
-        let user_session_contexts_bytes = Subject::get_builder()
-            .with_record_batches(vec![user_session_contexts])?
-            .with_name(AvailableSubjects::UserSessionContexts.to_string().as_str())
+        let user_networks = create_user_networks_batch(email_vec, network_name.to_owned())?;
+        let user_networks_bytes = Subject::get_builder()
+            .with_record_batches(vec![user_networks])?
+            .with_name(AvailableSubjects::UserNetworks.to_string().as_str())
             .build()?
             .to_ipc_stream()?;
         let mermaid = create_session_mermaid_batch(
-            session_context_name.to_owned(),
+            network_name.to_owned(),
             flowchart_diagram.to_owned(),
             er_diagram.to_owned(),
             timestamp.to_owned(),
@@ -151,12 +148,12 @@ impl UserState {
             .to_ipc_stream()?;
 
         // Create the update message
-        let user_session_contexts_message = IPCMessageBuilder::new()
-            .with_subject(AvailableSubjects::UserSessionContexts.to_string().as_str())
+        let user_networks_message = IPCMessageBuilder::new()
+            .with_subject(AvailableSubjects::UserNetworks.to_string().as_str())
             .with_publisher(&create_session_name(email, self.users.get_name()))
-            .with_message(user_session_contexts_bytes)
+            .with_message(user_networks_bytes)
             .with_update(&Publication::Extend {
-                subject_name: AvailableSubjects::UserSessionContexts.to_string(),
+                subject_name: AvailableSubjects::UserNetworks.to_string(),
             })
             .make_name()?
             .build()?;
@@ -169,7 +166,7 @@ impl UserState {
             })
             .make_name()?
             .build()?;
-        let message_map = create_message_map(vec![user_session_contexts_message, mermaid_message]);
+        let message_map = create_message_map(vec![user_networks_message, mermaid_message]);
 
         // Update the session state with the new message
         let (changelog, meta, _errors) = self
@@ -224,9 +221,9 @@ pub struct ServerState {
     /// Session context
     /// HashMap of sessions indexed by session name
     ///   where the session name = session_name + user_name
-    pub session_contexts: Arc<RwLock<HashMap<String, Arc<SessionContext>>>>,
+    pub networks: Arc<RwLock<HashMap<String, Arc<Network>>>>,
     /// Cache of user session_names indexed by user_name
-    pub user_session_names: Arc<RwLock<HashMap<String, Vec<String>>>>,
+    pub user_network_names: Arc<RwLock<HashMap<String, Vec<String>>>>,
 }
 
 impl Default for ServerState {
@@ -239,8 +236,8 @@ impl ServerState {
     /// Make a new server state
     pub fn new() -> Self {
         Self {
-            session_contexts: Arc::new(RwLock::new(HashMap::<String, Arc<SessionContext>>::new())),
-            user_session_names: Arc::new(RwLock::new(HashMap::<String, Vec<String>>::new())),
+            networks: Arc::new(RwLock::new(HashMap::<String, Arc<Network>>::new())),
+            user_network_names: Arc::new(RwLock::new(HashMap::<String, Vec<String>>::new())),
         }
     }
 
@@ -248,122 +245,114 @@ impl ServerState {
     ///
     /// # Arguments
     ///
-    /// `user_session_contexts` - &[JoinUserInboxSessionContextsMermaidDiagrams], session plans to create for the user
-    /// `make_session_contexts` - makes the session contexts if true or just returns the session names if false
+    /// `user_networks` - &[JoinUserInboxNetworksMermaidDiagrams], session plans to create for the user
+    /// `make_networks` - makes the session contexts if true or just returns the session names if false
     ///
     /// # Returns
     ///
     /// `Vec<String>` of created session_names
-    pub async fn make_session_contexts(
+    pub async fn make_networks(
         &mut self,
-        user_session_contexts: &[JoinUserInboxSessionContextsMermaidDiagrams],
-        make_session_contexts: bool,
+        user_networks: &[JoinUserInboxNetworksMermaidDiagrams],
+        make_networks: bool,
         runtime_env: &Arc<RuntimeEnv>,
     ) -> Result<Vec<String>> {
         let mut session_names = Vec::new();
-        for user_session_context in user_session_contexts {
+        for user_network in user_networks {
             // Create the session name
-            let session_name = create_session_name(
-                &user_session_context.email,
-                &user_session_context.session_context_name,
-            );
+            let session_name = create_session_name(&user_network.email, &user_network.network_name);
 
-            if make_session_contexts {
+            if make_networks {
                 // Create the session stream state if it does not yet exist
                 if self
-                    .session_contexts
+                    .networks
                     .try_read()
                     .unwrap()
                     .contains_key(&session_name)
                 {
                     tracing::debug!(
                         "Session_context {} already exists for session_name {}",
-                        &user_session_context.session_context_name,
+                        &user_network.network_name,
                         &session_name
                     );
-                } else if AvailableSessionPlans::get_all_session_plan_names()
-                    .contains(&user_session_context.session_context_name)
+                } else if AvailableNetworks::get_all_session_plan_names()
+                    .contains(&user_network.network_name)
                 {
                     // Prioritize the available session plans with initialized configs and other state
-                    let (session_ctx_arc, session_messages) =
-                        AvailableSessionPlans::get_session_stream_state_by_name(
-                            &user_session_context.session_context_name,
+                    let (network_arc, session_messages) =
+                        AvailableNetworks::get_network_stream_state_by_name(
+                            &user_network.network_name,
                             &session_name,
                             runtime_env,
                         )?;
 
                     // Write the session messages to the store
-                    let _ = session_ctx_arc
+                    let _ = network_arc
                         .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
                         .await;
 
                     // Add the session stream state to the state
                     let _ = self
-                        .session_contexts
+                        .networks
                         .try_write()
                         .unwrap()
-                        .insert(session_name.to_string(), session_ctx_arc);
+                        .insert(session_name.to_string(), network_arc);
                     tracing::debug!(
-                        "Creating session_context {} for session_name {} from AvailableSessionPlans",
-                        &user_session_context.session_context_name,
+                        "Creating network {} for session_name {} from AvailableNetworks",
+                        &user_network.network_name,
                         &session_name
                     );
                 } else {
                     // Build the session stream state with tables from Mermaid
                     // and leave the upload of configs and other initial session state to another step
-                    // DM: turn agent subject tests back on after refactoring BuilderSession
-                    let (session_context, session_messages) =
-                        SessionContextBuilder::from_mermaid_flowchart(
-                            &user_session_context.flowchart_diagram,
-                            false,
-                        )?
-                        .with_name(&session_name)
-                        .with_subjects_from_mermaid_erdiagram(
-                            &user_session_context.er_diagram,
-                            false,
-                            true,
-                        )?
-                        .add_processor_subjects()?
-                        .add_session_interface(None)?
-                        .with_diagnostics(true)
-                        .with_runtime_env(runtime_env.clone())
-                        .build_with_tables()?;
-                    let session_ctx_arc = Arc::new(session_context);
+                    // DM: turn agent subject tests back on after refactoring BuilderNetwork
+                    let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
+                        &user_network.flowchart_diagram,
+                        false,
+                    )?
+                    .with_name(&session_name)
+                    .with_subjects_from_mermaid_erdiagram(&user_network.er_diagram, false, true)?
+                    .add_processor_subjects()?
+                    .add_network_interface(None)?
+                    .with_diagnostics(true)
+                    .with_runtime_env(runtime_env.clone())
+                    .build_with_tables()?;
+                    let network_arc = Arc::new(network);
 
                     // Write the session messages to the store
-                    let _ = session_ctx_arc
+                    let _ = network_arc
                         .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
                         .await;
 
                     // Add the session stream state to the state
                     let _ = self
-                        .session_contexts
+                        .networks
                         .try_write()
                         .unwrap()
-                        .insert(session_name.to_string(), session_ctx_arc);
+                        .insert(session_name.to_string(), network_arc);
                     tracing::debug!(
-                        "Creating session_context {} for session_name {} from mermaid diagrams.",
-                        &user_session_context.session_context_name,
+                        "Creating network {} for session_name {} from mermaid diagrams.",
+                        &user_network.network_name,
                         &session_name
                     );
                 }
 
                 // Update the cache if it exists
                 if self
-                    .user_session_names
+                    .user_network_names
                     .try_read()
                     .unwrap()
-                    .contains_key(&user_session_context.email)
+                    .contains_key(&user_network.email)
                 {
-                    self.user_session_names
+                    self.user_network_names
                         .try_write()
                         .unwrap()
-                        .get_mut(&user_session_context.email)
+                        .get_mut(&user_network.email)
                         .unwrap()
                         .push(session_name.to_string());
                 } else {
-                    let _ = self.user_session_names.try_write().unwrap().insert(
-                        user_session_context.email.to_string(),
+                    let _ = self.user_network_names.try_write().unwrap().insert(
+                        user_network.email.to_string(),
                         vec![session_name.to_string()],
                     );
                 }
@@ -377,20 +366,20 @@ impl ServerState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use phymes_agents::make_example_mermaid_table;
     use phymes_diagnostics::HashSet;
+    use phymes_network::make_example_mermaid_table;
 
     #[cfg(not(target_family = "wasm"))]
-    use phymes_core::SubjectTrait;
+    use phymes_subject::SubjectTrait;
 
     #[tokio::test]
-    async fn test_server_state_update_user_session_contexts() -> Result<()> {
+    async fn test_server_state_update_user_networks() -> Result<()> {
         let runtime_env = Arc::new(RuntimeEnv::default());
         let user = UserState::new(None, &runtime_env).await?;
         let table = make_example_mermaid_table(true, false)?;
-        user.update_user_session_contexts(
+        user.update_user_networks(
             "user@biom8er.com",
-            &table.get_column_as_vec_nonprimitive::<String>("session_context_name")?,
+            &table.get_column_as_vec_nonprimitive::<String>("network_name")?,
             &table.get_column_as_vec_nonprimitive::<String>("flowchart_diagram")?,
             &table.get_column_as_vec_nonprimitive::<String>("er_diagram")?,
             &table.get_column_as_vec_primitive::<i64>("timestamp")?,
@@ -398,14 +387,14 @@ mod tests {
         .await?;
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: "UserSessionContexts".to_string(),
+            subject_name: "UserNetworks".to_string(),
         }
         .subscribe_to_subject(user.users.runtime_env(), user.users.get_name())?
         .unwrap()
         .try_collect()
         .await?;
         let subject = Subject::get_builder()
-            .with_name("UserSessionContexts")
+            .with_name("UserNetworks")
             .with_record_batches(batches)?
             .build()?;
         assert_eq!(
@@ -421,13 +410,13 @@ mod tests {
             ]
         );
         assert_eq!(
-            subject.get_column_as_vec_str("session_context_name"),
+            subject.get_column_as_vec_str("network_name"),
             [
                 "Chat", "DocChat", "ToolChat", "Builder", "Chat", "DocChat", "ToolChat"
             ]
         );
         assert_eq!(
-            subject.get_column_as_vec_str("session_context_name"),
+            subject.get_column_as_vec_str("network_name"),
             [
                 "Chat", "DocChat", "ToolChat", "Builder", "Chat", "DocChat", "ToolChat"
             ]
@@ -440,58 +429,32 @@ mod tests {
     async fn test_server_state_get_user_by_email() -> Result<()> {
         let runtime_env = Arc::new(RuntimeEnv::default());
         let user = UserState::new(None, &runtime_env).await?;
-        let (user_info, user_session_contexts) =
-            user.get_user_by_email("contact@biom8er.com").await?;
+        let (user_info, user_networks) = user.get_user_by_email("contact@biom8er.com").await?;
         assert_eq!(user_info.len(), 1);
-        assert_eq!(user_session_contexts.len(), 4);
+        assert_eq!(user_networks.len(), 4);
         assert_eq!(user_info.first().unwrap().email, "contact@biom8er.com");
         assert_eq!(user_info.first().unwrap().first_name, "con");
         assert_eq!(user_info.first().unwrap().last_name, "tact");
-        assert_eq!(
-            user_session_contexts.first().unwrap().email,
-            "contact@biom8er.com"
-        );
-        assert_eq!(
-            user_session_contexts.first().unwrap().session_context_name,
-            "Builder"
-        );
-        assert_eq!(
-            user_session_contexts.get(1).unwrap().email,
-            "contact@biom8er.com"
-        );
-        assert_eq!(
-            user_session_contexts.get(1).unwrap().session_context_name,
-            "Chat"
-        );
-        assert_eq!(
-            user_session_contexts.get(2).unwrap().email,
-            "contact@biom8er.com"
-        );
-        assert_eq!(
-            user_session_contexts.get(2).unwrap().session_context_name,
-            "DocChat"
-        );
-        assert_eq!(
-            user_session_contexts.get(3).unwrap().email,
-            "contact@biom8er.com"
-        );
-        assert_eq!(
-            user_session_contexts.get(3).unwrap().session_context_name,
-            "ToolChat"
-        );
+        assert_eq!(user_networks.first().unwrap().email, "contact@biom8er.com");
+        assert_eq!(user_networks.first().unwrap().network_name, "Builder");
+        assert_eq!(user_networks.get(1).unwrap().email, "contact@biom8er.com");
+        assert_eq!(user_networks.get(1).unwrap().network_name, "Chat");
+        assert_eq!(user_networks.get(2).unwrap().email, "contact@biom8er.com");
+        assert_eq!(user_networks.get(2).unwrap().network_name, "DocChat");
+        assert_eq!(user_networks.get(3).unwrap().email, "contact@biom8er.com");
+        assert_eq!(user_networks.get(3).unwrap().network_name, "ToolChat");
 
         Ok(())
     }
 
     #[tokio::test]
-    async fn test_server_state_make_session_contexts_from_mermaid_diagrams() -> Result<()> {
+    async fn test_server_state_make_networks_from_mermaid_diagrams() -> Result<()> {
         let runtime_env = Arc::new(RuntimeEnv::default());
         let user = UserState::new(None, &runtime_env).await?;
-        let (_user_info, user_session_contexts) =
-            user.get_user_by_email("contact@biom8er.com").await?;
+        let (_user_info, user_networks) = user.get_user_by_email("contact@biom8er.com").await?;
         let mut state = ServerState::new();
         let session_names = state
-            .make_session_contexts(&user_session_contexts, true, &runtime_env)
+            .make_networks(&user_networks, true, &runtime_env)
             .await?;
         assert_eq!(
             session_names
@@ -510,7 +473,7 @@ mod tests {
         );
         assert_eq!(
             state
-                .session_contexts
+                .networks
                 .try_read()
                 .unwrap()
                 .keys()

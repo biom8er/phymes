@@ -1,12 +1,12 @@
 # Model Assets
 ## Synopsis
 
-This tutorial describes how the [Candle](https://github.com/huggingface/candle) model [assets](https://github.com/biom8er/phymes/blob/main/phymes-agents/src/candle_assets/candle_assets.rs) are used to support text generation inference (TGI) and text embedding inference (TEI) services that are needed for agentic AI. A `chat` model that provides TGI via the command line is provided in the [examples](https://github.com/biom8er/phymes/blob/main/phymes-agents/examples/chat/main.rs).
+This tutorial describes how the [Candle](https://github.com/huggingface/candle) model [assets](https://github.com/biom8er/phymes/blob/main/phymes-network/src/candle_assets/candle_assets.rs) are used to support text generation inference (TGI) and text embedding inference (TEI) services that are needed for agentic AI. A `chat` model that provides TGI via the command line is provided in the [examples](https://github.com/biom8er/phymes/blob/main/phymes-network/examples/chat/main.rs).
 
 ## Tutorial
 ### Candle assets
 
-The candle assets that enable TGI and TEI include the model weights, configs, and [tokenizer](https://github.com/huggingface/tokenizers). Pytorch .bin, SafeTensor model.safetensor, and .gguf formats are supported. All assets can be downloaded using the HuggingFace [API](https://github.com/huggingface/hf-hub). `phymes-agents` provides a unified interface that hides away the nuances of different model architectures, quantizations, etc. to provide a more streamlined experience when working with different models similar to other agentic AI libraries.
+The candle assets that enable TGI and TEI include the model weights, configs, and [tokenizer](https://github.com/huggingface/tokenizers). Pytorch .bin, SafeTensor model.safetensor, and .gguf formats are supported. All assets can be downloaded using the HuggingFace [API](https://github.com/huggingface/hf-hub). `phymes-network` provides a unified interface that hides away the nuances of different model architectures, quantizations, etc. to provide a more streamlined experience when working with different models similar to other agentic AI libraries.
 
 #### Text generation inference (TGI)
 

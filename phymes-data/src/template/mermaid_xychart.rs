@@ -13,7 +13,7 @@ pub static MERMAID_XYCHART_TEMPLATE: &str = r#"
 /// # Example
 ///
 /// ```rust
-/// use phymes_core::SubjectScript;
+/// use phymes_data::SubjectScript;
 /// use phymes_data::MERMAID_XYCHART_INPUT;
 /// let inputs = serde_json::json!({
 ///     "title": "chart title",
@@ -37,15 +37,11 @@ pub static MERMAID_XYCHART_INPUT: &str = r#"{
 mod tests {
     use std::sync::Arc;
 
-    use crate::template::{
-        TEMPLATE_TABLE_EXPRESSION,
-        mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE},
-    };
+    use crate::{MERMAID_HTML_POST, MERMAID_HTML_PRE, SubjectScript, TEMPLATE_TABLE_EXPRESSION};
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
-    use phymes_core::{
-        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectScript,
-        SubjectTrait,
+    use phymes_subject::{
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
     };
     use serde_json::{Map, Value};
 

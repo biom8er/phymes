@@ -1,6 +1,6 @@
 // General imports
 use clap::Parser;
-use phymes_core::ObjectStorageBackend;
+use phymes_subject::ObjectStorageBackend;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 

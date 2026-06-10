@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use axum::{Router, response::Response};
 use http::Request;
-use phymes_core::RuntimeEnv;
+use phymes_subject::RuntimeEnv;
 use tower_service::Service;
 
 // From lib
@@ -20,10 +20,10 @@ pub struct Serverless {
 
 impl Serverless {
     pub async fn new(
-        user_session_context_name: Option<&str>,
+        user_network_name: Option<&str>,
         runtime_env: &Arc<RuntimeEnv>,
     ) -> Result<Self> {
-        let router = AppBuilder::new(user_session_context_name, runtime_env)
+        let router = AppBuilder::new(user_network_name, runtime_env)
             .await?
             .build();
         Ok(Self { router })
@@ -88,14 +88,15 @@ mod tests {
     use bytes::Bytes;
     use futures::TryStreamExt;
     use futures_executor::block_on;
-    use phymes_agents::{
-        AvailableInterfaceSubjects, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait,
+    use phymes_event::Publication;
+    use phymes_message::{
+        MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait,
     };
-    use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
-        ChatBuilderTraitExt, DataFormat, MappableTrait, MessageBuilderTrait, Publication,
-        RuntimeEnv, SubjectTrait,
+    use phymes_schemas::{
+        AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataFormat,
     };
+    use phymes_streams::ChatBuilderTraitExt;
+    use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, SubjectTrait};
     use serde_json::{Map, Value};
 
     use crate::handlers::{basic_auth, create_session_name};
@@ -202,7 +203,7 @@ mod tests {
             .unwrap();
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
-        // Test session_stream
+        // Test network_stream
         let runtime_env = Arc::new(RuntimeEnv::default());
         let mut serverless = Serverless::new(None, &runtime_env).await.unwrap();
 
@@ -229,7 +230,7 @@ mod tests {
             .unwrap();
         let data = serde_json::to_string(&session_response).unwrap();
 
-        // Make the request for the session_stream
+        // Make the request for the network_stream
         let request: Request<String> = Request::builder()
             .method("POST")
             .uri("http://127.0.0.1:8000/app/v1/chat")
@@ -389,7 +390,7 @@ mod tests {
             .unwrap();
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
-        // Test session_stream using serverless_app
+        // Test network_stream using serverless_app
         let chat = AvailableInterfaceSubjects::UserMessages
             .to_subject_builder(None)
             .append_new_user_query_str("Write a function to count prime numbers up to N.", "user")

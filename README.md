@@ -1,8 +1,8 @@
 # PHYMES: Parallel HYpergraph MEssaging Streams
 
 [![CI Status](https://github.com/biom8er/phymes/actions/workflows/phymes.yml/badge.svg)](https://github.com/biom8er/phymes/actions/workflows/main.yml)
-[![Latest version](https://img.shields.io/crates/v/phymes-core.svg)](https://crates.io/crates/phymes-core)
-[![Documentation](https://docs.rs/phymes-core/badge.svg)](https://docs.rs/phymes-core)
+[![Latest version](https://img.shields.io/crates/v/phymes-subject.svg)](https://crates.io/crates/phymes-subject)
+[![Documentation](https://docs.rs/phymes-subject/badge.svg)](https://docs.rs/phymes-subject)
 [![Guide](https://github.com/biom8er/phymes/actions/workflows/docs.yml/badge.svg)](https://biom8er.github.io/phymes/)
 [![License](https://img.shields.io/github/license/base-org/node?color=blue)](https://github.com/biom8er/phymes/blob/main/LICENSE-MIT)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/biom8er/phymes/blob/main/LICENSE-APACHE)
@@ -17,7 +17,9 @@ PHYMES (Parallel HYpergraph MEssaging Streams) is a subject-based message passin
 
 🤔 What can PHYMES do?
 
-PHYMES can be used to build scalable Agentic AI workflows, (hyper)-graph algorithms, and world simulators. Examples for building a chat bot, a tool calling agent, and document RAG agent are provided using embedded token/tensor services or local/remote token/tensor services using OpenAI compatible APIs.
+🤖 build complex Agentic AI workflows. Examples for building a chat bot, a tool calling agent, and document RAG agent are provided using embedded token/tensor services or local/remote token/tensor services using OpenAI compatible APIs.
+💿 deploy Agentic AI-enabled apps. Examples and recipes for building and deploying on the cloud, on the edge, or in the browser are provided. 
+🧑‍🔬 train and optimize Agentic AI algorithms and workflows. Examples for monitoring deployed Agentic AI workflows and training new ML models or optimizing workflow execution from the telemetry data are provided.
 
 🤔 Why PHYMES?
 
@@ -25,7 +27,7 @@ PHYMES can be used to build scalable Agentic AI workflows, (hyper)-graph algorit
 🌎 deployable on any platform (Linux, MacOs, Win, Android, and iOS) and in the browser (WebAssembly).<br>
 💪 scalable to massive data sets using columnar in memory format, parallel and stream native processing, and GPU acceleration.<br>
 🧩 interoperable with existing stacks by interfacing with cross-platform [Arrow] and [WASM]/[WASI].<br>
-🔎 instrumented with tracing and customizable metrics to debug (hyper-)graph workflows faster.<br>
+🔎 instrumented with tracing and customizable metrics to debug faster.<br>
 
 🤔 Who and what inspired PHYMES?
 
@@ -149,23 +151,23 @@ The phymes application is available for desktop (Linux, Windows, MacOS) and mobi
 
 ## Repository
 
-The [`phymes-core`], [`phymes-ml`], [`phymes-data`], [`phymes-agents`], [`phymes-server`], [`phymes-app`] crates form a full-stack application that can run Agentic AI workflows, (Hyper-)Graph algorithms, and/or Simulate complex real world networks at scale using a web, desktop, or mobile interface.
+The [`phymes-subject`], [`phymes-ml`], [`phymes-data`], [`phymes-network`], [`phymes-server`], [`phymes-app`] crates form a full-stack application that can run Agentic AI workflows, (Hyper-)Graph algorithms, and/or Simulate complex real world networks at scale using a web, desktop, or mobile interface.
 
 | Crate | Description | Latest API Docs | README |
 | ----- | ----------- | --------------- | ------ |
 | [`phymes-diagnostics`] | Diagnostic tools for debugging and optimizing | [docs.rs](https://docs.rs/phymes-diagnostics/latest) | [README](phymes-diagnostics/README.md) |
-| [`phymes-core`] | Core hypergraph messaging functionality | [docs.rs](https://docs.rs/phymes-core/latest) | [README](phymes-core/README.md) |
+| [`phymes-subject`] | Core hypergraph messaging functionality | [docs.rs](https://docs.rs/phymes-subject/latest) | [README](phymes-subject/README.md) |
 | [`phymes-ml`] | Support for machine learning (ML) and generative artificial intelligence (AI) | [docs.rs](https://docs.rs/phymes-ml/latest) | [README](phymes-ml/README.md) |
 | [`phymes-data`] | Support for GPU accelerated data wrangling | [docs.rs](https://docs.rs/phymes-data/latest) | [README](phymes-data/README.md) |
-| [`phymes-agents`] | Support for building Agentic AI hypergraph messaging applications | [docs.rs](https://docs.rs/phymes-agents/latest) | [README](phymes-agents/README.md) |
+| [`phymes-network`] | Support for building Agentic AI hypergraph messaging applications | [docs.rs](https://docs.rs/phymes-network/latest) | [README](phymes-network/README.md) |
 | [`phymes-server`] | Server that runs the Agentic AI hypergraph messaging services  | [docs.rs](https://docs.rs/phymes-server/latest) | [README](phymes-server/README.md) |
 | [`phymes-app`] | Frontend UI for dynamically interacting with the Agentic AI hypergraph messaging services  | [docs.rs](https://docs.rs/phymes-app/latest) | [README](phymes-app/README.md) |
 
 [`phymes-diagnostics`]: https://crates.io/crates/phymes-diagnostics
-[`phymes-core`]: https://crates.io/crates/phymes-core
+[`phymes-subject`]: https://crates.io/crates/phymes-subject
 [`phymes-ml`]: https://crates.io/crates/phymes-ml
 [`phymes-data`]: https://crates.io/crates/phymes-data
-[`phymes-agents`]: https://crates.io/crates/phymes-agents
+[`phymes-network`]: https://crates.io/crates/phymes-network
 [`phymes-server`]: https://crates.io/crates/phymes-server
 [`phymes-app`]: https://crates.io/crates/phymes-app
 
@@ -173,17 +175,9 @@ The [`phymes-core`], [`phymes-ml`], [`phymes-data`], [`phymes-agents`], [`phymes
 
 ## Roadmap
 
-1. More examples for running hypergraph algorithms and simulators using `phymes-core`, and production agentic AI examples e.g., NVIDIA RAG [Blue Print](https://github.com/NVIDIA-AI-Blueprints/rag) within `phymes-agent`.
-2. Improved GPU accelerated Data operators including joins and aggregations [see](https://arxiv.org/pdf/2312.00720)
-3. Better test coverage of `phymes-server` and `phymes-app` which also require a refactor particularly of `phymes-app` components
-4. Proper application database and sign-in user journey
-5. Better OpenAI (and non-OpenAI) API token service coverage e.g. [rust-genai], support for building Model Context Provider ([MCP]) e.g. [rust-sdk], and integrations with other external databases e.g. [rig]
-6. See [issues] for more...
-
-[rust-genai]: https://github.com/jeremychone/rust-genai
-[MCP]: https://modelcontextprotocol.io/specification
-[rust-sdk]: https://github.com/modelcontextprotocol/rust-sdk
-[rig]: https://github.com/0xPlaygrounds/rig
+1. More production-ready agentic AI examples beyond simple chatbot, tool call, and RAG agents.
+2. Expanded benchmark of hardware accelerated accelerated Data operators, ML models, and Agentic AI workflows and their primitives.
+3. See [issues] for more...
 
 ## Community
 

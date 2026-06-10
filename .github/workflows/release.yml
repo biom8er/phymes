@@ -129,8 +129,8 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
-          cargo publish -p phymes-core --no-verify
-          cargo publish -p phymes-agents --no-verify
+          cargo publish -p phymes-subject --no-verify
+          cargo publish -p phymes-network --no-verify
           cargo publish -p phymes-server --no-verify
           cargo publish -p phymes-app --no-verify
           

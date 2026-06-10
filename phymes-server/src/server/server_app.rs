@@ -7,9 +7,9 @@ use axum::{
     middleware,
     routing::{get_service, post},
 };
-use phymes_core::RuntimeEnv;
+use phymes_subject::RuntimeEnv;
 #[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
-use phymes_core::{BuildableTrait, BuilderTrait, RuntimeEnvBuilderTrait, make_store};
+use phymes_subject::{BuildableTrait, BuilderTrait, RuntimeEnvBuilderTrait, make_store};
 #[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
@@ -33,8 +33,8 @@ use tokio::net::TcpListener;
 // From lib
 use crate::{
     handlers::{
-        authorize, session_build, session_diagnostics, session_get_state, session_put_state,
-        session_stream, sign_in,
+        authorize, network_build, network_get_subjects, network_put_subjects, network_stream,
+        session_diagnostics, sign_in,
     },
     state::{ServerState, UserState},
 };
@@ -46,11 +46,11 @@ pub struct AppBuilder {
 
 impl AppBuilder {
     pub async fn new(
-        user_session_context_name: Option<&str>,
+        user_network_name: Option<&str>,
         runtime_env: &Arc<RuntimeEnv>,
     ) -> Result<Self> {
         // Application state
-        let user_state = UserState::new(user_session_context_name, runtime_env).await?;
+        let user_state = UserState::new(user_network_name, runtime_env).await?;
         let server_state = ServerState::new();
 
         // Router
@@ -58,28 +58,28 @@ impl AppBuilder {
             .route("/app/v1/sign_in", post(sign_in))
             .route(
                 "/app/v1/chat",
-                post(session_stream).layer(middleware::from_fn_with_state(
+                post(network_stream).layer(middleware::from_fn_with_state(
                     user_state.clone(),
                     authorize,
                 )),
             )
             .route(
                 "/app/v1/put_state",
-                post(session_put_state).layer(middleware::from_fn_with_state(
+                post(network_put_subjects).layer(middleware::from_fn_with_state(
                     user_state.clone(),
                     authorize,
                 )),
             )
             .route(
                 "/app/v1/get_state",
-                post(session_get_state).layer(middleware::from_fn_with_state(
+                post(network_get_subjects).layer(middleware::from_fn_with_state(
                     user_state.clone(),
                     authorize,
                 )),
             )
             .route(
                 "/app/v1/build",
-                post(session_build).layer(middleware::from_fn_with_state(
+                post(network_build).layer(middleware::from_fn_with_state(
                     user_state.clone(),
                     authorize,
                 )),

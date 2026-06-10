@@ -1,13 +1,16 @@
 use dioxus::prelude::*;
-use phymes_agents::{
-    AvailableSessionPlans, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
+
+use phymes_event::Publication;
+use phymes_message::{
+    MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
     SessionInterfaceMessageBuilderTrait,
 };
-use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, Publication,
-    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
-};
+use phymes_network::AvailableNetworks;
+use phymes_schemas::{AvailableSubjects, DataFormat};
 use phymes_server::create_session_name;
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+};
 
 use crate::{
     state::{
@@ -29,7 +32,7 @@ use futures::StreamExt;
 #[cfg(feature = "mermaid_js")]
 use crate::state::MermaidJsObject;
 #[cfg(feature = "mermaid_js")]
-use phymes_agents::{SessionContextBuilder, SessionContextBuilderMermaidTrait};
+use phymes_network::{NetworkBuilder, NetworkBuilderMermaidTrait};
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
@@ -55,7 +58,7 @@ pub fn apps_interface_view() -> Element {
     let mut active_flowchart_diagram = use_signal(String::new);
     let mut active_er_diagram = use_signal(String::new);
 
-    let mut mermaid_session_context_names = use_signal(Vec::<String>::new);
+    let mut mermaid_network_names = use_signal(Vec::<String>::new);
     let mut mermaid_flowchart_diagrams = use_signal(Vec::<String>::new);
     let mut mermaid_er_diagrams = use_signal(Vec::<String>::new);
     let mut mermaid_timestamps = use_signal(Vec::<i64>::new);
@@ -66,7 +69,7 @@ pub fn apps_interface_view() -> Element {
             // DM: this can be better optimized to prevent redundant API calls each time the active session is changed in Builder mode
             create_session_name(
                 EMAIL().as_str(),
-                AvailableSessionPlans::Builder.to_string().as_str(),
+                AvailableNetworks::Builder.to_string().as_str(),
             )
         } else {
             create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str())
@@ -82,7 +85,7 @@ pub fn apps_interface_view() -> Element {
     // Get the mermaid.js diagrams for the session
     use_resource(move || async move {
         // clear the current mermaid state
-        mermaid_session_context_names.set(Vec::new());
+        mermaid_network_names.set(Vec::new());
         mermaid_flowchart_diagrams.set(Vec::new());
         mermaid_er_diagrams.set(Vec::new());
         mermaid_timestamps.set(Vec::new());
@@ -125,7 +128,7 @@ pub fn apps_interface_view() -> Element {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
                         let combined = table
-                            .get_column_as_vec_nonprimitive::<String>("session_context_name")
+                            .get_column_as_vec_nonprimitive::<String>("network_name")
                             .unwrap()
                             .into_iter()
                             .zip(
@@ -155,7 +158,7 @@ pub fn apps_interface_view() -> Element {
                             })
                             .collect::<Vec<_>>();
                         for (scn, fd, ed, t) in combined {
-                            mermaid_session_context_names.push(scn);
+                            mermaid_network_names.push(scn);
                             mermaid_flowchart_diagrams.push(fd);
                             mermaid_er_diagrams.push(ed);
                             mermaid_timestamps.push(t);
@@ -193,7 +196,7 @@ pub fn apps_interface_view() -> Element {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
                         let combined = table
-                            .get_column_as_vec_nonprimitive::<String>("session_context_name")
+                            .get_column_as_vec_nonprimitive::<String>("network_name")
                             .unwrap()
                             .into_iter()
                             .zip(
@@ -223,7 +226,7 @@ pub fn apps_interface_view() -> Element {
                             })
                             .collect::<Vec<_>>();
                         for (scn, fd, ed, t) in combined {
-                            mermaid_session_context_names.push(scn);
+                            mermaid_network_names.push(scn);
                             mermaid_flowchart_diagrams.push(fd);
                             mermaid_er_diagrams.push(ed);
                             mermaid_timestamps.push(t);
@@ -246,10 +249,10 @@ pub fn apps_interface_view() -> Element {
         };
 
         // Filter in the active diagrams
-        let (_session_context_names, flowchart_diagrams, er_diagrams, timestamps) =
+        let (_network_names, flowchart_diagrams, er_diagrams, timestamps) =
             filter_in_mermaid_diagrams_by_session_name(
                 &session_name,
-                &mermaid_session_context_names
+                &mermaid_network_names
                     .read()
                     .iter()
                     .map(|s| s.as_str())
@@ -303,12 +306,12 @@ pub fn apps_interface_view() -> Element {
 
         // Check for build warnings
         let builder_error = if is_flowchart_shown() {
-            match SessionContextBuilder::from_mermaid_flowchart(&diagram_code, false) {
+            match NetworkBuilder::from_mermaid_flowchart(&diagram_code, false) {
                 Ok(_res) => None,
                 Err(err) => Some(err.to_string()),
             }
         } else {
-            match SessionContextBuilder::default().with_subjects_from_mermaid_erdiagram(
+            match NetworkBuilder::default().with_subjects_from_mermaid_erdiagram(
                 &diagram_code,
                 false,
                 true,
@@ -343,7 +346,7 @@ pub fn apps_interface_view() -> Element {
                     top: rsx! {
                         div {
                             class: "h-full w-full p-2 flex flex-col items-center",
-                            builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps, is_saved, build_errors }
+                            builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_network_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps, is_saved, build_errors }
                             diagram_code_editor { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, is_saved }
                         }
                     },

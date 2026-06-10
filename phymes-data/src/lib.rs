@@ -1,32 +1,28 @@
-mod candle_data;
-mod candle_operators;
-mod external_operators;
+mod operators;
+mod parser;
+mod patch;
 mod template;
+mod tensor;
 
-pub use candle_data::{
-    AggregatorProcessor, AggregatorStream, CandleDataProcessor, CandleDataStream,
-    CandleTensorService, CoalesceProcessor, DataAggregatorOperator, DataCastOperator,
-    DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig,
-    DataConfigTrait, DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig,
-    LimitProcessor, LimitStream, TensorProcessorTrait, collect_messages_by_schema, device,
+pub use operators::{
+    ApplyTemplate, AvailableOperators, ChunkDocuments, Diff, ExtractPDF, ExtractTabular,
+    ExtractXML, Filter, FromMessagesToPatches, FromTasksToParticipants, FromTracesToMessages,
+    FromWorkspaceToMessages, GroupBy, HumanInTheLoop, Join, NormalizeTime, PackTabular, Patch,
+    Pivot, Select, Sort, VectorDistance, convert_destinations_to_tools, extract_pdf, extract_xml,
+    filter, group_by, load_pdf_document, make_pdf_document_page_per_content, pack_tabular, sort,
+    table_and_data_format_to_record_batch, test_candle_ops, test_extract_tabular_data,
 };
-pub use candle_operators::{
-    ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait, Diff, ExtractPDF,
-    ExtractTabular, ExtractXML, Filter, FromTasksToParticipants, FromTracesToMessages, GroupBy,
-    HumanInTheLoop, Join, NormalizeTime, PackTabular, Patch, Pivot, Select, Sort, ToolTrait,
-    VectorDistance, convert_destinations_to_tools, extract_pdf, extract_xml, filter, filter_pdf,
-    group_by, load_pdf_document, make_pdf_document, pack_tabular, sort,
-    table_and_data_format_to_record_batch, test_extract_tabular_data,
-};
-pub use external_operators::{
-    CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod,
-    HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType, ObjectStoreConfig,
-    ObjectStoreOptsType, ObjectStoreProcessor, ObjectStoreStream,
+#[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
+pub use parser::CodeSplitter;
+pub use parser::{
+    AvailableParsers, NodeParserTrait, SentenceSplitter, TextParserTrait, TokenTextSplitter,
 };
 #[cfg(feature = "api")]
-pub use external_operators::{
-    CommandSandboxProcessor, HTTPClientRequestProcessor, HTTPClientRequestState,
-    test_command_sandbox_processor,
+pub use patch::WorkspaceEditor;
+pub use patch::{
+    ApplyDiffMode, CodeCompletionType, DiffType, PatchOperation, PatchOperator, apply_patch_auto,
+    apply_v4a_diff, compute_diff, extract_fim_str, extract_tool_calls_str, format_tool_calls_str,
+    parse_fill_in_the_middle_output, parse_search_and_replace_output,
 };
 pub use template::{
     AvailableJinja2Templates, MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_INPUT,
@@ -37,5 +33,13 @@ pub use template::{
     MERMAID_SEQUENCE_DIAGRAM_PARTICIPANTS_TEMPLATE, MERMAID_SEQUENCE_DIAGRAM_TEMPLATE,
     MERMAID_XYCHART_INPUT, MERMAID_XYCHART_TEMPLATE, MINIMAL_CODE_INPUT, MINIMAL_CODE_TEMPLATE,
     MINIMAL_FIGURE_INPUT, MINIMAL_FIGURE_TEMPLATE, MINIMAL_LIST_INPUT, MINIMAL_TABLE_INPUT,
-    MINIMAL_TABLE_TEMPLATE, test_minimal_html,
+    MINIMAL_TABLE_TEMPLATE, SubjectScript, TEMPLATE_TABLE_EXPRESSION, items_to_list,
+    test_minimal_html,
+};
+
+pub use tensor::{
+    DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator,
+    DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataJoinOperator,
+    DataOperatorTrait, DataStreamManager, DocumentExtractType, DocumentFilterType, ToolTrait,
+    device,
 };

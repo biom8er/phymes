@@ -15,7 +15,7 @@ no_std = [
     "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "tokio/time",
     # Axum serverless extras
     "dep:futures-executor", "dep:tower-service"]
-wasip2 =  ["no_std", "phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-data/wasip2", "phymes-agents/wasip2"]    
+wasip2 =  ["no_std", "phymes-diagnostics/wasip2", "phymes-subject/wasip2", "phymes-streams/wasip2", "phymes-data/wasip2", "phymes-schemas/wasip2", "phymes-message/wasip2", "phymes-event/wasip2", "phymes-ml/wasip2", "phymes-task/wasip2", "phymes-processor/wasip2", "phymes-network/wasip2"]    
 std = [
     "tokio/full", "dep:reqwest",
     # Axum defaults
@@ -30,36 +30,46 @@ std = [
     "tower-http/limit",
     "tracing-subscriber/env-filter",
     ]
-wsl = ["std", "phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-data/wsl", "phymes-agents/wsl"]
-hf_hub = ["phymes-agents/hf_hub"]
-api = ["phymes-agents/api", "phymes-data/api", "phymes-core/api"]
-gpu = ["phymes-agents/gpu", "phymes-data/gpu"]
-candle = ["phymes-agents/candle"] # force use of candle models when api is available
+wsl = ["std", "phymes-diagnostics/wsl", "phymes-subject/wsl", "phymes-streams/wsl", "phymes-data/wsl", "phymes-schemas/wsl", "phymes-message/wsl", "phymes-event/wsl", "phymes-ml/wsl", "phymes-task/wsl", "phymes-processor/wsl", "phymes-network/wsl"]
+api = ["phymes-subject/api", "phymes-streams/api", "phymes-data/api", "phymes-message/api", "phymes-event/api", "phymes-ml/api", "phymes-task/api", "phymes-processor/api", "phymes-network/api"]
+hf_hub = ["phymes-processor/hf_hub", "phymes-streams/hf_hub", "phymes-task/hf_hub", "phymes-ml/hf_hub"]
+gpu = ["phymes-processor/gpu", "phymes-task/gpu", "phymes-streams/gpu", "phymes-data/gpu", "phymes-ml/gpu", "phymes-network/gpu"]
+candle = ["phymes-streams/candle", "phymes-processor/candle", "phymes-task/candle", "phymes-data/candle", "phymes-ml/candle", "phymes-network/candle"]
+accelerate = ["phymes-streams/accelerate", "phymes-processor/accelerate", "phymes-task/accelerate", "phymes-network/accelerate"]
+mkl = ["phymes-streams/mkl", "phymes-processor/mkl", "phymes-task/mkl", "phymes-network/mkl"]
+mkl-dynamic = ["phymes-streams/mkl-dynamic", "phymes-processor/mkl-dynamic", "phymes-task/mkl-dynamic", "phymes-network/mkl-dynamic"]
 
 [dependencies]
+phymes-subject = { path = "../phymes-subject", default-features = false, optional = true }
+phymes-data = { path = "../phymes-data", default-features = false, optional = true }
+phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
+phymes-schemas = { path = "../phymes-schemas", default-features = false, optional = true }
+phymes-event = { path = "../phymes-event", default-features = false, optional = true }
+phymes-message = { path = "../phymes-message", default-features = false, optional = true }
+phymes-ml = { path = "../phymes-ml", default-features = false, optional = true }
+phymes-streams = { path = "../phymes-streams", default-features = false, optional = true }
+phymes-processor = { path = "../phymes-processor", default-features = false, optional = true }
+phymes-task = { path = "../phymes-task", default-features = false, optional = true }
+phymes-network = { path = "../phymes-network", default-features = false, optional = true }
 tokio = { version = "1.49.0", default-features = false, optional = true }
 axum = { version = "0.8.8", default-features = false, features = ["json", "macros"] }
 axum-extra = { version = "0.12.5", default-features = false, features = ["typed-header"] }
-futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", default-features = false }
-anyhow = "1.0.95"
-bytes = "1.10.0"
+futures = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+bytes = { workspace = true }
 tower-http = { version = "0.6.2", default-features = false, optional = true }
 tower-service = { version = "0.3.3", optional = true }
 clap = {version = "4.5.40", features = ["derive"] }
-serde = { version = "1.0.217", features = ["derive"] }
-serde_json = "1.0.138"
+serde = { workspace = true }
+serde_json = { workspace = true }
 serde_path_to_error = "0.1.17"
 jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"]  }
 reqwest = { version = "0.13.2", features = ["json", "stream"], default-features = false, optional = true }
 bcrypt = { version = "0.18.0", default-features = false, features = ["alloc"]}
-chrono = { version = "0.4.41", features = ["wasmbind"] }
-phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
-phymes-core = { path = "../phymes-core", default-features = false, optional = true }
-phymes-agents = { path = "../phymes-agents", default-features = false, optional = true  }
-phymes-data = { path = "../phymes-data", default-features = false, optional = true  }
-parking_lot = "0.12.3"
+chrono = { workspace = true }
+parking_lot = { workspace = true }
 http = { version = "1.3.1"}
 futures-executor = { version = "0.3.21", optional = true }
 base64 = { version = "0.22.1" }

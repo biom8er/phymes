@@ -1,20 +1,20 @@
 // Dioxus imports
 use dioxus::prelude::*;
 
-use phymes_agents::AvailableInterfaceSubjects;
 use phymes_diagnostics::convert_timestamp_micros_to_str;
+use phymes_event::Publication;
+use phymes_message::{
+    MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
+    SessionInterfaceMessageBuilderTrait,
+};
+use phymes_schemas::{AvailableInterfaceSubjects, DataFormat};
+use phymes_server::create_session_name;
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+};
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
-
-use phymes_agents::{
-    SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-};
-use phymes_core::{
-    BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, Publication, SubjectBuilder,
-    SubjectBuilderTrait, SubjectTrait,
-};
-use phymes_server::create_session_name;
 
 #[cfg(not(feature = "serverless"))]
 use super::backend::ADDR_BACKEND;
@@ -201,7 +201,7 @@ pub fn attachments_interface_view() -> Element {
                 let bytes = bytes.into_iter().flatten().collect::<Vec<_>>();
                 match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
-                        use phymes_core::SubjectTrait;
+                        use phymes_subject::SubjectTrait;
 
                         let table = builder.with_name("").build().unwrap();
                         let combined = table

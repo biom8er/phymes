@@ -8,11 +8,11 @@ async fn main() -> Result<()> {
     use bytes::Bytes;
     use futures::TryStreamExt;
     // use futures_executor::block_on;
-    use phymes_core::{
+    use phymes_server::{Serverless, ServerlessConfig, serverless_app};
+    use phymes_subject::{
         BuildableTrait, BuilderTrait, ObjectStorageBackend, RuntimeEnv, RuntimeEnvBuilderTrait,
         make_store,
     };
-    use phymes_server::{Serverless, ServerlessConfig, serverless_app};
     use std::sync::Arc;
 
     // parse the config
@@ -43,7 +43,7 @@ async fn main() -> Result<()> {
         .into_data_stream()
         .try_collect()
         .await?;
-    // DM: blocking on the response results in an empty array for session_stream...
+    // DM: blocking on the response results in an empty array for network_stream...
     // let bytes: Vec<Bytes> = block_on(response.into_body().into_data_stream().try_collect()).unwrap();
 
     println!("{bytes:?}");

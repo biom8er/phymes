@@ -3,12 +3,12 @@ use std::sync::Arc;
 
 use dioxus::prelude::*;
 use futures::StreamExt;
+use phymes_diagnostics::HashSet;
 #[cfg(feature = "serverless")]
-use phymes_core::{
+use phymes_subject::{
     make_store, BuildableTrait, BuilderTrait, ObjectStorageBackend, RuntimeEnv,
     RuntimeEnvBuilderTrait,
 };
-use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "serverless")]
@@ -45,19 +45,19 @@ pub struct MermaidJsObject {
 
 /// Filter in mermaid diagrams by session name
 pub fn filter_in_mermaid_diagrams_by_session_name(
-    active_session_context_names: &str,
-    builder_session_context_names: &[&str],
+    active_network_names: &str,
+    builder_network_names: &[&str],
     builder_flowchart_diagram: &[&str],
     builder_er_diagram: &[&str],
     builder_timestamp: &[i64],
 ) -> (Vec<String>, Vec<String>, Vec<String>, Vec<i64>) {
-    let indices = builder_session_context_names
+    let indices = builder_network_names
         .iter()
         .enumerate()
-        .filter(|(_i, s)| **s == active_session_context_names)
+        .filter(|(_i, s)| **s == active_network_names)
         .map(|(i, _s)| i)
         .collect::<Vec<_>>();
-    let session_context_name = builder_session_context_names
+    let network_name = builder_network_names
         .iter()
         .enumerate()
         .filter(|(i, _s)| indices.contains(i))
@@ -81,29 +81,24 @@ pub fn filter_in_mermaid_diagrams_by_session_name(
         .filter(|(i, _s)| indices.contains(i))
         .map(|(_i, s)| s.to_owned())
         .collect::<Vec<_>>();
-    (
-        session_context_name,
-        flowchart_diagram,
-        er_diagram,
-        timestamp,
-    )
+    (network_name, flowchart_diagram, er_diagram, timestamp)
 }
 
 /// Filter out mermaid diagrams by session name
 pub fn filter_out_mermaid_diagrams_by_session_name(
-    active_session_context_names: &str,
-    builder_session_context_names: &[&str],
+    active_network_names: &str,
+    builder_network_names: &[&str],
     builder_flowchart_diagram: &[&str],
     builder_er_diagram: &[&str],
     builder_timestamp: &[i64],
 ) -> (Vec<String>, Vec<String>, Vec<String>, Vec<i64>) {
-    let indices = builder_session_context_names
+    let indices = builder_network_names
         .iter()
         .enumerate()
-        .filter(|(_i, s)| **s != active_session_context_names)
+        .filter(|(_i, s)| **s != active_network_names)
         .map(|(i, _s)| i)
         .collect::<Vec<_>>();
-    let session_context_name = builder_session_context_names
+    let network_name = builder_network_names
         .iter()
         .enumerate()
         .filter(|(i, _s)| indices.contains(i))
@@ -127,12 +122,7 @@ pub fn filter_out_mermaid_diagrams_by_session_name(
         .filter(|(i, _s)| indices.contains(i))
         .map(|(_i, s)| s.to_owned())
         .collect::<Vec<_>>();
-    (
-        session_context_name,
-        flowchart_diagram,
-        er_diagram,
-        timestamp,
-    )
+    (network_name, flowchart_diagram, er_diagram, timestamp)
 }
 
 /// Get a non duplicated list of sorted subject names

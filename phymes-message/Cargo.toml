@@ -1,0 +1,31 @@
+[package]
+name = "phymes-message"
+version = "0.3.0"
+edition = "2024"
+authors = ["Douglas McCloskey"]
+description = "The subject-based messages used in PHYMES"
+license = "MIT AND Apache-2.0"
+repository = "https://github.com/biom8er/phymes"
+documentation = "https://docs.rs/phymes-message"
+
+[features]
+default = ["wsl"]
+wasip2 = ["phymes-diagnostics/wasip2", "phymes-subject/wasip2", "phymes-schemas/wasip2", "phymes-event/wasip2"]
+wsl = ["phymes-diagnostics/wsl", "phymes-subject/wsl", "phymes-schemas/wsl", "phymes-event/wsl"]
+hf_hub = []
+api = ["phymes-subject/api", "phymes-event/api"]
+gpu = []
+candle = []
+
+[dependencies]
+phymes-subject = { path = "../phymes-subject", default-features = false, optional = true }
+phymes-event = { path = "../phymes-event", default-features = false, optional = true }
+phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
+phymes-schemas = { path = "../phymes-schemas", default-features = false, optional = true }
+arrow = { workspace = true, features = ["prettyprint"] }
+anyhow = { workspace = true }
+clap = { workspace = true }
+bytes  = { workspace = true }
+getrandom = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

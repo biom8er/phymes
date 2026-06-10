@@ -3,7 +3,7 @@ use crate::state::svg_icons::{
     ms_document_icon_svg, ms_search_icon_svg, ms_video_icon_svg,
 };
 use anyhow::{anyhow, Result};
-use phymes_agents::AvailableInterfaceSubjects;
+use phymes_schemas::AvailableInterfaceSubjects;
 
 pub fn extension_to_icon_svg(extension: &str) -> String {
     match extension.to_lowercase().as_str() {
