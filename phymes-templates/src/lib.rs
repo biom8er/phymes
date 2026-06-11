@@ -3,8 +3,9 @@ mod diagnostics;
 mod dynamic;
 mod pipelines;
 
+pub use composites::{RetrievalAugmentedGenerationPDFNetworkBuilder, RetrieveTextPDFNetworkBuilder};
 #[cfg(feature = "api")]
-pub use composites::{GenerateCodeNetworkBuilder, OpenAlexNetworkBuilder, RetrieveTextPDFNetworkBuilder};
+pub use composites::{GenerateCodeNetworkBuilder, OpenAlexNetworkBuilder};
 pub use diagnostics::{
     default_diagnostic_subjects, extended_diagnostic_subjects, write_diagnostic_subjects_to_csv,
 };

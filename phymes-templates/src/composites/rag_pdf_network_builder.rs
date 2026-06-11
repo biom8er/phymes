@@ -1,56 +1,47 @@
 use phymes_network::{NetworkBuilder, NetworkBuilderMermaidTrait};
 use phymes_subject::BuilderTrait;
 
-use crate::{EmbedTextNetworkBuilder, ExtractPDFNetworkBuilder, RetrieveTextNetworkBuilder};
+use crate::{GenerateTextNetworkBuilder, RetrieveTextPDFNetworkBuilder};
 
-/// Retrieve Text PDF network
-pub struct RetrieveTextPDFNetworkBuilder {
+/// Retrieval Augmented Generation (RAG) PDF network
+pub struct RetrievalAugmentedGenerationPDFNetworkBuilder {
     pub inner: Option<NetworkBuilder>,
 }
 
-impl Default for RetrieveTextPDFNetworkBuilder {
+impl Default for RetrievalAugmentedGenerationPDFNetworkBuilder {
     fn default() -> Self {
-        // Extract PDF session
-        let retrieve_text_pdf_network_builder = ExtractPDFNetworkBuilder::default().inner.take().unwrap();
+        // Retrieve text PDF network
+        let rag_pdf_network_builder = RetrieveTextPDFNetworkBuilder::default().inner.take().unwrap();
 
-        // Embed text session
-        let embed_text_network = EmbedTextNetworkBuilder::default();
-        let embed_text_network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &embed_text_network.as_mermaid_flowchart(),
+        // Generate text network
+        let generate_text_network = GenerateTextNetworkBuilder::new(
+            "generate_text_network",
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        );
+        let network_builder = NetworkBuilder::from_mermaid_flowchart(
+            &generate_text_network.as_mermaid_flowchart(),
             false,
         )
         .unwrap()
         .with_subjects_from_mermaid_erdiagram(
-            &embed_text_network.as_mermaid_erdiagram(),
+            &generate_text_network.as_mermaid_erdiagram(),
             false,
             true,
         )
         .unwrap()
-        .with_name(embed_text_network.network_name);
-        let retrieve_text_pdf_network_builder = retrieve_text_pdf_network_builder
-            .extend(embed_text_network_builder)
+        .with_name(generate_text_network.network_name);
+        let rag_pdf_network_builder = rag_pdf_network_builder
+            .extend(network_builder)
             .unwrap();
 
-        // Retrieve text session
-        let retrieve_text_network = RetrieveTextNetworkBuilder::default();
-        let retrieve_text_builder = NetworkBuilder::from_mermaid_flowchart(
-            retrieve_text_network.as_mermaid_flowchart(),
-            false,
-        )
-        .unwrap()
-        .with_subjects_from_mermaid_erdiagram(
-            retrieve_text_network.as_mermaid_erdiagram(),
-            false,
-            true,
-        )
-        .unwrap()
-        .with_name(retrieve_text_network.network_name);
-        let retrieve_text_pdf_network_builder = retrieve_text_pdf_network_builder
-            .extend(retrieve_text_builder)
-            .unwrap();
-
-        RetrieveTextPDFNetworkBuilder {
-            inner: Some(retrieve_text_pdf_network_builder.with_name("retrieve_text_pdf_network")),
+        RetrievalAugmentedGenerationPDFNetworkBuilder {
+            inner: Some(rag_pdf_network_builder.with_name("rag_pdf_network")),
         }
     }
 }
@@ -60,6 +51,7 @@ mod tests {
     use std::sync::Arc;
 
     use anyhow::Result;
+    use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use futures::TryStreamExt;
     use phymes_data::make_pdf_document_page_per_content;
 use phymes_diagnostics::HashMap;
@@ -67,7 +59,7 @@ use phymes_diagnostics::HashMap;
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
     use phymes_schemas::{
-        AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, create_attachments_batch, create_queries_batch
+        AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, create_attachments_batch, create_chat_record_batch, create_object_store_meta_batch
     };
     use phymes_subject::{
         BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
@@ -75,16 +67,18 @@ use phymes_diagnostics::HashMap;
     };
     use phymes_task::SubscriptionTrait;
 
-    use crate::DynamicTaskNetworkNames;
+    use crate::{
+        DynamicTaskNetworkNames, extended_diagnostic_subjects, write_diagnostic_subjects_to_csv,
+    };
 
-use super::*;
+    use super::*;
 
     #[tokio::test]
-    async fn test_retrieve_text_pdf_network() -> Result<()> {
+    async fn test_rag_pdf_network() -> Result<()> {
         // Initialize the session
-        let retrieve_text_pdf_network_builder = RetrieveTextPDFNetworkBuilder::default().inner.take().unwrap();
-        let network_name = retrieve_text_pdf_network_builder.name.clone().unwrap();
-        let (network, session_messages) = retrieve_text_pdf_network_builder
+        let rag_pdf_network_builder = RetrievalAugmentedGenerationPDFNetworkBuilder::default().inner.take().unwrap();
+        let network_name = rag_pdf_network_builder.name.clone().unwrap();
+        let (network, session_messages) = rag_pdf_network_builder
             .with_runtime_env(
                 RuntimeEnv::get_builder()
                     .with_name(
@@ -92,7 +86,7 @@ use super::*;
                             .to_string()
                             .as_str(),
                     )
-                    .with_max_steps(20)
+                    .with_max_steps(100)
                     .build_arc()?,
             )
             .with_diagnostics(true)
@@ -139,22 +133,12 @@ use super::*;
                 .build()?,
         );
 
-        let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
-            .await;
-
-        // 1. Run the session (embed documents)
-        let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
-        let _response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
-
-        // Make the test session data
-        let mut message_map = HashMap::<String, IPCMessage>::new();
-
         // Make the query data
-        let query_ids = vec!["0".to_string()];
-        let text =vec!["What are the four molecules that compose DNA?".to_string()];
-        let batch = create_queries_batch(query_ids, text)?;
-        let queries = AvailableInterfaceSubjects::UserQueries
+        let role = vec!["user".to_string()];
+        let content =vec!["What are the four molecules that compose DNA?".to_string()];
+        let timestamp = vec![0_i64];
+        let batch = create_chat_record_batch(role, content, timestamp)?;
+        let queries = AvailableInterfaceSubjects::UserMessages
             .to_subject_builder(None)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -171,58 +155,56 @@ use super::*;
                 .build()?,
         );
 
-        // 2. Run the session (embed queries and retrieve)
+        let _ = network_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
+
+        // 1. Run the session
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
+        let extended_diagnostic_subjects = extended_diagnostic_subjects();
+        let subject_names = extended_diagnostic_subjects
+            .iter()
+            .map(|s| s.as_str())
+            .chain(["EmbeddingScores", "Documents", "UserQueries"])
+            .collect::<Vec<_>>();
+        write_diagnostic_subjects_to_csv(
+            &subject_names,
+            network_arc.runtime_env(),
+            network_arc.get_name(),
+        )
+        .await?;
+
         assert_eq!(response.len(), 0);
 
-        // Test PDF extraction, embedding, and retrieval
+        // Test RAG
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::EmbeddingScores.to_string(),
+            subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
         }
         .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
         let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::EmbeddingScores.to_string().as_str())
+            .with_name(AvailableInterfaceSubjects::AssistantMessages.to_string().as_str())
             .with_record_batches(batches)?
             .build()?;
-        assert_eq!(subject.count_rows(), 1);
-        let column = subject.get_column_as_vec_str("chunk_id");
-        assert_eq!(column.first().unwrap(), &"wiki_dna2PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_0");
-        let column = subject.get_column_as_vec_str("query_id");
-        assert_eq!(column.first().unwrap(), &"0");
-        let column = subject.get_column_as_vec_primitive::<f32>("score")?;
-        for t in column {
-            assert!(t > 0.15); // Threshold used for filtering
-        }
-
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name(
-                AvailableInterfaceSubjects::ToolMessages
-                    .to_string()
-                    .as_str(),
-            )
-            .with_record_batches(batches)?
-            .build()?;
-        assert_eq!(subject.count_rows(), 1);
+        dbg!(subject.count_rows());
+        assert_eq!(subject.count_rows(), 34973);
         let column = subject.get_column_as_vec_str("role");
-        assert_eq!(column.first().unwrap(), &"tool");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        assert_eq!(column.first().unwrap(), &"");
+        assert_eq!(column.last().unwrap(), &"");
         let column = subject.get_column_as_vec_str("content");
-        // dbg!(column.first().unwrap());
-        assert!(column.first().unwrap().contains(&"[{\"text\":\"Deoxyribonucleic acid (DNA)"));
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        assert_eq!(column.first().unwrap(), &"");
+        assert_eq!(column.last().unwrap(), &"");
         let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-        for t in column {
-            assert!(t > 0);
+        for c in column {
+            assert!(c > 0);
         }
 
         Ok(())
