@@ -4,7 +4,7 @@ mod dynamic;
 mod pipelines;
 
 #[cfg(feature = "api")]
-pub use composites::{GenerateCodeNetworkBuilder, OpenAlexNetworkBuilder};
+pub use composites::{GenerateCodeNetworkBuilder, OpenAlexNetworkBuilder, RetrieveTextPDFNetworkBuilder};
 pub use diagnostics::{
     default_diagnostic_subjects, extended_diagnostic_subjects, write_diagnostic_subjects_to_csv,
 };

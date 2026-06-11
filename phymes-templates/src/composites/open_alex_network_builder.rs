@@ -1035,6 +1035,12 @@ impl Default for OpenAlexNetworkBuilder {
         let open_alex_network_builder = open_alex_network_builder.extend(network_builder).unwrap();
 
         // Get PDF network
+        // DM: Update to use `GetPdfNetworkBuilderStaticWSubject`
+        // let get_pdf_network_builder = GetPdfNetworkBuilderStaticWSubject::default().inner.build_dynamic();
+        // let retrieve_text_pdf_network_builder = retrieve_text_pdf_network_builder
+        //     .extend(get_pdf_network_builder)
+        //     .unwrap()
+        // DM: change "select_open_acces_pdf_url_s" to "http_client_request_pdf_s"
         let network_builder = {
             let network_name = "get_pdf";
             let subject_name_lhs = "select_open_acces_pdf_url_s";
@@ -1625,7 +1631,7 @@ mod tests {
     use super::*;
 
     // `cargo test -p phymes-templates test_open_alex_network_v_rust --features api,gpu,hf_hub --release -- --nocapture`
-    #[ignore = "In progress... Optimizing PDF and OWL parsing..."]
+    // #[ignore = "In progress... Optimizing PDF and OWL parsing..."]
     #[tokio::test]
     async fn test_open_alex_network_v_rust() -> Result<()> {
         // Initialize the session
@@ -1719,12 +1725,12 @@ mod tests {
             // "Users/dmccl/Downloads/ontologies/HumanDO.owl",
             // "Users/dmccl/Downloads/ontologies/core_predicates.owl",
             // "Users/dmccl/Downloads/ontologies/rdfs-dc-skos.owl",
-            // "Users/dmccl/Downloads/ontologies/ro.owl", // Breaks with HumanDO but works on its own (no relations!)
+            "Users/dmccl/Downloads/ontologies/ro.owl", // Breaks with HumanDO but works on its own (no relations!)
             // "Users/dmccl/Downloads/ontologies/eco.owl", // Works with HumanDO
             // "Users/dmccl/Downloads/ontologies/cl.owl", // Works with HumanDO
-            "Users/dmccl/Downloads/ontologies/uberon.owl", // Breaks with HumanDO but works on its own
-                                                           // "Users/dmccl/Downloads/ontologies/go.owl", // Works with HumanDO
-                                                           // "Users/dmccl/Downloads/ontologies/taxslim.owl", // Works with HumanDO
+            // "Users/dmccl/Downloads/ontologies/uberon.owl", // Breaks with HumanDO but works on its own
+            // "Users/dmccl/Downloads/ontologies/go.owl", // Works with HumanDO
+            // "Users/dmccl/Downloads/ontologies/taxslim.owl", // Works with HumanDO
         ];
         let cl_arr: ArrayRef = Arc::new(StringArray::from(cl_urls));
         // let batch = RecordBatch::try_from_iter(vec![("content", cl_arr)])?;

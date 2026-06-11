@@ -394,13 +394,13 @@ pub trait NetworkStreamStepTrait {
                 for messages in next_task_messages.into_iter() {
                     if messages.is_empty() {
                         if let Err(_err) = network.tasks_subscribe().await {
-                            dbg!(&_err);
+                            // dbg!(&_err);
                             return HashMap::<(String, String), ProcessorSubjectsMap>::new();
                         }
                     } else if let Err(_err) =
                         NetworkStreamStepMinimal::run_superstep(Arc::clone(network), messages).await
                     {
-                        dbg!(&_err);
+                        // dbg!(&_err); // Error is normal, but can be useful for debugging
                         return HashMap::<(String, String), ProcessorSubjectsMap>::new();
                     }
                 }
@@ -410,7 +410,7 @@ pub trait NetworkStreamStepTrait {
             match network.tasks_subscribe_publish().await {
                 Ok(tasks) => tasks,
                 Err(_err) => {
-                    dbg!(&_err);
+                    // dbg!(&_err);
                     HashMap::<(String, String), ProcessorSubjectsMap>::new()
                 }
             }
