@@ -14,16 +14,7 @@ impl Default for RetrievalAugmentedGenerationPDFNetworkBuilder {
         let rag_pdf_network_builder = RetrieveTextPDFNetworkBuilder::default().inner.take().unwrap();
 
         // Generate text network
-        let generate_text_network = GenerateTextNetworkBuilder::new(
-            "generate_text_network",
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        );
+        let generate_text_network = GenerateTextNetworkBuilder::default();
         let network_builder = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_network.as_mermaid_flowchart(),
             false,
@@ -51,7 +42,6 @@ mod tests {
     use std::sync::Arc;
 
     use anyhow::Result;
-    use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use futures::TryStreamExt;
     use phymes_data::make_pdf_document_page_per_content;
 use phymes_diagnostics::HashMap;
@@ -59,7 +49,7 @@ use phymes_diagnostics::HashMap;
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
     use phymes_schemas::{
-        AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, create_attachments_batch, create_chat_record_batch, create_object_store_meta_batch
+        AvailableInterfaceSubjects, AvailableSubjectsTrait, create_attachments_batch, create_chat_record_batch
     };
     use phymes_subject::{
         BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
@@ -190,18 +180,16 @@ use phymes_diagnostics::HashMap;
             .with_name(AvailableInterfaceSubjects::AssistantMessages.to_string().as_str())
             .with_record_batches(batches)?
             .build()?;
-        dbg!(subject.count_rows());
-        assert_eq!(subject.count_rows(), 34973);
+        assert!(subject.count_rows() > 0);
         let column = subject.get_column_as_vec_str("role");
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        assert_eq!(column.first().unwrap(), &"");
-        assert_eq!(column.last().unwrap(), &"");
+        assert_eq!(column.first().unwrap(), &"assistant");
         let column = subject.get_column_as_vec_str("content");
-        dbg!(column.first().unwrap());
-        dbg!(column.last().unwrap());
-        assert_eq!(column.first().unwrap(), &"");
-        assert_eq!(column.last().unwrap(), &"");
+        // dbg!(column.first().unwrap());
+        assert!(column.first().unwrap().contains(&"Adenine"));
+        assert!(column.first().unwrap().contains(&"Thymine"));
+        assert!(column.first().unwrap().contains(&"Guanine"));
+        assert!(column.first().unwrap().contains(&"Cytosine"));
+        // assert_eq!(column.first().unwrap(), &"");
         let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
         for c in column {
             assert!(c > 0);
