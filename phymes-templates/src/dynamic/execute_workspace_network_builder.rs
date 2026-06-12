@@ -1,7 +1,7 @@
-use crate::DynamicNetworkBuilderTrait;
 use anyhow::{Result, anyhow};
 use phymes_schemas::AvailableInterfaceSubjects;
 use phymes_streams::CommandSandboxEnvironments;
+use phymes_network::DynamicNetworkBuilderTrait;
 
 /// A session for executing code workspaces
 ///

@@ -7,7 +7,7 @@ use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, create_message_map};
 use phymes_network::{
-    AvailableNetworks, Network, NetworkBuilder, NetworkBuilderAppsTrait,
+    Network, NetworkBuilder, NetworkBuilderAppsTrait,
     NetworkBuilderMermaidTrait, NetworkBuilderTrait, NetworkStream,
 };
 use phymes_schemas::{
@@ -18,6 +18,7 @@ use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait,
     SubjectTrait,
 };
+use phymes_templates::AvailableNetworks;
 use phymes_task::SubscriptionTrait;
 
 use crate::handlers::create_session_name;

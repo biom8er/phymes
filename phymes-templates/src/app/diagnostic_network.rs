@@ -6,6 +6,7 @@ use phymes_data::{
     DataColumnOperator, DataConfig,
 };
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
+use phymes_network::NetworkBuilderCustomTrait;
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
 use phymes_schemas::{
     AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat, DiagnosticsVisualizations,
@@ -17,7 +18,6 @@ use phymes_subject::{
 use phymes_task::TaskPlan;
 use serde_json::json;
 
-use crate::NetworkBuilderCustomTrait;
 
 /// A session for gathering analytics based on the session metrics
 ///
@@ -1822,8 +1822,7 @@ mod tests {
     use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
     use phymes_subject::{BuildableTrait, MappableTrait, Subject, SubjectTrait};
     use phymes_task::{SubscriptionTrait, test_task};
-
-    use crate::{
+    use phymes_network::{
         NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream, test_network_builder,
     };
 

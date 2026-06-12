@@ -1,11 +1,10 @@
-mod app;
+mod dynamic;
 mod core;
 mod network;
 mod stream;
 
-pub use app::{
-    AvailableNetworks, BuilderNetwork, ChatAgentNetwork, DiagnosticNetwork, DocumentRAGNetwork,
-    ToolAgentNetwork, UserNetwork, make_example_mermaid_table,
+pub use dynamic::{
+    DynamicNetworkBuilderTrait, DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, InvokeTaskNetworkBuilder, TaskResponseNetworkBuilder,
 };
 pub use network::{
     Network, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderCustomTrait,

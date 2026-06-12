@@ -44,22 +44,19 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_data::make_pdf_document_page_per_content;
-use phymes_diagnostics::HashMap;
+    use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
-    use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
+    use phymes_network::{DynamicTaskNetworkNames, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
     use phymes_schemas::{
         AvailableInterfaceSubjects, AvailableSubjectsTrait, create_attachments_batch, create_chat_record_batch
     };
     use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
-        SubjectBuilderTrait, SubjectTrait,
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectPlanTrait, SubjectTrait
     };
     use phymes_task::SubscriptionTrait;
 
-    use crate::{
-        DynamicTaskNetworkNames, extended_diagnostic_subjects, write_diagnostic_subjects_to_csv,
-    };
+    use crate::{extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
 
     use super::*;
 
@@ -194,6 +191,255 @@ use phymes_diagnostics::HashMap;
         for c in column {
             assert!(c > 0);
         }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_mermaid_rag_pdf_network_with_configs_and_session() -> Result<()> {
+        // initialize the session
+        let rag_pdf_network_builder = RetrievalAugmentedGenerationPDFNetworkBuilder::default().inner.take().unwrap();
+        let network_name = rag_pdf_network_builder.name.clone().unwrap();
+        let builder = rag_pdf_network_builder
+            .with_runtime_env(
+                RuntimeEnv::get_builder()
+                    .with_name(
+                        DynamicTaskNetworkNames::RuntimeEnv(&network_name)
+                            .to_string()
+                            .as_str(),
+                    )
+                    .with_max_steps(100)
+                    .build_arc()?,
+            )
+            .with_diagnostics(true)
+            .add_processor_subjects()?
+            .add_next_tasks()?
+            .add_next_supersteps()?
+            .add_network_interface(None)?;
+
+        // Make the flowchart and erdiagram
+        let flowchart = builder.to_mermaid_flowchart(true, true)?;
+        let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
+
+        // Remake the builder
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?;
+
+        // Test that the names match
+        assert_eq!(builder_test.tasks, builder.tasks);
+        let mut test = builder_test
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+
+        // Test the order of the processors
+        let test = builder_test
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        let expected = builder
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        assert_eq!(test, expected);
+
+        // Test that we can build the session
+        let _ = builder_test.with_name("session_1").build()?;
+
+        Ok(())
+    }
+
+    
+    #[test]
+    fn test_from_mermaid_rag_pdf_network_without_configs_and_session() -> Result<()> {
+        // initialize the session
+        let rag_pdf_network_builder = RetrievalAugmentedGenerationPDFNetworkBuilder::default().inner.take().unwrap();
+        let network_name = rag_pdf_network_builder.name.clone().unwrap();
+        let builder = rag_pdf_network_builder
+            .with_runtime_env(
+                RuntimeEnv::get_builder()
+                    .with_name(
+                        DynamicTaskNetworkNames::RuntimeEnv(&network_name)
+                            .to_string()
+                            .as_str(),
+                    )
+                    .with_max_steps(100)
+                    .build_arc()?,
+            )
+            .with_diagnostics(true)
+            .add_processor_subjects()?
+            .add_next_tasks()?
+            .add_next_supersteps()?
+            .add_network_interface(None)?;
+
+        // Make the flowchart and erdiagram
+        let flowchart = builder.to_mermaid_flowchart(false, false)?;
+        let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
+
+        // Remake the builder
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?
+            .with_name("session_1")
+            .add_processor_subjects()?
+            .add_network_interface(None)?;
+
+        // Test that the names match
+        assert_eq!(builder_test.tasks, builder.tasks);
+        let mut test = builder_test
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+
+        // Test the order of the processors
+        let test = builder_test
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        let expected = builder
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        assert_eq!(test, expected);
+
+        // Test that we can build the session
+        let _ = builder_test.build()?;
+
+        Ok(())
+    }
+    
+    #[test]
+    fn test_from_mermaid_rag_pdf_network_with_data() -> Result<()> {
+        // initialize the session
+        let rag_pdf_network_builder = RetrievalAugmentedGenerationPDFNetworkBuilder::default().inner.take().unwrap();
+        let network_name = rag_pdf_network_builder.name.clone().unwrap();
+        let builder = rag_pdf_network_builder
+            .with_runtime_env(
+                RuntimeEnv::get_builder()
+                    .with_name(
+                        DynamicTaskNetworkNames::RuntimeEnv(&network_name)
+                            .to_string()
+                            .as_str(),
+                    )
+                    .with_max_steps(100)
+                    .build_arc()?,
+            )
+            .with_diagnostics(true)
+            .add_processor_subjects()?
+            .add_next_tasks()?
+            .add_next_supersteps()?
+            .add_network_interface(None)?;
+
+        // Make the flowchart and erdiagram
+        let flowchart = builder.to_mermaid_flowchart(false, false)?;
+        let erdiagram = builder.to_mermaid_erdiagram(false, true)?;
+
+        // Remake the builder
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, true)?
+            .with_name("session_1")
+            .add_processor_subjects()?
+            .add_network_interface(None)?;
+
+        // Test that the names match
+        assert_eq!(builder_test.tasks, builder.tasks);
+        let mut test = builder_test
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+
+        // Test the order of the processors
+        let test = builder_test
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        let expected = builder
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        assert_eq!(test, expected);
+
+        // Test that the schemas match
+        {
+            let test = builder_test
+                .subjects
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|p| (p.get_name(), p.subject().get_schema()))
+                .collect::<HashMap<_, _>>();
+            let expected = builder
+                .subjects
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|p| (p.get_name(), p.subject().get_schema()))
+                .collect::<HashMap<_, _>>();
+            for key in expected.keys() {
+                assert!(expected.get(key).eq(&test.get(key)));
+            }
+        }
+
+        // Test that the first row was captured
+        for table in builder_test.subjects.as_ref().unwrap().iter() {
+            if builder_test
+                .get_processor_names_from_tasks()
+                .contains(table.get_name())
+                && !builder_test
+                    .tasks
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .map(|t| t.task_name.as_str())
+                    .collect::<Vec<_>>()
+                    .contains(&table.get_name())
+            {
+                assert_eq!(table.subject().count_rows(), 1)
+            } else {
+                assert_eq!(table.subject().count_rows(), 0)
+            }
+        }
+
+        // Test that we can build the session
+        let _ = builder_test.build()?;
 
         Ok(())
     }

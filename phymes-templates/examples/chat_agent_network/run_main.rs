@@ -11,9 +11,7 @@ use std::sync::Arc;
 use phymes_diagnostics::HashMap;
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
-use phymes_network::{
-    ChatAgentNetwork, NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkStream,
-};
+use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkStream};
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjectsTrait};
 use phymes_streams::ChatBuilderTraitExt;
 use phymes_subject::{

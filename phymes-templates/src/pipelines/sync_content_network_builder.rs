@@ -398,7 +398,7 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
+        InvokeTaskNetworkBuilder, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
         NetworkStream,
     };
     use phymes_schemas::{create_bytes_record_batch, create_object_store_meta_batch};
@@ -409,8 +409,6 @@ mod tests {
     };
     use phymes_task::{PublicationTrait, SubscriptionTrait};
     use tempfile::TempDir;
-
-    use crate::InvokeTaskNetworkBuilder;
 
     use super::*;
 

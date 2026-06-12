@@ -5,14 +5,13 @@ use phymes_schemas::{
     AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait,
     create_object_store_meta_batch,
 };
+use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
 use phymes_streams::{ObjectStoreConfig, ObjectStoreOptsType};
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, SubjectBuilder,
     SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait,
 };
 use serde_json::{Map, Value};
-
-use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
 
 pub struct GetObjectNetworkBuilderStaticWSubject {
     pub inner: DynamicTaskNetworkBuilder,

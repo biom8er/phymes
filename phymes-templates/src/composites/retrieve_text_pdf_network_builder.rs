@@ -62,10 +62,10 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_data::make_pdf_document_page_per_content;
-use phymes_diagnostics::HashMap;
+    use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
-    use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
+    use phymes_network::{DynamicTaskNetworkNames, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
     use phymes_schemas::{
         AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, create_attachments_batch, create_queries_batch
     };
@@ -75,9 +75,7 @@ use phymes_diagnostics::HashMap;
     };
     use phymes_task::SubscriptionTrait;
 
-    use crate::DynamicTaskNetworkNames;
-
-use super::*;
+    use super::*;
 
     #[tokio::test]
     async fn test_retrieve_text_pdf_network() -> Result<()> {

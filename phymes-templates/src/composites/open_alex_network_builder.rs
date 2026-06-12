@@ -7,7 +7,7 @@ use phymes_data::{
     DataConfig, DataStreamManager,
 };
 use phymes_event::{Publication, Subscription};
-use phymes_network::{NetworkBuilder, NetworkBuilderMermaidTrait};
+use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, NetworkBuilder, NetworkBuilderMermaidTrait};
 use phymes_processor::AvailableProcessors;
 use phymes_schemas::{
     AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat,
@@ -22,10 +22,7 @@ use phymes_subject::{
 };
 use serde_json::{Map, Value};
 
-use crate::{
-    DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, EmbedTextNetworkBuilder,
-    ExtractOntologyNetworkBuilder, ExtractPDFNetworkBuilder, RetrieveTextNetworkBuilder,
-};
+use crate::{EmbedTextNetworkBuilder, ExtractOntologyNetworkBuilder, ExtractPDFNetworkBuilder, RetrieveTextNetworkBuilder};
 
 /// OpenAlex network
 pub struct OpenAlexNetworkBuilder {
@@ -1614,7 +1611,7 @@ mod tests {
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
-    use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
+    use phymes_network::{DynamicTaskNetworkNames, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
     use phymes_schemas::{
         AvailableInterfaceSubjects, AvailableSubjects, create_object_store_meta_batch,
     };
@@ -1625,7 +1622,7 @@ mod tests {
     use phymes_task::SubscriptionTrait;
 
     use crate::{
-        DynamicTaskNetworkNames, extended_diagnostic_subjects, write_diagnostic_subjects_to_csv,
+        extended_diagnostic_subjects, write_diagnostic_subjects_to_csv,
     };
 
     use super::*;

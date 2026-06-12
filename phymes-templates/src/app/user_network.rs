@@ -4,6 +4,7 @@ use std::sync::Arc;
 use phymes_data::{AvailableOperators, DataConfig, DataJoinOperator};
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
+use phymes_network::NetworkBuilderCustomTrait;
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
 use phymes_schemas::{
     AvailableSubjects, AvailableSubjectsTrait, create_user_batch, create_user_networks_batch,
@@ -14,7 +15,7 @@ use phymes_subject::{
 };
 use phymes_task::TaskPlan;
 
-use crate::{AvailableNetworks, NetworkBuilderCustomTrait, make_example_mermaid_table};
+use crate::{AvailableNetworks, make_example_mermaid_table};
 
 /// A session for all user management tasks
 ///
@@ -306,8 +307,7 @@ pub(crate) mod user_network_inner {
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_schemas::create_user_inbox_batch;
     use phymes_subject::{BuildableTrait, MappableTrait, SubjectTrait};
-
-    use crate::{Network, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
+    use phymes_network::{Network, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
 
     use super::*;
 

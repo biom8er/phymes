@@ -4,13 +4,10 @@ use anyhow::{Result, anyhow};
 use clap::ValueEnum;
 use phymes_message::IPCMessageMap;
 use phymes_subject::{BuilderTrait, RuntimeEnv};
+use phymes_network::{Network, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkBuilderTrait};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    BuilderNetwork, ChatAgentNetwork, DocumentRAGNetwork, Network, NetworkBuilder,
-    NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkBuilderTrait, ToolAgentNetwork,
-    UserNetwork,
-};
+use crate::{BuilderNetwork, UserNetwork};
 
 /// The available session plans
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]

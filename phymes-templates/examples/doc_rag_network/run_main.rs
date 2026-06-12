@@ -12,9 +12,7 @@ use phymes_data::make_pdf_document_page_per_content;
 use phymes_diagnostics::HashMap;
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
-use phymes_network::{
-    DocumentRAGNetwork, NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkStream,
-};
+use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkStream};
 use phymes_schemas::{
     AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjectsTrait,
 };

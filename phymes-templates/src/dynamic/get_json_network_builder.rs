@@ -1,6 +1,7 @@
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
-use phymes_processor::AvailableProcessors;
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
+use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
+use phymes_processor::AvailableProcessors;
 use phymes_streams::{
     ChatBuilderTraitExt, HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType,
 };
@@ -8,8 +9,6 @@ use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
     SubjectPlanBuilderTrait,
 };
-
-use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
 
 pub struct GetJsonNetworkBuilderStaticWSubject {
     pub inner: DynamicTaskNetworkBuilder,

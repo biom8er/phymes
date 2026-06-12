@@ -4,12 +4,11 @@ use phymes_processor::AvailableProcessors;
 use phymes_schemas::{
     AvailableSubjects, AvailableSubjectsTrait, create_workspace_batch, create_workspace_patch_batch,
 };
+use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
     SubjectPlanBuilderTrait,
 };
-
-use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
 
 pub struct PatchWorkspaceNetworkBuilderStaticWSubject {
     pub inner: DynamicTaskNetworkBuilder,

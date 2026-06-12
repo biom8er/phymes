@@ -10,9 +10,7 @@ use phymes_data::test_extract_tabular_data::make_scores_table;
 use phymes_diagnostics::HashMap;
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
-use phymes_network::{
-    NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkStream, ToolAgentNetwork,
-};
+use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkStream};
 use phymes_schemas::{
     AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjectsTrait, CsvFormat,
 };

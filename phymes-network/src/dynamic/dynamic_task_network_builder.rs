@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
-use phymes_network::{NetworkBuilder, NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
 use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait};
 use phymes_subject::{
@@ -9,7 +8,7 @@ use phymes_subject::{
 };
 use phymes_task::TaskPlan;
 
-use crate::InvokeTaskNetworkBuilder;
+use crate::{InvokeTaskNetworkBuilder, NetworkBuilder, NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait};
 
 /// Helper to create consistent names for subjects, processors, tasks, and neteworks
 #[derive(Clone, Debug)]

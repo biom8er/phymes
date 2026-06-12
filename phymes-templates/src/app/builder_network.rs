@@ -9,9 +9,10 @@ use phymes_subject::{
     BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectPlan,
     SubjectPlanBuilderTrait,
 };
+use phymes_network::{NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait};
 use phymes_task::TaskPlan;
 
-use crate::{AvailableNetworks, NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait};
+use crate::AvailableNetworks;
 
 /// Example Mermaid diagrams for chat, doc, and tool agent sessions
 pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Subject> {
@@ -120,7 +121,7 @@ impl NetworkBuilderCustomTrait for BuilderNetwork<'_> {
 mod tests {
     use anyhow::Result;
 
-    use crate::NetworkBuilderAppsTrait;
+    use phymes_network::NetworkBuilderAppsTrait;
 
     use super::*;
 

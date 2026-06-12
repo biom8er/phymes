@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use phymes_data::{AvailableOperators, DataConfig, DataStreamManager};
 use phymes_event::{Publication, Subscription};
-use phymes_network::NetworkBuilder;
+use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, NetworkBuilder};
 use phymes_processor::AvailableProcessors;
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
 use phymes_streams::LimitConfig;
@@ -10,8 +10,6 @@ use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
     SubjectPlanBuilderTrait,
 };
-
-use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
 
 /// A session for extracting and chunking PDF documents
 ///
