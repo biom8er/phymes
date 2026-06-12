@@ -143,84 +143,92 @@ mod tests {
 
         // 1. Run the session (embed documents)
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
-        let _response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
-        // Make the test session data
-        let mut message_map = HashMap::<String, IPCMessage>::new();
+        // Avoid running with Candle without GPU acceleration
+        if cfg!(any(
+            all(not(feature = "candle"), feature = "wsl"),
+            all(not(feature = "candle"), feature = "wasip2"),
+            feature = "gpu"
+        )) {
+            let _response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
-        // Make the query data
-        let query_ids = vec!["0".to_string()];
-        let text =vec!["What are the four molecules that compose DNA?".to_string()];
-        let batch = create_queries_batch(query_ids, text)?;
-        let queries = AvailableInterfaceSubjects::UserQueries
-            .to_subject_builder(None)
-            .with_record_batches(vec![batch])?
-            .build()?;
-        let _ = message_map.insert(
-            queries.get_name().to_string(),
-            IPCMessage::get_builder()
-                .with_message(queries.to_ipc_stream()?)
-                .with_subject(queries.get_name())
-                .with_update(&Publication::Extend {
-                    subject_name: queries.get_name().to_string(),
-                })
-                .with_publisher(network_arc.get_name())
-                .make_name()?
-                .build()?,
-        );
+            // Make the test session data
+            let mut message_map = HashMap::<String, IPCMessage>::new();
 
-        // 2. Run the session (embed queries and retrieve)
-        let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
+            // Make the query data
+            let query_ids = vec!["0".to_string()];
+            let text =vec!["What are the four molecules that compose DNA?".to_string()];
+            let batch = create_queries_batch(query_ids, text)?;
+            let queries = AvailableInterfaceSubjects::UserQueries
+                .to_subject_builder(None)
+                .with_record_batches(vec![batch])?
+                .build()?;
+            let _ = message_map.insert(
+                queries.get_name().to_string(),
+                IPCMessage::get_builder()
+                    .with_message(queries.to_ipc_stream()?)
+                    .with_subject(queries.get_name())
+                    .with_update(&Publication::Extend {
+                        subject_name: queries.get_name().to_string(),
+                    })
+                    .with_publisher(network_arc.get_name())
+                    .make_name()?
+                    .build()?,
+            );
 
-        assert_eq!(response.len(), 0);
+            // 2. Run the session (embed queries and retrieve)
+            let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+            let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
-        // Test PDF extraction, embedding, and retrieval
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::EmbeddingScores.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::EmbeddingScores.to_string().as_str())
-            .with_record_batches(batches)?
-            .build()?;
-        assert_eq!(subject.count_rows(), 1);
-        let column = subject.get_column_as_vec_str("chunk_id");
-        assert_eq!(column.first().unwrap(), &"wiki_dna2PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_0");
-        let column = subject.get_column_as_vec_str("query_id");
-        assert_eq!(column.first().unwrap(), &"0");
-        let column = subject.get_column_as_vec_primitive::<f32>("score")?;
-        for t in column {
-            assert!(t > 0.15); // Threshold used for filtering
-        }
+            assert_eq!(response.len(), 0);
 
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name(
-                AvailableInterfaceSubjects::ToolMessages
-                    .to_string()
-                    .as_str(),
-            )
-            .with_record_batches(batches)?
-            .build()?;
-        assert_eq!(subject.count_rows(), 1);
-        let column = subject.get_column_as_vec_str("role");
-        assert_eq!(column.first().unwrap(), &"tool");
-        let column = subject.get_column_as_vec_str("content");
-        // dbg!(column.first().unwrap());
-        assert!(column.first().unwrap().contains(&"[{\"text\":\"Deoxyribonucleic acid (DNA)"));
-        let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-        for t in column {
-            assert!(t > 0);
+            // Test PDF extraction, embedding, and retrieval
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableSubjects::EmbeddingScores.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::EmbeddingScores.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 1);
+            let column = subject.get_column_as_vec_str("chunk_id");
+            assert_eq!(column.first().unwrap(), &"wiki_dna2PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_0");
+            let column = subject.get_column_as_vec_str("query_id");
+            assert_eq!(column.first().unwrap(), &"0");
+            let column = subject.get_column_as_vec_primitive::<f32>("score")?;
+            for t in column {
+                assert!(t > 0.15); // Threshold used for filtering
+            }
+
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(
+                    AvailableInterfaceSubjects::ToolMessages
+                        .to_string()
+                        .as_str(),
+                )
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 1);
+            let column = subject.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"tool");
+            let column = subject.get_column_as_vec_str("content");
+            // dbg!(column.first().unwrap());
+            assert!(column.first().unwrap().contains(&"[{\"text\":\"Deoxyribonucleic acid (DNA)"));
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for t in column {
+                assert!(t > 0);
+            }
         }
 
         Ok(())

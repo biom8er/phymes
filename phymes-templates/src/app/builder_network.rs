@@ -14,7 +14,7 @@ use phymes_task::TaskPlan;
 
 use crate::AvailableNetworks;
 
-/// Example Mermaid diagrams for chat, doc, and tool agent sessions
+/// Example Mermaid diagrams for available app sessions
 pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Subject> {
     let available_session_plans = if deployable {
         AvailableNetworks::get_deployable_session_plan_names()
@@ -22,7 +22,7 @@ pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Sub
         AvailableNetworks::get_all_session_plan_names()
     };
 
-    // Initialize with chat, doc, and tool agent session diagrams
+    // Initialize with available app session diagrams
     let mut network_names = Vec::new();
     let mut flowchart_diagram = Vec::new();
     let mut er_diagram = Vec::new();

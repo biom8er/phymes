@@ -1449,8 +1449,6 @@ impl BuilderTrait for NetworkBuilderMermaid {
 
 #[cfg(test)]
 mod tests {
-    use phymes_subject::RuntimeEnvBuilderTrait;
-
     use crate::{
         NetworkBuilderAppsTrait, test_network_builder_apps,
     };

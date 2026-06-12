@@ -16,7 +16,7 @@ use phymes_message::{
     SessionInterfaceMessageTrait, create_message_map,
 };
 use phymes_network::{
-    DiagnosticNetwork, NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkBuilderTrait,
+    NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkBuilderTrait,
     NetworkStream, NetworkStreamStep, NetworkStreamStepTrait,
 };
 use phymes_schemas::{
@@ -27,6 +27,7 @@ use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
     SubjectTrait,
 };
+use phymes_templates::DiagnosticNetwork;
 
 // General imports
 use anyhow::Result;

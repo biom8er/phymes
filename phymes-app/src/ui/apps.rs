@@ -5,12 +5,12 @@ use phymes_message::{
     MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
     SessionInterfaceMessageBuilderTrait,
 };
-use phymes_network::AvailableNetworks;
 use phymes_schemas::{AvailableSubjects, DataFormat};
 use phymes_server::create_session_name;
 use phymes_subject::{
     BuildableTrait, BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
+use phymes_templates::AvailableNetworks;
 
 use crate::{
     state::{

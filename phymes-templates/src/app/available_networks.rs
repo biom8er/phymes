@@ -3,21 +3,21 @@ use std::{fmt::Display, sync::Arc};
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
 use phymes_message::IPCMessageMap;
-use phymes_subject::{BuilderTrait, RuntimeEnv};
-use phymes_network::{Network, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkBuilderTrait};
+use phymes_subject::{BuildableTrait, BuilderTrait, RuntimeEnv, RuntimeEnvBuilderTrait};
+use phymes_network::{DynamicTaskNetworkNames, Network, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait};
 use serde::{Deserialize, Serialize};
 
-use crate::{BuilderNetwork, UserNetwork};
+use crate::{BuilderNetwork, GenerateTextNetworkBuilder, RetrievalAugmentedGenerationPDFNetworkBuilder, UserNetwork};
 
 /// The available session plans
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
 pub enum AvailableNetworks {
-    #[value(name = "Chat")]
-    Chat,
-    #[value(name = "DocChat")]
-    DocChat,
-    #[value(name = "ToolChat")]
-    ToolChat,
+    #[value(name = "GenerateText")]
+    GenerateText,
+    #[value(name = "RAGTextPDF")]
+    RAGTextPDF,
+    // #[value(name = "ToolChat")]
+    // ToolChat,
     #[value(name = "Builder")]
     Builder,
     #[value(name = "Users")]
@@ -27,9 +27,9 @@ pub enum AvailableNetworks {
 impl Display for AvailableNetworks {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Chat => write!(f, "Chat"),
-            Self::DocChat => write!(f, "DocChat"),
-            Self::ToolChat => write!(f, "ToolChat"),
+            Self::GenerateText => write!(f, "GenerateText"),
+            Self::RAGTextPDF => write!(f, "RAGTextPDF"),
+            // Self::ToolChat => write!(f, "ToolChat"),
             Self::Builder => write!(f, "Builder"),
             Self::Users => write!(f, "Users"),
         }
@@ -39,8 +39,8 @@ impl Display for AvailableNetworks {
 impl AvailableNetworks {
     /// Get all available session plans
     pub fn get_all_session_plan_names() -> Vec<String> {
-        let session_plans = ["Chat", "DocChat", "ToolChat", "Builder"];
-        // let session_plans = ["Chat", "Builder"];
+        let session_plans = ["GenerateText", "RAGTextPDF", "Builder"];
+        // let session_plans = ["GenerateText", "RAGTextPDF", "ToolChat", "Builder"];
         session_plans
             .iter()
             .map(|s| s.to_string())
@@ -49,7 +49,8 @@ impl AvailableNetworks {
 
     /// Get all available session plans
     pub fn get_deployable_session_plan_names() -> Vec<String> {
-        let session_plans = ["Chat", "DocChat", "ToolChat"];
+        let session_plans = ["GenerateText", "RAGTextPDF"];
+        // let session_plans = ["GenerateText", "RAGTextPDF", "ToolChat"];
         session_plans
             .iter()
             .map(|s| s.to_string())
@@ -60,9 +61,41 @@ impl AvailableNetworks {
     pub fn get_network_builder(&self, session_name: &str) -> NetworkBuilder {
         // Initialize the session context builder
         match self {
-            Self::Chat => ChatAgentNetwork::new_with_network_name(session_name).build(),
-            Self::DocChat => DocumentRAGNetwork::new_with_network_name(session_name).build(),
-            Self::ToolChat => ToolAgentNetwork::new_with_network_name(session_name).build(),
+            Self::GenerateText => {
+                let generate_text_network = GenerateTextNetworkBuilder::default();
+                NetworkBuilder::from_mermaid_flowchart(
+                    &generate_text_network.as_mermaid_flowchart(),
+                    false,
+                )
+                .unwrap()
+                .with_subjects_from_mermaid_erdiagram(
+                    &generate_text_network.as_mermaid_erdiagram(),
+                    false,
+                    true,
+                )
+                .unwrap()
+                .with_name(session_name)
+                .add_processor_subjects()
+                .unwrap()
+            }
+            Self::RAGTextPDF => RetrievalAugmentedGenerationPDFNetworkBuilder::default()
+                .inner.take()
+                .unwrap()
+                // DM: will be overwritten anyway
+                .with_runtime_env(RuntimeEnv::get_builder()
+                    .with_name(
+                        DynamicTaskNetworkNames::RuntimeEnv(session_name)
+                            .to_string()
+                            .as_str(),
+                    )
+                    .with_max_steps(100)
+                    .build_arc()
+                    .unwrap(),
+                )
+                .with_name(session_name)
+                .add_processor_subjects()
+                .unwrap(),
+            // Self::ToolChat => ToolAgentNetwork::new_with_network_name(session_name).build(),
             Self::Builder => BuilderNetwork::new_with_network_name(session_name).build(),
             Self::Users => UserNetwork::new_with_network_name(session_name).build(),
         }
@@ -73,13 +106,15 @@ impl AvailableNetworks {
         session_plan_name: &str,
         session_name: &str,
     ) -> Result<NetworkBuilder> {
-        if session_plan_name == Self::Chat.to_string() {
-            Ok(Self::Chat.get_network_builder(session_name))
-        } else if session_plan_name == Self::DocChat.to_string() {
-            Ok(Self::DocChat.get_network_builder(session_name))
-        } else if session_plan_name == Self::ToolChat.to_string() {
-            Ok(Self::ToolChat.get_network_builder(session_name))
-        } else if session_plan_name == Self::Builder.to_string() {
+        if session_plan_name == Self::GenerateText.to_string() {
+            Ok(Self::GenerateText.get_network_builder(session_name))
+        } else if session_plan_name == Self::RAGTextPDF.to_string() {
+            Ok(Self::RAGTextPDF.get_network_builder(session_name))
+        } 
+        // else if session_plan_name == Self::ToolChat.to_string() {
+        //     Ok(Self::ToolChat.get_network_builder(session_name))
+        // } 
+        else if session_plan_name == Self::Builder.to_string() {
             Ok(Self::Builder.get_network_builder(session_name))
         } else if session_plan_name == Self::Users.to_string() {
             Ok(Self::Users.get_network_builder(session_name))
@@ -119,13 +154,15 @@ impl AvailableNetworks {
         session_name: &str,
         runtime_env: &Arc<RuntimeEnv>,
     ) -> Result<(Arc<Network>, Option<IPCMessageMap>)> {
-        if session_plan_name == Self::Chat.to_string() {
-            Ok(Self::Chat.get_network_stream_state(session_name, runtime_env))
-        } else if session_plan_name == Self::DocChat.to_string() {
-            Ok(Self::DocChat.get_network_stream_state(session_name, runtime_env))
-        } else if session_plan_name == Self::ToolChat.to_string() {
-            Ok(Self::ToolChat.get_network_stream_state(session_name, runtime_env))
-        } else if session_plan_name == Self::Builder.to_string() {
+        if session_plan_name == Self::GenerateText.to_string() {
+            Ok(Self::GenerateText.get_network_stream_state(session_name, runtime_env))
+        } else if session_plan_name == Self::RAGTextPDF.to_string() {
+            Ok(Self::RAGTextPDF.get_network_stream_state(session_name, runtime_env))
+        } 
+        // else if session_plan_name == Self::ToolChat.to_string() {
+        //     Ok(Self::ToolChat.get_network_stream_state(session_name, runtime_env))
+        // } 
+        else if session_plan_name == Self::Builder.to_string() {
             Ok(Self::Builder.get_network_stream_state(session_name, runtime_env))
         } else if session_plan_name == Self::Users.to_string() {
             Ok(Self::Users.get_network_stream_state(session_name, runtime_env))

@@ -6,12 +6,13 @@ extern crate accelerate_src;
 
 use anyhow::Result;
 use futures::TryStreamExt;
+use phymes_templates::GenerateTextNetworkBuilder;
 use std::sync::Arc;
 
 use phymes_diagnostics::HashMap;
 use phymes_event::Publication;
 use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
-use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkStream};
+use phymes_network::{NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait, NetworkStream};
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjectsTrait};
 use phymes_streams::ChatBuilderTraitExt;
 use phymes_subject::{
@@ -19,18 +20,24 @@ use phymes_subject::{
 };
 
 pub async fn run_main() -> Result<()> {
-    // initialize the session
-    let chat_agent_network = ChatAgentNetwork {
-        chat_api_url: Some("http://0.0.0.0:8000/v1"),
-        ..Default::default()
-    };
-    let (network, session_messages) = chat_agent_network
-        .build()
-        .with_name(chat_agent_network.network_name)
-        .add_network_interface(None)?
-        .add_next_tasks()?
-        .add_next_supersteps()?
-        .build_with_tables()?;
+    // Initialize the session
+    let generate_text_network = GenerateTextNetworkBuilder::default();
+    let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
+        &generate_text_network.as_mermaid_flowchart(),
+        false,
+    )?
+    .with_subjects_from_mermaid_erdiagram(
+        &generate_text_network.as_mermaid_erdiagram(),
+        false,
+        true,
+    )?
+    .with_name(generate_text_network.network_name)
+    .add_processor_subjects()?
+    .with_diagnostics(true)
+    .add_next_tasks()?
+    .add_next_supersteps()?
+    .add_network_interface(None)?
+    .build_with_tables()?;
     let network_arc = Arc::new(network);
 
     // ----- Query #1 -----
@@ -44,7 +51,7 @@ pub async fn run_main() -> Result<()> {
         .with_update(&Publication::Extend {
             subject_name: chat.get_name().to_string(),
         })
-        .with_publisher(chat_agent_network.network_name)
+        .with_publisher(generate_text_network.network_name)
         .make_name()?
         .build()?;
     let incoming_message_map = create_message_map(vec![message]);
@@ -60,7 +67,7 @@ pub async fn run_main() -> Result<()> {
         .filter_map(|map| {
             map.remove(&format!(
                 "from_{}_on_{}",
-                chat_agent_network.network_name,
+                generate_text_network.network_name,
                 AvailableInterfaceSubjects::AssistantMessages
             ))
             .map(|v| v.get_message_own())
@@ -88,7 +95,7 @@ pub async fn run_main() -> Result<()> {
         .with_update(&Publication::Extend {
             subject_name: chat.get_name().to_string(),
         })
-        .with_publisher(chat_agent_network.network_name)
+        .with_publisher(generate_text_network.network_name)
         .make_name()?
         .build()?;
     let incoming_message_map = create_message_map(vec![message]);
@@ -101,7 +108,7 @@ pub async fn run_main() -> Result<()> {
         .filter_map(|map| {
             map.remove(&format!(
                 "from_{}_on_{}",
-                chat_agent_network.network_name,
+                generate_text_network.network_name,
                 AvailableInterfaceSubjects::AssistantMessages
             ))
             .map(|v| v.get_message_own())

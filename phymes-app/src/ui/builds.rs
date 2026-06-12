@@ -5,12 +5,11 @@ use phymes_event::Publication;
 use phymes_message::{
     MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait,
 };
-use phymes_network::{
-    AvailableNetworks, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
-};
+use phymes_network::{NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait};
 use phymes_schemas::{create_session_mermaid_batch, AvailableSubjects, DataFormat};
 use phymes_server::create_session_name;
 use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
+use phymes_templates::AvailableNetworks;
 
 use crate::state::{
     filter_in_mermaid_diagrams_by_session_name, filter_out_mermaid_diagrams_by_session_name,

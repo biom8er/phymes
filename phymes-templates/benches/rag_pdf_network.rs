@@ -6,16 +6,17 @@ use phymes_data::make_pdf_document_page_per_content;
 use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
-use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkStream};
+use phymes_network::{DynamicTaskNetworkNames, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
 use phymes_schemas::{
     AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjects,
     AvailableSubjectsTrait,
 };
 use phymes_streams::ChatBuilderTraitExt;
 use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait
 };
 use phymes_task::SubscriptionTrait;
+use phymes_templates::RetrievalAugmentedGenerationPDFNetworkBuilder;
 
 fn benchmark_chat_agent_network(c: &mut Criterion) {
     // Cases for different document lengths
@@ -66,80 +67,27 @@ fn benchmark_chat_agent_network(c: &mut Criterion) {
         c.bench_function(id.as_str(), |b| {
             b.iter(|| {
                 // Create the session configuration
-                let chat_task_name = format!("chat_task_1_{tag}_{iter}");
-                let message_aggregator_task_1_name =
-                    format!("message_aggregator_task_1_{tag}_{iter}");
-                let message_aggregator_processor_1_name =
-                    format!("message_aggregator_processor_1_{tag}_{iter}");
-                let message_aggregator_task_2_name =
-                    format!("message_aggregator_task_2_{tag}_{iter}");
-                let message_aggregator_processor_2_name =
-                    format!("message_aggregator_processor_2_{tag}_{iter}");
-                let attachment_aggregator_task_1_name =
-                    format!("attachment_aggregator_task_1_{tag}_{iter}");
-                let attachment_aggregator_processor_1_name =
-                    format!("attachment_aggregator_processor_1_{tag}_{iter}");
-                let chat_processor_name = format!("chat_processor_1_{tag}_{iter}");
-                let embed_query_task_name = format!("embed_query_task_1_{tag}_{iter}");
-                let embed_documents_task_name = format!("embed_documents_task_1_{tag}_{iter}");
-                let embed_query_processor_name = format!("embed_query_processor_1_{tag}_{iter}");
-                let embed_documents_processor_name =
-                    format!("embed_documents_processor_1_{tag}_{iter}");
-                let extract_pdf_task_name = format!("extract_pdf_task_1_{tag}_{iter}");
-                let extract_pdf_processor_name = format!("extract_pdf_processor_1_{tag}_{iter}");
-                let document_chunk_task_name = format!("chunk_documents_task_1_{tag}_{iter}");
-                let document_chunk_processor_1_name =
-                    format!("chunk_documents_processor_1_{tag}_{iter}");
-                let vector_search_task_name = format!("vs_task_1_{tag}_{iter}");
-                let relative_similarity_processor_name =
-                    format!("rel_sim_processor_1_{tag}_{iter}");
-                let sort_scores_processor_name = format!("sort_scores_processor_1_{tag}_{iter}");
-                let join_chunks_processor_name =
-                    format!("join_scores_chunks_processor_1_{tag}_{iter}");
-                let top_k_select_processor_name = format!("top_k_select_processor_1_{tag}_{iter}");
-                let top_k_limit_processor_name = format!("top_k_limit_processor_1_{tag}_{iter}");
-                let top_k_summary_processor_name =
-                    format!("top_k_summary_processor_1_{tag}_{iter}");
                 let network_name = format!("session_1_{tag}_{iter}");
 
-                let mut config = DocumentRAGNetwork {
-                    chat_task_name: &chat_task_name,
-                    message_aggregator_task_1_name: &message_aggregator_task_1_name,
-                    message_aggregator_processor_1_name: &message_aggregator_processor_1_name,
-                    message_aggregator_task_2_name: &message_aggregator_task_2_name,
-                    message_aggregator_processor_2_name: &message_aggregator_processor_2_name,
-                    attachment_aggregator_task_name: &attachment_aggregator_task_1_name,
-                    attachment_aggregator_processor_name: &attachment_aggregator_processor_1_name,
-                    chat_processor_name: &chat_processor_name,
-                    embed_query_task_name: &embed_query_task_name,
-                    embed_documents_task_name: &embed_documents_task_name,
-                    embed_query_processor_name: &embed_query_processor_name,
-                    embed_documents_processor_name: &embed_documents_processor_name,
-                    extract_pdf_task_name: &extract_pdf_task_name,
-                    extract_pdf_processor_name: &extract_pdf_processor_name,
-                    document_chunk_task_name: &document_chunk_task_name,
-                    document_chunk_processor_name: &document_chunk_processor_1_name,
-                    vector_search_task_name: &vector_search_task_name,
-                    relative_similarity_processor_name: &relative_similarity_processor_name,
-                    sort_scores_processor_name: &sort_scores_processor_name,
-                    join_chunks_processor_name: &join_chunks_processor_name,
-                    top_k_select_processor_name: &top_k_select_processor_name,
-                    top_k_limit_processor_name: &top_k_limit_processor_name,
-                    top_k_summary_processor_name: &top_k_summary_processor_name,
-                    network_name: &network_name,
-                    chat_api_url: None,
-                    embed_api_url: None,
-                    ..Default::default()
-                };
-                if cfg!(not(feature = "candle")) {
-                    config.chat_api_url = Some("http://0.0.0.0:8000/v1");
-                    config.embed_api_url = Some("http://0.0.0.0:8001/v1");
-                }
-
                 // Create the session stream state
-                let (network, session_messages) = config
-                    .build()
+                let (network, session_messages) = RetrievalAugmentedGenerationPDFNetworkBuilder::default()
+                    .inner.take()
+                    .unwrap()
+                    .with_runtime_env(
+                        RuntimeEnv::get_builder()
+                            .with_name(
+                                DynamicTaskNetworkNames::RuntimeEnv(&network_name)
+                                    .to_string()
+                                    .as_str(),
+                            )
+                            .with_max_steps(100)
+                            .build_arc()
+                            .unwrap(),
+                    )
+                    .with_diagnostics(true)
                     .with_name(network_name.as_str())
+                    .add_processor_subjects()
+                    .unwrap()
                     .add_network_interface(None)
                     .unwrap()
                     .add_next_tasks()

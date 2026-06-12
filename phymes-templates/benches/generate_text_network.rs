@@ -5,13 +5,14 @@ use futures::TryStreamExt;
 use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
-use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkStream};
+use phymes_network::{NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait, NetworkStream};
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
 use phymes_streams::ChatBuilderTraitExt;
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_task::SubscriptionTrait;
+use phymes_templates::GenerateTextNetworkBuilder;
 
 fn benchmark_chat_agent_network(c: &mut Criterion) {
     // Cases for different input/output lengths
@@ -53,43 +54,31 @@ fn benchmark_chat_agent_network(c: &mut Criterion) {
         c.bench_function(id.as_str(), |b| {
             b.iter(|| {
                 // Create the session configuration
-                let network_name = format!("session_1_{tag}_{iter}");
-                let chat_processor_name = format!("chat_processor_1_{tag}_{iter}");
-                let chat_task_name = format!("chat_task_1_{tag}_{iter}");
-                let message_aggregator_task_1_name =
-                    format!("message_aggregator_task_1_{tag}_{iter}");
-                let message_aggregator_processor_1_name =
-                    format!("message_aggregator_processor_1_{tag}_{iter}");
-                let message_aggregator_task_2_name =
-                    format!("message_aggregator_task_2_{tag}_{iter}");
-                let message_aggregator_processor_2_name =
-                    format!("message_aggregator_processor_2_{tag}_{iter}");
-                let config = ChatAgentNetwork {
-                    network_name: network_name.as_str(),
-                    chat_processor_name: chat_processor_name.as_str(),
-                    chat_task_name: chat_task_name.as_str(),
-                    message_aggregator_task_1_name: message_aggregator_task_1_name.as_str(),
-                    message_aggregator_processor_1_name: message_aggregator_processor_1_name
-                        .as_str(),
-                    message_aggregator_task_2_name: message_aggregator_task_2_name.as_str(),
-                    message_aggregator_processor_2_name: message_aggregator_processor_2_name
-                        .as_str(),
-                    chat_api_url: Some("http://0.0.0.0:8000/v1"),
-                    ..Default::default()
-                };
-
-                // Create the session stream state
-                let (network, session_messages) = config
-                    .build()
-                    .with_name(network_name.as_str())
-                    .add_network_interface(None)
-                    .unwrap()
-                    .add_next_tasks()
-                    .unwrap()
-                    .add_next_supersteps()
-                    .unwrap()
-                    .build_with_tables()
-                    .unwrap();
+                let network_name = format!("session_1_{tag}_{iter}");                
+                
+                // Initialize the session
+                let generate_text_network = GenerateTextNetworkBuilder::default();
+                let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
+                    &generate_text_network.as_mermaid_flowchart(),
+                    false,
+                )
+                .unwrap()
+                .with_subjects_from_mermaid_erdiagram(
+                    &generate_text_network.as_mermaid_erdiagram(),
+                    false,
+                    true,
+                )
+                .unwrap()
+                .with_name(network_name.as_str())
+                .add_processor_subjects()
+                .unwrap()
+                .with_diagnostics(true)
+                .add_next_tasks()
+                .unwrap()
+                .add_next_supersteps()
+                .unwrap()
+                .build_with_tables()
+                .unwrap();
                 let network_arc = Arc::new(network);
                 let sample_id = format!("{id}_{iter}");
 

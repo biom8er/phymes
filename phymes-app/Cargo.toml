@@ -30,6 +30,7 @@ phymes-schemas = { path = "../phymes-schemas", default-features = false, optiona
 phymes-event = { path = "../phymes-event", default-features = false, optional = true }
 phymes-message = { path = "../phymes-message", default-features = false, optional = true }
 phymes-streams = { path = "../phymes-streams", default-features = false, optional = true }
+phymes-templates = { path = "../phymes-templates", default-features = false, optional = true }
 clap = {version = "4.2.4", optional = true}
 tokio = { version = "1.49.0", default-features = false, optional = true }
 tracing = { workspace = true }
@@ -44,12 +45,12 @@ mermaid_js_cdn = ["mermaid_js"] # use the mjs loaded from CDN server
 mermaid_js_embed = ["mermaid_js"] # use the js (~3 MB) from local filesystem
 
 # Serverside options for gpu and token/tensor services
-wasip2 = ["phymes-diagnostics/wasip2", "phymes-server/wasip2", "phymes-network/wasip2", "phymes-subject/wasip2", "phymes-data/wasip2", "phymes-schemas/wasip2", "phymes-message/wasip2", "phymes-event/wasip2", "phymes-streams/wasip2"]
-wsl = ["phymes-diagnostics/wsl", "phymes-server/wsl", "phymes-network/wsl", "phymes-subject/wsl", "phymes-data/wsl", "phymes-schemas/wsl", "phymes-message/wsl", "phymes-event/wsl", "phymes-streams/wsl"]
-gpu = ["phymes-server/gpu", "phymes-network/gpu", "phymes-data/gpu", "phymes-streams/gpu"]
-candle = ["phymes-server/candle", "phymes-network/candle", "phymes-data/candle"]
-hf_hub = ["phymes-server/hf_hub", "phymes-network/hf_hub", "phymes-streams/hf_hub"]
-api = ["phymes-server/api", "phymes-network/api", "phymes-message/api", "phymes-event/api", "phymes-streams/api"]
+wasip2 = ["phymes-diagnostics/wasip2", "phymes-server/wasip2", "phymes-network/wasip2", "phymes-templates/wasip2", "phymes-subject/wasip2", "phymes-data/wasip2", "phymes-schemas/wasip2", "phymes-message/wasip2", "phymes-event/wasip2", "phymes-streams/wasip2"]
+wsl = ["phymes-diagnostics/wsl", "phymes-server/wsl", "phymes-network/wsl", "phymes-templates/wsl", "phymes-subject/wsl", "phymes-data/wsl", "phymes-schemas/wsl", "phymes-message/wsl", "phymes-event/wsl", "phymes-streams/wsl"]
+gpu = ["phymes-server/gpu", "phymes-network/gpu", "phymes-templates/gpu", "phymes-data/gpu", "phymes-streams/gpu"]
+candle = ["phymes-server/candle", "phymes-network/candle", "phymes-templates/candle", "phymes-data/candle"]
+hf_hub = ["phymes-server/hf_hub", "phymes-network/hf_hub", "phymes-templates/hf_hub", "phymes-streams/hf_hub"]
+api = ["phymes-server/api", "phymes-network/api", "phymes-templates/api", "phymes-message/api", "phymes-event/api", "phymes-streams/api"]
 # DM: this is a work in progress because we need to access
 #     resources on the device while in the browser context
 serverless = [] # Switch to use the serverless application

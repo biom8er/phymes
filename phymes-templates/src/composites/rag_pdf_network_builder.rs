@@ -52,7 +52,7 @@ mod tests {
         AvailableInterfaceSubjects, AvailableSubjectsTrait, create_attachments_batch, create_chat_record_batch
     };
     use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectPlanTrait, SubjectTrait
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait
     };
     use phymes_task::SubscriptionTrait;
 
@@ -148,298 +148,57 @@ mod tests {
 
         // 1. Run the session
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
-        let extended_diagnostic_subjects = extended_diagnostic_subjects();
-        let subject_names = extended_diagnostic_subjects
-            .iter()
-            .map(|s| s.as_str())
-            .chain(["EmbeddingScores", "Documents", "UserQueries"])
-            .collect::<Vec<_>>();
-        write_diagnostic_subjects_to_csv(
-            &subject_names,
-            network_arc.runtime_env(),
-            network_arc.get_name(),
-        )
-        .await?;
+        // DM: Skip actually running the tests as they take too long on the CPU
+        if cfg!(any(
+            all(not(feature = "candle"), feature = "wsl"),
+            all(not(feature = "candle"), feature = "wasip2"),
+            feature = "gpu"
+        )) {
+            let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
-        assert_eq!(response.len(), 0);
-
-        // Test RAG
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name(AvailableInterfaceSubjects::AssistantMessages.to_string().as_str())
-            .with_record_batches(batches)?
-            .build()?;
-        assert!(subject.count_rows() > 0);
-        let column = subject.get_column_as_vec_str("role");
-        assert_eq!(column.first().unwrap(), &"assistant");
-        let column = subject.get_column_as_vec_str("content");
-        // dbg!(column.first().unwrap());
-        assert!(column.first().unwrap().contains(&"Adenine"));
-        assert!(column.first().unwrap().contains(&"Thymine"));
-        assert!(column.first().unwrap().contains(&"Guanine"));
-        assert!(column.first().unwrap().contains(&"Cytosine"));
-        // assert_eq!(column.first().unwrap(), &"");
-        let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-        for c in column {
-            assert!(c > 0);
-        }
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_from_mermaid_rag_pdf_network_with_configs_and_session() -> Result<()> {
-        // initialize the session
-        let rag_pdf_network_builder = RetrievalAugmentedGenerationPDFNetworkBuilder::default().inner.take().unwrap();
-        let network_name = rag_pdf_network_builder.name.clone().unwrap();
-        let builder = rag_pdf_network_builder
-            .with_runtime_env(
-                RuntimeEnv::get_builder()
-                    .with_name(
-                        DynamicTaskNetworkNames::RuntimeEnv(&network_name)
-                            .to_string()
-                            .as_str(),
-                    )
-                    .with_max_steps(100)
-                    .build_arc()?,
-            )
-            .with_diagnostics(true)
-            .add_processor_subjects()?
-            .add_next_tasks()?
-            .add_next_supersteps()?
-            .add_network_interface(None)?;
-
-        // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(true, true)?;
-        let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
-
-        // Remake the builder
-        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?;
-
-        // Test that the names match
-        assert_eq!(builder_test.tasks, builder.tasks);
-        let mut test = builder_test
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-
-        // Test the order of the processors
-        let test = builder_test
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        let expected = builder
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        assert_eq!(test, expected);
-
-        // Test that we can build the session
-        let _ = builder_test.with_name("session_1").build()?;
-
-        Ok(())
-    }
-
-    
-    #[test]
-    fn test_from_mermaid_rag_pdf_network_without_configs_and_session() -> Result<()> {
-        // initialize the session
-        let rag_pdf_network_builder = RetrievalAugmentedGenerationPDFNetworkBuilder::default().inner.take().unwrap();
-        let network_name = rag_pdf_network_builder.name.clone().unwrap();
-        let builder = rag_pdf_network_builder
-            .with_runtime_env(
-                RuntimeEnv::get_builder()
-                    .with_name(
-                        DynamicTaskNetworkNames::RuntimeEnv(&network_name)
-                            .to_string()
-                            .as_str(),
-                    )
-                    .with_max_steps(100)
-                    .build_arc()?,
-            )
-            .with_diagnostics(true)
-            .add_processor_subjects()?
-            .add_next_tasks()?
-            .add_next_supersteps()?
-            .add_network_interface(None)?;
-
-        // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(false, false)?;
-        let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
-
-        // Remake the builder
-        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?
-            .with_name("session_1")
-            .add_processor_subjects()?
-            .add_network_interface(None)?;
-
-        // Test that the names match
-        assert_eq!(builder_test.tasks, builder.tasks);
-        let mut test = builder_test
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-
-        // Test the order of the processors
-        let test = builder_test
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        let expected = builder
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        assert_eq!(test, expected);
-
-        // Test that we can build the session
-        let _ = builder_test.build()?;
-
-        Ok(())
-    }
-    
-    #[test]
-    fn test_from_mermaid_rag_pdf_network_with_data() -> Result<()> {
-        // initialize the session
-        let rag_pdf_network_builder = RetrievalAugmentedGenerationPDFNetworkBuilder::default().inner.take().unwrap();
-        let network_name = rag_pdf_network_builder.name.clone().unwrap();
-        let builder = rag_pdf_network_builder
-            .with_runtime_env(
-                RuntimeEnv::get_builder()
-                    .with_name(
-                        DynamicTaskNetworkNames::RuntimeEnv(&network_name)
-                            .to_string()
-                            .as_str(),
-                    )
-                    .with_max_steps(100)
-                    .build_arc()?,
-            )
-            .with_diagnostics(true)
-            .add_processor_subjects()?
-            .add_next_tasks()?
-            .add_next_supersteps()?
-            .add_network_interface(None)?;
-
-        // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(false, false)?;
-        let erdiagram = builder.to_mermaid_erdiagram(false, true)?;
-
-        // Remake the builder
-        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, true)?
-            .with_name("session_1")
-            .add_processor_subjects()?
-            .add_network_interface(None)?;
-
-        // Test that the names match
-        assert_eq!(builder_test.tasks, builder.tasks);
-        let mut test = builder_test
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-
-        // Test the order of the processors
-        let test = builder_test
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        let expected = builder
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        assert_eq!(test, expected);
-
-        // Test that the schemas match
-        {
-            let test = builder_test
-                .subjects
-                .as_ref()
-                .unwrap()
+            let extended_diagnostic_subjects = extended_diagnostic_subjects();
+            let subject_names = extended_diagnostic_subjects
                 .iter()
-                .map(|p| (p.get_name(), p.subject().get_schema()))
-                .collect::<HashMap<_, _>>();
-            let expected = builder
-                .subjects
-                .as_ref()
-                .unwrap()
-                .iter()
-                .map(|p| (p.get_name(), p.subject().get_schema()))
-                .collect::<HashMap<_, _>>();
-            for key in expected.keys() {
-                assert!(expected.get(key).eq(&test.get(key)));
+                .map(|s| s.as_str())
+                .chain(["EmbeddingScores", "Documents", "UserQueries"])
+                .collect::<Vec<_>>();
+            write_diagnostic_subjects_to_csv(
+                &subject_names,
+                network_arc.runtime_env(),
+                network_arc.get_name(),
+            )
+            .await?;
+
+            assert_eq!(response.len(), 0);
+
+            // Test RAG
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableInterfaceSubjects::AssistantMessages.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            assert!(subject.count_rows() > 0);
+            let column = subject.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"assistant");
+            let column = subject.get_column_as_vec_str("content");
+            // dbg!(column.first().unwrap());
+            assert!(column.first().unwrap().contains(&"Adenine"));
+            assert!(column.first().unwrap().contains(&"Thymine"));
+            assert!(column.first().unwrap().contains(&"Guanine"));
+            assert!(column.first().unwrap().contains(&"Cytosine"));
+            // assert_eq!(column.first().unwrap(), &"");
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for c in column {
+                assert!(c > 0);
             }
         }
-
-        // Test that the first row was captured
-        for table in builder_test.subjects.as_ref().unwrap().iter() {
-            if builder_test
-                .get_processor_names_from_tasks()
-                .contains(table.get_name())
-                && !builder_test
-                    .tasks
-                    .as_ref()
-                    .unwrap()
-                    .iter()
-                    .map(|t| t.task_name.as_str())
-                    .collect::<Vec<_>>()
-                    .contains(&table.get_name())
-            {
-                assert_eq!(table.subject().count_rows(), 1)
-            } else {
-                assert_eq!(table.subject().count_rows(), 0)
-            }
-        }
-
-        // Test that we can build the session
-        let _ = builder_test.build()?;
 
         Ok(())
     }

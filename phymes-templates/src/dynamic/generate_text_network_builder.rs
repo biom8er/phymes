@@ -1256,9 +1256,6 @@ mod tests {
         )?
         .with_name(generate_text_network.network_name)
         .add_processor_subjects()?
-        .with_diagnostics(true)
-        .add_next_tasks()?
-        .add_next_supersteps()?
         .add_network_interface(None)?;
 
         // Make the flowchart and erdiagram
@@ -1321,9 +1318,6 @@ mod tests {
         )?
         .with_name(generate_text_network.network_name)
         .add_processor_subjects()?
-        .with_diagnostics(true)
-        .add_next_tasks()?
-        .add_next_supersteps()?
         .add_network_interface(None)?;
 
         // Make the flowchart and erdiagram
@@ -1333,7 +1327,7 @@ mod tests {
         // Remake the builder
         let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?
-            .with_name("session_1")
+            .with_name(generate_text_network.network_name)
             .add_processor_subjects()?
             .add_network_interface(None)?;
 
@@ -1389,9 +1383,6 @@ mod tests {
         )?
         .with_name(generate_text_network.network_name)
         .add_processor_subjects()?
-        .with_diagnostics(true)
-        .add_next_tasks()?
-        .add_next_supersteps()?
         .add_network_interface(None)?;
 
         // Make the flowchart and erdiagram
@@ -1401,7 +1392,7 @@ mod tests {
         // Remake the builder
         let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_subjects_from_mermaid_erdiagram(&erdiagram, true, true)?
-            .with_name("session_1")
+            .with_name(generate_text_network.network_name)
             .add_processor_subjects()?
             .add_network_interface(None)?;
 
