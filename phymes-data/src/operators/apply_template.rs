@@ -41,7 +41,7 @@ impl MappableTrait for ApplyTemplate {
 
 impl ToolTrait for ApplyTemplate {
     fn get_description(&self) -> String {
-        "Inject a table into a string template.".to_string()
+        "Inject a message into a string template.".to_string()
     }
     fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
@@ -49,7 +49,47 @@ impl ToolTrait for ApplyTemplate {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
+                description: Some("The name of the left hand side message used as input for the template".to_string()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "rhs_name".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The optional name of the right hand side message used to generate the template".to_string()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "doc_template".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The Jinja2 string template".to_string()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "doc_name".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The name of the resulting document".to_string()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "doc_input".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The name of the left hand side message".to_string()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "rhs_name".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The name of the left hand side message".to_string()),
                 ..Default::default()
             }),
         );
