@@ -1673,15 +1673,6 @@ dependencies = [
 
 [[package]]
 name = "cudarc"
-version = "0.9.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1871a911a2b9a3f66a285896a719159985683bf9903aa2cf89e0c9f53e14552"
-dependencies = [
- "half",
-]
-
-[[package]]
-name = "cudarc"
 version = "0.17.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0bf99ab37ee7072d64d906aa2dada9a3422f1d975cdf8c8055a573bc84897ed8"
@@ -5910,7 +5901,7 @@ dependencies = [
  "chrono",
  "clap",
  "criterion",
- "cudarc 0.9.15",
+ "cudarc 0.19.7",
  "diff-match-patch-rs",
  "flate2",
  "getrandom 0.2.17",
@@ -6153,7 +6144,7 @@ dependencies = [
  "candle-transformers",
  "chrono",
  "clap",
- "cudarc 0.9.15",
+ "cudarc 0.19.7",
  "flate2",
  "futures",
  "getrandom 0.2.17",
