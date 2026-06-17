@@ -18,14 +18,14 @@ use crate::{
 
 #[derive(Clone, Debug, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableJinja2Templates {
-    #[value(name = "MermaidERDiagramEntities")]
+    #[value(name = "MermaidERDiagramEntitiesTemplate")]
     MermaidERDiagramEntitiesTemplate,
-    #[value(name = "MermaidERDiagramRelations")]
+    #[value(name = "MermaidERDiagramRelationsTemplate")]
     MermaidERDiagramRelationsTemplate,
     #[default]
     #[value(name = "MermaidERDiagramTemplate")]
     MermaidERDiagramTemplate,
-    #[value(name = "ChunkDocuments")]
+    #[value(name = "MermaidERDiagramHTML")]
     MermaidERDiagramHTML,
     #[value(name = "MermaidFlowchartNodesTemplate")]
     MermaidFlowchartNodesTemplate,

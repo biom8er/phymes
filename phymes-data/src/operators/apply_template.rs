@@ -65,7 +65,9 @@ impl ToolTrait for ApplyTemplate {
             "doc_template".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The Jinja2 string template".to_string()),
+                description: Some(r#"The Jinja2 string template.
+Available mermaid diagram templates are `MermaidERDiagramEntitiesTemplate`, `MermaidERDiagramRelationsTemplate`, `MermaidERDiagramTemplate`, `MermaidERDiagramHTML`, `MermaidFlowchartNodesTemplate`, `MermaidFlowchartLinksTemplate`, `MermaidFlowchartTemplate`, `MermaidFlowchartHTML`, `MermaidGanttTemplate`, `MermaidGanttHTML`, `MermaidKanbanTemplate`, `MermaidKanbanHTML`, `MermaidSequenceDiagramParticipantsTemplate`, `MermaidSequenceDiagramMessagesTemplate`, `MermaidSequenceDiagramTemplate`, `MermaidSequenceDiagramHTML`, `MermaidXYChartTemplate`, and `MermaidXYChartHTML`.
+Available HTML templates are `MinimalHTMLBodyTemplate`, `MinimalHTMLBodyHTML`, `MinimalHTMLTableTemplate`, `MinimalHTMLTableHTML`, `MinimalHTMLListTemplate`, `MinimalHTMLListHTML`, `MinimalHTMLFiguresTemplate`, `MinimalHTMLFiguresHTML`, `MinimalHTMLCodeTemplate`, and `MinimalHTMLCodeHTML`."#.to_string()),
                 ..Default::default()
             }),
         );
@@ -81,7 +83,7 @@ impl ToolTrait for ApplyTemplate {
             "doc_input".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("A JSON Value representing the input for the template beyond the `table_expression` (often \"rows\") where the `table_expression` will be inserted into to complete the input for the template. Use `null` when there is no doc_input.".to_string()),
+                description: Some("A JSON Value representing additional named input for the template. Use `null` when there is no doc_input specified.".to_string()),
                 ..Default::default()
             }),
         );
@@ -162,10 +164,7 @@ impl DataOperatorTrait for ApplyTemplate {
         let doc_input = if let Some(doc_input) = config.doc_input.as_ref() {
             serde_json::from_str::<Value>(doc_input)?
         } else {
-            return Err(anyhow!(
-                "Missing `doc_input` for `{}`.",
-                Self::get_static_name()
-            ));
+            serde_json::Value::Null
         };
         let encoding = config.encoding.clone().ok_or(anyhow!(
             "Missing `encoding` for `{}`.",
