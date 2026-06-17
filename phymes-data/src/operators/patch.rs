@@ -50,7 +50,7 @@ impl MappableTrait for Patch {
 
 impl ToolTrait for Patch {
     fn get_description(&self) -> String {
-        "Inject a table into a string template.".to_string()
+        "Patch a left hand side Appache Arrow `RecordBatch`es message with diffs from a right hand side message.".to_string()
     }
     fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
@@ -58,17 +58,54 @@ impl ToolTrait for Patch {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
+                description: Some("The name of the left hand side message (Apache Arrow `RecordBatch`es)".to_string()),
                 ..Default::default()
             }),
         );
         properties.insert(
-            "op_kwargs".to_string(),
+            "rhs_name".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The name of the right hand side message (Apache Arrow `RecordBatch`es)".to_string()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "lhs_pk".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some(
-                    "template, table_expression, and input_template in the form of a JSON object"
-                        .to_string(),
+                    "The primary key column for the left hand side message".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "rhs_pk".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some(
+                    "The primary key column for the right hand side message".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "lhs_values".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    "The name of the columns to apply the patches to for the left hand side message".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "rhs_values".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    "The name of the columns to the patch (diff) for the right hand side message. The first name should be the `diff`. The second name should be the `operator`.".to_string(),
                 ),
                 ..Default::default()
             }),

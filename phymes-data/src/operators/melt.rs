@@ -43,7 +43,7 @@ impl MappableTrait for Melt {
 
 impl ToolTrait for Melt {
     fn get_description(&self) -> String {
-        "Unpivot (melt) from wide to long format".to_string()
+        "Unpivot (melt) Apache Arrow `RecordBatch`es from wide to long format where one or more columns are identifier variables (lhs_values) while all other columns, considered measured variables (pvt_columns), are unpivoted to the row axis, leaving just two non-identifier columns, `variable` and `value`".to_string()
     }
     fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
@@ -51,54 +51,26 @@ impl ToolTrait for Melt {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
+                description: Some("The name of the left hand side message (Apache Arrow `RecordBatch`es)".to_string()),
                 ..Default::default()
             }),
         );
         properties.insert(
-            "rhs_name".to_string(),
+            "lhs_values".to_string(),
             Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the right hand side table".to_string()),
-                ..Default::default()
-            }),
-        );
-        properties.insert(
-            "lhs_pk".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
+                schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "The primary key column identifier for the left hand side table".to_string(),
+                    "The column names of the identifier variables for the left hand side message".to_string(),
                 ),
                 ..Default::default()
             }),
         );
         properties.insert(
-            "rhs_pk".to_string(),
+            "pvt_columns".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some(
-                    "The primary key column identifier for the right hand side table".to_string(),
-                ),
-                ..Default::default()
-            }),
-        );
-        properties.insert(
-            "lhs_fk".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
-                description: Some(
-                    "The foriegn key column identifier for the left hand side table".to_string(),
-                ),
-                ..Default::default()
-            }),
-        );
-        properties.insert(
-            "rhs_fk".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
-                description: Some(
-                    "The foriegn key column identifier for the right hand side table".to_string(),
+                    "The column names of the measured variables for the left hand side message".to_string(),
                 ),
                 ..Default::default()
             }),
@@ -111,9 +83,8 @@ impl ToolTrait for Melt {
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
-                    "rhs_name".to_string(),
-                    "lhs_fk".to_string(),
-                    "rhs_fk".to_string(),
+                    "lhs_values".to_string(),
+                    "pvt_columns".to_string(),
                 ]),
             },
         };

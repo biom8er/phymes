@@ -37,7 +37,7 @@ impl MappableTrait for ExtractTabular {
 
 impl ToolTrait for ExtractTabular {
     fn get_description(&self) -> String {
-        "Extract tabular data in either CSV or JSON format from Bytes".to_string()
+        "Extract tabular data from Bytes".to_string()
     }
     fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
@@ -45,7 +45,7 @@ impl ToolTrait for ExtractTabular {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
+                description: Some("The name of the left hand side message (Apache Arrow `RecordBatch`es)".to_string()),
                 ..Default::default()
             }),
         );
@@ -54,16 +54,35 @@ impl ToolTrait for ExtractTabular {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "A list of value column identifiers for the left hand side table".to_string(),
+                    "The name of the column containing the tabular data as an array of bytes for the left hand side message".to_string(),
                 ),
                 ..Default::default()
             }),
         );
         properties.insert(
-            "op_kwargs".to_string(),
+            "encoding".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("DataSummaryFormat object as a String".to_string()),
+                description: Some("The tabular data encoding".to_string()),
+                enum_values: Some(["Deflate", "Zlib", "Gz", "None"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "format".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The tabular data format".to_string()),
+                enum_values: Some(["CsvDefault", "JsonDefault", "JsonSchema", "Ipc"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "schema".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The tabular data schema".to_string()),
+                enum_values: Some(["Messages", "Attachments", "ObjectStore"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
                 ..Default::default()
             }),
         );
@@ -76,7 +95,7 @@ impl ToolTrait for ExtractTabular {
                 required: Some(vec![
                     "lhs_name".to_string(),
                     "lhs_values".to_string(),
-                    "op_kwargs".to_string(),
+                    "encoding".to_string(), "format".to_string(), "schema".to_string(),
                 ]),
             },
         };

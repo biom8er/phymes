@@ -42,7 +42,7 @@ impl MappableTrait for ExtractXML {
 
 impl ToolTrait for ExtractXML {
     fn get_description(&self) -> String {
-        "Extract XML data in either XMl or OWL format from Bytes".to_string()
+        "Extract XML data (HTML, XML, OWL, etc.) from Bytes".to_string()
     }
     fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
@@ -50,7 +50,7 @@ impl ToolTrait for ExtractXML {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
+                description: Some("The name of the left hand side message (Apache Arrow `RecordBatch`es)".to_string()),
                 ..Default::default()
             }),
         );
@@ -59,16 +59,35 @@ impl ToolTrait for ExtractXML {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "A list of value column identifiers for the left hand side table".to_string(),
+                    "The name of the column containing the XML data as an array of bytes for the left hand side message".to_string(),
                 ),
                 ..Default::default()
             }),
         );
         properties.insert(
-            "op_kwargs".to_string(),
+            "format".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("DataSummaryFormat object as a String".to_string()),
+                description: Some("The XML data format".to_string()),
+                enum_values: Some(["Html", "Xml", "Owl"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "doc_filter".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The filtering method to apply to the XML document during extraction".to_string()),
+                enum_values: Some(["None", "Text", "Graphics", "Default"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "doc_extraction".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The extraction method to apply to the XML document during extraction".to_string()),
+                enum_values: Some(["Text", "TextEmbeddings", "Graphics", "ImageEmbeddings", "Default"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
                 ..Default::default()
             }),
         );
@@ -81,7 +100,9 @@ impl ToolTrait for ExtractXML {
                 required: Some(vec![
                     "lhs_name".to_string(),
                     "lhs_values".to_string(),
-                    "op_kwargs".to_string(),
+                    "format".to_string(),
+                    "doc_filter".to_string(),
+                    "doc_extraction".to_string(),
                 ]),
             },
         };

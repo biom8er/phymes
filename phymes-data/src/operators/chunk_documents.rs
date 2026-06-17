@@ -42,7 +42,7 @@ impl ToolTrait for ChunkDocuments {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
+                description: Some("The name of the left hand side message (Apache Arrow `RecordBatch`es)".to_string()),
                 ..Default::default()
             }),
         );
@@ -51,7 +51,7 @@ impl ToolTrait for ChunkDocuments {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some(
-                    "The primary key column identifier for the left hand side table".to_string(),
+                    "The primary key column name for the left hand side message".to_string(),
                 ),
                 ..Default::default()
             }),
@@ -61,8 +61,17 @@ impl ToolTrait for ChunkDocuments {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "A list of value column identifiers for the left hand side table".to_string(),
+                    "The name of the column containing the text to chunk for the left hand side message".to_string(),
                 ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "parser".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The parser used to chunk the document text at the token `TokenTextSplitter` or sentence `SentenceSplitter` level.".to_string()),
+                enum_values: Some(["TokenTextSplitter", "SentenceSplitter"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
                 ..Default::default()
             }),
         );
@@ -76,6 +85,7 @@ impl ToolTrait for ChunkDocuments {
                     "lhs_name".to_string(),
                     "lhs_pk".to_string(),
                     "lhs_values".to_string(),
+                    "parser".to_string(),
                 ]),
             },
         };

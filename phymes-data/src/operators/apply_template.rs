@@ -49,7 +49,7 @@ impl ToolTrait for ApplyTemplate {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side message used as input for the template".to_string()),
+                description: Some("The name of the left hand side message (Apache Arrow `RecordBatch`es)".to_string()),
                 ..Default::default()
             }),
         );
@@ -57,7 +57,7 @@ impl ToolTrait for ApplyTemplate {
             "rhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The optional name of the right hand side message used to generate the template".to_string()),
+                description: Some("The optional name of the right hand side message (Apache Arrow `RecordBatch`es) used to generate the template".to_string()),
                 ..Default::default()
             }),
         );
@@ -81,26 +81,34 @@ impl ToolTrait for ApplyTemplate {
             "doc_input".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side message".to_string()),
+                description: Some("A JSON Value representing the input for the template beyond the `table_expression` (often \"rows\") where the `table_expression` will be inserted into to complete the input for the template".to_string()),
                 ..Default::default()
             }),
         );
         properties.insert(
-            "rhs_name".to_string(),
+            "encoding".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side message".to_string()),
+                description: Some("The resulting document encoding".to_string()),
+                enum_values: Some(["Deflate", "Zlib", "Gz", "None"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
                 ..Default::default()
             }),
         );
         properties.insert(
-            "op_kwargs".to_string(),
+            "format".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some(
-                    "template, table_expression, and input_template in the form of a JSON object"
-                        .to_string(),
-                ),
+                description: Some("The resulting document format".to_string()),
+                enum_values: Some(["CsvDefault", "JsonDefault", "Html", "Txt", "None"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "schema".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The resulting document schema".to_string()),
+                enum_values: Some(["Messages", "Attachments", "ObjectStore"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
                 ..Default::default()
             }),
         );
@@ -110,7 +118,7 @@ impl ToolTrait for ApplyTemplate {
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
-                required: Some(vec!["lhs_name".to_string(), "op_kwargs".to_string()]),
+                required: Some(vec!["lhs_name".to_string(), "doc_template".to_string(), "doc_name".to_string(), "encoding".to_string(), "format".to_string(), "schema".to_string()]),
             },
         };
         let tool = Tool {
