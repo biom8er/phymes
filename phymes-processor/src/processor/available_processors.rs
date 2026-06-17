@@ -324,7 +324,7 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 agg_columns: Some(vec!["agg_columns".to_string()]),
                 agg_operators: Some(vec![DataAggregatorOperator::Sum]),
-                default_values: Some(vec!["0".to_string()]),
+                cast_templates: Some(vec!["0".to_string()]),
                 pvt_columns: Some(vec!["pvt_columns".to_string()]),
                 cpu: false,
                 operator: AvailableOperators::Pivot,

@@ -354,6 +354,7 @@ pub struct DataConfig {
 
     /// Vec of Slice of [String]s specifying the template to use when casting each lhs_value to a [String] representation
     ///   where the template is a simple minijinja template with a single expression for the column
+    ///   Alternatively, the default values to use when initializing a column or when missing values are encountered
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cast_templates: Option<Vec<String>>,
@@ -367,11 +368,6 @@ pub struct DataConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pvt_columns: Option<Vec<String>>,
-
-    /// Vec of [String]s for default values when missing values are encountered
-    #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub default_values: Option<Vec<String>>,
 
     /// Data distance operator to apply between vectors
     #[arg(long)]

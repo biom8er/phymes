@@ -50,7 +50,7 @@ impl MappableTrait for Patch {
 
 impl ToolTrait for Patch {
     fn get_description(&self) -> String {
-        "Patch a left hand side Appache Arrow `RecordBatch`es message with diffs from a right hand side message.".to_string()
+        "Patch a left hand side Appache Arrow `RecordBatch`es message with patches (diffs) from a right hand side message.".to_string()
     }
     fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
@@ -95,7 +95,7 @@ impl ToolTrait for Patch {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "The name of the columns to apply the patches to for the left hand side message".to_string(),
+                    "The name of the column(s) to apply the patches to for the left hand side message".to_string(),
                 ),
                 ..Default::default()
             }),
@@ -105,7 +105,17 @@ impl ToolTrait for Patch {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "The name of the columns to the patch (diff) for the right hand side message. The first name should be the `diff`. The second name should be the `operator`.".to_string(),
+                    "The name of the columns to the patch (diff) for the right hand side message. The first name should identify the column of `diff`s. The second name should identify the column of `operator`s to apply the patch.".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "doc_patch".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    "A JSON Value representing the patches to apply as an alternative to the rhs_name when no rhs_name is provided".to_string(),
                 ),
                 ..Default::default()
             }),
@@ -116,7 +126,14 @@ impl ToolTrait for Patch {
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
-                required: Some(vec!["lhs_name".to_string(), "op_kwargs".to_string()]),
+                required: Some(vec!["lhs_name".to_string(),
+                    "rhs_name".to_string(),
+                    "lhs_pk".to_string(),
+                    "rhs_pk".to_string(),
+                    "lhs_values".to_string(),
+                    "rhs_values".to_string(),
+                    "doc_patch".to_string()
+                ]),
             },
         };
         let tool = Tool {
