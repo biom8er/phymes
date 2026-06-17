@@ -69,7 +69,7 @@ impl MappableTrait for Select {
 
 impl ToolTrait for Select {
     fn get_description(&self) -> String {
-        "Cast specified columns using a specified cast operator and cast data type with optional column renaming and template injection."
+        "Select columns from Apache Arrow `RecordBatch`es with optional colum renaming, reordering, casting, template injection, and transformation by sequencing application of unary or binary column operators."
             .to_string()
     }
     fn to_json_tool_schema(&self) -> String {
@@ -78,7 +78,7 @@ impl ToolTrait for Select {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
+                description: Some("The name of the left hand side message (Apache Arrow `RecordBatch`es)".to_string()),
                 ..Default::default()
             }),
         );
@@ -87,7 +87,106 @@ impl ToolTrait for Select {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "A list of value column identifiers for the left hand side table".to_string(),
+                    "The name of the column(s) to select for the left hand side message".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "rhs_values".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    "The name of the column(s) to apply the binary transformation to.".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "as_columns".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    "The name given to the resulting column if different than lhs_values.".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "reorder_columns".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    "The order of columns as they will appear in the generated schema. Omitting column names that appear in the lhs_values will remove the column from the resulting schema.".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "column_operators".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    r#"The column initialization operators, unary operators to apply to the lhs_values, or the binary operators to apply to the lhs_values and rhs_values.
+Available initialization column operators are `Zeros`, `Ones`, `String`, and `Value`.
+Available unary column operators are `Len`, `Not`, `BroadcastMax`, `BroadcastMin`, `BroadcastMean`, `BroadcastVar`, `BroadcastCount`, `BroadcastList`, `BroadcastSet`, and`CumSum`.
+Available binary column operators are `And`, `AndNot`, `Or`, `XOr`, `LeftShift`, `RightShift`, `Max`, `Min`, `Add`, `Sub`, `Mult`, `Div`, `Rem`, `List`, `Set`, and `Concat`.
+Use `None` when no operator is specified."#.to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "cast_operators".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    r#"The cast operators to apply to the lhs_values.
+Available cast operators column operators are `Cast`, `BytesToString`, and `Hash`.
+Use `None` when no operator is specified."#.to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "cast_datatypes".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    r#"The data type to cast each lhs_values to.
+Available data types are `UInt8`, `UInt32`, `Int64`, `Float32`, `Float64`, and `Utf8`.
+Use `Utf8` when no cast data type is specified or needed."#.to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "cast_templates".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    r#"The template to use when casting each lhs_value to `Utf8` string type where the template is a simple minijinja template with a single expression for the column or the value to initialize the column to.
+Use an empty string `""` when no cast template is specified or needed."#.to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "rhs_values".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    "The name of the column(s) to apply the binary transformation to.".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "rhs_values".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    "The name of the column(s) to apply the binary transformation to.".to_string(),
                 ),
                 ..Default::default()
             }),
@@ -111,7 +210,6 @@ impl ToolTrait for Select {
                 required: Some(vec![
                     "lhs_name".to_string(),
                     "lhs_values".to_string(),
-                    "op_kwargs".to_string(),
                 ]),
             },
         };

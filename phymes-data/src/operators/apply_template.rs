@@ -81,7 +81,7 @@ impl ToolTrait for ApplyTemplate {
             "doc_input".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("A JSON Value representing the input for the template beyond the `table_expression` (often \"rows\") where the `table_expression` will be inserted into to complete the input for the template".to_string()),
+                description: Some("A JSON Value representing the input for the template beyond the `table_expression` (often \"rows\") where the `table_expression` will be inserted into to complete the input for the template. Use `null` when there is no doc_input.".to_string()),
                 ..Default::default()
             }),
         );

@@ -113,9 +113,9 @@ impl ToolTrait for Patch {
         properties.insert(
             "doc_patch".to_string(),
             Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::Array),
+                schema_type: Some(JSONSchemaType::String),
                 description: Some(
-                    "A JSON Value representing the patches to apply as an alternative to the rhs_name when no rhs_name is provided".to_string(),
+                    "A JSON Value representing the patches to apply as an alternative to the rhs_name when no rhs_name is provided. Use `null` when there is no doc_patch.".to_string(),
                 ),
                 ..Default::default()
             }),
