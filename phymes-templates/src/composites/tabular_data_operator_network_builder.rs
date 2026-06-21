@@ -28,12 +28,28 @@ pub struct TabularDataOperatorNetworkBuilder {
 
 impl Default for TabularDataOperatorNetworkBuilder {
     fn default() -> Self {
+        // --- Attachments ---
+        // UserPdf: see ExtractPdfNetwork
+        // UserXml: see ExtractOntologyNetwork
+        // UserCsv: here
+        // UserJson: here
+
         // --- Unary | Binary: Lhs ---
         // Extract Tabular data
+
+        // --- Binary: Rhs ---
+        // DM: could be omitted
+        // Extract Tabular data
+
+        // Input: All Unary | Binary operators output subjects
+        // Input: All ExtractTabular subjects `Bytes`
+
+        // --- Unary | Binary: Lhs ---
+        // DM: optional
         // Batch Coalesce
 
         // --- Binary: Rhs ---
-        // Extract Tabular data
+        // DM: optional
         // Batch Coalesce
 
         // --- Binary & Operator: Lhs & Rhs ---
@@ -44,8 +60,19 @@ impl Default for TabularDataOperatorNetworkBuilder {
         // ...
 
         // --- Unary & Operator: Lhs ---
+        // DM: optional
         // Limit
+
+        // --- Unary & Operator: Lhs ---
         // Pack Tabular
+        // Output: name of task as `Bytes`
+        // DM: need to drain input...
+
+        // --- Attachments ---
+        // AssistantHtml from ApplyTemplate
+        // AssistantScript from ApplyTemplate
+        // AssistantCsv from All Unary | Binary operators except ApplyTemplate
+        // AssistantJson from All Unary | Binary operators except ApplyTemplate
         
         // Extract PDF session
         let tabular_data_operator_network_builder = ExtractPDFNetworkBuilder::default().inner.take().unwrap();
