@@ -40,7 +40,7 @@ jobs:
     container:
       image: amd64/rust
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Setup Rust toolchain
         uses: ./.github/actions/rust-build-env
         with:
@@ -74,7 +74,7 @@ jobs:
       # see https://forums.developer.nvidia.com/t/nvidia-smi-command-not-found-in-docker-container/181131/4
       options: --gpus 0 -v /usr/lib/wsl/lib/:/usr/local/bin
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Setup Rust toolchain
         uses: ./.github/actions/cuda-build-env
         with:
@@ -112,7 +112,7 @@ jobs:
     container:
       image: amd64/rust
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Setup Rust toolchain
         uses: ./.github/actions/rust-build-env
         with:
@@ -203,7 +203,7 @@ jobs:
     container:
       image: amd64/rust
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Setup Rust toolchain
         uses: ./.github/actions/rust-build-env
         with:
