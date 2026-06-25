@@ -4,6 +4,7 @@ mod generate_code_network_builder;
 mod open_alex_network_builder;
 mod rag_pdf_network_builder;
 mod retrieve_text_pdf_network_builder;
+mod tabular_data_operator_network_builder;
 
 #[cfg(feature = "api")]
 pub use generate_code_network_builder::GenerateCodeNetworkBuilder;

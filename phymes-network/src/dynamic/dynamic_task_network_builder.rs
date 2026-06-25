@@ -35,6 +35,10 @@ impl<'a> std::fmt::Display for DynamicTaskNetworkNames<'a> {
 /// Template dynamic (or static) task creation network
 ///   that is intended to be extended with a base network to enable dynamic task invokation
 ///   or extended with a network of the same name to create a static processor pipeline
+/// 
+/// # Todo
+/// * refactor to implement `BuilderTrait`
+#[derive(Debug, Clone)]
 pub struct DynamicTaskNetworkBuilder {
     /// Network name
     pub network_name: String,
