@@ -294,7 +294,7 @@ pub fn extend_subject(
     Ok(stream)
 }
 
-/// Pipeline stream to `clear` the subject data from object storage (optionally limiting to jsut the last partition)
+/// Pipeline stream to `clear` the subject data from object storage (optionally limiting to just the last partition)
 pub fn clear_subject(
     runtime_env: &Arc<RuntimeEnv>,
     session_name: &str,

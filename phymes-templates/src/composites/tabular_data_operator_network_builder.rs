@@ -11,54 +11,6 @@ use phymes_subject::{BuildableTrait, BuilderTrait, SubjectBuilder, SubjectBuilde
 
 use crate::{EmbedTextNetworkBuilder, ExtractPDFNetworkBuilder, RetrieveTextNetworkBuilder};
 
-/// Template Dynamic or Static Processor Chain Network Builder
-#[derive(Debug, Clone)]
-pub struct ProcessorChainNetworkBuilder {
-    /// Network name
-    pub network_name: Option<String>,
-    /// Dynamic or Static individual processor tasks
-    pub tasks: Option<VecDeque<DynamicTaskNetworkBuilder>>,
-}
-
-impl Default for ProcessorChainNetworkBuilder {
-    fn default() -> Self {
-        Self { network_name: None, tasks: None }
-    }
-}
-
-impl ProcessorChainNetworkBuilder {
-    /// Add [DynamicTaskNetworkBuilder]s
-    pub fn with_tasks(mut self, tasks: &[DynamicTaskNetworkBuilder]) -> Self {
-        self.tasks = Some(tasks.into_iter().map(|t| t.clone()).collect::<VecDeque<_>>());
-        self
-    }
-}
-
-impl BuilderTrait for ProcessorChainNetworkBuilder {
-    type T = NetworkBuilder;
-
-    fn new() -> Self {
-        Self::default()
-    }
-
-    fn with_name(mut self, name: &str) -> Self {
-        self.network_name = Some(name.to_string());
-        self
-    }
-
-    fn build(mut self) -> anyhow::Result<Self::T> {
-        if let Some(mut tasks) = self.tasks.take() {
-            let mut network_builder = tasks.pop_front().unwrap().build_dynamic();
-            while let Some(task) = tasks.pop_front() {
-                network_builder = network_builder.extend(task.build_dynamic()).unwrap();
-            }
-            Ok(network_builder)
-        } else {
-            Err(anyhow!("Please add tasks before building the Processor Chain Network Builder."))
-        }
-    }
-}
-
 /// Tabular (columnar data) operator network
 /// 
 /// # Notes
@@ -68,7 +20,8 @@ impl BuilderTrait for ProcessorChainNetworkBuilder {
 /// * ApplyTemplate: as HTML or TXT (AssistantScript)
 /// 
 /// ## Operator support
-/// * Supports Unary and Binary data operator support
+/// * SELECT: Supports Unary and Binary data operator support with default HTML table view
+/// * DESCRIBE: 
 /// 
 /// ## Operator order
 /// ### Pre-operators (optional)
