@@ -3,11 +3,12 @@ use std::collections::VecDeque;
 use anyhow::anyhow;
 use arrow::datatypes::DataType;
 use phymes_data::{AvailableOperators, DataColumnOperator, DataConfig, DataStreamManager};
-use phymes_event::{Publication, Subscription};
+use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, NetworkBuilder, NetworkBuilderMermaidTrait, PipelineTaskNetworkBuilder};
 use phymes_processor::AvailableProcessors;
+use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat};
 use phymes_streams::LimitConfig;
-use phymes_subject::{BuildableTrait, BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
 
 use crate::{EmbedTextNetworkBuilder, ExtractPDFNetworkBuilder, RetrieveTextNetworkBuilder};
 
@@ -45,464 +46,275 @@ pub struct TabularDataOperatorNetworkBuilder {
     pub inner: Option<NetworkBuilder>,
 }
 
+impl TabularDataOperatorNetworkBuilder {
+    /// Helper to create a Dynamic Unary Operator Network
+    fn unary_network_builder(processor: AvailableProcessors, subject_name_lhs: &str) -> NetworkBuilder {
+        let task_name = processor.to_string();
+        let subject = AvailableSubjects::Bytes
+            .to_subject(
+                Some(&DynamicTaskNetworkNames::Processor(&task_name).to_string()),
+                None,
+            )
+            .unwrap();
+        let subject_processor = SubjectPlan::get_builder()
+            .with_subject(subject)
+            .build()
+            .unwrap();
+        let builder = DynamicTaskNetworkBuilder {
+            network_name: task_name,
+            is_dynamic: true,
+            processor: processor,
+            subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                subject_name: subject_name_lhs.to_string(),
+            },
+            publication: Publication::Replace {
+                subject_name: subject_name_lhs.to_string(),
+            },
+            subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
+            subject_processor,
+            ..Default::default()
+        };
+        builder.build_dynamic()
+    }
+
+    /// Helper to create a Dynamic Binary Operator Network
+    fn binary_network_builder(processor: AvailableProcessors, subject_name_lhs: &str, subject_name_rhs: &str) -> NetworkBuilder {
+        let task_name = processor.to_string();
+        let subject = AvailableSubjects::Bytes
+            .to_subject(
+                Some(&DynamicTaskNetworkNames::Processor(&task_name).to_string()),
+                None,
+            )
+            .unwrap();
+        let subject_processor = SubjectPlan::get_builder()
+            .with_subject(subject)
+            .build()
+            .unwrap();
+        let builder = DynamicTaskNetworkBuilder {
+            network_name: task_name,
+            is_dynamic: true,
+            processor: processor,
+            subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                subject_name: subject_name_lhs.to_string(),
+            },
+            subscription_rhs: Some(Subscription::AlwaysAllRecordBatches {
+                subject_name: subject_name_rhs.to_string(),
+            }),
+            publication: Publication::Replace {
+                subject_name: subject_name_lhs.to_string(),
+            },
+            subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
+            subject_processor,
+            ..Default::default()
+        };
+        builder.build_dynamic()
+    }
+}
+
 impl Default for TabularDataOperatorNetworkBuilder {
     fn default() -> Self {
+        // Constant names used throughout the network
+        let subject_name_lhs = "LHS";
+        let subject_name_rhs = "RHS";
+
         // --- Attachments ---
-        // UserPdf: see ExtractPdfNetwork
-        // UserXml: see ExtractOntologyNetwork
         // UserCsv: here
-        // UserJson: here
 
         // --- Unary | Binary: Lhs ---
         // Extract Tabular data
 
         // --- Binary: Rhs ---
         // Extract Tabular data
-        let mut tabular_data_operator_network_builder = NetworkBuilder::default();
+        let mut tabular_data_operator_network_builder = NetworkBuilder::default(); 
 
-        // Subscribe: All Unary | Binary operators output subjects `Bytes`
-        // Subscribe: All ExtractTabular out subjects `Bytes`
-        // Publish: `Bytes`
-        // UpdatePolicy: "Task config" 
+        // JOIN network builder
+        // Instantiate the LHS and RHS subjects ONLY once here
         let network_builder = {
-            let task_name = AvailableOperators::Filter.to_string();
-            let mut tasks = Vec::new();
-            // 1: Optional coalesce
-            {
-                let network_name = format!("{task_name}_coalesce");
-                let subject_name_lhs = "WorkTopicTable";
-                let config = LimitConfig {
-                    fetch: 512,
-                    ..Default::default()
-                };
-                let config_json = serde_json::to_vec(&config).unwrap();
-                let subject = SubjectBuilder::new()
-                    .with_name(&DynamicTaskNetworkNames::Processor(&network_name).to_string())
-                    .with_json(&config_json, 1)
-                    .unwrap()
-                    .build()
-                    .unwrap();
-                let subject_processor = SubjectPlan::get_builder()
-                    .with_subject(subject)
-                    .build()
-                    .unwrap();
-                let builder = DynamicTaskNetworkBuilder {
-                    network_name: task_name.to_string(),
-                    is_dynamic: false,
-                    processor: AvailableProcessors::CoalesceProcessor,
-                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: subject_name_lhs.to_string(),
-                    },
-                    publication: Publication::Replace {
-                        subject_name: DynamicTaskNetworkNames::Subject(&network_name).to_string(),
-                    },
-                    subject_processor,
-                    ..Default::default()
-                };
-                tasks.push(builder);
-            }
-            // 2: Operator
-            {
-                let config = DataConfig {
-                    lhs_name: Some(
-                        tasks
-                            .iter()
-                            .last()
-                            .unwrap()
-                            .publication
-                            .subject_name()
-                            .to_string(),
-                    ),
-                    lhs_values: Some(
-                        [
-                            "work_id",
-                            "topic_id",
-                            "is_primary",
-                            "score",
-                            "cmp_is_primary",
-                            "cmp_score",
-                        ]
-                        .into_iter()
-                        .map(|s| s.to_string())
-                        .collect::<Vec<_>>(),
-                    ),
-                    as_columns: Some(
-                        [
-                            "work_id",
-                            "topic_id",
-                            "is_primary",
-                            "score",
-                            "cmp_is_primary",
-                            "cmp_score",
-                        ]
-                        .into_iter()
-                        .map(|s| s.to_string())
-                        .collect::<Vec<_>>(),
-                    ),
-                    cast_templates: Some(
-                        ["", "", "", "", "1", "0.5"]
-                            .into_iter()
-                            .map(|s| s.to_string())
-                            .collect::<Vec<_>>(),
-                    ),
-                    cast_datatypes: Some(
-                        [
-                            DataType::Utf8,
-                            DataType::Utf8,
-                            DataType::UInt8,
-                            DataType::Float32,
-                            DataType::UInt8,
-                            DataType::Float32,
-                        ]
-                        .into_iter()
-                        .map(|s| s.to_string())
-                        .collect::<Vec<_>>(),
-                    ),
-                    column_operators: Some(
-                        [
-                            DataColumnOperator::None,
-                            DataColumnOperator::None,
-                            DataColumnOperator::None,
-                            DataColumnOperator::None,
-                            DataColumnOperator::Value,
-                            DataColumnOperator::Value,
-                        ]
-                        .into_iter()
-                        .collect::<Vec<_>>(),
-                    ),
-                    cpu: false,
-                    operator: AvailableOperators::Select,
-                    lhs_stream: DataStreamManager::Stream,
-                    ..Default::default()
-                };
-                let config_json = serde_json::to_vec(&config).unwrap();
-                let subject = SubjectBuilder::new()
-                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
-                    .with_json(&config_json, 1)
-                    .unwrap()
-                    .build()
-                    .unwrap();
-                let subject_processor = SubjectPlan::get_builder()
-                    .with_subject(subject)
-                    .build()
-                    .unwrap();
-                let builder = DynamicTaskNetworkBuilder {
-                    network_name: task_name.to_string(),
-                    is_dynamic: false,
-                    processor: AvailableProcessors::Select,
-                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks
-                            .iter()
-                            .last()
-                            .unwrap()
-                            .publication
-                            .subject_name()
-                            .to_string(),
-                    },
-                    publication: Publication::Replace {
-                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
-                    },
-                    subject_processor,
-                    ..Default::default()
-                };
-                tasks.push_back(builder);
-            }
-            // 3. Limit
-            {
-                let network_name = "filter_work_topic_table";
-                let config = DataConfig {
-                    lhs_name: Some(
-                        tasks
-                            .iter()
-                            .last()
-                            .unwrap()
-                            .publication
-                            .subject_name()
-                            .to_string(),
-                    ),
-                    lhs_values: Some(
-                        ["is_primary", "score"]
-                            .into_iter()
-                            .map(|s| s.to_string())
-                            .collect::<Vec<_>>(),
-                    ),
-                    cmp_columns: Some(
-                        ["cmp_is_primary", "cmp_score"]
-                            .into_iter()
-                            .map(|s| s.to_string())
-                            .collect::<Vec<_>>(),
-                    ),
-                    cmp_operators: Some(
-                        [
-                            DataComparatorOperator::Equals,
-                            DataComparatorOperator::GreaterThan,
-                        ]
-                        .into_iter()
-                        .collect::<Vec<_>>(),
-                    ),
-                    cmp_predicate: Some(DataComparatorPredicate::All),
-                    cpu: true,
-                    operator: AvailableOperators::Filter,
-                    lhs_stream: DataStreamManager::Stream,
-                    ..Default::default()
-                };
-                let config_json = serde_json::to_vec(&config).unwrap();
-                let subject = SubjectBuilder::new()
-                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
-                    .with_json(&config_json, 1)
-                    .unwrap()
-                    .build()
-                    .unwrap();
-                let subject_processor = SubjectPlan::get_builder()
-                    .with_subject(subject)
-                    .build()
-                    .unwrap();
-                let builder = DynamicTaskNetworkBuilder {
-                    network_name: task_name.to_string(),
-                    is_dynamic: false,
-                    processor: AvailableProcessors::Filter,
-                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks
-                            .iter()
-                            .last()
-                            .unwrap()
-                            .publication
-                            .subject_name()
-                            .to_string(),
-                    },
-                    publication: Publication::Replace {
-                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
-                    },
-                    subject_processor,
-                    ..Default::default()
-                };
-                tasks.push_back(builder);
-            }
-            {
-                let network_name = "select_work_topic_table";
-                let config = DataConfig {
-                    lhs_name: Some(
-                        tasks
-                            .iter()
-                            .last()
-                            .unwrap()
-                            .publication
-                            .subject_name()
-                            .to_string(),
-                    ),
-                    lhs_values: Some(
-                        ["work_id", "topic_id", "is_primary", "score"]
-                            .into_iter()
-                            .map(|s| s.to_string())
-                            .collect::<Vec<_>>(),
-                    ),
-                    cpu: false,
-                    operator: AvailableOperators::Select,
-                    lhs_stream: DataStreamManager::Stream,
-                    ..Default::default()
-                };
-                let config_json = serde_json::to_vec(&config).unwrap();
-                let subject = SubjectBuilder::new()
-                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
-                    .with_json(&config_json, 1)
-                    .unwrap()
-                    .build()
-                    .unwrap();
-                let subject_processor = SubjectPlan::get_builder()
-                    .with_subject(subject)
-                    .build()
-                    .unwrap();
-                let builder = DynamicTaskNetworkBuilder {
-                    network_name: task_name.to_string(),
-                    is_dynamic: false,
-                    processor: AvailableProcessors::Select,
-                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks
-                            .iter()
-                            .last()
-                            .unwrap()
-                            .publication
-                            .subject_name()
-                            .to_string(),
-                    },
-                    publication: Publication::Replace {
-                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
-                    },
-                    subject_processor,
-                    ..Default::default()
-                };
-                tasks.push_back(builder);
-            }
-            {
-                let network_name = "join_work_topic_table";
-                let subject_name_rhs = "open_alex_topics_s";
-                let config = DataConfig {
-                    lhs_name: Some(
-                        tasks
-                            .iter()
-                            .last()
-                            .unwrap()
-                            .publication
-                            .subject_name()
-                            .to_string(),
-                    ),
-                    rhs_name: Some(subject_name_rhs.to_string()),
-                    lhs_fk: Some("topic_id".to_string()),
-                    rhs_fk: Some("topic_id".to_string()),
-                    lhs_pk: Some("topic_id".to_string()),
-                    rhs_pk: Some("topic_id".to_string()),
-                    join_operators: Some(phymes_data::DataJoinOperator::Inner),
-                    cpu: true,
-                    operator: AvailableOperators::Join,
-                    lhs_stream: DataStreamManager::Stream,
-                    rhs_stream: Some(DataStreamManager::Accumulate),
-                    ..Default::default()
-                };
-                let config_json = serde_json::to_vec(&config).unwrap();
-                let subject = SubjectBuilder::new()
-                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
-                    .with_json(&config_json, 1)
-                    .unwrap()
-                    .build()
-                    .unwrap();
-                let subject_processor = SubjectPlan::get_builder()
-                    .with_subject(subject)
-                    .build()
-                    .unwrap();
-                let fields = Fields::from(vec![Field::new("topic_id", DataType::Utf8, false)]);
-                let schema = Arc::new(Schema::new(fields));
-                let subject = Subject::get_builder()
-                    .with_name(subject_name_rhs)
-                    .with_schema(schema)
-                    .with_record_batches(Vec::new())
-                    .unwrap()
-                    .build()
-                    .unwrap();
-                let subject_rhs = SubjectPlan::get_builder()
-                    .with_subject(subject)
-                    .build()
-                    .unwrap();
-                let fields = Fields::from(vec![
-                    Field::new("work_id", DataType::Utf8, false),
-                    Field::new("topic_id", DataType::Utf8, false),
-                    Field::new("is_primary", DataType::UInt8, false),
-                    Field::new("score", DataType::Float32, false),
-                ]);
-                let schema = Arc::new(Schema::new(fields));
-                let subject = Subject::get_builder()
-                    .with_name(
-                        DynamicTaskNetworkNames::Subject(network_name)
-                            .to_string()
-                            .as_str(),
-                    )
-                    .with_schema(schema)
-                    .with_record_batches(Vec::new())
-                    .unwrap()
-                    .build()
-                    .unwrap();
-                let subject_out = SubjectPlan::get_builder()
-                    .with_subject(subject)
-                    .build()
-                    .unwrap();
-                let builder = DynamicTaskNetworkBuilder {
-                    network_name: task_name.to_string(),
-                    is_dynamic: false,
-                    processor: AvailableProcessors::Join,
-                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
-                        subject_name: tasks
-                            .iter()
-                            .last()
-                            .unwrap()
-                            .publication
-                            .subject_name()
-                            .to_string(),
-                    },
-                    subscription_rhs: Some(Subscription::AlwaysAllRecordBatches {
-                        subject_name: subject_rhs.get_name().to_string(),
-                    }),
-                    publication: Publication::Replace {
-                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
-                    },
-                    subject_lhs: tasks.iter().last().unwrap().subject_out.clone(),
-                    subject_rhs: Some(subject_rhs),
-                    subject_out: Some(subject_out),
-                    subject_processor,
-                    ..Default::default()
-                };
-                tasks.push_back(builder);
-            }
-            PipelineTaskNetworkBuilder::new().with_name(task_name).with_tasks(&tasks).build()?;
+            let task_name = AvailableProcessors::Join.to_string();
+            let subject = AvailableSubjects::Bytes
+                .to_subject(
+                    Some(&DynamicTaskNetworkNames::Processor(&task_name).to_string()),
+                    None,
+                )
+                .unwrap();
+            let subject_processor = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let subject = AvailableSubjects::Bytes
+                .to_subject(Some(subject_name_lhs), None)
+                .unwrap();
+            let subject_lhs = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let subject = AvailableSubjects::Bytes
+                .to_subject(Some(subject_name_rhs), None)
+                .unwrap();
+            let subject_rhs = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let subject = AvailableSubjects::Bytes
+                .to_subject(Some(subject_name_lhs), None)
+                .unwrap();
+            let subject_out = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let builder = DynamicTaskNetworkBuilder {
+                network_name: task_name,
+                is_dynamic: true,
+                processor: AvailableProcessors::Join,
+                subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                    subject_name: subject_lhs.get_name().to_string(),
+                },
+                subscription_rhs: Some(Subscription::AlwaysAllRecordBatches {
+                    subject_name: subject_rhs.get_name().to_string(),
+                }),
+                publication: Publication::Replace {
+                    subject_name: subject_out.get_name().to_string(),
+                },
+                subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
+                subject_lhs: Some(subject_lhs),
+                subject_rhs: Some(subject_rhs),
+                subject_out: Some(subject_out),
+                subject_processor,
+                ..Default::default()
+            };
+            builder.build_dynamic()
         };
         let tabular_data_operator_network_builder = tabular_data_operator_network_builder.extend(network_builder).unwrap();
 
-        // --- Unary | Binary: Lhs ---
-        // DM: optional
-        // Batch Coalesce
-
-        // --- Binary: Rhs ---
-        // DM: optional
-        // Batch Coalesce
-
-        // --- Binary & Operator: Lhs & Rhs ---
-        // Data Operator(s)
-
-        // --- Unary & Operator: Lhs ---
-        // Data Operator(s)
-        // ...
-
-        // --- Unary & Operator: Lhs ---
-        // DM: optional
-        // Limit
-
-        // --- Unary & Operator: Lhs ---
-        // Pack Tabular
-        // Output: `Bytes`
-        // DM: "Replace" pattern
-
-        // --- Attachments ---
-        // AssistantHtml from ApplyTemplate
-        // AssistantScript from ApplyTemplate
-        // AssistantCsv from All Unary | Binary operators except ApplyTemplate
-        // AssistantJson from All Unary | Binary operators except ApplyTemplate
-        
-        // Extract PDF session
-        let tabular_data_operator_network_builder = ExtractPDFNetworkBuilder::default().inner.take().unwrap();
-
-        // Embed text session
-        let embed_text_network = EmbedTextNetworkBuilder::default();
-        let embed_text_network_builder = NetworkBuilder::from_mermaid_flowchart(
-            &embed_text_network.as_mermaid_flowchart(),
-            false,
-        )
-        .unwrap()
-        .with_subjects_from_mermaid_erdiagram(
-            &embed_text_network.as_mermaid_erdiagram(),
-            false,
-            true,
-        )
-        .unwrap()
-        .with_name(embed_text_network.network_name);
-        let tabular_data_operator_network_builder = tabular_data_operator_network_builder
-            .extend(embed_text_network_builder)
+        // All unary operators (except ApplyTemplate)
+        let unary_operators = [AvailableProcessors::Select,
+            AvailableProcessors::Sort,
+            AvailableProcessors::GroupBy,
+            AvailableProcessors::Filter,
+            AvailableProcessors::Pivot,
+            AvailableProcessors::Melt,
+            AvailableProcessors::LimitProcessor,
+            AvailableProcessors::CoalesceProcessor,
+        ];
+        let tabular_data_operator_network_builder = unary_operators
+            .into_iter()
+            .map(|op| Self::unary_network_builder(op, subject_name_lhs))
+            .reduce(|tabular_data_operator_network_builder, e| tabular_data_operator_network_builder.extend(e).unwrap())
             .unwrap();
 
-        // Retrieve text session
-        let retrieve_text_network = RetrieveTextNetworkBuilder::default();
-        let retrieve_text_builder = NetworkBuilder::from_mermaid_flowchart(
-            retrieve_text_network.as_mermaid_flowchart(),
-            false,
-        )
-        .unwrap()
-        .with_subjects_from_mermaid_erdiagram(
-            retrieve_text_network.as_mermaid_erdiagram(),
-            false,
-            true,
-        )
-        .unwrap()
-        .with_name(retrieve_text_network.network_name);
-        let tabular_data_operator_network_builder = tabular_data_operator_network_builder
-            .extend(retrieve_text_builder)
+        // All binary operators (except Join, which was initialized earlier)
+        let binary_operators = [AvailableProcessors::Patch,
+            AvailableProcessors::Diff,
+            AvailableProcessors::AggregatorProcessor,
+        ];
+        let tabular_data_operator_network_builder = binary_operators
+            .into_iter()
+            .map(|op| Self::binary_network_builder(op, subject_name_lhs, subject_name_rhs))
+            .reduce(|tabular_data_operator_network_builder, e| tabular_data_operator_network_builder.extend(e).unwrap())
             .unwrap();
+
+        // ApplyTemplate
+        let network_builder = {
+            let task_name = AvailableProcessors::ApplyTemplate.to_string();
+            let subject = AvailableSubjects::Bytes
+                .to_subject(
+                    Some(&DynamicTaskNetworkNames::Processor(&task_name).to_string()),
+                    None,
+                )
+                .unwrap();
+            let subject_processor = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let subject = AvailableSubjects::Bytes
+                .to_subject(Some(subject_name_lhs), None)
+                .unwrap();
+            let subject_lhs = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let subject = AvailableSubjects::Bytes
+                .to_subject(Some(subject_name_rhs), None)
+                .unwrap();
+            let subject_rhs = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let subject = AvailableInterfaceSubjects::UserScript
+                .to_subject(None, None)
+                .unwrap();
+            let subject_out = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let builder = DynamicTaskNetworkBuilder {
+                network_name: task_name,
+                is_dynamic: true,
+                processor: AvailableProcessors::ApplyTemplate,
+                subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                    subject_name: subject_lhs.get_name().to_string(),
+                },
+                publication: Publication::Replace {
+                    subject_name: subject_out.get_name().to_string(),
+                },
+                subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
+                subject_lhs: Some(subject_lhs),
+                subject_out: Some(subject_out),
+                subject_processor,
+                ..Default::default()
+            };
+            builder.build_dynamic()
+        };
+        let tabular_data_operator_network_builder = tabular_data_operator_network_builder.extend(network_builder).unwrap();
+
+        // CSV attachment for each operator step
+        let network_builder = {
+            let network_name = &AvailableProcessors::PackTabular.to_string();
+            let config = DataConfig {
+                lhs_name: Some(subject_name_lhs.to_string()),
+                encoding: Some(DataEncoding::default()),
+                format: Some(DataFormat::None),
+                doc_name: Some("result".to_string()),
+                schema: Some(AvailableSubjects::default()),
+                cpu: false,
+                operator: AvailableOperators::PackTabular,
+                lhs_stream: DataStreamManager::Accumulate,
+                ..Default::default()
+            };
+            let config_json = serde_json::to_vec(&config).unwrap();
+            let subject = SubjectBuilder::new()
+                .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                .with_json(&config_json, 1)
+                .unwrap()
+                .build()
+                .unwrap();
+            let subject_processor = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let subject = AvailableInterfaceSubjects::AssistantScript
+                .to_subject(None, None)
+                .unwrap();
+            let subject_out = SubjectPlan::get_builder()
+                .with_subject(subject)
+                .build()
+                .unwrap();
+            let builder = DynamicTaskNetworkBuilder {
+                network_name: network_name.to_string(),
+                is_dynamic: false,
+                processor: AvailableProcessors::PackTabular,
+                subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                    subject_name: subject_name_lhs.to_string(),
+                },
+                publication: Publication::Replace {
+                    subject_name: subject_out.get_name().to_string(),
+                },
+                subject_out: Some(subject_out),
+                subject_processor,
+                ..Default::default()
+            };
+            builder.build_dynamic()
+        };
 
         TabularDataOperatorNetworkBuilder {
             inner: Some(tabular_data_operator_network_builder.with_name("tabular_data_operator_network")),
