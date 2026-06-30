@@ -6,7 +6,7 @@ use crate::DynamicNetworkBuilderTrait;
 /// - Specifying the schema for each subject is not needed because
 ///   `extend`ing with this session will skip duplicate subjects
 ///   that are already defined in the source session
-/// - Any limits to the row counts should be taken care of prior
+/// - Any limits to the row counts prior to "summarization" should be taken care of before calling the network
 pub struct TaskResponseNetworkBuilder<'a> {
     /// Session
     pub network_name: &'a str,
@@ -30,6 +30,9 @@ impl<'a> DynamicNetworkBuilderTrait for TaskResponseNetworkBuilder<'a> {
 }
 
 impl<'a> TaskResponseNetworkBuilder<'a> {
+    pub fn new(network_name:&'a str, subject_names: &'a [&'a str]) -> Self {
+        Self { network_name, subject_names }
+    }
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
         let subgraphs = self
@@ -134,8 +137,6 @@ mod tests {
     async fn test_task_response_network() -> Result<()> {
         // Initialize the session
         let task_response_network = TaskResponseNetworkBuilder::default();
-        dbg!(&task_response_network.as_mermaid_flowchart());
-        dbg!(&task_response_network.as_mermaid_erdiagram());
         let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
             &task_response_network.as_mermaid_flowchart(),
             false,
