@@ -4,7 +4,7 @@ use anyhow::anyhow;
 use arrow::datatypes::DataType;
 use phymes_data::{AvailableOperators, DataColumnOperator, DataConfig, DataStreamManager};
 use phymes_event::{Publication, Subscription};
-use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, NetworkBuilder, NetworkBuilderMermaidTrait};
+use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, NetworkBuilder, NetworkBuilderMermaidTrait, PipelineTaskNetworkBuilder};
 use phymes_processor::AvailableProcessors;
 use phymes_streams::LimitConfig;
 use phymes_subject::{BuildableTrait, BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
@@ -14,6 +14,12 @@ use crate::{EmbedTextNetworkBuilder, ExtractPDFNetworkBuilder, RetrieveTextNetwo
 /// Tabular (columnar data) operator network
 /// 
 /// # Notes
+/// * Pre-specified operators than can be called sequentially to build a full SQL-like SELECT command
+/// * Results can be exported to CSV, JSON, HTML, TXT, etc.
+/// * Function-calling LLM "assist" for operator calling hints
+/// * View of all operators calls sorted by timestamp
+/// 
+/// # Notes
 /// ## Interface tasks
 /// * ExtractTabular: from CSV (UserCsv) or JSON (UserJson)
 /// * PackTabular: as CSV (AssistantCsv) or JSON (AssistantJson)
@@ -21,7 +27,7 @@ use crate::{EmbedTextNetworkBuilder, ExtractPDFNetworkBuilder, RetrieveTextNetwo
 /// 
 /// ## Operator support
 /// * SELECT: Supports Unary and Binary data operator support with default HTML table view
-/// * DESCRIBE: 
+/// * DESCRIBE: SubjectsNumRows, SubjectsSchema, TasksProcessorsSubscriptionsPublications
 /// 
 /// ## Operator order
 /// ### Pre-operators (optional)
@@ -52,14 +58,18 @@ impl Default for TabularDataOperatorNetworkBuilder {
 
         // --- Binary: Rhs ---
         // Extract Tabular data
+        let mut tabular_data_operator_network_builder = NetworkBuilder::default();
 
-        // Input: All Unary | Binary operators output subjects
-        // Input: All ExtractTabular subjects `Bytes`
-        let tabular_data_operator_network_builder = {
-            let task_name = "tabular_data_operator";
-            let mut tasks = VecDeque::new();
+        // Subscribe: All Unary | Binary operators output subjects `Bytes`
+        // Subscribe: All ExtractTabular out subjects `Bytes`
+        // Publish: `Bytes`
+        // UpdatePolicy: "Task config" 
+        let network_builder = {
+            let task_name = AvailableOperators::Filter.to_string();
+            let mut tasks = Vec::new();
+            // 1: Optional coalesce
             {
-                let network_name = "coalesce_work_topic_table";
+                let network_name = format!("{task_name}_coalesce");
                 let subject_name_lhs = "WorkTopicTable";
                 let config = LimitConfig {
                     fetch: 512,
@@ -67,7 +77,7 @@ impl Default for TabularDataOperatorNetworkBuilder {
                 };
                 let config_json = serde_json::to_vec(&config).unwrap();
                 let subject = SubjectBuilder::new()
-                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_name(&DynamicTaskNetworkNames::Processor(&network_name).to_string())
                     .with_json(&config_json, 1)
                     .unwrap()
                     .build()
@@ -80,19 +90,19 @@ impl Default for TabularDataOperatorNetworkBuilder {
                     network_name: task_name.to_string(),
                     is_dynamic: false,
                     processor: AvailableProcessors::CoalesceProcessor,
-                    subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: subject_name_lhs.to_string(),
                     },
                     publication: Publication::Replace {
-                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
+                        subject_name: DynamicTaskNetworkNames::Subject(&network_name).to_string(),
                     },
                     subject_processor,
                     ..Default::default()
                 };
-                tasks.push_back(builder);
+                tasks.push(builder);
             }
+            // 2: Operator
             {
-                let network_name = "cmp_work_topic_table";
                 let config = DataConfig {
                     lhs_name: Some(
                         tasks
@@ -197,6 +207,7 @@ impl Default for TabularDataOperatorNetworkBuilder {
                 };
                 tasks.push_back(builder);
             }
+            // 3. Limit
             {
                 let network_name = "filter_work_topic_table";
                 let config = DataConfig {
@@ -420,13 +431,8 @@ impl Default for TabularDataOperatorNetworkBuilder {
                 };
                 tasks.push_back(builder);
             }
-            let mut network_builder = tasks.pop_front().unwrap().build_dynamic();
-            while let Some(task) = tasks.pop_front() {
-                network_builder = network_builder.extend(task.build_dynamic()).unwrap();
-            }
-            network_builder
-        }; 
-        let network_builder = { };
+            PipelineTaskNetworkBuilder::new().with_name(task_name).with_tasks(&tasks).build()?;
+        };
         let tabular_data_operator_network_builder = tabular_data_operator_network_builder.extend(network_builder).unwrap();
 
         // --- Unary | Binary: Lhs ---
@@ -450,8 +456,8 @@ impl Default for TabularDataOperatorNetworkBuilder {
 
         // --- Unary & Operator: Lhs ---
         // Pack Tabular
-        // Output: name of task as `Bytes`
-        // DM: need to drain input...
+        // Output: `Bytes`
+        // DM: "Replace" pattern
 
         // --- Attachments ---
         // AssistantHtml from ApplyTemplate

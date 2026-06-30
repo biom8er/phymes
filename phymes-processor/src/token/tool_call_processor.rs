@@ -501,4 +501,200 @@ mod tests {
 
         Ok(())
     }
+
+    #[tokio::test]
+    async fn test_tool_call_pipeline_from_struct() -> Result<()> {
+        let name = "tool_call_pipeline";
+
+        // Make the diagnostics and runtime env
+        let span = SpanBuilder::default().with_span(name).build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+        let runtime_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
+
+        // Make the tool_call_processor config
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let tool_call_processor_config = ToolCallConfig {
+            subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+            subject_names: vec!["processor_1".to_string()],
+            subscription_table_names: vec!["lhs_name".to_string(), "rhs_name".to_string()],
+            ..Default::default()
+        };
+        let tool_call_processor_config_json = serde_json::to_vec(&tool_call_processor_config)?;
+        let tool_call_processor_config_table = SubjectBuilder::new()
+            .with_name(name)
+            .with_json(&tool_call_processor_config_json, 1)?
+            .build()?;
+        let _ = message.insert(
+            tool_call_processor_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(tool_call_processor_config_table.get_name())
+                .with_publisher("")
+                .with_subject(tool_call_processor_config_table.get_name())
+                .with_update(&Publication::None)
+                .with_message(tool_call_processor_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Make the dummy processor configs
+        let processor_1_config = DataConfig {
+            cpu: false,
+            lhs_name: Some("state_1".to_string()),
+            ..Default::default()
+        };
+        let processor_1_config_json = serde_json::to_vec(&processor_1_config)?;
+        let processor_1_config_table = SubjectBuilder::new()
+            .with_name("processor_1")
+            .with_json(&processor_1_config_json, 1)?
+            .build()?;
+        let _ = message.insert(
+            processor_1_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(processor_1_config_table.get_name())
+                .with_publisher("")
+                .with_subject(processor_1_config_table.get_name())
+                .with_update(&Publication::None)
+                .with_message(processor_1_config_table.to_record_batch_stream())
+                .build()?,
+        );
+        let processor_2_config = DataConfig {
+            cpu: false,
+            lhs_name: Some("state_1".to_string()),
+            rhs_name: Some("state_2".to_string()),
+            ..Default::default()
+        };
+        let processor_2_config_json = serde_json::to_vec(&processor_2_config)?;
+        let processor_2_config_table = SubjectBuilder::new()
+            .with_name("processor_2")
+            .with_json(&processor_2_config_json, 1)?
+            .build()?;
+        let _ = message.insert(
+            processor_2_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(processor_2_config_table.get_name())
+                .with_publisher("")
+                .with_subject(processor_2_config_table.get_name())
+                .with_update(&Publication::None)
+                .with_message(processor_2_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Make the mock subject_name table
+        let task_names = vec!["task_1", "task_1", "task_3"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let processor_names = vec!["processor_1", "processor_2", "processor_3"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let processor_types = vec!["GroupBy", "Join", "Filter"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let subscription_names = vec![
+            vec!["AlwaysAllRecordBatches", "AlwaysLastRecordBatch"],
+            vec!["OnUpdateAllRecordBatches", "AlwaysLastRecordBatch"],
+            vec!["OnUpdateAllRecordBatches", "AlwaysLastRecordBatch"],
+        ]
+        .into_iter()
+        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+        let subscription_table_names = vec![
+            vec!["state_1", "processor_1"],
+            vec!["state_2", "processor_2"],
+            vec!["state_3", "processor_3"],
+        ]
+        .into_iter()
+        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+        let publication_names = vec![vec!["Replace"], vec!["Replace"], vec!["Replace"]]
+            .into_iter()
+            .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        let publication_table_names = vec![vec!["state_1"], vec!["state_2"], vec!["state_3"]]
+            .into_iter()
+            .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        let session_names = task_names
+            .iter()
+            .map(|_| "session_1".to_string())
+            .collect::<Vec<_>>();
+        let batch = create_session_tasks_subscribe_publish_batch(
+            session_names,
+            task_names,
+            processor_names,
+            processor_types,
+            subscription_names,
+            subscription_table_names,
+            publication_names,
+            publication_table_names,
+        )?;
+        let table = Subject::get_builder()
+            .with_name(
+                AvailableSubjects::SessionTasksSubscribePublish
+                    .to_string()
+                    .as_str(),
+            )
+            .with_record_batches(vec![batch])?
+            .build()?;
+        let _ = message.insert(
+            table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(table.get_name())
+                .with_publisher("")
+                .with_subject(table.get_name())
+                .with_update(&Publication::None)
+                .with_message(table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Create the processor and run
+        let processor = ToolCallProcessor::new(name, ToolCallProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), runtime_env)?;
+
+        // Wrap the results in a table
+        let table_reading = SubjectBuilder::new_from_sendable_record_batch_stream(
+            stream.remove(name).unwrap().message.take().unwrap(),
+        )
+        .await?
+        .with_name("")
+        .build()?;
+        let column = table_reading.get_column_as_vec_str("session_name");
+        assert_eq!(column, ["session_1"]);
+        let column = table_reading.get_column_as_vec_str("processor_name");
+        assert_eq!(column, ["processor_1"]);
+        let column = table_reading.get_column_as_vec_str("processor_type");
+        assert_eq!(column, ["GroupBy"]);
+        let column =
+            table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
+        let flattened = column.into_iter().flatten().collect::<Vec<_>>();
+        assert_eq!(
+            flattened,
+            [
+                "AlwaysAllRecordBatches",
+                "AlwaysLastRecordBatch",
+            ]
+        );
+        let column = table_reading
+            .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
+        let flattened = column.into_iter().flatten().collect::<Vec<_>>();
+        assert_eq!(
+            flattened,
+            [
+                "state_1",
+                "processor_1",
+            ]
+        );
+        let column =
+            table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
+        let flattened = column.into_iter().flatten().collect::<Vec<_>>();
+        assert_eq!(flattened, ["Replace"]);
+        let column = table_reading
+            .get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
+        let flattened = column.into_iter().flatten().collect::<Vec<_>>();
+        assert_eq!(flattened, ["state_1"]);
+
+        Ok(())
+    }
 }
