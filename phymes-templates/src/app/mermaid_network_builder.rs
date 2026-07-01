@@ -4,7 +4,7 @@ use anyhow::Result;
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
-use phymes_schemas::{AvailableSubjects, create_session_mermaid_batch};
+use phymes_schemas::{AvailableSubjects, create_network_mermaid_batch};
 use phymes_subject::{
     BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectPlan,
     SubjectPlanBuilderTrait,
@@ -43,7 +43,7 @@ pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Sub
         AvailableSubjects::SessionMermaid.to_string()
     };
     let batch =
-        create_session_mermaid_batch(network_names, flowchart_diagram, er_diagram, timestamp)?;
+        create_network_mermaid_batch(network_names, flowchart_diagram, er_diagram, timestamp)?;
     Subject::get_builder()
         .with_name(subject_name.as_str())
         .with_record_batches(vec![batch])?

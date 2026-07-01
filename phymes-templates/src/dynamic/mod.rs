@@ -1,3 +1,4 @@
+mod diff_workspace_network_builder;
 #[cfg(feature = "api")]
 mod execute_workspace_network_builder;
 mod generate_text_network_builder;
@@ -9,6 +10,7 @@ mod get_object_network_builder;
 mod get_pdf_network_builder;
 mod patch_workspace_network_builder;
 
+pub use diff_workspace_network_builder::{DiffWorkspaceNetworkBuilderDynamicWOSubject, DiffWorkspaceNetworkBuilderStaticWSubject};
 #[cfg(feature = "api")]
 pub use execute_workspace_network_builder::ExecuteWorkspaceNetwork;
 pub use generate_text_network_builder::GenerateTextNetworkBuilder;

@@ -1107,7 +1107,7 @@ pub use todo::Todo"#,
             .zip(operations)
             .map(|((filename, diff), operator)| {
                 let patch = WorkspacePatchSubject {
-                    filename: filename.to_string(),
+                    path: filename.to_string(),
                     diff: diff.to_string(),
                     operator,
                 };

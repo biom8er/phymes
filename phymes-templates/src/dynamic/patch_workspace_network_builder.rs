@@ -27,7 +27,7 @@ impl Default for PatchWorkspaceNetworkBuilderStaticWSubject {
             lhs_values: Some(vec!["content".to_string()]),
             rhs_values: Some(vec!["diff".to_string(), "operator".to_string()]),
             lhs_pk: Some("path".to_string()),
-            rhs_pk: Some("filename".to_string()),
+            rhs_pk: Some("path".to_string()),
             doc_patch: Some("[\"\"]".to_string()), // DM: equivalent of serde_json::to_string(&[serde_json::to_value("")?])?;
             cpu: false,
             operator: AvailableOperators::Patch,
@@ -159,7 +159,7 @@ pub use todo::Todo"#,
             .unwrap();
         let subject = {
             // Create the mock patches
-            let filename = [
+            let path = [
                 "/home/sandbox/src/main.rs",
                 "/home/sandbox/src/extras/mod.rs",
                 "/home/sandbox/src/extras/other.rs",
@@ -180,7 +180,7 @@ pub use todo::Todo"#,
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-            let batch = create_workspace_patch_batch(filename, content, operator).unwrap();
+            let batch = create_workspace_patch_batch(path, content, operator).unwrap();
             AvailableSubjects::WorkspacePatch
                 .to_subject(None, Some(vec![batch]))
                 .unwrap()
@@ -347,7 +347,7 @@ mod tests {
                 lhs_values: Some(vec!["content".to_string()]),
                 rhs_values: Some(vec!["diff".to_string(), "operator".to_string()]),
                 lhs_pk: Some("path".to_string()),
-                rhs_pk: Some("filename".to_string()),
+                rhs_pk: Some("path".to_string()),
                 doc_patch: Some("[\"\"]".to_string()), // DM: equivalent of serde_json::to_string(&[serde_json::to_value("")?])?;
                 cpu: false,
                 operator: AvailableOperators::Patch,
@@ -494,7 +494,7 @@ pub use todo::Todo"#,
             );
 
             // Create the mock patches
-            let filename = [
+            let path = [
                 "/home/sandbox/src/main.rs",
                 "/home/sandbox/src/extras/mod.rs",
                 "/home/sandbox/src/extras/other.rs",
@@ -515,13 +515,13 @@ pub use todo::Todo"#,
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-            let values = filename
+            let values = path
                 .into_iter()
                 .zip(content)
                 .zip(operator)
-                .map(|((filename, diff), operator)| {
+                .map(|((path, diff), operator)| {
                     let patch = WorkspacePatchSubject {
-                        filename,
+                        path,
                         diff,
                         operator,
                     };
@@ -536,7 +536,7 @@ pub use todo::Todo"#,
                 lhs_values: Some(vec!["content".to_string()]),
                 rhs_values: Some(vec!["diff".to_string(), "operator".to_string()]),
                 lhs_pk: Some("path".to_string()),
-                rhs_pk: Some("filename".to_string()),
+                rhs_pk: Some("path".to_string()),
                 doc_patch: Some(doc_patch),
                 cpu: false,
                 operator: AvailableOperators::Patch,
@@ -683,7 +683,7 @@ pub use todo::Todo"#,
             );
 
             // Create the mock patches
-            let filename = [
+            let path = [
                 "/home/sandbox/src/main.rs",
                 "/home/sandbox/src/extras/mod.rs",
                 "/home/sandbox/src/extras/other.rs",
@@ -704,7 +704,7 @@ pub use todo::Todo"#,
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-            let batch = create_workspace_patch_batch(filename, content, operator)?;
+            let batch = create_workspace_patch_batch(path, content, operator)?;
             let table = AvailableSubjects::WorkspacePatch.to_subject(None, Some(vec![batch]))?;
             let _ = message_map.insert(
                 table.get_name().to_string(),

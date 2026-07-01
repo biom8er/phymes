@@ -7,7 +7,7 @@ use arrow::{
 };
 use serde::{Deserialize, Serialize};
 
-pub(crate) fn create_session_mermaid_fields() -> Fields {
+pub(crate) fn create_network_mermaid_fields() -> Fields {
     let network_name = Field::new("network_name", DataType::Utf8, false);
     let flowchart_diagram = Field::new("flowchart_diagram", DataType::Utf8, false);
     let er_diagram = Field::new("er_diagram", DataType::Utf8, false);
@@ -16,14 +16,14 @@ pub(crate) fn create_session_mermaid_fields() -> Fields {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct SessionMermaidSubject {
+pub struct NetworkMermaidSubject {
     pub network_name: String,
     pub flowchart_diagram: String,
     pub er_diagram: String,
     pub timestamp: i64,
 }
 
-pub fn create_session_mermaid_batch(
+pub fn create_network_mermaid_batch(
     network_name: Vec<String>,
     flowchart_diagram: Vec<String>,
     er_diagram: Vec<String>,

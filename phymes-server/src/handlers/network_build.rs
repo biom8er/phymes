@@ -9,7 +9,7 @@ use axum::{
 
 // General imports
 use anyhow::Result;
-use phymes_message::{MessageTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait};
+use phymes_message::{MessageTrait, NetworkInterfaceMessage, NetworkInterfaceMessageTrait};
 use phymes_schemas::{
     AvailableSchemaTrait, AvailableSubjects, CsvFormat, DataFormat,
     JoinUserInboxNetworksMermaidDiagrams,
@@ -28,7 +28,7 @@ pub async fn network_build(
         Vec<JoinUserInboxNetworksMermaidDiagrams>,
     )>,
     State((users, mut state)): State<(UserState, ServerState)>,
-    payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
+    payload: Result<Json<NetworkInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
     match payload {

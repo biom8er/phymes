@@ -1,79 +1,11 @@
-use phymes_data::{DataConfigTrait, ToolTrait};
+use phymes_data::ToolTrait;
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
-use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes, NetworkBuilder, NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait};
-use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
+use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkTypes, NetworkBuilder, NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait};
+use phymes_processor::AvailableProcessors;
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, create_tools_record_batch};
-use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
-use phymes_task::TaskPlan;
+use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, SubjectPlan, SubjectPlanBuilderTrait};
 
-use crate::GenerateTextNetworkBuilder;
-
-struct AttachmentsNetworkBuilder<'a> {
-    pub network_name: &'a str,
-    pub subject_names: &'a [&'a str],
-}
-
-impl<'a> AttachmentsNetworkBuilder<'a> {
-    pub fn new(network_name: &'a str, subject_names: &'a [&'a str]) -> Self {
-        Self { network_name, subject_names }
-    }
-}
-
-impl<'a> NetworkBuilderCustomTrait for AttachmentsNetworkBuilder<'a> {    
-    fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
-        let tasks = vec![TaskPlan {
-            task_name: DynamicTaskNetworkNames::Task(&self.network_name).to_string(),
-            processor_names: vec![DynamicTaskNetworkNames::Processor(&AvailableProcessors::AggregatorProcessor.to_string()).to_string()],
-        }];
-
-        Some(tasks)
-    }
-
-    fn make_processors(&self) -> Option<Vec<ProcessorPlan>> {
-        let subscriptions = self.subject_names.into_iter()
-            .map(|s| Subscription::OnUpdateAllRecordBatches {
-                subject_name: s.to_string(),
-            })
-            .chain([Subscription::AlwaysLastRecordBatch {
-                subject_name: DynamicTaskNetworkNames::Processor(&AvailableProcessors::AggregatorProcessor.to_string()).to_string(),
-            }])
-            .collect::<Vec<_>>();
-        let publications = [Publication::Extend { subject_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string() }];
-        let processor = AvailableProcessors::AggregatorProcessor.build_arc(&DynamicTaskNetworkNames::Processor(&AvailableProcessors::AggregatorProcessor.to_string()).to_string());
-        let subscribe_policy = AvailableSubscribeEvents::AnySubjectNameSubscribe.build();
-
-        // Build the processor
-        let processors = vec![
-            ProcessorPlanBuilder::default()
-                .with_processor(processor)
-                .with_publications(&publications)
-                .with_subscriptions(&subscriptions)
-                .with_subscribe_policy(subscribe_policy)
-                .build()
-                .unwrap(),
-        ];
-
-        Some(processors)
-    }
-
-    fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
-        let config_json = AvailableProcessors::AggregatorProcessor.to_example_json().unwrap();
-        let subject = SubjectBuilder::new()
-            .with_name(&DynamicTaskNetworkNames::Processor(&AvailableProcessors::AggregatorProcessor.to_string()).to_string())
-            .with_json(&config_json, 1)
-            .unwrap()
-            .build()
-            .unwrap();
-        let subject_plan_processor = SubjectPlan::get_builder()
-            .with_subject(subject)
-            .build()
-            .unwrap();
-        let subject_plan = AvailableInterfaceSubjects::AggregatedAttachments.to_subject_plan(None, None).unwrap();
-        let subject_plans = vec![subject_plan_processor, subject_plan]; 
-
-        Some(subject_plans)
-    }
-}
+use crate::{AttachmentsNetworkBuilder, GenerateTextNetworkBuilder};
 
 /// Tabular (columnar data) operator network
 /// 
@@ -288,8 +220,6 @@ mod tests {
         BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait, test_subject,
     };
     use phymes_task::SubscriptionTrait;
-
-    use crate::{extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
 
 use super::*;
 
@@ -569,18 +499,18 @@ use super::*;
             let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
             let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
-            let extended_diagnostic_subjects = extended_diagnostic_subjects();
-            let subject_names = extended_diagnostic_subjects
-                .iter()
-                .map(|s| s.as_str())
-                .chain(["left_hand_side_s", "right_hand_side_s", "out_s", "generate_text_inference_s"])
-                .collect::<Vec<_>>();
-            write_diagnostic_subjects_to_csv(
-                &subject_names,
-                network_arc.runtime_env(),
-                network_arc.get_name(),
-            )
-            .await?;
+            // let extended_diagnostic_subjects = extended_diagnostic_subjects();
+            // let subject_names = extended_diagnostic_subjects
+            //     .iter()
+            //     .map(|s| s.as_str())
+            //     .chain(["left_hand_side_s", "right_hand_side_s", "out_s", "generate_text_inference_s"])
+            //     .collect::<Vec<_>>();
+            // write_diagnostic_subjects_to_csv(
+            //     &subject_names,
+            //     network_arc.runtime_env(),
+            //     network_arc.get_name(),
+            // )
+            // .await?;
 
             assert_eq!(response.len(), 0);
 
@@ -609,6 +539,12 @@ use super::*;
                 .with_record_batches(batches)?
                 .build()?;
             assert_eq!(subject.count_rows(), 1);
+
+            // 4. Extract a new table
+
+            // 5. Join
+
+            // 6. ...
         }
 
         Ok(())

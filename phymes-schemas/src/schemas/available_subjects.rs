@@ -13,7 +13,7 @@ use crate::{
         create_mermaid_sequence_diagram_participants_template_fields,
         create_mermaid_visualization_fields, create_mermaid_xychart_template_fields,
         create_metrics_fields, create_metrics_mermaid_gantt_fields, create_metrics_pivot_fields,
-        create_metrics_pivot_norm_time_fields, create_session_mermaid_fields,
+        create_metrics_pivot_norm_time_fields, create_network_mermaid_fields,
         create_session_processors_fields, create_session_runtime_envs_fields,
         create_session_subject_schemas_fields, create_session_superstep_max_fields,
         create_session_supersteps_fields, create_session_tasks_check_fields,
@@ -406,10 +406,10 @@ impl AvailableSchemaTrait for AvailableSubjects {
                 create_schema_from_fields(&create_join_user_inbox_networks_mermaid_diagrams_fields)
             }
             AvailableSubjects::SessionMermaid => {
-                create_schema_from_fields(&create_session_mermaid_fields)
+                create_schema_from_fields(&create_network_mermaid_fields)
             }
             AvailableSubjects::BuilderMermaid => {
-                create_schema_from_fields(&create_session_mermaid_fields)
+                create_schema_from_fields(&create_network_mermaid_fields)
             }
             AvailableSubjects::SessionErrors => create_schema_from_fields(&create_chat_fields),
             AvailableSubjects::SessionMetrics => create_schema_from_fields(&create_metrics_fields),

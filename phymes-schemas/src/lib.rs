@@ -15,10 +15,10 @@ pub use chat::{
     create_values_record_batch,
 };
 pub use core::{
-    DiagnosticsVisualizations, JoinUserInboxNetworksMermaidDiagrams, SessionMermaidSubject,
+    DiagnosticsVisualizations, JoinUserInboxNetworksMermaidDiagrams, NetworkMermaidSubject,
     UserSubject, create_error_subject, create_mermaid_content_template_batch,
     create_mermaid_sequence_diagram_participants_template_batch,
-    create_metrics_mermaid_gantt_batch, create_session_mermaid_batch,
+    create_metrics_mermaid_gantt_batch, create_network_mermaid_batch,
     create_session_processors_batch, create_session_runtime_envs_batch,
     create_session_subject_schemas_batch, create_session_supersteps_batch,
     create_session_tasks_batch, create_session_tasks_check_batch,

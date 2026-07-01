@@ -90,7 +90,7 @@ mod tests {
     use futures_executor::block_on;
     use phymes_event::Publication;
     use phymes_message::{
-        MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait,
+        MessageBuilderTrait, NetworkInterfaceMessage, NetworkInterfaceMessageBuilderTrait,
     };
     use phymes_schemas::{
         AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataFormat,
@@ -166,7 +166,7 @@ mod tests {
         // Create the session state JSON value
         let session_name =
             create_session_name(values.get("email").unwrap().as_str().unwrap(), "GenerateText");
-        let session_response = SessionInterfaceMessage::get_builder()
+        let session_response = NetworkInterfaceMessage::get_builder()
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())
@@ -214,7 +214,7 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
-        let session_response = SessionInterfaceMessage::get_builder()
+        let session_response = NetworkInterfaceMessage::get_builder()
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())
@@ -285,7 +285,7 @@ mod tests {
         let bearer = token.to_string();
         let session_name =
             create_session_name(values.get("email").unwrap().as_str().unwrap(), "GenerateText");
-        let session_response = SessionInterfaceMessage::get_builder()
+        let session_response = NetworkInterfaceMessage::get_builder()
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())
@@ -323,7 +323,7 @@ mod tests {
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test subjects_num_rows using serverless_app
-        let session_response = SessionInterfaceMessage::get_builder()
+        let session_response = NetworkInterfaceMessage::get_builder()
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())
@@ -357,7 +357,7 @@ mod tests {
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test mermaid_js using serverless_app
-        let session_response = SessionInterfaceMessage::get_builder()
+        let session_response = NetworkInterfaceMessage::get_builder()
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())
@@ -397,7 +397,7 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
-        let session_response = SessionInterfaceMessage::get_builder()
+        let session_response = NetworkInterfaceMessage::get_builder()
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())
@@ -436,7 +436,7 @@ mod tests {
         println!("{values:?}");
 
         // Test session_diagnostics using serverless_app
-        let session_response = SessionInterfaceMessage::get_builder()
+        let session_response = NetworkInterfaceMessage::get_builder()
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())

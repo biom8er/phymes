@@ -7,7 +7,7 @@ use phymes_schemas::DataFormat;
 use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait};
 
 /// Composition of [MessageTrait] with additional functions for inter-session communication
-pub trait SessionInterfaceMessageTrait: MessageTrait {
+pub trait NetworkInterfaceMessageTrait: MessageTrait {
     fn get_session_name(&self) -> &str;
     fn get_format(&self) -> &DataFormat;
     fn get_stream(&self) -> &bool;
@@ -16,7 +16,7 @@ pub trait SessionInterfaceMessageTrait: MessageTrait {
 /// Message format that can be communicated between different sessions
 ///   with different data formats
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
-pub struct SessionInterfaceMessage {
+pub struct NetworkInterfaceMessage {
     /// Name of the message
     name: String,
     /// The name of the subject
@@ -35,7 +35,7 @@ pub struct SessionInterfaceMessage {
     stream: bool,
 }
 
-impl SessionInterfaceMessage {
+impl NetworkInterfaceMessage {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: &str,
@@ -60,14 +60,14 @@ impl SessionInterfaceMessage {
     }
 }
 
-impl MappableTrait for SessionInterfaceMessage {
+impl MappableTrait for NetworkInterfaceMessage {
     fn get_name(&self) -> &str {
         &self.name
     }
 }
 
-impl BuildableTrait for SessionInterfaceMessage {
-    type T = SessionInterfaceMessageBuilder;
+impl BuildableTrait for NetworkInterfaceMessage {
+    type T = NetworkInterfaceMessageBuilder;
     fn get_builder() -> Self::T
     where
         Self: Sized,
@@ -76,7 +76,7 @@ impl BuildableTrait for SessionInterfaceMessage {
     }
 }
 
-impl MessageTrait for SessionInterfaceMessage {
+impl MessageTrait for NetworkInterfaceMessage {
     type T = Vec<u8>;
     fn get_subject(&self) -> &str {
         &self.subject
@@ -98,7 +98,7 @@ impl MessageTrait for SessionInterfaceMessage {
     }
 }
 
-impl SessionInterfaceMessageTrait for SessionInterfaceMessage {
+impl NetworkInterfaceMessageTrait for NetworkInterfaceMessage {
     fn get_session_name(&self) -> &str {
         &self.session_name
     }
@@ -110,14 +110,14 @@ impl SessionInterfaceMessageTrait for SessionInterfaceMessage {
     }
 }
 
-pub trait SessionInterfaceMessageBuilderTrait: MessageBuilderTrait {
+pub trait NetworkInterfaceMessageBuilderTrait: MessageBuilderTrait {
     fn with_session_name(self, session_name: &str) -> Self;
     fn with_format(self, format: &DataFormat) -> Self;
     fn with_stream(self, stream: bool) -> Self;
 }
 
 #[derive(Default, Clone, PartialEq)]
-pub struct SessionInterfaceMessageBuilder {
+pub struct NetworkInterfaceMessageBuilder {
     /// Name of the message
     pub name: Option<String>,
     /// The name of the intended subject task
@@ -136,8 +136,8 @@ pub struct SessionInterfaceMessageBuilder {
     pub stream: Option<bool>,
 }
 
-impl BuilderTrait for SessionInterfaceMessageBuilder {
-    type T = SessionInterfaceMessage;
+impl BuilderTrait for NetworkInterfaceMessageBuilder {
+    type T = NetworkInterfaceMessage;
     fn new() -> Self {
         Self {
             name: None,
@@ -175,7 +175,7 @@ impl BuilderTrait for SessionInterfaceMessageBuilder {
     }
 }
 
-impl MessageBuilderTrait for SessionInterfaceMessageBuilder {
+impl MessageBuilderTrait for NetworkInterfaceMessageBuilder {
     type T = Vec<u8>;
     fn with_subject(mut self, name: &str) -> Self {
         self.subject = Some(name.to_string());
@@ -238,7 +238,7 @@ impl MessageBuilderTrait for SessionInterfaceMessageBuilder {
     }
 }
 
-impl SessionInterfaceMessageBuilderTrait for SessionInterfaceMessageBuilder {
+impl NetworkInterfaceMessageBuilderTrait for NetworkInterfaceMessageBuilder {
     fn with_session_name(mut self, session_name: &str) -> Self {
         self.session_name = Some(session_name.to_string());
         self

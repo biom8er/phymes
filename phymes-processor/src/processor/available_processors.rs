@@ -367,7 +367,7 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_pk: Some("path".to_string()),
                 rhs_pk: Some("filename".to_string()),
                 doc_patch: Some(serde_json::to_string(&[WorkspacePatchSubject {
-                    filename: "filename".to_string(),
+                    path: "filename".to_string(),
                     diff: "@@ content\n+new content\n".to_string(),
                     operator: "Update".to_string(),
                 }])?),

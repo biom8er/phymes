@@ -12,8 +12,8 @@ use bytes::Bytes;
 use clap::ValueEnum;
 use futures::prelude::*;
 use phymes_message::{
-    IPCMessage, MessageBuilderTrait, MessageTrait, SessionInterfaceMessage,
-    SessionInterfaceMessageTrait, create_message_map,
+    IPCMessage, MessageBuilderTrait, MessageTrait, NetworkInterfaceMessage,
+    NetworkInterfaceMessageTrait, create_message_map,
 };
 use phymes_network::NetworkStream;
 use phymes_schemas::{
@@ -44,7 +44,7 @@ pub async fn network_stream(
         Vec<JoinUserInboxNetworksMermaidDiagrams>,
     )>,
     State((users, mut state)): State<(UserState, ServerState)>,
-    payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
+    payload: Result<Json<NetworkInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
     match payload {

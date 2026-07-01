@@ -1,12 +1,12 @@
 mod error;
-mod session_interface_message;
+mod network_interface_message;
 
 pub use error::{create_error_message_map, create_error_message_map_stream};
 use phymes_diagnostics::HashMap;
 use phymes_subject::MappableTrait;
-pub use session_interface_message::{
-    SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-    SessionInterfaceMessageTrait,
+pub use network_interface_message::{
+    NetworkInterfaceMessage, NetworkInterfaceMessageBuilder, NetworkInterfaceMessageBuilderTrait,
+    NetworkInterfaceMessageTrait,
 };
 
 /// Helper function to create the message map from a vector of messages

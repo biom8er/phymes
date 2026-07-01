@@ -14,8 +14,8 @@ pub(crate) use diagnostics::{
 };
 pub use error::create_error_subject;
 pub use mermaid::{
-    SessionMermaidSubject, create_mermaid_content_template_batch,
-    create_mermaid_sequence_diagram_participants_template_batch, create_session_mermaid_batch,
+    NetworkMermaidSubject, create_mermaid_content_template_batch,
+    create_mermaid_sequence_diagram_participants_template_batch, create_network_mermaid_batch,
 };
 pub(crate) use mermaid::{
     create_mermaid_content_template_fields, create_mermaid_er_diagram_entities_template_fields,
@@ -25,7 +25,7 @@ pub(crate) use mermaid::{
     create_mermaid_sequence_diagram_messages_template_fields,
     create_mermaid_sequence_diagram_participants_template_fields,
     create_mermaid_visualization_fields, create_mermaid_xychart_template_fields,
-    create_session_mermaid_fields,
+    create_network_mermaid_fields,
 };
 pub use session::{
     create_session_processors_batch, create_session_runtime_envs_batch,

@@ -15,8 +15,8 @@ use bytes::Bytes;
 use futures::TryStreamExt;
 use phymes_event::Subscription;
 use phymes_message::{
-    IPCMessageBuilder, MessageBuilderTrait, MessageTrait, SessionInterfaceMessage,
-    SessionInterfaceMessageTrait, create_message_map,
+    IPCMessageBuilder, MessageBuilderTrait, MessageTrait, NetworkInterfaceMessage,
+    NetworkInterfaceMessageTrait, create_message_map,
 };
 use phymes_network::{NetworkStreamStep, NetworkStreamStepTrait};
 use phymes_schemas::{CsvFormat, DataFormat, JoinUserInboxNetworksMermaidDiagrams};
@@ -38,7 +38,7 @@ pub async fn network_put_subjects(
         Vec<JoinUserInboxNetworksMermaidDiagrams>,
     )>,
     State((users, mut state)): State<(UserState, ServerState)>,
-    payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
+    payload: Result<Json<NetworkInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
     match payload {
@@ -214,7 +214,7 @@ pub async fn network_get_subjects(
         Vec<JoinUserInboxNetworksMermaidDiagrams>,
     )>,
     State((users, mut state)): State<(UserState, ServerState)>,
-    payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
+    payload: Result<Json<NetworkInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
     match payload {

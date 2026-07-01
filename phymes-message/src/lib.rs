@@ -2,8 +2,8 @@ mod interface;
 mod message;
 
 pub use interface::{
-    SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-    SessionInterfaceMessageTrait, create_error_message_map, create_error_message_map_stream,
+    NetworkInterfaceMessage, NetworkInterfaceMessageBuilder, NetworkInterfaceMessageBuilderTrait,
+    NetworkInterfaceMessageTrait, create_error_message_map, create_error_message_map_stream,
     create_message_map,
 };
 pub use message::{

@@ -3,10 +3,10 @@ use dioxus::prelude::*;
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_event::Publication;
 use phymes_message::{
-    MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait,
+    MessageBuilderTrait, NetworkInterfaceMessage, NetworkInterfaceMessageBuilderTrait,
 };
 use phymes_network::{NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait};
-use phymes_schemas::{create_session_mermaid_batch, AvailableSubjects, DataFormat};
+use phymes_schemas::{create_network_mermaid_batch, AvailableSubjects, DataFormat};
 use phymes_server::create_session_name;
 use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 use phymes_templates::AvailableNetworks;
@@ -172,7 +172,7 @@ pub fn builds_dropdown_view(
                                     .collect::<Vec<_>>(),
                                 &mermaid_timestamps());
                             let network_names = network_names.into_iter().map(|s| format!("__deleted__{s}")).collect::<Vec<_>>();
-                            let batch_deleted = create_session_mermaid_batch(network_names, flowchart_diagrams, er_diagrams, timestamps).unwrap();
+                            let batch_deleted = create_network_mermaid_batch(network_names, flowchart_diagrams, er_diagrams, timestamps).unwrap();
 
                             // Filter out the active session
                             let (network_names, flowchart_diagrams, er_diagrams, timestamps) = filter_out_mermaid_diagrams_by_session_name(
@@ -194,7 +194,7 @@ pub fn builds_dropdown_view(
                                     .collect::<Vec<_>>(),
                                 &mermaid_timestamps());
                             let active_session = network_names.first().unwrap().to_string();
-                            let batch = create_session_mermaid_batch(network_names, flowchart_diagrams, er_diagrams, timestamps).unwrap();
+                            let batch = create_network_mermaid_batch(network_names, flowchart_diagrams, er_diagrams, timestamps).unwrap();
 
                             // Update the mermaid state with the active diagram
                             let route = "/app/v1/put_state";
@@ -206,7 +206,7 @@ pub fn builds_dropdown_view(
                                 .unwrap()
                                 .to_ipc_stream()
                                 .unwrap();
-                            let data_serialized = serde_json::to_string(&SessionInterfaceMessage::get_builder()
+                            let data_serialized = serde_json::to_string(&NetworkInterfaceMessage::get_builder()
                                 .with_session_name(&create_session_name(EMAIL().as_str(), AvailableNetworks::Builder.to_string().as_str()))
                                 .with_format(&DataFormat::Ipc)
                                 .with_publisher(&create_session_name(EMAIL().as_str(), AvailableNetworks::Builder.to_string().as_str()))
@@ -320,7 +320,7 @@ pub fn builds_dropdown_view(
 
                             // Update the server with the new session
                             let route = "/app/v1/build";
-                            let batch = create_session_mermaid_batch(vec![active_session_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
+                            let batch = create_network_mermaid_batch(vec![active_session_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
                             let message = Subject::get_builder()
                                 .with_name(AvailableSubjects::BuilderMermaid.to_string().as_str())
                                 .with_record_batches(vec![batch])
@@ -329,7 +329,7 @@ pub fn builds_dropdown_view(
                                 .unwrap()
                                 .to_ipc_stream()
                                 .unwrap();
-                            let data_serialized = serde_json::to_string(&SessionInterfaceMessage::get_builder()
+                            let data_serialized = serde_json::to_string(&NetworkInterfaceMessage::get_builder()
                                 .with_session_name(&create_session_name(EMAIL().as_str(), active_session_name().as_str()))
                                 .with_format(&DataFormat::Ipc)
                                 .with_publisher(&create_session_name(EMAIL().as_str(), active_session_name().as_str()))
@@ -406,7 +406,7 @@ pub fn builds_dropdown_view(
                         onclick: move |_| async move {
                             // Update the mermaid state with the active diagram
                             let route = "/app/v1/put_state";
-                            let batch = create_session_mermaid_batch(vec![active_session_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
+                            let batch = create_network_mermaid_batch(vec![active_session_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
                             let message = Subject::get_builder()
                                 .with_name(AvailableSubjects::BuilderMermaid.to_string().as_str())
                                 .with_record_batches(vec![batch])
@@ -415,7 +415,7 @@ pub fn builds_dropdown_view(
                                 .unwrap()
                                 .to_ipc_stream()
                                 .unwrap();
-                            let data_serialized = serde_json::to_string(&SessionInterfaceMessage::get_builder()
+                            let data_serialized = serde_json::to_string(&NetworkInterfaceMessage::get_builder()
                                 .with_session_name(&create_session_name(EMAIL().as_str(), AvailableNetworks::Builder.to_string().as_str()))
                                 .with_format(&DataFormat::Ipc)
                                 .with_publisher(&create_session_name(EMAIL().as_str(), AvailableNetworks::Builder.to_string().as_str()))

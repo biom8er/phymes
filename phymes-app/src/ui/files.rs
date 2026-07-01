@@ -3,7 +3,7 @@ use dioxus::{html::FileData, prelude::*};
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_event::Publication;
 use phymes_message::{
-    MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait,
+    MessageBuilderTrait, NetworkInterfaceMessage, NetworkInterfaceMessageBuilderTrait,
 };
 use phymes_schemas::{create_attachments_batch, DataFormat};
 use phymes_server::create_session_name;
@@ -53,7 +53,7 @@ pub fn attach_files_input(
     except_files: Signal<String>,
     active_subject_name: Option<Signal<String>>,
     subject_names: Option<Signal<Vec<String>>>,
-    mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>,
+    mut files_uploaded: Signal<Vec<NetworkInterfaceMessage>>,
     mut filenames_uploaded: Signal<Vec<String>>,
     mut extensions_uploaded: Signal<Vec<String>>,
 ) -> Element {
@@ -150,7 +150,7 @@ pub fn attach_files_input(
                             };
 
                             // Create the message to upload
-                            let data = SessionInterfaceMessage::get_builder()
+                            let data = NetworkInterfaceMessage::get_builder()
                                 .with_session_name(&create_session_name(
                                     EMAIL().as_str(),
                                     ACTIVE_SESSION_NAME().as_str(),
@@ -279,7 +279,7 @@ pub fn attach_textfiles_input(
 
 #[component]
 pub fn upload_files_list(
-    mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>,
+    mut files_uploaded: Signal<Vec<NetworkInterfaceMessage>>,
     mut filenames_uploaded: Signal<Vec<String>>,
     mut extensions_uploaded: Signal<Vec<String>>,
 ) -> Element {
@@ -311,7 +311,7 @@ pub fn upload_files_list(
 
 #[component]
 pub fn upload_files_button(
-    mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>,
+    mut files_uploaded: Signal<Vec<NetworkInterfaceMessage>>,
     mut filenames_uploaded: Signal<Vec<String>>,
     mut extensions_uploaded: Signal<Vec<String>>,
 ) -> Element {
@@ -384,7 +384,7 @@ pub fn upload_files_button(
 
 #[component]
 pub fn clear_upload_files_button(
-    mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>,
+    mut files_uploaded: Signal<Vec<NetworkInterfaceMessage>>,
     mut filenames_uploaded: Signal<Vec<String>>,
     mut extensions_uploaded: Signal<Vec<String>>,
 ) -> Element {
@@ -420,7 +420,7 @@ pub fn download_files_button(
                 filenames_downloaded.set(Vec::new());
                 extensions_downloaded.set(Vec::new());
 
-                let data = SessionInterfaceMessage::get_builder()
+                let data = NetworkInterfaceMessage::get_builder()
                     .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                     .with_format(&data_format())
                     .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))

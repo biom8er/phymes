@@ -14,8 +14,8 @@ pub use diagnostics::{
     default_diagnostic_subjects, extended_diagnostic_subjects, write_diagnostic_subjects_to_csv,
 };
 pub use dynamic::{
-    GenerateTextNetworkBuilder, PatchWorkspaceNetworkBuilderDynamicWOSubject, PatchWorkspaceNetworkBuilderDynamicWSubject,
-    PatchWorkspaceNetworkBuilderStaticWSubject,
+    DiffWorkspaceNetworkBuilderDynamicWOSubject, DiffWorkspaceNetworkBuilderStaticWSubject, GenerateTextNetworkBuilder, 
+    PatchWorkspaceNetworkBuilderDynamicWOSubject, PatchWorkspaceNetworkBuilderDynamicWSubject, PatchWorkspaceNetworkBuilderStaticWSubject,
 };
 #[cfg(feature = "api")]
 pub use dynamic::{
@@ -26,6 +26,6 @@ pub use dynamic::{
     GetPdfNetworkBuilderDynamicWSubject, GetPdfNetworkBuilderStaticWSubject,
 };
 pub use pipelines::{
-    EmbedTextNetworkBuilder, ExtractOntologyNetworkBuilder, ExtractPDFNetworkBuilder,
+    AttachmentsNetworkBuilder, EmbedTextNetworkBuilder, ExtractOntologyNetworkBuilder, ExtractPDFNetworkBuilder,
     MeltStudyDataNetworkBuilder, RetrieveTextNetworkBuilder, SyncContentNetworkBuilder,
 };

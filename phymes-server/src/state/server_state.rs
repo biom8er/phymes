@@ -12,7 +12,7 @@ use phymes_network::{
 };
 use phymes_schemas::{
     AvailableSubjects, JoinUserInboxNetworksMermaidDiagrams, UserSubject,
-    create_session_mermaid_batch, create_user_inbox_batch, create_user_networks_batch,
+    create_network_mermaid_batch, create_user_inbox_batch, create_user_networks_batch,
 };
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait,
@@ -45,7 +45,7 @@ impl UserState {
         runtime_env: &Arc<RuntimeEnv>,
     ) -> Result<Self> {
         let session_name = user_network_name.unwrap_or("Users");
-        let (network_arc, session_messages) = AvailableNetworks::get_network_stream_state_by_name(
+        let (network_arc, network_messages) = AvailableNetworks::get_network_stream_state_by_name(
             "Users",
             session_name,
             runtime_env,
@@ -53,7 +53,7 @@ impl UserState {
 
         // Write the session messages to the store
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         Ok(Self { users: network_arc })
     }
@@ -136,7 +136,7 @@ impl UserState {
             .with_name(AvailableSubjects::UserNetworks.to_string().as_str())
             .build()?
             .to_ipc_stream()?;
-        let mermaid = create_session_mermaid_batch(
+        let mermaid = create_network_mermaid_batch(
             network_name.to_owned(),
             flowchart_diagram.to_owned(),
             er_diagram.to_owned(),
@@ -261,7 +261,7 @@ impl ServerState {
         let mut session_names = Vec::new();
         for user_network in user_networks {
             // Create the session name
-            let session_name = create_session_name(&user_network.email, &user_network.network_name);
+            let network_name = create_session_name(&user_network.email, &user_network.network_name);
 
             if make_networks {
                 // Create the session stream state if it does not yet exist
@@ -269,27 +269,27 @@ impl ServerState {
                     .networks
                     .try_read()
                     .unwrap()
-                    .contains_key(&session_name)
+                    .contains_key(&network_name)
                 {
                     tracing::debug!(
-                        "Session_context {} already exists for session_name {}",
+                        "network {} already exists for network_name {}",
                         &user_network.network_name,
-                        &session_name
+                        &network_name
                     );
                 } else if AvailableNetworks::get_all_session_plan_names()
                     .contains(&user_network.network_name)
                 {
                     // Prioritize the available session plans with initialized configs and other state
-                    let (network_arc, session_messages) =
+                    let (network_arc, network_messages) =
                         AvailableNetworks::get_network_stream_state_by_name(
                             &user_network.network_name,
-                            &session_name,
+                            &network_name,
                             runtime_env,
                         )?;
 
                     // Write the session messages to the store
                     let _ = network_arc
-                        .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+                        .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
                         .await;
 
                     // Add the session stream state to the state
@@ -297,21 +297,21 @@ impl ServerState {
                         .networks
                         .try_write()
                         .unwrap()
-                        .insert(session_name.to_string(), network_arc);
+                        .insert(network_name.to_string(), network_arc);
                     tracing::debug!(
-                        "Creating network {} for session_name {} from AvailableNetworks",
+                        "Creating network {} for network_name {} from AvailableNetworks",
                         &user_network.network_name,
-                        &session_name
+                        &network_name
                     );
                 } else {
                     // Build the session stream state with tables from Mermaid
                     // and leave the upload of configs and other initial session state to another step
                     // DM: turn agent subject tests back on after refactoring BuilderNetwork
-                    let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
+                    let (network, network_messages) = NetworkBuilder::from_mermaid_flowchart(
                         &user_network.flowchart_diagram,
                         false,
                     )?
-                    .with_name(&session_name)
+                    .with_name(&network_name)
                     .with_subjects_from_mermaid_erdiagram(&user_network.er_diagram, false, true)?
                     .add_processor_subjects()?
                     .add_network_interface(None)?
@@ -322,7 +322,7 @@ impl ServerState {
 
                     // Write the session messages to the store
                     let _ = network_arc
-                        .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+                        .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
                         .await;
 
                     // Add the session stream state to the state
@@ -330,11 +330,11 @@ impl ServerState {
                         .networks
                         .try_write()
                         .unwrap()
-                        .insert(session_name.to_string(), network_arc);
+                        .insert(network_name.to_string(), network_arc);
                     tracing::debug!(
                         "Creating network {} for session_name {} from mermaid diagrams.",
                         &user_network.network_name,
-                        &session_name
+                        &network_name
                     );
                 }
 
@@ -350,15 +350,15 @@ impl ServerState {
                         .unwrap()
                         .get_mut(&user_network.email)
                         .unwrap()
-                        .push(session_name.to_string());
+                        .push(network_name.to_string());
                 } else {
                     let _ = self.user_network_names.try_write().unwrap().insert(
                         user_network.email.to_string(),
-                        vec![session_name.to_string()],
+                        vec![network_name.to_string()],
                     );
                 }
             }
-            session_names.push(session_name);
+            session_names.push(network_name);
         }
         Ok(session_names)
     }

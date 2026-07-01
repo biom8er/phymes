@@ -10,7 +10,7 @@ use phymes_diagnostics::{HashSet, create_timestamp_micros};
 use phymes_event::{AvailableSubscribeEvents, AvailableUpdateEvents, Publication, Subscription};
 use phymes_processor::{AvailableProcessors, ProcessorPlanBuilder};
 use phymes_schemas::{
-    AvailableSubjects, AvailableSubjectsTrait, create_session_mermaid_batch,
+    AvailableSubjects, AvailableSubjectsTrait, create_network_mermaid_batch,
     create_session_processors_batch, create_session_runtime_envs_batch,
     create_session_subject_schemas_batch, create_session_tasks_batch,
     create_session_tasks_run_log_batch, create_subjects_change_log_batch,
@@ -560,7 +560,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         let timestamp = create_timestamp_micros();
 
         // create the record batch
-        let batch = create_session_mermaid_batch(
+        let batch = create_network_mermaid_batch(
             vec![network_name],
             vec![flowchart_diagram],
             vec![er_diagram],

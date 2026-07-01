@@ -2,8 +2,8 @@ use dioxus::prelude::*;
 
 use phymes_event::Publication;
 use phymes_message::{
-    MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
-    SessionInterfaceMessageBuilderTrait,
+    MessageBuilderTrait, NetworkInterfaceMessage, NetworkInterfaceMessageBuilder,
+    NetworkInterfaceMessageBuilderTrait,
 };
 use phymes_schemas::{AvailableInterfaceSubjects, DataFormat};
 use phymes_server::create_session_name;
@@ -43,8 +43,8 @@ pub fn metrics_interface_view() -> Element {
     let mut metric_visualizations = use_signal(Vec::<String>::new);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || {
-        SessionInterfaceMessage::get_builder()
+    let get_session_state: Memo<NetworkInterfaceMessageBuilder> = use_memo(move || {
+        NetworkInterfaceMessage::get_builder()
             .with_session_name(&create_session_name(
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),

@@ -2,8 +2,8 @@ use dioxus::prelude::*;
 
 use phymes_event::Publication;
 use phymes_message::{
-    MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
-    SessionInterfaceMessageBuilderTrait,
+    MessageBuilderTrait, NetworkInterfaceMessage, NetworkInterfaceMessageBuilder,
+    NetworkInterfaceMessageBuilderTrait,
 };
 use phymes_schemas::{AvailableSubjects, DataFormat};
 use phymes_server::create_session_name;
@@ -64,7 +64,7 @@ pub fn apps_interface_view() -> Element {
     let mut mermaid_timestamps = use_signal(Vec::<i64>::new);
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || {
+    let get_session_state: Memo<NetworkInterfaceMessageBuilder> = use_memo(move || {
         let session_name = if BUILDER() {
             // DM: this can be better optimized to prevent redundant API calls each time the active session is changed in Builder mode
             create_session_name(
@@ -74,7 +74,7 @@ pub fn apps_interface_view() -> Element {
         } else {
             create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str())
         };
-        SessionInterfaceMessage::get_builder()
+        NetworkInterfaceMessage::get_builder()
             .with_session_name(&session_name)
             .with_format(&DataFormat::Ipc)
             .with_publisher(&session_name)

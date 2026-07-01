@@ -27,7 +27,7 @@ use crate::SubscriptionTrait;
 ///   and the value is whether the table has been updated or not
 /// * `publications`
 /// * `runtime_env`
-/// * `session_name`
+/// * `network_name`
 /// * `messages`
 ///
 /// # Returns
@@ -36,7 +36,7 @@ pub fn subscribe_to_subject(
     subscriptions: &[Subscription],
     publications: &[Publication],
     runtime_env: &Arc<RuntimeEnv>,
-    session_name: &str,
+    network_name: &str,
     messages: &mut SendableRecordBatchStreamMessageMap,
 ) -> Result<SendableRecordBatchStreamMessageMap> {
     let mut map = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -60,7 +60,7 @@ pub fn subscribe_to_subject(
 
             // C. Get the subject
             let stream = subscription
-                .subscribe_to_subject(runtime_env, session_name)?
+                .subscribe_to_subject(runtime_env, network_name)?
                 .unwrap();
             let message = SendableRecordBatchStreamMessage::get_builder()
                 .with_publisher("Subjects")
