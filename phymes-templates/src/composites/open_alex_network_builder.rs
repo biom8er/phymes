@@ -79,7 +79,7 @@ impl Default for OpenAlexNetworkBuilder {
                 .unwrap();
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
-                is_dynamic: false,
+                dynamic_type: DynamicTaskNetworkTypes::Static,
                 processor: AvailableProcessors::ObjectStoreProcessor,
                 subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                     subject_name: subject_lhs.get_name().to_string(),
@@ -176,7 +176,7 @@ impl Default for OpenAlexNetworkBuilder {
             .collect::<Vec<_>>();
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
-                is_dynamic: false,
+                dynamic_type: DynamicTaskNetworkTypes::Static,
                 processor: AvailableProcessors::ExtractTabular,
                 subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                     subject_name: subject_lhs.get_name().to_string(),
@@ -218,7 +218,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::CoalesceProcessor,
                     subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                         subject_name: subject_name_lhs.to_string(),
@@ -318,7 +318,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -388,7 +388,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Filter,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -443,7 +443,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -535,7 +535,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Join,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -592,7 +592,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::CoalesceProcessor,
                     subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                         subject_name: subject_name_lhs.to_string(),
@@ -716,7 +716,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -786,7 +786,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Filter,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -851,7 +851,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -908,7 +908,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Join,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -1003,7 +1003,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -1071,7 +1071,7 @@ impl Default for OpenAlexNetworkBuilder {
                 .unwrap();
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
-                is_dynamic: false,
+                dynamic_type: DynamicTaskNetworkTypes::Static,
                 processor: AvailableProcessors::HTTPClientRequestProcessor,
                 subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                     subject_name: subject_name_lhs.to_string(),
@@ -1141,7 +1141,7 @@ impl Default for OpenAlexNetworkBuilder {
                 .unwrap();
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
-                is_dynamic: false,
+                dynamic_type: DynamicTaskNetworkTypes::Static,
                 processor: AvailableProcessors::ObjectStoreProcessor,
                 subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                     subject_name: subject_lhs.get_name().to_string(),
@@ -1201,7 +1201,7 @@ impl Default for OpenAlexNetworkBuilder {
         //         .unwrap();
         //     let builder = DynamicTaskNetworkBuilder {
         //         network_name: network_name.to_string(),
-        //         is_dynamic: false,
+        //         dynamic_type: DynamicTaskNetworkTypes::Static,
         //         processor: AvailableProcessors::HTTPClientRequestProcessor,
         //         subscription_lhs: Subscription::OnUpdateAllRecordBatches {
         //             subject_name: subject_name_lhs.to_string(),
@@ -1253,7 +1253,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::ExtractXML,
                     subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                         subject_name: AvailableInterfaceSubjects::UserScript.to_string(),
@@ -1285,7 +1285,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::CoalesceProcessor,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -1391,7 +1391,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -1454,7 +1454,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Filter,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -1509,7 +1509,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks

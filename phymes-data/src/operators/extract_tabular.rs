@@ -86,6 +86,15 @@ impl ToolTrait for ExtractTabular {
                 ..Default::default()
             }),
         );
+        // properties.insert(
+        //     "operator".to_string(),
+        //     Box::new(JSONSchemaDefine {
+        //         schema_type: Some(JSONSchemaType::String),
+        //         description: Some("The name of the operator".to_string()),
+        //         enum_values: Some([Self::get_static_name()].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+        //         ..Default::default()
+        //     }),
+        // );
         let function = Function {
             name: Self::get_static_name().to_string(),
             description: Some(self.get_description()),
@@ -95,7 +104,10 @@ impl ToolTrait for ExtractTabular {
                 required: Some(vec![
                     "lhs_name".to_string(),
                     "lhs_values".to_string(),
-                    "encoding".to_string(), "format".to_string(), "schema".to_string(),
+                    "encoding".to_string(), 
+                    "format".to_string(), 
+                    "schema".to_string(),
+                    // "operator".to_string(),
                 ]),
             },
         };

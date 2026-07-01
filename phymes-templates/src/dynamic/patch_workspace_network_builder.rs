@@ -4,7 +4,7 @@ use phymes_processor::AvailableProcessors;
 use phymes_schemas::{
     AvailableSubjects, AvailableSubjectsTrait, create_workspace_batch, create_workspace_patch_batch,
 };
-use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
+use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes};
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
     SubjectPlanBuilderTrait,
@@ -71,7 +71,7 @@ impl Default for PatchWorkspaceNetworkBuilderStaticWSubject {
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
-            is_dynamic: false,
+            dynamic_type: DynamicTaskNetworkTypes::Static,
             processor: AvailableProcessors::Patch,
             subscription_lhs: Subscription::AlwaysAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),
@@ -200,7 +200,7 @@ pub use todo::Todo"#,
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
-            is_dynamic: true,
+            dynamic_type: DynamicTaskNetworkTypes::Dynamic,
             processor: AvailableProcessors::Patch,
             subscription_lhs: Subscription::AlwaysAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),
@@ -269,7 +269,7 @@ impl Default for PatchWorkspaceNetworkBuilderDynamicWOSubject {
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
-            is_dynamic: true,
+            dynamic_type: DynamicTaskNetworkTypes::Dynamic,
             processor: AvailableProcessors::Patch,
             subscription_lhs: Subscription::AlwaysAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),

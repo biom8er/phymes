@@ -44,7 +44,7 @@ impl Default for GenerateCodeNetworkBuilder {
             // Workspace and UserMessages are instantiated in patch_workspace_network_builder and generate_text_network_builder, respectively
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
-                is_dynamic: false,
+                dynamic_type: DynamicTaskNetworkTypes::Static,
                 processor: AvailableProcessors::CandleDataProcessor,
                 subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                     subject_name: AvailableSubjects::Workspace.to_string(),
@@ -83,7 +83,7 @@ impl Default for GenerateCodeNetworkBuilder {
             // WorkspacePatch and AssistantMessages are instantiated in patch_workspace_network_builder and generate_text_network_builder, respectively
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
-                is_dynamic: false,
+                dynamic_type: DynamicTaskNetworkTypes::Static,
                 processor: AvailableProcessors::CandleDataProcessor,
                 subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                     subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
@@ -189,7 +189,7 @@ impl Default for GenerateCodeNetworkBuilder {
                 .unwrap();
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
-                is_dynamic: false,
+                dynamic_type: DynamicTaskNetworkTypes::Static,
                 processor: AvailableProcessors::ExtractTabular,
                 subscription_lhs: Subscription::OnUpdateDrainRecordBatches {
                     subject_name: AvailableInterfaceSubjects::UserCsv.to_string(),
@@ -254,7 +254,7 @@ impl Default for GenerateCodeNetworkBuilder {
                 .unwrap();
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
-                is_dynamic: false,
+                dynamic_type: DynamicTaskNetworkTypes::Static,
                 processor: AvailableProcessors::PackTabular,
                 subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                     subject_name: subject_name_o.to_string(),

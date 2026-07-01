@@ -62,7 +62,7 @@ impl Default for GetJsonNetworkBuilderStaticWSubject {
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
-            is_dynamic: false,
+            dynamic_type: DynamicTaskNetworkTypes::Static,
             processor: AvailableProcessors::HTTPClientRequestProcessor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),
@@ -138,7 +138,7 @@ impl Default for GetJsonNetworkBuilderDynamicWSubject {
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
-            is_dynamic: true,
+            dynamic_type: DynamicTaskNetworkTypes::Dynamic,
             processor: AvailableProcessors::HTTPClientRequestProcessor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),
@@ -198,7 +198,7 @@ impl Default for GetJsonNetworkBuilderDynamicWOSubject {
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
-            is_dynamic: true,
+            dynamic_type: DynamicTaskNetworkTypes::Dynamic,
             processor: AvailableProcessors::HTTPClientRequestProcessor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),

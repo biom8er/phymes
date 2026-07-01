@@ -62,7 +62,7 @@ impl Default for GetPdfNetworkBuilderStaticWSubject {
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
-            is_dynamic: false,
+            dynamic_type: DynamicTaskNetworkTypes::Static,
             processor: AvailableProcessors::HTTPClientRequestProcessor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),
@@ -126,7 +126,7 @@ impl Default for GetPdfNetworkBuilderDynamicWSubject {
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
-            is_dynamic: true,
+            dynamic_type: DynamicTaskNetworkTypes::Dynamic,
             processor: AvailableProcessors::HTTPClientRequestProcessor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),
@@ -186,7 +186,7 @@ impl Default for GetPdfNetworkBuilderDynamicWOSubject {
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
-            is_dynamic: true,
+            dynamic_type: DynamicTaskNetworkTypes::Dynamic,
             processor: AvailableProcessors::HTTPClientRequestProcessor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),

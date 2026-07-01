@@ -32,6 +32,31 @@ impl<'a> std::fmt::Display for DynamicTaskNetworkNames<'a> {
     }
 }
 
+/// Network types for building static, dynamic, or function task types
+#[derive(Clone, Debug)]
+pub enum DynamicTaskNetworkTypes {
+    /// Static pipeline
+    Static,
+    /// Dynamic task that can be invoked
+    /// # Notes
+    /// * The Processorized network_name == processor subject_name
+    Dynamic,
+    /// Dynamic task that can be invoked as a function through template generation
+    /// # Notes
+    /// * The Taskized network_name == processor subject_name which is required for message routing and config parsing
+    Function,
+}
+
+impl std::fmt::Display for DynamicTaskNetworkTypes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Static => write!(f, "Static"),
+            Self::Dynamic => write!(f, "Dynamic"),
+            Self::Function => write!(f, "Function"),
+        }
+    }
+}
+
 /// Template dynamic (or static) task creation network
 ///   that is intended to be extended with a base network to enable dynamic task invokation
 ///   or extended with a network of the same name to create a static processor pipeline
@@ -42,8 +67,8 @@ impl<'a> std::fmt::Display for DynamicTaskNetworkNames<'a> {
 pub struct DynamicTaskNetworkBuilder {
     /// Network name
     pub network_name: String,
-    /// Dynamic pipeline (e.g., tool call) or static pipeline
-    pub is_dynamic: bool,
+    /// Static, Dynamic, Function
+    pub dynamic_type: DynamicTaskNetworkTypes,
     /// The processor to use
     pub processor: AvailableProcessors,
     /// LHS subscription
@@ -94,7 +119,7 @@ impl Default for DynamicTaskNetworkBuilder {
             .unwrap();
         DynamicTaskNetworkBuilder {
             network_name: "network_t".to_string(),
-            is_dynamic: false,
+            dynamic_type: DynamicTaskNetworkTypes::Static,
             processor: AvailableProcessors::default(),
             subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),
@@ -123,32 +148,58 @@ impl DynamicTaskNetworkBuilder {
 
     /// Build for static or dynamic
     pub fn build_dynamic(&self) -> NetworkBuilder {
-        if self.is_dynamic {
-            // Invoke task session
-            let subject_name = DynamicTaskNetworkNames::Processor(&self.network_name).to_string();
-            let subject_names = &[subject_name.as_str()];
-            let invoke_task_network =
-                InvokeTaskNetworkBuilder::new("invoke_task_network", subject_names);
-            let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
-                &invoke_task_network.as_mermaid_flowchart(),
-                false,
-            )
-            .unwrap()
-            .with_subjects_from_mermaid_erdiagram(
-                &invoke_task_network.as_mermaid_erdiagram().unwrap(),
-                false,
-                true,
-            )
-            .unwrap()
-            .with_name(invoke_task_network.network_name);
+        match self.dynamic_type {
+            DynamicTaskNetworkTypes::Dynamic | DynamicTaskNetworkTypes::Function => {
+                // Adjust the subject_name of the invokable task
+                let subject_name = match self.dynamic_type {
+                    DynamicTaskNetworkTypes::Dynamic => {
+                        if self.subject_processor.get_name() != &DynamicTaskNetworkNames::Processor(&self.network_name).to_string() {
+                            panic!("the `subject_processor` name `{}` does not match the `DynamicTaskNetworkNames::Processor`ized network name `{}`",
+                                self.subject_processor.get_name(),
+                                DynamicTaskNetworkNames::Processor(&self.network_name).to_string(),
+                            );
+                        }
+                        DynamicTaskNetworkNames::Processor(&self.network_name).to_string()
+                    }
+                    DynamicTaskNetworkTypes::Function => {
+                        if self.subject_processor.get_name() != &DynamicTaskNetworkNames::Task(&self.network_name).to_string() {
+                            panic!("the `subject_processor` name `{}` does not match the `DynamicTaskNetworkNames::Task`ized network name `{}`",
+                                self.subject_processor.get_name(),
+                                DynamicTaskNetworkNames::Task(&self.network_name).to_string(),
+                            );
+                        }
+                        DynamicTaskNetworkNames::Task(&self.network_name).to_string()
+                    }
+                    DynamicTaskNetworkTypes::Static => unreachable!(),
+                };
+                let subject_names = &[subject_name.as_str()];
+                // let subject_names = &[self.subject_processor.get_name()];
 
-            self.build()
-                .with_name(&DynamicTaskNetworkNames::Network(&self.network_name).to_string())
-                .extend(invoke_task_network_builder)
+                // Add the invoke task network
+                let invoke_task_network =
+                    InvokeTaskNetworkBuilder::new("invoke_task_network", subject_names);
+                let invoke_task_network_builder = NetworkBuilder::from_mermaid_flowchart(
+                    &invoke_task_network.as_mermaid_flowchart(),
+                    false,
+                )
                 .unwrap()
-        } else {
-            self.build()
+                .with_subjects_from_mermaid_erdiagram(
+                    &invoke_task_network.as_mermaid_erdiagram().unwrap(),
+                    false,
+                    true,
+                )
+                .unwrap()
+                .with_name(invoke_task_network.network_name);
+
+                self.build()
+                    .with_name(&DynamicTaskNetworkNames::Network(&self.network_name).to_string())
+                    .extend(invoke_task_network_builder)
+                    .unwrap()
+            }
+            DynamicTaskNetworkTypes::Static => {
+                self.build()
                 .with_name(&DynamicTaskNetworkNames::Network(&self.network_name).to_string())
+            }
         }
     }
 }
@@ -176,16 +227,19 @@ impl NetworkBuilderCustomTrait for DynamicTaskNetworkBuilder {
         }
 
         // Dynamic
-        if self.is_dynamic {
-            let subscription = Subscription::OnUpdateLastRecordBatch {
-                subject_name: self.subject_processor.get_name().to_string(),
-            };
-            subscriptions.push(subscription)
-        } else {
-            let subscription = Subscription::AlwaysLastRecordBatch {
-                subject_name: self.subject_processor.get_name().to_string(),
-            };
-            subscriptions.push(subscription)
+        match self.dynamic_type {
+            DynamicTaskNetworkTypes::Dynamic | DynamicTaskNetworkTypes::Function => {
+                let subscription = Subscription::OnUpdateLastRecordBatch {
+                    subject_name: self.subject_processor.get_name().to_string(),
+                };
+                subscriptions.push(subscription)
+            }
+            DynamicTaskNetworkTypes::Static => {
+                let subscription = Subscription::AlwaysLastRecordBatch {
+                    subject_name: self.subject_processor.get_name().to_string(),
+                };
+                subscriptions.push(subscription)
+            }
         }
 
         // Build the publications based on the alternative message routes

@@ -1,6 +1,6 @@
 use phymes_data::{DataConfigTrait, ToolTrait};
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
-use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, NetworkBuilder, NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait, TaskResponseNetworkBuilder};
+use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes, NetworkBuilder, NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait, TaskResponseNetworkBuilder};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, create_tools_record_batch};
 use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait};
@@ -92,7 +92,8 @@ impl TabularDataOperatorNetworkBuilder {
         let task_name = processor.to_string();
         let subject = AvailableSubjects::Bytes
             .to_subject(
-                Some(&DynamicTaskNetworkNames::Processor(&task_name).to_string()),
+                Some(&DynamicTaskNetworkNames::Task(&task_name).to_string()),
+                // Some(&task_name),
                 None,
             )
             .unwrap();
@@ -102,7 +103,7 @@ impl TabularDataOperatorNetworkBuilder {
             .unwrap();
         let builder = DynamicTaskNetworkBuilder {
             network_name: task_name,
-            is_dynamic: true,
+            dynamic_type: DynamicTaskNetworkTypes::Function,
             processor: processor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_name_lhs.to_string(),
@@ -122,7 +123,7 @@ impl TabularDataOperatorNetworkBuilder {
         let task_name = processor.to_string();
         let subject = AvailableSubjects::Bytes
             .to_subject(
-                Some(&DynamicTaskNetworkNames::Processor(&task_name).to_string()),
+                Some(&DynamicTaskNetworkNames::Task(&task_name).to_string()),
                 None,
             )
             .unwrap();
@@ -132,7 +133,7 @@ impl TabularDataOperatorNetworkBuilder {
             .unwrap();
         let builder = DynamicTaskNetworkBuilder {
             network_name: task_name,
-            is_dynamic: true,
+            dynamic_type: DynamicTaskNetworkTypes::Function,
             processor: processor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_name_lhs.to_string(),
@@ -230,7 +231,7 @@ impl Default for TabularDataOperatorNetworkBuilder {
         let tool_ids = unary_operators.into_iter()
             .chain(binary_operators)
             .chain([AvailableProcessors::ExtractTabular, AvailableProcessors::PackTabular, AvailableProcessors::ApplyTemplate])
-            .map(|p| DynamicTaskNetworkNames::Processor(&p.to_string()).to_string())
+            .map(|p| DynamicTaskNetworkNames::Task(&p.to_string()).to_string())
             .collect::<Vec<_>>();
         let tools = unary_operators.into_iter()
             .chain(binary_operators)
@@ -344,7 +345,7 @@ use super::*;
 
         // 1. Make the extraction query
         let role = vec!["user".to_string()];
-        let content =vec!["ExtractTabular_p with lhs_name UserCsv, lhs_values bytes, format CsvDefault, encoding None, and schema Bytes.".to_string()];
+        let content =vec!["ExtractTabular_t with lhs_name UserCsv, lhs_values bytes, format CsvDefault, encoding None, and schema Bytes.".to_string()];
         let timestamp = vec![create_timestamp_micros()];
         let batch = create_chat_record_batch(role, content, timestamp)?;
         let queries = AvailableInterfaceSubjects::UserMessages
@@ -382,7 +383,7 @@ use super::*;
             let subject_names = extended_diagnostic_subjects
                 .iter()
                 .map(|s| s.as_str())
-                .chain(["left_hand_side_s", "right_hand_side_s", "out_s", "AssistantMessages", "generate_text_inference_s"])
+                .chain(["left_hand_side_s", "right_hand_side_s", "out_s", "AssistantMessages", "generate_text_inference_s", "Tools"])
                 .collect::<Vec<_>>();
             write_diagnostic_subjects_to_csv(
                 &subject_names,
@@ -485,7 +486,7 @@ use super::*;
             // 2. Make the sort query
             let mut message_map = HashMap::<String, IPCMessage>::new();
             let role = vec!["user".to_string()];
-            let content =vec!["Sort_p with lhs_name left_hand_side_s, lhs_values [id], and asc false".to_string()];
+            let content =vec!["Sort_t with lhs_name left_hand_side_s, lhs_values [id], and asc false".to_string()];
             let timestamp = vec![create_timestamp_micros()];
             let batch = create_chat_record_batch(role, content, timestamp)?;
             let queries = AvailableInterfaceSubjects::UserMessages

@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use phymes_data::{AvailableOperators, DataConfig, DataStreamManager};
 use phymes_event::{Publication, Subscription};
-use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, NetworkBuilder};
+use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes, NetworkBuilder};
 use phymes_processor::AvailableProcessors;
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
 use phymes_streams::LimitConfig;
@@ -86,7 +86,7 @@ impl Default for ExtractPDFNetworkBuilder {
             .collect::<Vec<_>>();
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
-                is_dynamic: false,
+                dynamic_type: DynamicTaskNetworkTypes::Static,
                 processor: AvailableProcessors::ExtractPDF,
                 subscription_lhs: Subscription::OnUpdateDrainRecordBatches {
                     subject_name: subject_lhs.get_name().to_string(),
@@ -127,7 +127,7 @@ impl Default for ExtractPDFNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::CoalesceProcessor,
                     subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                         subject_name: subject_name_lhs.to_string(),
@@ -174,7 +174,7 @@ impl Default for ExtractPDFNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::ChunkDocuments,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -234,7 +234,7 @@ impl Default for ExtractPDFNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
