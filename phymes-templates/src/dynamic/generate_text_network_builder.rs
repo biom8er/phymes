@@ -743,7 +743,7 @@ mod tests {
                     .collect::<Vec<_>>();
                 assert_eq!(
                     column.first().unwrap(),
-                    &"{\"lhs_name\":\"available_data_1\",\"lhs_pk\":\"lhs_pk\",\"lhs_values\":[\"score\"],\"operator\":\"Sort\"}"
+                    &"{\"asc\":true,\"lhs_name\":\"available_data_1\",\"lhs_pk\":\"lhs_pk\",\"lhs_values\":[\"score\"],\"operator\":\"Sort\"}"
                 );
             }
         }

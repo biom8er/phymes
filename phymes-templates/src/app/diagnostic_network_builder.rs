@@ -18,8 +18,7 @@ use phymes_subject::{
 use phymes_task::TaskPlan;
 use serde_json::json;
 
-
-/// A session for gathering analytics based on the session metrics
+/// A network for gathering analytics based on the network metrics
 ///
 /// # Notes
 ///
@@ -31,7 +30,7 @@ use serde_json::json;
 ///
 /// An inbox and outbox for each support task are provided
 ///   that trigger the task
-pub struct DiagnosticNetwork<'a> {
+pub struct DiagnosticNetworkBuilder<'a> {
     /// Metrics analytics
     pub metrics_pivot_task_name: &'a str,
     pub metrics_pivot_processor_name: &'a str,
@@ -93,18 +92,18 @@ pub struct DiagnosticNetwork<'a> {
     pub network_name: &'a str,
 }
 
-impl<'a> DiagnosticNetwork<'a> {
+impl<'a> DiagnosticNetworkBuilder<'a> {
     pub fn new_with_network_name(network_name: &'a str) -> Self {
-        DiagnosticNetwork {
+        DiagnosticNetworkBuilder {
             network_name,
             ..Default::default()
         }
     }
 }
 
-impl Default for DiagnosticNetwork<'_> {
+impl Default for DiagnosticNetworkBuilder<'_> {
     fn default() -> Self {
-        DiagnosticNetwork {
+        DiagnosticNetworkBuilder {
             network_name: "diagnostic_network",
 
             // Metrics analytics
@@ -167,7 +166,7 @@ impl Default for DiagnosticNetwork<'_> {
     }
 }
 
-impl NetworkBuilderCustomTrait for DiagnosticNetwork<'_> {
+impl NetworkBuilderCustomTrait for DiagnosticNetworkBuilder<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![
             TaskPlan {
@@ -1989,10 +1988,10 @@ mod tests {
         Ok(messages)
     }
 
-    #[tokio::test(flavor = "current_thread")]
-    async fn test_diagnostic_network() -> Result<()> {
+    #[tokio::test]
+    async fn test_diagnostic_network_builder() -> Result<()> {
         // initialize the session
-        let diagnostic_network = DiagnosticNetwork::default();
+        let diagnostic_network = DiagnosticNetworkBuilder::default();
         let (network, session_messages) = diagnostic_network
             .build()
             .with_name(diagnostic_network.network_name)

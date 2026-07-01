@@ -27,7 +27,7 @@ use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
     SubjectTrait,
 };
-use phymes_templates::DiagnosticNetwork;
+use phymes_templates::DiagnosticNetworkBuilder;
 
 // General imports
 use anyhow::Result;
@@ -81,7 +81,7 @@ pub async fn session_diagnostics(
             }
 
             // Initialize the diagnostics session
-            let diagnostic_network = DiagnosticNetwork::default();
+            let diagnostic_network = DiagnosticNetworkBuilder::default();
 
             // Get the diagnostic information from the session stream state
             let message_map = {

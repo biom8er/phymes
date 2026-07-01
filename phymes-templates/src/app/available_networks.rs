@@ -7,7 +7,7 @@ use phymes_subject::{BuildableTrait, BuilderTrait, RuntimeEnv, RuntimeEnvBuilder
 use phymes_network::{DynamicTaskNetworkNames, Network, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait};
 use serde::{Deserialize, Serialize};
 
-use crate::{BuilderNetwork, GenerateTextNetworkBuilder, RetrievalAugmentedGenerationPDFNetworkBuilder, UserNetwork};
+use crate::{MermaidNetworkBuilder, GenerateTextNetworkBuilder, RetrievalAugmentedGenerationPDFNetworkBuilder, UserNetwork};
 
 /// The available session plans
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
@@ -96,7 +96,7 @@ impl AvailableNetworks {
                 .add_processor_subjects()
                 .unwrap(),
             // Self::ToolChat => ToolAgentNetwork::new_with_network_name(session_name).build(),
-            Self::Builder => BuilderNetwork::new_with_network_name(session_name).build(),
+            Self::Builder => MermaidNetworkBuilder::new_with_network_name(session_name).build(),
             Self::Users => UserNetwork::new_with_network_name(session_name).build(),
         }
     }

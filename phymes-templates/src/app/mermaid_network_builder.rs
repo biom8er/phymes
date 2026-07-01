@@ -50,27 +50,27 @@ pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Sub
         .build()
 }
 
-/// Session for building new sessions via Mermaid diagrams
-pub struct BuilderNetwork<'a> {
+/// Session for building new networks via Mermaid diagrams
+pub struct MermaidNetworkBuilder<'a> {
     /// Session and state
     pub network_name: &'a str,
 }
 
-impl Default for BuilderNetwork<'_> {
+impl Default for MermaidNetworkBuilder<'_> {
     fn default() -> Self {
-        BuilderNetwork {
+        MermaidNetworkBuilder {
             network_name: "network_1",
         }
     }
 }
 
-impl<'a> BuilderNetwork<'a> {
+impl<'a> MermaidNetworkBuilder<'a> {
     pub fn new_with_network_name(network_name: &'a str) -> Self {
-        BuilderNetwork { network_name }
+        MermaidNetworkBuilder { network_name }
     }
 }
 
-impl NetworkBuilderCustomTrait for BuilderNetwork<'_> {
+impl NetworkBuilderCustomTrait for MermaidNetworkBuilder<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![TaskPlan {
             task_name: self.network_name.to_string(),
@@ -126,9 +126,9 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_builder_network() -> Result<()> {
+    async fn test_mermaid_network_builder() -> Result<()> {
         // initialize the session
-        let builder_network = BuilderNetwork::default();
+        let builder_network = MermaidNetworkBuilder::default();
         let _network = builder_network
             .build()
             .with_name(builder_network.network_name)

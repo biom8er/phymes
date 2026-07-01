@@ -5,7 +5,7 @@ mod dynamic;
 mod pipelines;
 
 pub use app::{
-    AvailableNetworks, BuilderNetwork, DiagnosticNetwork, UserNetwork, make_example_mermaid_table,
+    AvailableNetworks, MermaidNetworkBuilder, DiagnosticNetworkBuilder, UserNetwork, make_example_mermaid_table,
 };
 pub use composites::{RetrievalAugmentedGenerationPDFNetworkBuilder, RetrieveTextPDFNetworkBuilder};
 #[cfg(feature = "api")]
