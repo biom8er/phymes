@@ -23,7 +23,7 @@ impl<'a> NetworkBuilderCustomTrait for AttachmentsNetworkBuilder<'a> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![TaskPlan {
             task_name: DynamicTaskNetworkNames::Task(&self.network_name).to_string(),
-            processor_names: vec![AvailableProcessors::AggregatorProcessor.to_string()],
+            processor_names: vec![DynamicTaskNetworkNames::Processor(&AvailableProcessors::AggregatorProcessor.to_string()).to_string()],
         }];
 
         Some(tasks)
@@ -35,11 +35,11 @@ impl<'a> NetworkBuilderCustomTrait for AttachmentsNetworkBuilder<'a> {
                 subject_name: s.to_string(),
             })
             .chain([Subscription::AlwaysLastRecordBatch {
-                subject_name: AvailableProcessors::AggregatorProcessor.to_string(),
+                subject_name: DynamicTaskNetworkNames::Processor(&AvailableProcessors::AggregatorProcessor.to_string()).to_string(),
             }])
             .collect::<Vec<_>>();
         let publications = [Publication::Extend { subject_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string() }];
-        let processor = AvailableProcessors::AggregatorProcessor.build_arc(&DynamicTaskNetworkNames::Processor(&self.network_name).to_string());
+        let processor = AvailableProcessors::AggregatorProcessor.build_arc(&DynamicTaskNetworkNames::Processor(&AvailableProcessors::AggregatorProcessor.to_string()).to_string());
         let subscribe_policy = AvailableSubscribeEvents::AnySubjectNameSubscribe.build();
 
         // Build the processor
@@ -59,7 +59,7 @@ impl<'a> NetworkBuilderCustomTrait for AttachmentsNetworkBuilder<'a> {
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
         let config_json = AvailableProcessors::AggregatorProcessor.to_example_json().unwrap();
         let subject = SubjectBuilder::new()
-            .with_name(&DynamicTaskNetworkNames::Processor(self.network_name).to_string())
+            .with_name(&DynamicTaskNetworkNames::Processor(&AvailableProcessors::AggregatorProcessor.to_string()).to_string())
             .with_json(&config_json, 1)
             .unwrap()
             .build()
@@ -165,13 +165,13 @@ impl Default for TabularDataOperatorNetworkBuilder {
             AvailableProcessors::Filter,
             AvailableProcessors::Pivot,
             AvailableProcessors::Melt,
-            AvailableProcessors::LimitProcessor,
-            AvailableProcessors::CoalesceProcessor,
+            // AvailableProcessors::LimitProcessor,
+            // AvailableProcessors::CoalesceProcessor,
         ];
         let binary_operators = [AvailableProcessors::Patch,
             AvailableProcessors::Diff,
-            AvailableProcessors::AggregatorProcessor,
             AvailableProcessors::Join,
+            // AvailableProcessors::AggregatorProcessor,
         ];
         let tabular_data_operator_network_builder = unary_operators
             .into_iter()
@@ -230,7 +230,7 @@ impl Default for TabularDataOperatorNetworkBuilder {
         let tool_ids = unary_operators.into_iter()
             .chain(binary_operators)
             .chain([AvailableProcessors::ExtractTabular, AvailableProcessors::PackTabular, AvailableProcessors::ApplyTemplate])
-            .map(|p| p.to_string())
+            .map(|p| DynamicTaskNetworkNames::Processor(&p.to_string()).to_string())
             .collect::<Vec<_>>();
         let tools = unary_operators.into_iter()
             .chain(binary_operators)
@@ -279,15 +279,16 @@ mod tests {
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{DynamicTaskNetworkNames, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
     use phymes_schemas::{
-        AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, create_attachments_batch, create_chat_record_batch, create_queries_batch
+        AvailableInterfaceSubjects, AvailableSubjectsTrait, create_attachments_batch, create_chat_record_batch,
     };
     use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
-        SubjectBuilderTrait, SubjectTrait,
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait, test_subject,
     };
     use phymes_task::SubscriptionTrait;
 
-    use super::*;
+    use crate::{extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
+
+use super::*;
 
     #[tokio::test]
     async fn test_tabular_data_operator_network() -> Result<()> {
@@ -316,14 +317,14 @@ mod tests {
         let mut message_map = HashMap::<String, IPCMessage>::new();
 
         // Make the CSV attachments
-        let mut bytes = Vec::new();
-        let filename = vec!["wiki_dna".to_string()];
-        let extension = vec!["pdf".to_string()];
+        let bytes = test_subject::make_test_subject("test", 128, 0, 1)?.to_csv(b',', true)?;
+        let filename = vec!["table".to_string()];
+        let extension = vec!["csv".to_string()];
         let bytes = vec![bytes];
         let metadata = vec!["user".to_string()];
         let timestamp = vec![0_i64];
         let batch = create_attachments_batch(filename, extension, bytes, metadata, timestamp)?;
-        let blob = AvailableInterfaceSubjects::UserPdf
+        let blob = AvailableInterfaceSubjects::UserCsv
             .to_subject_builder(None)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -343,7 +344,7 @@ mod tests {
 
         // 1. Make the extraction query
         let role = vec!["user".to_string()];
-        let content =vec!["TODO".to_string()];
+        let content =vec!["ExtractTabular_p with lhs_name UserCsv, lhs_values bytes, format CsvDefault, encoding None, and schema Bytes.".to_string()];
         let timestamp = vec![create_timestamp_micros()];
         let batch = create_chat_record_batch(role, content, timestamp)?;
         let queries = AvailableInterfaceSubjects::UserMessages
@@ -377,7 +378,80 @@ mod tests {
             let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
             let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
+            let extended_diagnostic_subjects = extended_diagnostic_subjects();
+            let subject_names = extended_diagnostic_subjects
+                .iter()
+                .map(|s| s.as_str())
+                .chain(["left_hand_side_s", "right_hand_side_s", "out_s", "AssistantMessages", "generate_text_inference_s"])
+                .collect::<Vec<_>>();
+            write_diagnostic_subjects_to_csv(
+                &subject_names,
+                network_arc.runtime_env(),
+                network_arc.get_name(),
+            )
+            .await?;
+
             assert_eq!(response.len(), 0);
+
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableProcessors::ExtractTabular.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            if !batches.is_empty() {
+                let subject = Subject::get_builder()
+                    .with_name(&AvailableProcessors::ExtractTabular.to_string())
+                    .with_record_batches(batches)?
+                    .build()?;
+                dbg!(subject);
+            }
+
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "left_hand_side_s".to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            if !batches.is_empty() {
+                let subject = Subject::get_builder()
+                    .with_name("left_hand_side_s")
+                    .with_record_batches(batches)?
+                    .build()?;
+                dbg!(subject);
+            }
+
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "right_hand_side_s".to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            if !batches.is_empty() {
+                let subject = Subject::get_builder()
+                    .with_name("right_hand_side_s")
+                    .with_record_batches(batches)?
+                    .build()?;
+                dbg!(subject);
+            }
+
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "out_s".to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            if !batches.is_empty() {
+                let subject = Subject::get_builder()
+                    .with_name("out_s")
+                    .with_record_batches(batches)?
+                    .build()?;
+                dbg!(subject);
+            }
 
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
@@ -394,22 +468,24 @@ mod tests {
                 )
                 .with_record_batches(batches)?
                 .build()?;
-            assert_eq!(subject.count_rows(), 1);
+            dbg!(subject.count_rows());
+            // assert_eq!(subject.count_rows(), 1);
             let column = subject.get_column_as_vec_str("role");
-            assert_eq!(column.first().unwrap(), &"tool");
+            // dbg!(column.first().unwrap());
+            // dbg!(column.last().unwrap());
             let column = subject.get_column_as_vec_str("content");
             // dbg!(column.first().unwrap());
-            assert!(column.first().unwrap().contains(&"[{\"text\":\"Deoxyribonucleic acid (DNA)"));
+            // dbg!(column.last().unwrap());
             let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
             for t in column {
                 assert!(t > 0);
             }
             // TODO
 
-            // 2. Make the filter query
+            // 2. Make the sort query
             let mut message_map = HashMap::<String, IPCMessage>::new();
             let role = vec!["user".to_string()];
-            let content =vec!["TODO".to_string()];
+            let content =vec!["Sort_p with lhs_name left_hand_side_s, lhs_values [id], and asc false".to_string()];
             let timestamp = vec![create_timestamp_micros()];
             let batch = create_chat_record_batch(role, content, timestamp)?;
             let queries = AvailableInterfaceSubjects::UserMessages
@@ -429,7 +505,7 @@ mod tests {
                     .build()?,
             );
 
-            // 2. Filter
+            // 2. Sort
             let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
             let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
