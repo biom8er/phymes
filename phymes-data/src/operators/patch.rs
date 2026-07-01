@@ -1126,7 +1126,7 @@ pub use todo::Todo"#,
             &["code"],
             &["diff", "operator"],
             "repo_path",
-            "filename",
+            "path",
             &doc_patch,
             &device,
         )?;

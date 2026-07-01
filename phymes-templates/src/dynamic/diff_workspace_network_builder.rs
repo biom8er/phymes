@@ -140,10 +140,10 @@ impl Default for DiffWorkspaceNetworkBuilderDynamicWOSubject {
             network_name: network_name.to_string(),
             dynamic_type: DynamicTaskNetworkTypes::Dynamic,
             processor: AvailableProcessors::Diff,
-            subscription_lhs: Subscription::AlwaysAllRecordBatches {
+            subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),
             },
-            subscription_rhs: Some(Subscription::AlwaysAllRecordBatches {
+            subscription_rhs: Some(Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_rhs.get_name().to_string(),
             }),
             publication: Publication::Extend {
@@ -182,13 +182,10 @@ mod tests {
     };
     use phymes_task::SubscriptionTrait;
 
-    use crate::{extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
-
 use super::*;
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_diff_workspace_network_dynamic_wo_subjects() -> Result<()> {
-        let subject_name_lhs = "other_workspace_s";
         let diff_workspace_network = DiffWorkspaceNetworkBuilderDynamicWOSubject::default();
         let (network, session_messages) = diff_workspace_network
             .inner
@@ -212,6 +209,7 @@ use super::*;
         let mut message_map = HashMap::<String, IPCMessage>::new();
 
         // Apply diff data
+        let subject_name_lhs = "other_workspace_s";
         {
             // Create the mock repository
             let path = [
@@ -351,10 +349,14 @@ pub use todo::Todo"#,
             .with_name(AvailableSubjects::WorkspacePatch.to_string().as_str())
             .with_record_batches(batches)?
             .build()?;
+        // DM: diff_p is ran twice: 1) from all subjects updating, 2) from invoke task network
         let column = subject.get_column_as_vec_str("path");
         assert_eq!(
             column,
             [
+                "/home/sandbox/src/extras/mod.rs",
+                "/home/sandbox/src/main.rs",
+                "/home/sandbox/src/extras/other.rs",
                 "/home/sandbox/src/extras/mod.rs",
                 "/home/sandbox/src/main.rs",
                 "/home/sandbox/src/extras/other.rs",
@@ -366,11 +368,14 @@ pub use todo::Todo"#,
             [
                 "@@ -1,8 +1,23 @@\n+pub mod other;%0A\n mod todo\n",
                 "",
+                "pub struct Other {}",
+                "@@ -1,8 +1,23 @@\n+pub mod other;%0A\n mod todo\n",
+                "",
                 "pub struct Other {}"
             ]
         );
         let column = subject.get_column_as_vec_str("operator");
-        assert_eq!(column, ["Update", "Delete", "Create"]);
+        assert_eq!(column, ["Update", "Delete", "Create", "Update", "Delete", "Create"]);
         Ok(())
     }
 
@@ -489,19 +494,6 @@ pub use todo::Todo"#,
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
-
-        let extended_diagnostic_subjects = extended_diagnostic_subjects();
-        let subject_names = extended_diagnostic_subjects
-            .iter()
-            .map(|s| s.as_str())
-            .chain(["WorkspacePatch"])
-            .collect::<Vec<_>>();
-        write_diagnostic_subjects_to_csv(
-            &subject_names,
-            network_arc.runtime_env(),
-            network_arc.get_name(),
-        )
-        .await?;
 
         assert_eq!(response.len(), 0);
 
