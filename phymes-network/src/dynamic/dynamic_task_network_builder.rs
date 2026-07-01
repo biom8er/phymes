@@ -43,7 +43,7 @@ pub enum DynamicTaskNetworkTypes {
     Dynamic,
     /// Dynamic task that can be invoked as a function through template generation
     /// # Notes
-    /// * The Taskized network_name == processor subject_name which is required for message routing and config parsing
+    /// * The Taskized network_name == processor subject_name == AvailableProcessor name which is required for message routing and config parsing
     Function,
 }
 
@@ -151,7 +151,7 @@ impl DynamicTaskNetworkBuilder {
         match self.dynamic_type {
             DynamicTaskNetworkTypes::Dynamic | DynamicTaskNetworkTypes::Function => {
                 // Adjust the subject_name of the invokable task
-                let subject_name = match self.dynamic_type {
+                match self.dynamic_type {
                     DynamicTaskNetworkTypes::Dynamic => {
                         if self.subject_processor.get_name() != &DynamicTaskNetworkNames::Processor(&self.network_name).to_string() {
                             panic!("the `subject_processor` name `{}` does not match the `DynamicTaskNetworkNames::Processor`ized network name `{}`",
@@ -159,21 +159,18 @@ impl DynamicTaskNetworkBuilder {
                                 DynamicTaskNetworkNames::Processor(&self.network_name).to_string(),
                             );
                         }
-                        DynamicTaskNetworkNames::Processor(&self.network_name).to_string()
                     }
                     DynamicTaskNetworkTypes::Function => {
-                        if self.subject_processor.get_name() != &DynamicTaskNetworkNames::Task(&self.network_name).to_string() {
-                            panic!("the `subject_processor` name `{}` does not match the `DynamicTaskNetworkNames::Task`ized network name `{}`",
+                        if self.subject_processor.get_name() != &self.network_name {
+                            panic!("the `subject_processor` name `{}` does not match the network name `{}`",
                                 self.subject_processor.get_name(),
-                                DynamicTaskNetworkNames::Task(&self.network_name).to_string(),
+                                self.network_name,
                             );
                         }
-                        DynamicTaskNetworkNames::Task(&self.network_name).to_string()
                     }
                     DynamicTaskNetworkTypes::Static => unreachable!(),
                 };
-                let subject_names = &[subject_name.as_str()];
-                // let subject_names = &[self.subject_processor.get_name()];
+                let subject_names = &[self.subject_processor.get_name()];
 
                 // Add the invoke task network
                 let invoke_task_network =
@@ -206,10 +203,20 @@ impl DynamicTaskNetworkBuilder {
 
 impl NetworkBuilderCustomTrait for DynamicTaskNetworkBuilder {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
-        let tasks = vec![TaskPlan {
-            task_name: DynamicTaskNetworkNames::Task(&self.network_name).to_string(),
-            processor_names: vec![self.subject_processor.get_name().to_string()],
-        }];
+        let tasks = match self.dynamic_type {
+            DynamicTaskNetworkTypes::Static | DynamicTaskNetworkTypes::Dynamic => {
+                vec![TaskPlan {
+                    task_name: DynamicTaskNetworkNames::Task(&self.network_name).to_string(),
+                    processor_names: vec![self.subject_processor.get_name().to_string()],
+                }]
+            }
+            DynamicTaskNetworkTypes::Function => {
+                vec![TaskPlan {
+                    task_name: self.network_name.to_string(),
+                    processor_names: vec![self.subject_processor.get_name().to_string()],
+                }]
+            }
+        };
 
         Some(tasks)
     }

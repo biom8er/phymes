@@ -9,10 +9,7 @@ use phymes_message::{
 };
 use phymes_processor::{ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap};
 use phymes_schemas::{
-    AvailableSubjects, AvailableSubjectsTrait, create_chat_record_batch,
-    create_session_supersteps_batch, create_session_tasks_subscribe_batch,
-    create_subjects_change_log_batch, create_subjects_object_store_meta_batch,
-    from_diagnostics_to_tables,
+    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_object_store_meta_batch, from_diagnostics_to_tables,
 };
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvTrait, Subject,
@@ -699,7 +696,8 @@ impl Network {
                         let num_rows = subject.count_rows(); // DM: not used currently...
 
                         // Check for a mismatch in the schema and intercept any errors
-                        if schema.ne(&subject.get_schema()) {
+                        // DM: ignore the `None` schema
+                        if schema.ne(&subject.get_schema()) & schema.ne(&AvailableSubjects::None.to_schema()) {
                             let error = format!(
                                 "Schema `{}` for Subject `{subject_name}` from publisher `{publisher}` does match the cached Subject Schema `{}`",
                                 subject.get_schema(),

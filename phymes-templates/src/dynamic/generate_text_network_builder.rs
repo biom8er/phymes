@@ -169,8 +169,6 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
             r#"flowchart TD
 	%% ------------------------------------------------------------------------------
 	%% Message aggregation for text generation
-	%% 	ToolMessages-subject-.->|LastRecordBatch|aggregate_messages_generate_text_p-subscribe
-	%% 	SessionErrors-subject-.->|LastRecordBatch|aggregate_messages_generate_text_p-subscribe
 	%% ------------------------------------------------------------------------------
 	subgraph aggregate_messages_generate_text_t
 		UserMessages-subject-->|AllRecordBatches|aggregate_messages_generate_text_p-subscribe

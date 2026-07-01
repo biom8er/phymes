@@ -68,6 +68,16 @@ impl ToolTrait for Sort {
                 ..Default::default()
             }),
         );
+        properties.insert(
+            "asc".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Boolean),
+                description: Some(
+                    "true for sort order Ascending and false for sort order Descending".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
         let function = Function {
             name: Self::get_static_name().to_string(),
             description: Some(self.get_description()),
@@ -78,6 +88,7 @@ impl ToolTrait for Sort {
                     "lhs_name".to_string(),
                     "lhs_pk".to_string(),
                     "lhs_values".to_string(),
+                    "asc".to_string(),
                 ]),
             },
         };

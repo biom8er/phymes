@@ -59,6 +59,8 @@ pub fn create_schema_from_fields(f: &dyn Fn() -> Fields) -> SchemaRef {
 /// The available subject schmeas
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableSubjects {
+    #[value(name = "None")]
+    None,
     #[value(name = "Empty")]
     Empty,
     #[value(name = "Messages")]
@@ -219,6 +221,7 @@ pub enum AvailableSubjects {
 impl Display for AvailableSubjects {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            AvailableSubjects::None => write!(f, "None"),
             AvailableSubjects::Empty => write!(f, "Empty"),
             AvailableSubjects::Messages => write!(f, "Messages"),
             AvailableSubjects::Values => write!(f, "Values"),
@@ -356,7 +359,7 @@ impl AvailableSubjectsTrait for AvailableSubjects {
 impl AvailableSchemaTrait for AvailableSubjects {
     fn to_schema(&self) -> SchemaRef {
         match self {
-            AvailableSubjects::Empty => Arc::new(Schema::empty()),
+            AvailableSubjects::Empty | AvailableSubjects::None => Arc::new(Schema::empty()),
             AvailableSubjects::Messages => create_schema_from_fields(&create_chat_fields),
             AvailableSubjects::Values => create_schema_from_fields(&create_values_fields),
             AvailableSubjects::RouteBytes => create_schema_from_fields(&create_route_bytes_fields),
