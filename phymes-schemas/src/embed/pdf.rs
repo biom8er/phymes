@@ -193,7 +193,7 @@ pub struct PdfTextSubject {
 }
 
 impl PdfTextSubject {
-    fn to_fields() -> Fields {
+    pub fn to_fields() -> Fields {
         Fields::from_iter(create_pdf_text_fields_vec())
     }
 }
@@ -279,7 +279,7 @@ pub struct PdfGraphicsSubject {
 }
 
 impl PdfGraphicsSubject {
-    fn to_fields() -> Fields {
+    pub fn to_fields() -> Fields {
         Fields::from_iter(create_pdf_graphics_fields_vec())
     }
 }
@@ -389,7 +389,7 @@ pub struct PdfPageSubject {
 }
 
 impl PdfPageSubject {
-    fn to_fields() -> Fields {
+    pub fn to_fields() -> Fields {
         Fields::from_iter(create_pdf_pages_fields_vec())
     }
 }
@@ -515,7 +515,7 @@ pub struct PdfDocumentSubject {
 }
 
 impl PdfDocumentSubject {
-    fn to_fields() -> Fields {
+    pub fn to_fields() -> Fields {
         Fields::from_iter(create_pdf_document_fields_vec())
     }
 }

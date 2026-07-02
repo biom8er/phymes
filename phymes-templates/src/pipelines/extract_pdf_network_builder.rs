@@ -72,19 +72,13 @@ impl Default for ExtractPDFNetworkBuilder {
                 .unwrap();
             // DM, todo: Change to AvailableSubject when possible
             let subject_routes = [
-                "PdfDocumentSubject",
-                "PdfPageSubject",
-                "PdfTextSubject",
-                "PdfGraphicsSubject",
+                AvailableSubjects::PdfDocumentSubject,
+                AvailableSubjects::PdfPageSubject,
+                AvailableSubjects::PdfTextSubject,
+                AvailableSubjects::PdfGraphicsSubject,
             ]
             .into_iter()
-            .map(|s| {
-                let subject = AvailableSubjects::Bytes.to_subject(Some(s), None).unwrap();
-                SubjectPlan::get_builder()
-                    .with_subject(subject)
-                    .build()
-                    .unwrap()
-            })
+            .map(|s| s.to_subject_plan(None, None).unwrap())
             .collect::<Vec<_>>();
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
@@ -295,7 +289,9 @@ mod tests {
     };
     use phymes_task::SubscriptionTrait;
 
-    use super::*;
+    use crate::{extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
+
+use super::*;
 
     #[tokio::test]
     async fn test_extract_pdf_network() -> Result<()> {
@@ -354,18 +350,30 @@ mod tests {
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
+        let extended_diagnostic_subjects = extended_diagnostic_subjects();
+        let subject_names = extended_diagnostic_subjects
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+        write_diagnostic_subjects_to_csv(
+            &subject_names,
+            network_arc.runtime_env(),
+            network_arc.get_name(),
+        )
+        .await?;
+
         assert_eq!(response.len(), 0);
 
         // Test supsersteps
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: "PdfDocumentSubject".to_string(),
+            subject_name: AvailableSubjects::PdfDocumentSubject.to_string(),
         }
         .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
         let subject = Subject::get_builder()
-            .with_name("PdfDocumentSubject")
+            .with_name(&AvailableSubjects::PdfDocumentSubject.to_string())
             .with_record_batches(batches)?
             .build()?;
         assert_eq!(subject.count_rows(), 1);

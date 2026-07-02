@@ -698,10 +698,12 @@ impl Network {
                         let subject = builder.with_name(subject_name.as_str()).build().unwrap();
                         let num_rows = subject.count_rows(); // DM: not used currently...
 
-                        // Check for a mismatch in the schema and intercept any errors
-                        // DM: ignore the `None` schema
+                        // Check for a mismatch in the schema and intercept any errors                        
                         if schema.ne(&subject.get_schema())
+                            // ignore the `None` schema
                             & schema.ne(&AvailableSubjects::None.to_schema())
+                            // ignore subjects with the `Bytes` schema used for internal routing of messages
+                            & subject.get_schema().ne(&AvailableSubjects::Bytes.to_schema())
                         {
                             let error = format!(
                                 "Schema `{}` for Subject `{subject_name}` from publisher `{publisher}` does match the cached Subject Schema `{}`",

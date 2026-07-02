@@ -42,7 +42,6 @@ fn main() {
 fn app() -> Element {
     // render the UI
     rsx! {
-        // document::Link { rel: "stylesheet", href: MAIN_CSS },
         document::Link { rel: "stylesheet", href: TAILWIND_CSS },
         mermaid_js {},
         main_window_view {}

@@ -1,7 +1,5 @@
 use crate::{
-    AvailableSchemaTrait, AvailableSubjectsTrait,
-    chat::{create_route_bytes_fields, create_tools_fields, create_values_fields},
-    core::{
+    AvailableSchemaTrait, AvailableSubjectsTrait, PdfDocumentSubject, PdfGraphicsSubject, PdfPageSubject, PdfTextSubject, chat::{create_route_bytes_fields, create_tools_fields, create_values_fields}, core::{
         create_events_fields, create_join_user_inbox_networks_fields,
         create_join_user_inbox_networks_mermaid_diagrams_fields,
         create_mermaid_content_template_fields, create_mermaid_er_diagram_entities_template_fields,
@@ -24,15 +22,11 @@ use crate::{
         create_subjects_num_rows_fields, create_subjects_object_store_meta_fields,
         create_traces_fields, create_user_fields, create_user_inbox_fields,
         create_user_networks_fields,
-    },
-    create_bytes_fields, create_chat_fields, create_repository_fields,
-    create_repository_patch_fields, create_workspace_fields, create_workspace_patch_fields,
-    embed::{
+    }, create_bytes_fields, create_chat_fields, create_repository_fields, create_repository_patch_fields, create_workspace_fields, create_workspace_patch_fields, embed::{
         create_document_embeddings_fields, create_documents_fields,
         create_embeddings_scores_fields, create_join_chunks_scores_fields, create_queries_fields,
         create_query_embeddings_fields,
-    },
-    storage::{
+    }, storage::{
         create_attachments_fields, create_n_quads_fields, create_n_triples_fields,
         create_object_store_fields, create_object_store_meta_fields, create_parse_owl_fields,
         create_parse_xml_fields,
@@ -216,6 +210,14 @@ pub enum AvailableSubjects {
     OpenAlexResponsePublishers,
     #[value(name = "OpenAlexResponseSources")]
     OpenAlexResponseSources,
+    #[value(name = "PdfTextSubject")]
+    PdfTextSubject,
+    #[value(name = "PdfGraphicsSubject")]
+    PdfGraphicsSubject,
+    #[value(name = "PdfPageSubject")]
+    PdfPageSubject,
+    #[value(name = "PdfDocumentSubject")]
+    PdfDocumentSubject,
 }
 
 impl Display for AvailableSubjects {
@@ -325,6 +327,10 @@ impl Display for AvailableSubjects {
                 write!(f, "OpenAlexResponsePublishers")
             }
             AvailableSubjects::OpenAlexResponseSources => write!(f, "OpenAlexResponseSources"),
+            AvailableSubjects::PdfTextSubject => write!(f, "PdfTextSubject"),
+            AvailableSubjects::PdfGraphicsSubject => write!(f, "PdfGraphicsSubject"),
+            AvailableSubjects::PdfPageSubject => write!(f, "PdfPageSubject"),
+            AvailableSubjects::PdfDocumentSubject => write!(f, "PdfDocumentSubject"),
         }
     }
 }
@@ -528,6 +534,18 @@ impl AvailableSchemaTrait for AvailableSubjects {
             AvailableSubjects::OpenAlexResponseFunders => Arc::new(Schema::empty()),
             AvailableSubjects::OpenAlexResponsePublishers => Arc::new(Schema::empty()),
             AvailableSubjects::OpenAlexResponseSources => Arc::new(Schema::empty()),
+            AvailableSubjects::PdfTextSubject => {
+                create_schema_from_fields(&PdfTextSubject::to_fields)
+            }
+            AvailableSubjects::PdfGraphicsSubject => {
+                create_schema_from_fields(&PdfGraphicsSubject::to_fields)
+            }
+            AvailableSubjects::PdfPageSubject => {
+                create_schema_from_fields(&PdfPageSubject::to_fields)
+            }
+            AvailableSubjects::PdfDocumentSubject => {
+                create_schema_from_fields(&PdfDocumentSubject::to_fields)
+            }
         }
     }
 }

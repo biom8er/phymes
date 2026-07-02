@@ -305,9 +305,7 @@ mod tests {
     };
     use phymes_task::SubscriptionTrait;
 
-    use crate::{
-        ExecuteWorkspaceNetwork, extended_diagnostic_subjects, write_diagnostic_subjects_to_csv,
-    };
+    use crate::ExecuteWorkspaceNetwork;
 
     use super::*;
 
@@ -480,27 +478,6 @@ pip install --no-cache-dir -r requirements.txt"#,
         // 1. Run the session
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
-
-        let extended_diagnostic_subjects = extended_diagnostic_subjects();
-        let subject_names = extended_diagnostic_subjects
-            .iter()
-            .map(|s| s.as_str())
-            .chain([
-                "UserMessages",
-                "AssistantMessages",
-                "WorkspacePatch",
-                "aggregate_messages_generate_text_s",
-                subject_name_i,
-                subject_name_o,
-                workspace_name,
-            ])
-            .collect::<Vec<_>>();
-        write_diagnostic_subjects_to_csv(
-            &subject_names,
-            network_arc.runtime_env(),
-            network_arc.get_name(),
-        )
-        .await?;
 
         assert_eq!(response.len(), 0);
 
@@ -792,27 +769,6 @@ apt install --assume-yes protobuf-compiler clang"#,
         // 1. Run the session
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
-
-        let extended_diagnostic_subjects = extended_diagnostic_subjects();
-        let subject_names = extended_diagnostic_subjects
-            .iter()
-            .map(|s| s.as_str())
-            .chain([
-                "UserMessages",
-                "AssistantMessages",
-                "WorkspacePatch",
-                "aggregate_messages_generate_text_s",
-                subject_name_i,
-                subject_name_o,
-                workspace_name,
-            ])
-            .collect::<Vec<_>>();
-        write_diagnostic_subjects_to_csv(
-            &subject_names,
-            network_arc.runtime_env(),
-            network_arc.get_name(),
-        )
-        .await?;
 
         assert_eq!(response.len(), 0);
 
