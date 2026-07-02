@@ -153,15 +153,15 @@ impl DynamicTaskNetworkBuilder {
                 // Adjust the subject_name of the invokable task
                 match self.dynamic_type {
                     DynamicTaskNetworkTypes::Dynamic => {
-                        if self.subject_processor.get_name() != &DynamicTaskNetworkNames::Processor(&self.network_name).to_string() {
+                        if self.subject_processor.get_name() != DynamicTaskNetworkNames::Processor(&self.network_name).to_string() {
                             panic!("the `subject_processor` name `{}` does not match the `DynamicTaskNetworkNames::Processor`ized network name `{}`",
                                 self.subject_processor.get_name(),
-                                DynamicTaskNetworkNames::Processor(&self.network_name).to_string(),
+                                DynamicTaskNetworkNames::Processor(&self.network_name),
                             );
                         }
                     }
                     DynamicTaskNetworkTypes::Function => {
-                        if self.subject_processor.get_name() != &self.network_name {
+                        if self.subject_processor.get_name() != self.network_name {
                             panic!("the `subject_processor` name `{}` does not match the network name `{}`",
                                 self.subject_processor.get_name(),
                                 self.network_name,

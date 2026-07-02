@@ -7,6 +7,7 @@ use crate::{DynamicTaskNetworkBuilder, NetworkBuilder};
 
 /// Template Dynamic or Static Processor Chain Network Builder
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct PipelineTaskNetworkBuilder {
     /// Network name
     pub network_name: Option<String>,
@@ -14,16 +15,11 @@ pub struct PipelineTaskNetworkBuilder {
     pub tasks: Option<VecDeque<DynamicTaskNetworkBuilder>>,
 }
 
-impl Default for PipelineTaskNetworkBuilder {
-    fn default() -> Self {
-        Self { network_name: None, tasks: None }
-    }
-}
 
 impl PipelineTaskNetworkBuilder {
     /// Add [DynamicTaskNetworkBuilder]s
     pub fn with_tasks(mut self, tasks: &[DynamicTaskNetworkBuilder]) -> Self {
-        self.tasks = Some(tasks.into_iter().map(|t| t.clone()).collect::<VecDeque<_>>());
+        self.tasks = Some(tasks.iter().cloned().collect::<VecDeque<_>>());
         self
     }
 }
