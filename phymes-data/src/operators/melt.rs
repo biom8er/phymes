@@ -51,7 +51,10 @@ impl ToolTrait for Melt {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side message (Apache Arrow `RecordBatch`es)".to_string()),
+                description: Some(
+                    "The name of the left hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -60,7 +63,8 @@ impl ToolTrait for Melt {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "The column names of the identifier variables for the left hand side message".to_string(),
+                    "The column names of the identifier variables for the left hand side message"
+                        .to_string(),
                 ),
                 ..Default::default()
             }),
@@ -70,7 +74,8 @@ impl ToolTrait for Melt {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some(
-                    "The column names of the measured variables for the left hand side message".to_string(),
+                    "The column names of the measured variables for the left hand side message"
+                        .to_string(),
                 ),
                 ..Default::default()
             }),

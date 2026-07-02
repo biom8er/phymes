@@ -30,8 +30,11 @@ impl<'a> DynamicNetworkBuilderTrait for TaskResponseNetworkBuilder<'a> {
 }
 
 impl<'a> TaskResponseNetworkBuilder<'a> {
-    pub fn new(network_name:&'a str, subject_names: &'a [&'a str]) -> Self {
-        Self { network_name, subject_names }
+    pub fn new(network_name: &'a str, subject_names: &'a [&'a str]) -> Self {
+        Self {
+            network_name,
+            subject_names,
+        }
     }
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
@@ -125,7 +128,7 @@ mod tests {
         BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
     };
     use phymes_task::SubscriptionTrait;
-    
+
     use crate::{
         NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
         NetworkStream,

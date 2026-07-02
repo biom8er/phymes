@@ -6,14 +6,17 @@ use phymes_data::make_pdf_document_page_per_content;
 use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
-use phymes_network::{DynamicTaskNetworkNames, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
+use phymes_network::{
+    DynamicTaskNetworkNames, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream,
+};
 use phymes_schemas::{
     AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjects,
     AvailableSubjectsTrait,
 };
 use phymes_streams::ChatBuilderTraitExt;
 use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
+    SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_task::SubscriptionTrait;
 use phymes_templates::RetrievalAugmentedGenerationPDFNetworkBuilder;
@@ -70,32 +73,34 @@ fn benchmark_chat_agent_network(c: &mut Criterion) {
                 let network_name = format!("session_1_{tag}_{iter}");
 
                 // Create the session stream state
-                let (network, session_messages) = RetrievalAugmentedGenerationPDFNetworkBuilder::default()
-                    .inner.take()
-                    .unwrap()
-                    .with_runtime_env(
-                        RuntimeEnv::get_builder()
-                            .with_name(
-                                DynamicTaskNetworkNames::RuntimeEnv(&network_name)
-                                    .to_string()
-                                    .as_str(),
-                            )
-                            .with_max_steps(100)
-                            .build_arc()
-                            .unwrap(),
-                    )
-                    .with_diagnostics(true)
-                    .with_name(network_name.as_str())
-                    .add_processor_subjects()
-                    .unwrap()
-                    .add_network_interface(None)
-                    .unwrap()
-                    .add_next_tasks()
-                    .unwrap()
-                    .add_next_supersteps()
-                    .unwrap()
-                    .build_with_tables()
-                    .unwrap();
+                let (network, session_messages) =
+                    RetrievalAugmentedGenerationPDFNetworkBuilder::default()
+                        .inner
+                        .take()
+                        .unwrap()
+                        .with_runtime_env(
+                            RuntimeEnv::get_builder()
+                                .with_name(
+                                    DynamicTaskNetworkNames::RuntimeEnv(&network_name)
+                                        .to_string()
+                                        .as_str(),
+                                )
+                                .with_max_steps(100)
+                                .build_arc()
+                                .unwrap(),
+                        )
+                        .with_diagnostics(true)
+                        .with_name(network_name.as_str())
+                        .add_processor_subjects()
+                        .unwrap()
+                        .add_network_interface(None)
+                        .unwrap()
+                        .add_next_tasks()
+                        .unwrap()
+                        .add_next_supersteps()
+                        .unwrap()
+                        .build_with_tables()
+                        .unwrap();
                 let network_arc = Arc::new(network);
                 let sample_id = format!("{id}_{iter}");
 

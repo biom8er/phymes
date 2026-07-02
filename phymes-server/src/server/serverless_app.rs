@@ -164,8 +164,10 @@ mod tests {
         let bearer = format!("Bearer {token}");
 
         // Create the session state JSON value
-        let session_name =
-            create_session_name(values.get("email").unwrap().as_str().unwrap(), "GenerateText");
+        let session_name = create_session_name(
+            values.get("email").unwrap().as_str().unwrap(),
+            "GenerateText",
+        );
         let session_response = NetworkInterfaceMessage::get_builder()
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
@@ -283,8 +285,10 @@ mod tests {
         // Test subjects_schema using serverless_app
         let token = values.get("jwt").unwrap().as_str().unwrap();
         let bearer = token.to_string();
-        let session_name =
-            create_session_name(values.get("email").unwrap().as_str().unwrap(), "GenerateText");
+        let session_name = create_session_name(
+            values.get("email").unwrap().as_str().unwrap(),
+            "GenerateText",
+        );
         let session_response = NetworkInterfaceMessage::get_builder()
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)

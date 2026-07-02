@@ -47,7 +47,10 @@ impl ToolTrait for Diff {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side message (Apache Arrow `RecordBatch`es)".to_string()),
+                description: Some(
+                    "The name of the left hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -55,7 +58,10 @@ impl ToolTrait for Diff {
             "rhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the right hand side message (Apache Arrow `RecordBatch`es)".to_string()),
+                description: Some(
+                    "The name of the right hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -114,7 +120,15 @@ impl ToolTrait for Diff {
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
-                required: Some(vec!["lhs_name".to_string(), "rhs_name".to_string(), "lhs_pk".to_string(), "rhs_pk".to_string(), "lhs_values".to_string(), "rhs_values".to_string(), "diff".to_string() ]),
+                required: Some(vec![
+                    "lhs_name".to_string(),
+                    "rhs_name".to_string(),
+                    "lhs_pk".to_string(),
+                    "rhs_pk".to_string(),
+                    "lhs_values".to_string(),
+                    "rhs_values".to_string(),
+                    "diff".to_string(),
+                ]),
             },
         };
         let tool = Tool {

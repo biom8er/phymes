@@ -398,8 +398,8 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{
-        InvokeTaskNetworkBuilder, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
-        NetworkStream,
+        InvokeTaskNetworkBuilder, NetworkBuilder, NetworkBuilderAppsTrait,
+        NetworkBuilderMermaidTrait, NetworkBuilderTrait, NetworkStream,
     };
     use phymes_schemas::{create_bytes_record_batch, create_object_store_meta_batch};
     use phymes_streams::{ObjectStoreConfig, ObjectStoreOptsType};

@@ -1,14 +1,22 @@
 use phymes_data::ToolTrait;
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
-use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkTypes, NetworkBuilder, NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait};
+use phymes_network::{
+    DynamicTaskNetworkBuilder, DynamicTaskNetworkTypes, NetworkBuilder, NetworkBuilderCustomTrait,
+    NetworkBuilderMermaidTrait, NetworkBuilderTrait,
+};
 use phymes_processor::AvailableProcessors;
-use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, create_tools_record_batch};
-use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, SubjectPlan, SubjectPlanBuilderTrait};
+use phymes_schemas::{
+    AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait,
+    create_tools_record_batch,
+};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, SubjectPlan, SubjectPlanBuilderTrait,
+};
 
 use crate::{AttachmentsNetworkBuilder, GenerateTextNetworkBuilder};
 
 /// Tabular (columnar data) operator network
-/// 
+///
 /// # Notes
 /// * Pre-specified operators than can be called sequentially to build a full SQL-like SELECT command
 /// * Results can be exported to CSV or HTML
@@ -20,7 +28,11 @@ pub struct TabularDataOperatorNetworkBuilder {
 
 impl TabularDataOperatorNetworkBuilder {
     /// Helper to create a Dynamic Unary Operator Network
-    fn unary_network_builder(processor: AvailableProcessors, subject_name_lhs: &str, subject_name_out: &str) -> NetworkBuilder {
+    fn unary_network_builder(
+        processor: AvailableProcessors,
+        subject_name_lhs: &str,
+        subject_name_out: &str,
+    ) -> NetworkBuilder {
         let task_name = processor.to_string();
         let subject = AvailableSubjects::Bytes
             .to_subject(
@@ -51,13 +63,15 @@ impl TabularDataOperatorNetworkBuilder {
     }
 
     /// Helper to create a Dynamic Binary Operator Network
-    fn binary_network_builder(processor: AvailableProcessors, subject_name_lhs: &str, subject_name_rhs: &str, subject_name_out: &str) -> NetworkBuilder {
+    fn binary_network_builder(
+        processor: AvailableProcessors,
+        subject_name_lhs: &str,
+        subject_name_rhs: &str,
+        subject_name_out: &str,
+    ) -> NetworkBuilder {
         let task_name = processor.to_string();
         let subject = AvailableSubjects::Bytes
-            .to_subject(
-                Some(&task_name),
-                None,
-            )
+            .to_subject(Some(&task_name), None)
             .unwrap();
         let subject_processor = SubjectPlan::get_builder()
             .with_subject(subject)
@@ -92,7 +106,8 @@ impl Default for TabularDataOperatorNetworkBuilder {
         let subject_name_out = "out_s";
 
         // Tabular data operators
-        let unary_operators = [AvailableProcessors::Select,
+        let unary_operators = [
+            AvailableProcessors::Select,
             AvailableProcessors::Sort,
             AvailableProcessors::GroupBy,
             AvailableProcessors::Filter,
@@ -101,7 +116,8 @@ impl Default for TabularDataOperatorNetworkBuilder {
             // AvailableProcessors::LimitProcessor,
             // AvailableProcessors::CoalesceProcessor,
         ];
-        let binary_operators = [AvailableProcessors::Patch,
+        let binary_operators = [
+            AvailableProcessors::Patch,
             AvailableProcessors::Diff,
             AvailableProcessors::Join,
             // AvailableProcessors::AggregatorProcessor,
@@ -109,14 +125,32 @@ impl Default for TabularDataOperatorNetworkBuilder {
         let tabular_data_operator_network_builder = unary_operators
             .into_iter()
             .map(|op| Self::unary_network_builder(op, subject_name_lhs, subject_name_out))
-            .chain(binary_operators
-                .into_iter()
-                .map(|op| Self::binary_network_builder(op, subject_name_lhs, subject_name_rhs, subject_name_out))
-            )
-            .chain([Self::unary_network_builder(AvailableProcessors::ExtractTabular, &AvailableInterfaceSubjects::UserCsv.to_string(), subject_name_lhs)])
-            .chain([Self::unary_network_builder(AvailableProcessors::PackTabular, subject_name_out, &AvailableInterfaceSubjects::AssistantCsv.to_string())])
-            .chain([Self::unary_network_builder(AvailableProcessors::ApplyTemplate, subject_name_out, &AvailableInterfaceSubjects::AssistantScript.to_string())])
-            .reduce(|tabular_data_operator_network_builder, e| tabular_data_operator_network_builder.extend(e).unwrap())
+            .chain(binary_operators.into_iter().map(|op| {
+                Self::binary_network_builder(
+                    op,
+                    subject_name_lhs,
+                    subject_name_rhs,
+                    subject_name_out,
+                )
+            }))
+            .chain([Self::unary_network_builder(
+                AvailableProcessors::ExtractTabular,
+                &AvailableInterfaceSubjects::UserCsv.to_string(),
+                subject_name_lhs,
+            )])
+            .chain([Self::unary_network_builder(
+                AvailableProcessors::PackTabular,
+                subject_name_out,
+                &AvailableInterfaceSubjects::AssistantCsv.to_string(),
+            )])
+            .chain([Self::unary_network_builder(
+                AvailableProcessors::ApplyTemplate,
+                subject_name_out,
+                &AvailableInterfaceSubjects::AssistantScript.to_string(),
+            )])
+            .reduce(|tabular_data_operator_network_builder, e| {
+                tabular_data_operator_network_builder.extend(e).unwrap()
+            })
             .unwrap();
 
         // Generate text network
@@ -124,14 +158,18 @@ impl Default for TabularDataOperatorNetworkBuilder {
         let network_builder = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_network.as_mermaid_flowchart(),
             false,
-        ).unwrap()
+        )
+        .unwrap()
         .with_subjects_from_mermaid_erdiagram(
             &generate_text_network.as_mermaid_erdiagram(),
             false,
             true,
-        ).unwrap()
+        )
+        .unwrap()
         .with_name(generate_text_network.network_name);
-        let tabular_data_operator_network_builder = tabular_data_operator_network_builder.extend(network_builder).unwrap();
+        let tabular_data_operator_network_builder = tabular_data_operator_network_builder
+            .extend(network_builder)
+            .unwrap();
 
         // DM: Not needed so long as the `UserMessage` are `Replace`d after each execution
         // DM, todo!(): Need to update the UI to not assume `UserMessage` are `Extend`ed
@@ -158,36 +196,62 @@ impl Default for TabularDataOperatorNetworkBuilder {
         ];
         let binding = subject_names.iter().map(|s| s.as_str()).collect::<Vec<_>>();
         let attachments_network = AttachmentsNetworkBuilder::new("attachments_network", &binding);
-        let network_builder = attachments_network.build().with_name(attachments_network.network_name);
-        let mut tabular_data_operator_network_builder = tabular_data_operator_network_builder.extend(network_builder).unwrap();
+        let network_builder = attachments_network
+            .build()
+            .with_name(attachments_network.network_name);
+        let mut tabular_data_operator_network_builder = tabular_data_operator_network_builder
+            .extend(network_builder)
+            .unwrap();
 
         // Add the available tool subjects
-        let tool_ids = unary_operators.into_iter()
+        let tool_ids = unary_operators
+            .into_iter()
             .chain(binary_operators)
-            .chain([AvailableProcessors::ExtractTabular, AvailableProcessors::PackTabular, AvailableProcessors::ApplyTemplate])
+            .chain([
+                AvailableProcessors::ExtractTabular,
+                AvailableProcessors::PackTabular,
+                AvailableProcessors::ApplyTemplate,
+            ])
             .map(|p| p.to_string())
             .collect::<Vec<_>>();
-        let tools = unary_operators.into_iter()
+        let tools = unary_operators
+            .into_iter()
             .chain(binary_operators)
-            .chain([AvailableProcessors::ExtractTabular, AvailableProcessors::PackTabular, AvailableProcessors::ApplyTemplate])
+            .chain([
+                AvailableProcessors::ExtractTabular,
+                AvailableProcessors::PackTabular,
+                AvailableProcessors::ApplyTemplate,
+            ])
             .map(|p| p.to_json_tool_schema())
             .collect::<Vec<_>>();
         let batch = create_tools_record_batch(tool_ids, tools).unwrap();
-        let subject_plan = AvailableSubjects::Tools.to_subject_plan(None, Some(vec![batch])).unwrap();
+        let subject_plan = AvailableSubjects::Tools
+            .to_subject_plan(None, Some(vec![batch]))
+            .unwrap();
 
         // Add the LHS, RHS, OUT subjects
-        let subject_plans = [subject_name_lhs, subject_name_rhs, subject_name_out].into_iter()
-            .map(|s| AvailableSubjects::None
-                .to_subject_plan(Some(s), None)
-                .unwrap())
+        let subject_plans = [subject_name_lhs, subject_name_rhs, subject_name_out]
+            .into_iter()
+            .map(|s| {
+                AvailableSubjects::None
+                    .to_subject_plan(Some(s), None)
+                    .unwrap()
+            })
             .chain([
-                AvailableInterfaceSubjects::UserCsv.to_subject_plan(None, None).unwrap(),
-                AvailableInterfaceSubjects::AssistantCsv.to_subject_plan(None, None).unwrap(),
-                AvailableInterfaceSubjects::AssistantScript.to_subject_plan(None, None).unwrap(),
+                AvailableInterfaceSubjects::UserCsv
+                    .to_subject_plan(None, None)
+                    .unwrap(),
+                AvailableInterfaceSubjects::AssistantCsv
+                    .to_subject_plan(None, None)
+                    .unwrap(),
+                AvailableInterfaceSubjects::AssistantScript
+                    .to_subject_plan(None, None)
+                    .unwrap(),
             ])
             .collect::<Vec<_>>();
 
-        let subjects = tabular_data_operator_network_builder.subjects
+        let subjects = tabular_data_operator_network_builder
+            .subjects
             .take()
             .unwrap()
             .into_iter()
@@ -195,10 +259,13 @@ impl Default for TabularDataOperatorNetworkBuilder {
             .chain(subject_plans)
             .chain([subject_plan])
             .collect::<Vec<_>>();
-        let tabular_data_operator_network_builder = tabular_data_operator_network_builder.with_subjects(subjects);
+        let tabular_data_operator_network_builder =
+            tabular_data_operator_network_builder.with_subjects(subjects);
 
         TabularDataOperatorNetworkBuilder {
-            inner: Some(tabular_data_operator_network_builder.with_name("tabular_data_operator_network")),
+            inner: Some(
+                tabular_data_operator_network_builder.with_name("tabular_data_operator_network"),
+            ),
         }
     }
 }
@@ -212,21 +279,28 @@ mod tests {
     use phymes_diagnostics::{HashMap, create_timestamp_micros};
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
-    use phymes_network::{DynamicTaskNetworkNames, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
+    use phymes_network::{
+        DynamicTaskNetworkNames, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream,
+    };
     use phymes_schemas::{
-        AvailableInterfaceSubjects, AvailableSubjectsTrait, create_attachments_batch, create_chat_record_batch,
+        AvailableInterfaceSubjects, AvailableSubjectsTrait, create_attachments_batch,
+        create_chat_record_batch,
     };
     use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait, test_subject,
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
+        SubjectBuilderTrait, SubjectTrait, test_subject,
     };
     use phymes_task::SubscriptionTrait;
 
-use super::*;
+    use super::*;
 
     #[tokio::test]
     async fn test_tabular_data_operator_network() -> Result<()> {
         // Initialize the session
-        let tabular_data_operator_network_builder = TabularDataOperatorNetworkBuilder::default().inner.take().unwrap();
+        let tabular_data_operator_network_builder = TabularDataOperatorNetworkBuilder::default()
+            .inner
+            .take()
+            .unwrap();
         let network_name = tabular_data_operator_network_builder.name.clone().unwrap();
         let (network, session_messages) = tabular_data_operator_network_builder
             .with_runtime_env(
@@ -289,7 +363,8 @@ use super::*;
             IPCMessage::get_builder()
                 .with_message(queries.to_ipc_stream()?)
                 .with_subject(queries.get_name())
-                .with_update(&Publication::Replace { // was Extend
+                .with_update(&Publication::Replace {
+                    // was Extend
                     subject_name: queries.get_name().to_string(),
                 })
                 .with_publisher(network_arc.get_name())
@@ -418,7 +493,9 @@ use super::*;
             // 2. Make the sort query
             let mut message_map = HashMap::<String, IPCMessage>::new();
             let role = vec!["user".to_string()];
-            let content =vec!["Sort with lhs_name left_hand_side_s, lhs_values id, and asc false".to_string()];
+            let content = vec![
+                "Sort with lhs_name left_hand_side_s, lhs_values id, and asc false".to_string(),
+            ];
             let timestamp = vec![create_timestamp_micros()];
             let batch = create_chat_record_batch(role, content, timestamp)?;
             let queries = AvailableInterfaceSubjects::UserMessages
@@ -430,7 +507,8 @@ use super::*;
                 IPCMessage::get_builder()
                     .with_message(queries.to_ipc_stream()?)
                     .with_subject(queries.get_name())
-                    .with_update(&Publication::Replace { // was Extend
+                    .with_update(&Publication::Replace {
+                        // was Extend
                         subject_name: queries.get_name().to_string(),
                     })
                     .with_publisher(network_arc.get_name())
@@ -487,7 +565,8 @@ use super::*;
                 IPCMessage::get_builder()
                     .with_message(queries.to_ipc_stream()?)
                     .with_subject(queries.get_name())
-                    .with_update(&Publication::Replace { // was Extend
+                    .with_update(&Publication::Replace {
+                        // was Extend
                         subject_name: queries.get_name().to_string(),
                     })
                     .with_publisher(network_arc.get_name())

@@ -1,10 +1,10 @@
 use phymes_data::{AvailableOperators, DataConfig, DataStreamManager, PatchOperator};
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
+use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes};
 use phymes_processor::AvailableProcessors;
 use phymes_schemas::{
     AvailableSubjects, AvailableSubjectsTrait, create_workspace_batch, create_workspace_patch_batch,
 };
-use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes};
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
     SubjectPlanBuilderTrait,

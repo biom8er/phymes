@@ -6,15 +6,13 @@ use phymes_subject::BuilderTrait;
 use crate::{DynamicTaskNetworkBuilder, NetworkBuilder};
 
 /// Template Dynamic or Static Processor Chain Network Builder
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct PipelineTaskNetworkBuilder {
     /// Network name
     pub network_name: Option<String>,
     /// Dynamic or Static tasks
     pub tasks: Option<VecDeque<DynamicTaskNetworkBuilder>>,
 }
-
 
 impl PipelineTaskNetworkBuilder {
     /// Add [DynamicTaskNetworkBuilder]s
@@ -44,7 +42,9 @@ impl BuilderTrait for PipelineTaskNetworkBuilder {
             }
             Ok(network_builder)
         } else {
-            Err(anyhow!("Please add tasks before building the Processor Chain Network Builder."))
+            Err(anyhow!(
+                "Please add tasks before building the Processor Chain Network Builder."
+            ))
         }
     }
 }

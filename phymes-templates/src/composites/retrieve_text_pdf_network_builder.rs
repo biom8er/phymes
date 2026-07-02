@@ -11,7 +11,8 @@ pub struct RetrieveTextPDFNetworkBuilder {
 impl Default for RetrieveTextPDFNetworkBuilder {
     fn default() -> Self {
         // Extract PDF session
-        let retrieve_text_pdf_network_builder = ExtractPDFNetworkBuilder::default().inner.take().unwrap();
+        let retrieve_text_pdf_network_builder =
+            ExtractPDFNetworkBuilder::default().inner.take().unwrap();
 
         // Embed text session
         let embed_text_network = EmbedTextNetworkBuilder::default();
@@ -65,9 +66,12 @@ mod tests {
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
-    use phymes_network::{DynamicTaskNetworkNames, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
+    use phymes_network::{
+        DynamicTaskNetworkNames, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream,
+    };
     use phymes_schemas::{
-        AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, create_attachments_batch, create_queries_batch
+        AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait,
+        create_attachments_batch, create_queries_batch,
     };
     use phymes_subject::{
         BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
@@ -80,7 +84,10 @@ mod tests {
     #[tokio::test]
     async fn test_retrieve_text_pdf_network() -> Result<()> {
         // Initialize the session
-        let retrieve_text_pdf_network_builder = RetrieveTextPDFNetworkBuilder::default().inner.take().unwrap();
+        let retrieve_text_pdf_network_builder = RetrieveTextPDFNetworkBuilder::default()
+            .inner
+            .take()
+            .unwrap();
         let network_name = retrieve_text_pdf_network_builder.name.clone().unwrap();
         let (network, session_messages) = retrieve_text_pdf_network_builder
             .with_runtime_env(
@@ -157,7 +164,7 @@ mod tests {
 
             // Make the query data
             let query_ids = vec!["0".to_string()];
-            let text =vec!["What are the four molecules that compose DNA?".to_string()];
+            let text = vec!["What are the four molecules that compose DNA?".to_string()];
             let batch = create_queries_batch(query_ids, text)?;
             let queries = AvailableInterfaceSubjects::UserQueries
                 .to_subject_builder(None)
@@ -196,7 +203,10 @@ mod tests {
                 .build()?;
             assert_eq!(subject.count_rows(), 1);
             let column = subject.get_column_as_vec_str("chunk_id");
-            assert_eq!(column.first().unwrap(), &"wiki_dna2PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_0");
+            assert_eq!(
+                column.first().unwrap(),
+                &"wiki_dna2PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_0"
+            );
             let column = subject.get_column_as_vec_str("query_id");
             assert_eq!(column.first().unwrap(), &"0");
             let column = subject.get_column_as_vec_primitive::<f32>("score")?;
@@ -224,7 +234,12 @@ mod tests {
             assert_eq!(column.first().unwrap(), &"tool");
             let column = subject.get_column_as_vec_str("content");
             // dbg!(column.first().unwrap());
-            assert!(column.first().unwrap().contains(&"[{\"text\":\"Deoxyribonucleic acid (DNA)"));
+            assert!(
+                column
+                    .first()
+                    .unwrap()
+                    .contains("[{\"text\":\"Deoxyribonucleic acid (DNA)")
+            );
             let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
             for t in column {
                 assert!(t > 0);

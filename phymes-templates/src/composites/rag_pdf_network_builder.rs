@@ -11,7 +11,10 @@ pub struct RetrievalAugmentedGenerationPDFNetworkBuilder {
 impl Default for RetrievalAugmentedGenerationPDFNetworkBuilder {
     fn default() -> Self {
         // Retrieve text PDF network
-        let rag_pdf_network_builder = RetrieveTextPDFNetworkBuilder::default().inner.take().unwrap();
+        let rag_pdf_network_builder = RetrieveTextPDFNetworkBuilder::default()
+            .inner
+            .take()
+            .unwrap();
 
         // Generate text network
         let generate_text_network = GenerateTextNetworkBuilder::default();
@@ -27,9 +30,7 @@ impl Default for RetrievalAugmentedGenerationPDFNetworkBuilder {
         )
         .unwrap()
         .with_name(generate_text_network.network_name);
-        let rag_pdf_network_builder = rag_pdf_network_builder
-            .extend(network_builder)
-            .unwrap();
+        let rag_pdf_network_builder = rag_pdf_network_builder.extend(network_builder).unwrap();
 
         RetrievalAugmentedGenerationPDFNetworkBuilder {
             inner: Some(rag_pdf_network_builder.with_name("rag_pdf_network")),
@@ -47,12 +48,16 @@ mod tests {
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
-    use phymes_network::{DynamicTaskNetworkNames, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
+    use phymes_network::{
+        DynamicTaskNetworkNames, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream,
+    };
     use phymes_schemas::{
-        AvailableInterfaceSubjects, AvailableSubjectsTrait, create_attachments_batch, create_chat_record_batch
+        AvailableInterfaceSubjects, AvailableSubjectsTrait, create_attachments_batch,
+        create_chat_record_batch,
     };
     use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
+        SubjectBuilderTrait, SubjectTrait,
     };
     use phymes_task::SubscriptionTrait;
 
@@ -63,7 +68,10 @@ mod tests {
     #[tokio::test]
     async fn test_rag_pdf_network() -> Result<()> {
         // Initialize the session
-        let rag_pdf_network_builder = RetrievalAugmentedGenerationPDFNetworkBuilder::default().inner.take().unwrap();
+        let rag_pdf_network_builder = RetrievalAugmentedGenerationPDFNetworkBuilder::default()
+            .inner
+            .take()
+            .unwrap();
         let network_name = rag_pdf_network_builder.name.clone().unwrap();
         let (network, session_messages) = rag_pdf_network_builder
             .with_runtime_env(
@@ -122,7 +130,7 @@ mod tests {
 
         // Make the query data
         let role = vec!["user".to_string()];
-        let content =vec!["What are the four molecules that compose DNA?".to_string()];
+        let content = vec!["What are the four molecules that compose DNA?".to_string()];
         let timestamp = vec![0_i64];
         let batch = create_chat_record_batch(role, content, timestamp)?;
         let queries = AvailableInterfaceSubjects::UserMessages
@@ -181,7 +189,11 @@ mod tests {
             .try_collect()
             .await?;
             let subject = Subject::get_builder()
-                .with_name(AvailableInterfaceSubjects::AssistantMessages.to_string().as_str())
+                .with_name(
+                    AvailableInterfaceSubjects::AssistantMessages
+                        .to_string()
+                        .as_str(),
+                )
                 .with_record_batches(batches)?
                 .build()?;
             assert!(subject.count_rows() > 0);
@@ -189,10 +201,10 @@ mod tests {
             assert_eq!(column.first().unwrap(), &"assistant");
             let column = subject.get_column_as_vec_str("content");
             // dbg!(column.first().unwrap());
-            assert!(column.first().unwrap().contains(&"Adenine"));
-            assert!(column.first().unwrap().contains(&"Thymine"));
-            assert!(column.first().unwrap().contains(&"Guanine"));
-            assert!(column.first().unwrap().contains(&"Cytosine"));
+            assert!(column.first().unwrap().contains("Adenine"));
+            assert!(column.first().unwrap().contains("Thymine"));
+            assert!(column.first().unwrap().contains("Guanine"));
+            assert!(column.first().unwrap().contains("Cytosine"));
             // assert_eq!(column.first().unwrap(), &"");
             let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
             for c in column {

@@ -1449,9 +1449,7 @@ impl BuilderTrait for NetworkBuilderMermaid {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        NetworkBuilderAppsTrait, test_network_builder_apps,
-    };
+    use crate::{NetworkBuilderAppsTrait, test_network_builder_apps};
 
     use super::*;
     #[test]

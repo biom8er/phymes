@@ -16,8 +16,8 @@ use phymes_message::{
     NetworkInterfaceMessageTrait, create_message_map,
 };
 use phymes_network::{
-    NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkBuilderTrait,
-    NetworkStream, NetworkStreamStep, NetworkStreamStepTrait,
+    NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkBuilderTrait, NetworkStream,
+    NetworkStreamStep, NetworkStreamStepTrait,
 };
 use phymes_schemas::{
     AvailableInterfaceSubjects, AvailableSubjects, DataFormat, DiagnosticsVisualizations,

@@ -58,7 +58,10 @@ impl ToolTrait for Join {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side message (Apache Arrow `RecordBatch`es)".to_string()),
+                description: Some(
+                    "The name of the left hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -66,7 +69,10 @@ impl ToolTrait for Join {
             "rhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the right hand side message (Apache Arrow `RecordBatch`es)".to_string()),
+                description: Some(
+                    "The name of the right hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -115,7 +121,12 @@ impl ToolTrait for Join {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some("The operator type to join left and right messages".to_string()),
-                enum_values: Some(["Inner", "LeftOuter", "RightOuter", "FullOuter"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                enum_values: Some(
+                    ["Inner", "LeftOuter", "RightOuter", "FullOuter"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
                 ..Default::default()
             }),
         );

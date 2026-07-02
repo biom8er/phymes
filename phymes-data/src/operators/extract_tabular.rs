@@ -8,7 +8,9 @@ use arrow::array::RecordBatch;
 use candle_core::Device;
 use flate2::read::{DeflateDecoder, GzDecoder, ZlibDecoder};
 use phymes_schemas::{
-    AvailableSubjects, CsvFormat, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, JsonFormat, JsonSchemaTrait, Tool, ToolType, create_route_bytes_record_batch, open_alex,
+    AvailableSubjects, CsvFormat, DataEncoding, DataFormat, Function, FunctionParameters,
+    JSONSchemaDefine, JSONSchemaType, JsonFormat, JsonSchemaTrait, Tool, ToolType,
+    create_route_bytes_record_batch, open_alex,
 };
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
@@ -45,7 +47,10 @@ impl ToolTrait for ExtractTabular {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side message (Apache Arrow `RecordBatch`es)".to_string()),
+                description: Some(
+                    "The name of the left hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -74,7 +79,12 @@ impl ToolTrait for ExtractTabular {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some("The tabular data encoding".to_string()),
-                enum_values: Some(["Deflate", "Zlib", "Gz", "None"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                enum_values: Some(
+                    ["Deflate", "Zlib", "Gz", "None"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
                 ..Default::default()
             }),
         );
@@ -83,7 +93,12 @@ impl ToolTrait for ExtractTabular {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some("The tabular data format".to_string()),
-                enum_values: Some(["CsvDefault", "JsonDefault", "JsonSchema", "Ipc"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                enum_values: Some(
+                    ["CsvDefault", "JsonDefault", "JsonSchema", "Ipc"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
                 ..Default::default()
             }),
         );
@@ -92,7 +107,12 @@ impl ToolTrait for ExtractTabular {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some("The tabular data schema".to_string()),
-                enum_values: Some(["Messages", "Attachments", "ObjectStore"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                enum_values: Some(
+                    ["Messages", "Attachments", "ObjectStore"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
                 ..Default::default()
             }),
         );
@@ -115,8 +135,8 @@ impl ToolTrait for ExtractTabular {
                     "lhs_name".to_string(),
                     "lhs_pk".to_string(),
                     "lhs_values".to_string(),
-                    "encoding".to_string(), 
-                    "format".to_string(), 
+                    "encoding".to_string(),
+                    "format".to_string(),
                     "schema".to_string(),
                     // "operator".to_string(),
                 ]),
@@ -205,10 +225,8 @@ pub fn extract_tabular(
         .with_name("extract_tabular")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
-    let pk_vec = args_table
-        .get_column_as_vec_str(lhs_pk);
-    let values_vec = args_table
-        .get_column_as_vec_nested_primitive::<u8>(lhs_values)?;
+    let pk_vec = args_table.get_column_as_vec_str(lhs_pk);
+    let values_vec = args_table.get_column_as_vec_nested_primitive::<u8>(lhs_values)?;
 
     let mut subjects = pk_vec.into_iter()
         .zip(values_vec)
@@ -450,11 +468,9 @@ pub fn extract_tabular(
         }
 
         create_route_bytes_record_batch(names, publishers, subject_names, formats, bytes)?
-
     } else {
         let subject = subjects.pop().unwrap()?;
         subject.get_record_batches_own().remove(0)
-        
     };
     Ok(batch)
 }
@@ -1437,7 +1453,12 @@ mod tests {
         assert_eq!(column, ["attachment_1", "attachment_2"]);
         let column = table.get_column_as_vec_str("format");
         assert_eq!(column, ["Ipc", "Ipc"]);
-        let column = table.get_column_as_vec_nested_primitive::<u8>("bytes").unwrap().into_iter().flatten().collect::<Vec<_>>();
+        let column = table
+            .get_column_as_vec_nested_primitive::<u8>("bytes")
+            .unwrap()
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
         assert_eq!(column.len(), 1552);
     }
 }

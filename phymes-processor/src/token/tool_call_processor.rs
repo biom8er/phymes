@@ -671,21 +671,12 @@ mod tests {
         let flattened = column.into_iter().flatten().collect::<Vec<_>>();
         assert_eq!(
             flattened,
-            [
-                "AlwaysAllRecordBatches",
-                "AlwaysLastRecordBatch",
-            ]
+            ["AlwaysAllRecordBatches", "AlwaysLastRecordBatch",]
         );
         let column = table_reading
             .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
         let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-        assert_eq!(
-            flattened,
-            [
-                "state_1",
-                "processor_1",
-            ]
-        );
+        assert_eq!(flattened, ["state_1", "processor_1",]);
         let column =
             table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
         let flattened = column.into_iter().flatten().collect::<Vec<_>>();

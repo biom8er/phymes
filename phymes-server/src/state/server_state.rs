@@ -7,8 +7,8 @@ use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, create_message_map};
 use phymes_network::{
-    Network, NetworkBuilder, NetworkBuilderAppsTrait,
-    NetworkBuilderMermaidTrait, NetworkBuilderTrait, NetworkStream,
+    Network, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
+    NetworkBuilderTrait, NetworkStream,
 };
 use phymes_schemas::{
     AvailableSubjects, JoinUserInboxNetworksMermaidDiagrams, UserSubject,
@@ -18,8 +18,8 @@ use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait,
     SubjectTrait,
 };
-use phymes_templates::AvailableNetworks;
 use phymes_task::SubscriptionTrait;
+use phymes_templates::AvailableNetworks;
 
 use crate::handlers::create_session_name;
 
@@ -413,18 +413,24 @@ mod tests {
         assert_eq!(
             subject.get_column_as_vec_str("network_name"),
             [
-                "GenerateText", "RAGTextPDF", 
-                // "ToolChat", 
-                "Builder", "GenerateText", "RAGTextPDF", 
+                "GenerateText",
+                "RAGTextPDF",
+                // "ToolChat",
+                "Builder",
+                "GenerateText",
+                "RAGTextPDF",
                 // "ToolChat"
             ]
         );
         assert_eq!(
             subject.get_column_as_vec_str("network_name"),
             [
-                "GenerateText", "RAGTextPDF", 
-                // "ToolChat", 
-                "Builder", "GenerateText", "RAGTextPDF", 
+                "GenerateText",
+                "RAGTextPDF",
+                // "ToolChat",
+                "Builder",
+                "GenerateText",
+                "RAGTextPDF",
                 // "ToolChat"
             ]
         );

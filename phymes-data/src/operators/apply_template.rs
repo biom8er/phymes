@@ -49,7 +49,10 @@ impl ToolTrait for ApplyTemplate {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side message (Apache Arrow `RecordBatch`es)".to_string()),
+                description: Some(
+                    "The name of the left hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -92,7 +95,12 @@ Available HTML templates are `MinimalHTMLBodyTemplate`, `MinimalHTMLBodyHTML`, `
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some("The resulting document encoding".to_string()),
-                enum_values: Some(["Deflate", "Zlib", "Gz", "None"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                enum_values: Some(
+                    ["Deflate", "Zlib", "Gz", "None"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
                 ..Default::default()
             }),
         );
@@ -101,7 +109,12 @@ Available HTML templates are `MinimalHTMLBodyTemplate`, `MinimalHTMLBodyHTML`, `
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some("The resulting document format".to_string()),
-                enum_values: Some(["CsvDefault", "JsonDefault", "Html", "Txt", "None"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                enum_values: Some(
+                    ["CsvDefault", "JsonDefault", "Html", "Txt", "None"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
                 ..Default::default()
             }),
         );
@@ -110,7 +123,12 @@ Available HTML templates are `MinimalHTMLBodyTemplate`, `MinimalHTMLBodyHTML`, `
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some("The resulting document schema".to_string()),
-                enum_values: Some(["Messages", "Attachments", "ObjectStore"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                enum_values: Some(
+                    ["Messages", "Attachments", "ObjectStore"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
                 ..Default::default()
             }),
         );
@@ -120,7 +138,14 @@ Available HTML templates are `MinimalHTMLBodyTemplate`, `MinimalHTMLBodyHTML`, `
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
-                required: Some(vec!["lhs_name".to_string(), "doc_template".to_string(), "doc_name".to_string(), "encoding".to_string(), "format".to_string(), "schema".to_string()]),
+                required: Some(vec![
+                    "lhs_name".to_string(),
+                    "doc_template".to_string(),
+                    "doc_name".to_string(),
+                    "encoding".to_string(),
+                    "format".to_string(),
+                    "schema".to_string(),
+                ]),
             },
         };
         let tool = Tool {

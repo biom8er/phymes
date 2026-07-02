@@ -1,8 +1,8 @@
 use phymes_data::{AvailableOperators, DataConfig, DataStreamManager, DiffType};
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
+use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes};
 use phymes_processor::AvailableProcessors;
 use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait};
-use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes};
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
     SubjectPlanBuilderTrait,
@@ -173,8 +173,8 @@ mod tests {
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
     use phymes_schemas::{
-        AvailableSubjects, AvailableSubjectsTrait,
-        create_bytes_record_batch, create_workspace_batch,
+        AvailableSubjects, AvailableSubjectsTrait, create_bytes_record_batch,
+        create_workspace_batch,
     };
     use phymes_subject::{
         BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnvBuilder, Subject, SubjectBuilder,
@@ -182,7 +182,7 @@ mod tests {
     };
     use phymes_task::SubscriptionTrait;
 
-use super::*;
+    use super::*;
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_diff_workspace_network_dynamic_wo_subjects() -> Result<()> {
@@ -278,7 +278,8 @@ pub use todo::Todo"#,
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
             let batch = create_workspace_batch(path, content)?;
-            let table = AvailableSubjects::Workspace.to_subject(Some(subject_name_lhs), Some(vec![batch]))?;
+            let table = AvailableSubjects::Workspace
+                .to_subject(Some(subject_name_lhs), Some(vec![batch]))?;
             let _ = message_map.insert(
                 table.get_name().to_string(),
                 IPCMessage::get_builder()
@@ -308,8 +309,7 @@ pub use todo::Todo"#,
                 ..Default::default()
             };
             let diff_config_json = serde_json::to_vec(&diff_config)?;
-            let diff_config_batch =
-                create_bytes_record_batch(vec![diff_config_json])?;
+            let diff_config_batch = create_bytes_record_batch(vec![diff_config_json])?;
             let diff_config_table = SubjectBuilder::new()
                 .with_name(diff_workspace_network.inner.subject_processor.get_name())
                 .with_record_batches(vec![diff_config_batch])?
@@ -375,7 +375,10 @@ pub use todo::Todo"#,
             ]
         );
         let column = subject.get_column_as_vec_str("operator");
-        assert_eq!(column, ["Update", "Delete", "Create", "Update", "Delete", "Create"]);
+        assert_eq!(
+            column,
+            ["Update", "Delete", "Create", "Update", "Delete", "Create"]
+        );
         Ok(())
     }
 
@@ -473,7 +476,8 @@ pub use todo::Todo"#,
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
             let batch = create_workspace_batch(path, content)?;
-            let table = AvailableSubjects::Workspace.to_subject(Some(subject_name_lhs), Some(vec![batch]))?;
+            let table = AvailableSubjects::Workspace
+                .to_subject(Some(subject_name_lhs), Some(vec![batch]))?;
             let _ = message_map.insert(
                 table.get_name().to_string(),
                 IPCMessage::get_builder()

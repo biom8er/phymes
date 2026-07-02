@@ -1,11 +1,11 @@
 use object_store::aws::AmazonS3ConfigKey;
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
+use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkNames};
 use phymes_processor::AvailableProcessors;
 use phymes_schemas::{
     AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait,
     create_object_store_meta_batch,
 };
-use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
 use phymes_streams::{ObjectStoreConfig, ObjectStoreOptsType};
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, SubjectBuilder,

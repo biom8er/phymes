@@ -5,7 +5,8 @@ use arrow::array::RecordBatch;
 use candle_core::Device;
 use clap::ValueEnum;
 use phymes_schemas::{
-    DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType, create_parse_owl_batch, create_parse_xml_batch, create_route_bytes_record_batch,
+    DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
+    create_parse_owl_batch, create_parse_xml_batch, create_route_bytes_record_batch,
 };
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
@@ -49,7 +50,10 @@ impl ToolTrait for ExtractXML {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side message (Apache Arrow `RecordBatch`es)".to_string()),
+                description: Some(
+                    "The name of the left hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -78,7 +82,12 @@ impl ToolTrait for ExtractXML {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some("The XML data format".to_string()),
-                enum_values: Some(["Html", "Xml", "Owl"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                enum_values: Some(
+                    ["Html", "Xml", "Owl"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
                 ..Default::default()
             }),
         );
@@ -86,8 +95,16 @@ impl ToolTrait for ExtractXML {
             "doc_filter".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The filtering method to apply to the XML document during extraction".to_string()),
-                enum_values: Some(["None", "Text", "Graphics", "Default"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                description: Some(
+                    "The filtering method to apply to the XML document during extraction"
+                        .to_string(),
+                ),
+                enum_values: Some(
+                    ["None", "Text", "Graphics", "Default"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
                 ..Default::default()
             }),
         );
@@ -95,8 +112,22 @@ impl ToolTrait for ExtractXML {
             "doc_extraction".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The extraction method to apply to the XML document during extraction".to_string()),
-                enum_values: Some(["Text", "TextEmbeddings", "Graphics", "ImageEmbeddings", "Default"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                description: Some(
+                    "The extraction method to apply to the XML document during extraction"
+                        .to_string(),
+                ),
+                enum_values: Some(
+                    [
+                        "Text",
+                        "TextEmbeddings",
+                        "Graphics",
+                        "ImageEmbeddings",
+                        "Default",
+                    ]
+                    .into_iter()
+                    .map(|s| s.to_string())
+                    .collect::<Vec<_>>(),
+                ),
                 ..Default::default()
             }),
         );
@@ -897,7 +928,15 @@ fn xml_to_parsed_owl_record_batch(
 /// * Hierarchical or nested children structures are supported
 /// *
 /// * See <https://github.com/phillord/horned-owl> for a full-fledged OWL parser
-#[instrument(skip(lhs_pk, lhs_values, lhs_args, format, doc_filter, doc_extraction, device))]
+#[instrument(skip(
+    lhs_pk,
+    lhs_values,
+    lhs_args,
+    format,
+    doc_filter,
+    doc_extraction,
+    device
+))]
 pub fn extract_xml(
     lhs_pk: &str,
     lhs_values: &str,
@@ -912,13 +951,12 @@ pub fn extract_xml(
         .with_name("extract_xml")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
-    let pk_vec = args_table
-        .get_column_as_vec_str(lhs_pk);
-    let values_vec = args_table
-        .get_column_as_vec_nested_primitive::<u8>(lhs_values)?;
+    let pk_vec = args_table.get_column_as_vec_str(lhs_pk);
+    let values_vec = args_table.get_column_as_vec_nested_primitive::<u8>(lhs_values)?;
 
     // Read the XML documents
-    let mut subjects = pk_vec.into_iter()
+    let mut subjects = pk_vec
+        .into_iter()
         .zip(values_vec)
         .map(|(pk, bytes)| {
             let parsed = parse_xml(&bytes)?;
@@ -929,11 +967,14 @@ pub fn extract_xml(
                 DataFormat::Owl => {
                     xml_to_parsed_owl_record_batch(parsed, pk, doc_filter, doc_extraction, device)?
                 }
-                _ => return Err(anyhow!(
-                    "Unsupported format {format:?} for extract_set_data operator."
-                )),
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported format {format:?} for extract_set_data operator."
+                    ));
+                }
             };
-            let subject = Subject::get_builder().with_name(pk)
+            let subject = Subject::get_builder()
+                .with_name(pk)
                 .with_record_batches(vec![batch])?
                 .build()?;
             Ok(subject)
@@ -959,10 +1000,9 @@ pub fn extract_xml(
         }
 
         create_route_bytes_record_batch(names, publishers, subject_names, formats, bytes)?
-
     } else {
         let subject = subjects.pop().unwrap()?;
-        subject.get_record_batches_own().remove(0)        
+        subject.get_record_batches_own().remove(0)
     };
     Ok(batch)
 }
@@ -1087,9 +1127,22 @@ mod tests {
         assert_eq!(
             result,
             [
-                "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", 
-                "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", 
-                "attachment", "attachment", "attachment", "attachment"
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment"
             ]
         );
         let result = table
@@ -1257,7 +1310,12 @@ mod tests {
         assert_eq!(column, ["attachment_1", "attachment_2"]);
         let column = table.get_column_as_vec_str("format");
         assert_eq!(column, ["Ipc", "Ipc"]);
-        let column = table.get_column_as_vec_nested_primitive::<u8>("bytes").unwrap().into_iter().flatten().collect::<Vec<_>>();
+        let column = table
+            .get_column_as_vec_nested_primitive::<u8>("bytes")
+            .unwrap()
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
         assert_eq!(column.len(), 10000);
     }
 
@@ -1464,7 +1522,75 @@ WHERE {
         assert_eq!(
             result,
             [
-                "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment"
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment",
+                "attachment"
             ]
         );
         let mut result = table.get_column_as_vec_str("graph");

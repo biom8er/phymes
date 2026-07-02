@@ -305,9 +305,9 @@ impl NetworkBuilderCustomTrait for UserNetwork<'_> {
 pub(crate) mod user_network_inner {
     use anyhow::Result;
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
+    use phymes_network::{Network, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
     use phymes_schemas::create_user_inbox_batch;
     use phymes_subject::{BuildableTrait, MappableTrait, SubjectTrait};
-    use phymes_network::{Network, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
 
     use super::*;
 

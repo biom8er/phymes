@@ -7,7 +7,9 @@ use phymes_data::{
     DataConfig, DataStreamManager,
 };
 use phymes_event::{Publication, Subscription};
-use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, NetworkBuilder, NetworkBuilderMermaidTrait};
+use phymes_network::{
+    DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkNames, NetworkBuilder, NetworkBuilderMermaidTrait,
+};
 use phymes_processor::AvailableProcessors;
 use phymes_schemas::{
     AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat,
@@ -22,7 +24,10 @@ use phymes_subject::{
 };
 use serde_json::{Map, Value};
 
-use crate::{EmbedTextNetworkBuilder, ExtractOntologyNetworkBuilder, ExtractPDFNetworkBuilder, RetrieveTextNetworkBuilder};
+use crate::{
+    EmbedTextNetworkBuilder, ExtractOntologyNetworkBuilder, ExtractPDFNetworkBuilder,
+    RetrieveTextNetworkBuilder,
+};
 
 /// OpenAlex network
 pub struct OpenAlexNetworkBuilder {
@@ -1227,7 +1232,7 @@ impl Default for OpenAlexNetworkBuilder {
                 let network_name = "extract_owl";
                 let config = DataConfig {
                     lhs_name: Some(AvailableInterfaceSubjects::UserScript.to_string()),
-                    lhs_pk: Some("filename"),
+                    lhs_pk: Some("filename".to_string()),
                     lhs_values: Some(
                         ["bytes"]
                             .into_iter()
@@ -1613,7 +1618,9 @@ mod tests {
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
-    use phymes_network::{DynamicTaskNetworkNames, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
+    use phymes_network::{
+        DynamicTaskNetworkNames, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream,
+    };
     use phymes_schemas::{
         AvailableInterfaceSubjects, AvailableSubjects, create_object_store_meta_batch,
     };
@@ -1623,9 +1630,7 @@ mod tests {
     };
     use phymes_task::SubscriptionTrait;
 
-    use crate::{
-        extended_diagnostic_subjects, write_diagnostic_subjects_to_csv,
-    };
+    use crate::{extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
 
     use super::*;
 
@@ -1725,11 +1730,11 @@ mod tests {
             // "Users/dmccl/Downloads/ontologies/core_predicates.owl",
             // "Users/dmccl/Downloads/ontologies/rdfs-dc-skos.owl",
             "Users/dmccl/Downloads/ontologies/ro.owl", // Breaks with HumanDO but works on its own (no relations!)
-            // "Users/dmccl/Downloads/ontologies/eco.owl", // Works with HumanDO
-            // "Users/dmccl/Downloads/ontologies/cl.owl", // Works with HumanDO
-            // "Users/dmccl/Downloads/ontologies/uberon.owl", // Breaks with HumanDO but works on its own
-            // "Users/dmccl/Downloads/ontologies/go.owl", // Works with HumanDO
-            // "Users/dmccl/Downloads/ontologies/taxslim.owl", // Works with HumanDO
+                                                       // "Users/dmccl/Downloads/ontologies/eco.owl", // Works with HumanDO
+                                                       // "Users/dmccl/Downloads/ontologies/cl.owl", // Works with HumanDO
+                                                       // "Users/dmccl/Downloads/ontologies/uberon.owl", // Breaks with HumanDO but works on its own
+                                                       // "Users/dmccl/Downloads/ontologies/go.owl", // Works with HumanDO
+                                                       // "Users/dmccl/Downloads/ontologies/taxslim.owl", // Works with HumanDO
         ];
         let cl_arr: ArrayRef = Arc::new(StringArray::from(cl_urls));
         // let batch = RecordBatch::try_from_iter(vec![("content", cl_arr)])?;

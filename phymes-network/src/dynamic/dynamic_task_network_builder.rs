@@ -8,7 +8,9 @@ use phymes_subject::{
 };
 use phymes_task::TaskPlan;
 
-use crate::{InvokeTaskNetworkBuilder, NetworkBuilder, NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait};
+use crate::{
+    InvokeTaskNetworkBuilder, NetworkBuilder, NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait,
+};
 
 /// Helper to create consistent names for subjects, processors, tasks, and neteworks
 #[derive(Clone, Debug)]
@@ -60,7 +62,7 @@ impl std::fmt::Display for DynamicTaskNetworkTypes {
 /// Template dynamic (or static) task creation network
 ///   that is intended to be extended with a base network to enable dynamic task invokation
 ///   or extended with a network of the same name to create a static processor pipeline
-/// 
+///
 /// # Todo
 /// * refactor to implement `BuilderTrait`
 #[derive(Debug, Clone)]
@@ -153,8 +155,11 @@ impl DynamicTaskNetworkBuilder {
                 // Adjust the subject_name of the invokable task
                 match self.dynamic_type {
                     DynamicTaskNetworkTypes::Dynamic => {
-                        if self.subject_processor.get_name() != DynamicTaskNetworkNames::Processor(&self.network_name).to_string() {
-                            panic!("the `subject_processor` name `{}` does not match the `DynamicTaskNetworkNames::Processor`ized network name `{}`",
+                        if self.subject_processor.get_name()
+                            != DynamicTaskNetworkNames::Processor(&self.network_name).to_string()
+                        {
+                            panic!(
+                                "the `subject_processor` name `{}` does not match the `DynamicTaskNetworkNames::Processor`ized network name `{}`",
                                 self.subject_processor.get_name(),
                                 DynamicTaskNetworkNames::Processor(&self.network_name),
                             );
@@ -162,7 +167,8 @@ impl DynamicTaskNetworkBuilder {
                     }
                     DynamicTaskNetworkTypes::Function => {
                         if self.subject_processor.get_name() != self.network_name {
-                            panic!("the `subject_processor` name `{}` does not match the network name `{}`",
+                            panic!(
+                                "the `subject_processor` name `{}` does not match the network name `{}`",
                                 self.subject_processor.get_name(),
                                 self.network_name,
                             );
@@ -193,10 +199,9 @@ impl DynamicTaskNetworkBuilder {
                     .extend(invoke_task_network_builder)
                     .unwrap()
             }
-            DynamicTaskNetworkTypes::Static => {
-                self.build()
-                .with_name(&DynamicTaskNetworkNames::Network(&self.network_name).to_string())
-            }
+            DynamicTaskNetworkTypes::Static => self
+                .build()
+                .with_name(&DynamicTaskNetworkNames::Network(&self.network_name).to_string()),
         }
     }
 }

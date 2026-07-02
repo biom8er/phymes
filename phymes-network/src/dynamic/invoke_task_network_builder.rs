@@ -3,11 +3,11 @@ use anyhow::Result;
 use crate::DynamicNetworkBuilderTrait;
 
 /// A Network Builder for dynamic task (i.e., function/tool) invoking
-/// 
+///
 /// # Description
 /// The network enables invoking a task by publishing an updated processor "config" with the same name as the task
 ///   AND dynamically subscribing to subjects that may not be subscribed to in the pre-configured network
-/// 
+///
 /// # Notes
 /// * task name = processor name = processor "config" name
 /// * The task should have ONLY 1 processor (all other processors will not be invoked)
@@ -345,7 +345,7 @@ mod tests {
         BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
     };
     use phymes_task::SubscriptionTrait;
-    
+
     use crate::{
         NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
         NetworkStream,

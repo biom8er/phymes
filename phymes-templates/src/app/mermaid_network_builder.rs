@@ -3,13 +3,13 @@ use std::sync::Arc;
 use anyhow::Result;
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
+use phymes_network::{NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait};
 use phymes_processor::{AvailableProcessors, ProcessorPlan, ProcessorPlanBuilder};
 use phymes_schemas::{AvailableSubjects, create_network_mermaid_batch};
 use phymes_subject::{
     BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectPlan,
     SubjectPlanBuilderTrait,
 };
-use phymes_network::{NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait};
 use phymes_task::TaskPlan;
 
 use crate::AvailableNetworks;

@@ -125,11 +125,8 @@ pub fn create_workspace_patch_batch(
     let path: ArrayRef = Arc::new(StringArray::from(path));
     let diff: ArrayRef = Arc::new(StringArray::from(diff));
     let operator: ArrayRef = Arc::new(StringArray::from(operator));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("path", path),
-        ("diff", diff),
-        ("operator", operator),
-    ])?;
+    let batch =
+        RecordBatch::try_from_iter(vec![("path", path), ("diff", diff), ("operator", operator)])?;
     Ok(batch)
 }
 

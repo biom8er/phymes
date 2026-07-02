@@ -5,7 +5,10 @@ use futures::TryStreamExt;
 use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
-use phymes_network::{NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait, NetworkStream};
+use phymes_network::{
+    NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
+    NetworkStream,
+};
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
 use phymes_streams::ChatBuilderTraitExt;
 use phymes_subject::{
@@ -54,8 +57,8 @@ fn benchmark_chat_agent_network(c: &mut Criterion) {
         c.bench_function(id.as_str(), |b| {
             b.iter(|| {
                 // Create the session configuration
-                let network_name = format!("session_1_{tag}_{iter}");                
-                
+                let network_name = format!("session_1_{tag}_{iter}");
+
                 // Initialize the session
                 let generate_text_network = GenerateTextNetworkBuilder::default();
                 let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(

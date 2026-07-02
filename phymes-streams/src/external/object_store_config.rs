@@ -61,7 +61,7 @@ impl Display for ObjectStoreOptsType {
 ///
 /// - Other Get/Put/... specific configurations
 ///   See individual `options` per operation <https://docs.rs/object_store/latest/object_store/trait.ObjectStore.html>
-///   Specifically, see `PutMode` (Enum: Overwrite, Create, Update) <https://docs.rs/object_store/latest/object_store/enum.PutMode.html> 
+///   Specifically, see `PutMode` (Enum: Overwrite, Create, Update) <https://docs.rs/object_store/latest/object_store/enum.PutMode.html>
 ///   argument of `put_ops` used to create conditional puts `match store.put_opts(&path, new.into(), PutMode::Update(version).into()).await` <https://docs.rs/object_store/latest/object_store/>
 ///
 /// - Other options including projections (column subsetting), filtering, etc.

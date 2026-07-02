@@ -78,7 +78,10 @@ impl ToolTrait for Select {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side message (Apache Arrow `RecordBatch`es)".to_string()),
+                description: Some(
+                    "The name of the left hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -87,7 +90,8 @@ impl ToolTrait for Select {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "The name of the column(s) to select for the left hand side message".to_string(),
+                    "The name of the column(s) to select for the left hand side message"
+                        .to_string(),
                 ),
                 ..Default::default()
             }),
@@ -107,7 +111,8 @@ impl ToolTrait for Select {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "The name given to the resulting column if different than lhs_values.".to_string(),
+                    "The name given to the resulting column if different than lhs_values."
+                        .to_string(),
                 ),
                 ..Default::default()
             }),
@@ -143,7 +148,8 @@ Use `None` when no operator is specified."#.to_string(),
                 description: Some(
                     r#"The cast operators to apply to the lhs_values.
 Available cast operators column operators are `Cast`, `BytesToString`, and `Hash`.
-Use `None` when no operator is specified."#.to_string(),
+Use `None` when no operator is specified."#
+                        .to_string(),
                 ),
                 ..Default::default()
             }),
@@ -155,7 +161,8 @@ Use `None` when no operator is specified."#.to_string(),
                 description: Some(
                     r#"The data type to cast each lhs_values to.
 Available data types are `UInt8`, `UInt32`, `Int64`, `Float32`, `Float64`, and `Utf8`.
-Use `Utf8` when no cast data type is specified or needed."#.to_string(),
+Use `Utf8` when no cast data type is specified or needed."#
+                        .to_string(),
                 ),
                 ..Default::default()
             }),
@@ -207,10 +214,7 @@ Use an empty string `""` when no cast template is specified or needed."#.to_stri
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
-                required: Some(vec![
-                    "lhs_name".to_string(),
-                    "lhs_values".to_string(),
-                ]),
+                required: Some(vec!["lhs_name".to_string(), "lhs_values".to_string()]),
             },
         };
         let tool = Tool {

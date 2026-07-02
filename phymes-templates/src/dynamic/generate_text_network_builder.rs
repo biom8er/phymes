@@ -345,7 +345,8 @@ mod tests {
     };
     use phymes_streams::ChatBuilderTraitExt;
     use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
+        SubjectPlan, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait,
     };
     use phymes_task::SubscriptionTrait;
 
@@ -1300,7 +1301,7 @@ mod tests {
 
         Ok(())
     }
-    
+
     #[test]
     fn test_from_mermaid_generate_text_network_without_configs_and_session() -> Result<()> {
         // initialize the session
@@ -1365,7 +1366,7 @@ mod tests {
 
         Ok(())
     }
-    
+
     #[test]
     fn test_from_mermaid_generate_text_network_with_data() -> Result<()> {
         // initialize the session

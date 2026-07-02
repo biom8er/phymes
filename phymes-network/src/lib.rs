@@ -1,10 +1,12 @@
-mod dynamic;
 mod core;
+mod dynamic;
 mod network;
 mod stream;
 
 pub use dynamic::{
-    DynamicNetworkBuilderTrait, DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes, PipelineTaskNetworkBuilder, InvokeTaskNetworkBuilder, TaskResponseNetworkBuilder,
+    DynamicNetworkBuilderTrait, DynamicTaskNetworkBuilder, DynamicTaskNetworkNames,
+    DynamicTaskNetworkTypes, InvokeTaskNetworkBuilder, PipelineTaskNetworkBuilder,
+    TaskResponseNetworkBuilder,
 };
 pub use network::{
     Network, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderCustomTrait,

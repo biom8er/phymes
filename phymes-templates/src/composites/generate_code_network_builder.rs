@@ -1,6 +1,8 @@
 use phymes_data::{AvailableOperators, DataConfig, DataStreamManager};
 use phymes_event::{Publication, Subscription};
-use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, NetworkBuilder, NetworkBuilderMermaidTrait};
+use phymes_network::{
+    DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, NetworkBuilder, NetworkBuilderMermaidTrait,
+};
 use phymes_processor::{AvailableProcessors, test_command_sandbox_processor};
 use phymes_schemas::{
     AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat,
@@ -289,7 +291,9 @@ mod tests {
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
-    use phymes_network::{DynamicTaskNetworkNames, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
+    use phymes_network::{
+        DynamicTaskNetworkNames, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream,
+    };
     use phymes_schemas::{
         AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjects,
         AvailableSubjectsTrait, CsvFormat, create_workspace_batch,

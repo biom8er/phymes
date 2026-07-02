@@ -46,7 +46,10 @@ impl ToolTrait for PackTabular {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side message (Apache Arrow `RecordBatch`es)".to_string()),
+                description: Some(
+                    "The name of the left hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -55,7 +58,12 @@ impl ToolTrait for PackTabular {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some("The resulting tabular data encoding".to_string()),
-                enum_values: Some(["Deflate", "Zlib", "Gz", "None"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                enum_values: Some(
+                    ["Deflate", "Zlib", "Gz", "None"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
                 ..Default::default()
             }),
         );
@@ -64,7 +72,12 @@ impl ToolTrait for PackTabular {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some("The resulting tabular data format".to_string()),
-                enum_values: Some(["CsvDefault", "JsonDefault", "JsonSchema", "Ipc"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                enum_values: Some(
+                    ["CsvDefault", "JsonDefault", "JsonSchema", "Ipc"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
                 ..Default::default()
             }),
         );
@@ -73,7 +86,12 @@ impl ToolTrait for PackTabular {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some("The resulting tabular data schema".to_string()),
-                enum_values: Some(["Messages", "Attachments", "ObjectStore"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                enum_values: Some(
+                    ["Messages", "Attachments", "ObjectStore"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
                 ..Default::default()
             }),
         );

@@ -49,7 +49,10 @@ impl ToolTrait for ExtractPDF {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side message (Apache Arrow `RecordBatch`es)".to_string()),
+                description: Some(
+                    "The name of the left hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -77,8 +80,16 @@ impl ToolTrait for ExtractPDF {
             "doc_filter".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The document filtering method to apply to the PDF during extraction".to_string()),
-                enum_values: Some(["None", "Text", "Graphics", "Default"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                description: Some(
+                    "The document filtering method to apply to the PDF during extraction"
+                        .to_string(),
+                ),
+                enum_values: Some(
+                    ["None", "Text", "Graphics", "Default"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
                 ..Default::default()
             }),
         );
@@ -86,8 +97,22 @@ impl ToolTrait for ExtractPDF {
             "doc_extraction".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The document extraction method to apply to the PDF during extraction".to_string()),
-                enum_values: Some(["Text", "TextEmbeddings", "Graphics", "ImageEmbeddings", "Default"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
+                description: Some(
+                    "The document extraction method to apply to the PDF during extraction"
+                        .to_string(),
+                ),
+                enum_values: Some(
+                    [
+                        "Text",
+                        "TextEmbeddings",
+                        "Graphics",
+                        "ImageEmbeddings",
+                        "Default",
+                    ]
+                    .into_iter()
+                    .map(|s| s.to_string())
+                    .collect::<Vec<_>>(),
+                ),
                 ..Default::default()
             }),
         );

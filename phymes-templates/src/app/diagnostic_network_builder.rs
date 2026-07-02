@@ -1819,11 +1819,11 @@ mod tests {
     use futures::TryStreamExt;
     use phymes_diagnostics::{HashMap, HashSet};
     use phymes_message::{IPCMessage, MessageBuilderTrait, MessageTrait, create_message_map};
-    use phymes_subject::{BuildableTrait, MappableTrait, Subject, SubjectTrait};
-    use phymes_task::{SubscriptionTrait, test_task};
     use phymes_network::{
         NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream, test_network_builder,
     };
+    use phymes_subject::{BuildableTrait, MappableTrait, Subject, SubjectTrait};
+    use phymes_task::{SubscriptionTrait, test_task};
 
     use super::*;
 

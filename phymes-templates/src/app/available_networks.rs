@@ -3,11 +3,17 @@ use std::{fmt::Display, sync::Arc};
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
 use phymes_message::IPCMessageMap;
+use phymes_network::{
+    DynamicTaskNetworkNames, Network, NetworkBuilder, NetworkBuilderAppsTrait,
+    NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
+};
 use phymes_subject::{BuildableTrait, BuilderTrait, RuntimeEnv, RuntimeEnvBuilderTrait};
-use phymes_network::{DynamicTaskNetworkNames, Network, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait};
 use serde::{Deserialize, Serialize};
 
-use crate::{MermaidNetworkBuilder, GenerateTextNetworkBuilder, RetrievalAugmentedGenerationPDFNetworkBuilder, UserNetwork};
+use crate::{
+    GenerateTextNetworkBuilder, MermaidNetworkBuilder,
+    RetrievalAugmentedGenerationPDFNetworkBuilder, UserNetwork,
+};
 
 /// The available session plans
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
@@ -79,18 +85,20 @@ impl AvailableNetworks {
                 .unwrap()
             }
             Self::RAGTextPDF => RetrievalAugmentedGenerationPDFNetworkBuilder::default()
-                .inner.take()
+                .inner
+                .take()
                 .unwrap()
                 // DM: will be overwritten anyway
-                .with_runtime_env(RuntimeEnv::get_builder()
-                    .with_name(
-                        DynamicTaskNetworkNames::RuntimeEnv(session_name)
-                            .to_string()
-                            .as_str(),
-                    )
-                    .with_max_steps(100)
-                    .build_arc()
-                    .unwrap(),
+                .with_runtime_env(
+                    RuntimeEnv::get_builder()
+                        .with_name(
+                            DynamicTaskNetworkNames::RuntimeEnv(session_name)
+                                .to_string()
+                                .as_str(),
+                        )
+                        .with_max_steps(100)
+                        .build_arc()
+                        .unwrap(),
                 )
                 .with_name(session_name)
                 .add_processor_subjects()
@@ -110,10 +118,10 @@ impl AvailableNetworks {
             Ok(Self::GenerateText.get_network_builder(session_name))
         } else if session_plan_name == Self::RAGTextPDF.to_string() {
             Ok(Self::RAGTextPDF.get_network_builder(session_name))
-        } 
+        }
         // else if session_plan_name == Self::ToolChat.to_string() {
         //     Ok(Self::ToolChat.get_network_builder(session_name))
-        // } 
+        // }
         else if session_plan_name == Self::Builder.to_string() {
             Ok(Self::Builder.get_network_builder(session_name))
         } else if session_plan_name == Self::Users.to_string() {
@@ -158,10 +166,10 @@ impl AvailableNetworks {
             Ok(Self::GenerateText.get_network_stream_state(session_name, runtime_env))
         } else if session_plan_name == Self::RAGTextPDF.to_string() {
             Ok(Self::RAGTextPDF.get_network_stream_state(session_name, runtime_env))
-        } 
+        }
         // else if session_plan_name == Self::ToolChat.to_string() {
         //     Ok(Self::ToolChat.get_network_stream_state(session_name, runtime_env))
-        // } 
+        // }
         else if session_plan_name == Self::Builder.to_string() {
             Ok(Self::Builder.get_network_stream_state(session_name, runtime_env))
         } else if session_plan_name == Self::Users.to_string() {
