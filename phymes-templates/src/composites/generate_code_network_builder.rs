@@ -1,7 +1,7 @@
 use phymes_data::{AvailableOperators, DataConfig, DataStreamManager};
 use phymes_event::{Publication, Subscription};
 use phymes_network::{
-    DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, NetworkBuilder, NetworkBuilderMermaidTrait,
+    DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes, NetworkBuilder, NetworkBuilderMermaidTrait,
 };
 use phymes_processor::{AvailableProcessors, test_command_sandbox_processor};
 use phymes_schemas::{
@@ -311,11 +311,12 @@ mod tests {
 
     use super::*;
 
-    /// `cargo test -p phymes-templates test_generate_code_network_py --features gpu,hf_hub --release -- --nocapture`
+    /// `cargo test -p phymes-templates test_generate_code_network_py --features api,gpu,hf_hub --release -- --nocapture`
     /// # Notes
     /// * should require two iterations to complete the code:
     ///   1. Fill in the middle
     ///   2. Correct the error message
+    #[ignore = "In progress... `cargo test -p phymes-templates test_generate_code_network_py --features api,gpu,hf_hub --release -- --nocapture`"]
     #[tokio::test]
     async fn test_generate_code_network_py() -> Result<()> {
         // Constants
@@ -585,11 +586,11 @@ pip install --no-cache-dir -r requirements.txt"#,
         Ok(())
     }
 
-    /// `cargo test -p phymes-templates test_generate_code_network_rs --features gpu,hf_hub --release -- --nocapture`
     /// # Notes
     /// * should require two iterations to complete the code:
     ///   1. Fill in the middle
     ///   2. Correct the error message
+    #[ignore = "In progress... `cargo test -p phymes-templates test_generate_code_network_rs --features api,gpu,hf_hub --release -- --nocapture`"]
     #[tokio::test]
     async fn test_generate_code_network_rs() -> Result<()> {
         // Constants

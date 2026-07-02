@@ -1,6 +1,6 @@
 use object_store::aws::AmazonS3ConfigKey;
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
-use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkNames};
+use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes};
 use phymes_processor::AvailableProcessors;
 use phymes_schemas::{
     AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait,
@@ -112,9 +112,9 @@ impl Default for GetObjectNetworkBuilderDynamicWSubject {
             .unwrap();
 
         // Subscriptions and publications
-        // let location = vec!["data/works/updated_date=2018-01-12/part_0000.gz".to_string()];
-        let location = vec!["data/works/updated_date=2026-03-10/part_0005.gz".to_string()];
-        // let location = vec!["data/works/manifest".to_string()];
+        // let location = vec!["data/jsonl/works/updated_date=2018-01-12/part_0000.gz".to_string()];
+        let location = vec!["data/jsonl/works/updated_date=2026-03-10/part_0005.gz".to_string()];
+        // let location = vec!["data/jsonl/works/manifest".to_string()];
         let bucket = vec!["openalex".to_string()];
         let e_tag = vec![String::new()];
         let version = vec![String::new()];
@@ -263,9 +263,9 @@ mod tests {
 
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
-        // let location = vec!["data/works/updated_date=2018-01-12/part_0000.gz".to_string()];
-        let location = vec!["data/works/updated_date=2026-03-10/part_0005.gz".to_string()];
-        // let location = vec!["data/works/manifest".to_string()];
+        // let location = vec!["data/jsonl/works/updated_date=2018-01-12/part_0000.gz".to_string()];
+        let location = vec!["data/jsonl/works/updated_date=2026-03-10/part_0005.gz".to_string()];
+        // let location = vec!["data/jsonl/works/manifest".to_string()];
         let bucket = vec!["openalex".to_string()];
         let e_tag = vec![String::new()];
         let version = vec![String::new()];
@@ -319,7 +319,7 @@ mod tests {
             .with_record_batches(batches)?
             .build()?;
         let column = subject.get_column_as_vec_str("location");
-        assert_eq!(column, ["data/works/updated_date=2026-03-10/part_0005.gz"]);
+        assert_eq!(column, ["data/jsonl/works/updated_date=2026-03-10/part_0005.gz"]);
         let column = subject.get_column_as_vec_str("bucket");
         assert_eq!(column, ["openalex"]);
         let column = subject.get_column_as_vec_str("metadata");
@@ -423,7 +423,7 @@ mod tests {
             .with_record_batches(batches)?
             .build()?;
         let column = subject.get_column_as_vec_str("location");
-        assert_eq!(column, ["data/works/updated_date=2026-03-10/part_0005.gz"]);
+        assert_eq!(column, ["data/jsonl/works/updated_date=2026-03-10/part_0005.gz"]);
         let column = subject.get_column_as_vec_str("bucket");
         assert_eq!(column, ["openalex"]);
         let column = subject.get_column_as_vec_str("metadata");
@@ -473,7 +473,7 @@ mod tests {
             AmazonS3ConfigKey::Endpoint.as_ref().to_string(),
             Value::String("https://s3.amazonaws.com".to_string()),
         );
-        let location = vec!["data/works/updated_date=2026-03-10/part_0005.gz".to_string()];
+        let location = vec!["data/jsonl/works/updated_date=2026-03-10/part_0005.gz".to_string()];
         let config = ObjectStoreConfig {
             timeout: 5,
             ops_type: ObjectStoreOptsType::Get,
@@ -566,7 +566,7 @@ mod tests {
             .with_record_batches(batches)?
             .build()?;
         let column = subject.get_column_as_vec_str("location");
-        assert_eq!(column, ["data/works/updated_date=2026-03-10/part_0005.gz"]);
+        assert_eq!(column, ["data/jsonl/works/updated_date=2026-03-10/part_0005.gz"]);
         let column = subject.get_column_as_vec_str("bucket");
         assert_eq!(column, ["openalex"]);
         let column = subject.get_column_as_vec_str("metadata");
