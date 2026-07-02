@@ -957,6 +957,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         Utf8 doc_filter "Default"
         Utf8 doc_extraction "Default"
         Utf8 lhs_name "UserScript"
+        Utf8 lhs_pk "filename",
         List-Utf8 lhs_values "['bytes']"
         Utf8 operator "ExtractXML"
         Utf8 lhs_stream "Stream"

@@ -319,6 +319,7 @@ impl<'a> MeltStudyDataNetworkBuilder<'a> {
 	    Utf8 format "CsvDefault"
         Utf8 schema "Attachments"
 	    Utf8 lhs_name "UserCsv"
+	    Utf8 lhs_pk "filename"
 	    List-Utf8 lhs_values "['bytes']"
 	    Utf8 operator "ExtractTabular"
         Utf8 encoding "None"

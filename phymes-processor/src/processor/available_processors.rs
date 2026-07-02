@@ -284,6 +284,7 @@ impl DataConfigTrait for AvailableProcessors {
             }),
             Self::ExtractTabular => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
+                lhs_pk: Some("lhs_pk".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 encoding: Some(DataEncoding::default()),
                 format: Some(DataFormat::CsvDefault),
@@ -295,6 +296,7 @@ impl DataConfigTrait for AvailableProcessors {
             }),
             Self::ExtractXML => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
+                lhs_pk: Some("lhs_pk".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 format: Some(DataFormat::Owl),
                 schema: Some(AvailableSubjects::default()),

@@ -8,8 +8,7 @@ use arrow::array::RecordBatch;
 use candle_core::Device;
 use flate2::read::{DeflateDecoder, GzDecoder, ZlibDecoder};
 use phymes_schemas::{
-    AvailableSubjects, CsvFormat, DataEncoding, DataFormat, Function, FunctionParameters,
-    JSONSchemaDefine, JSONSchemaType, JsonFormat, JsonSchemaTrait, Tool, ToolType, open_alex,
+    AvailableSubjects, CsvFormat, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, JsonFormat, JsonSchemaTrait, Tool, ToolType, create_route_bytes_record_batch, open_alex,
 };
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
@@ -23,6 +22,7 @@ use crate::{DataConfig, DataOperatorTrait, ToolTrait};
 /// Extract tabular data in either CSV or JSON format from Bytes
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ExtractTabular {
+    lhs_pk: String,
     lhs_values: String,
     encoding: DataEncoding,
     format: DataFormat,
@@ -46,6 +46,16 @@ impl ToolTrait for ExtractTabular {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some("The name of the left hand side message (Apache Arrow `RecordBatch`es)".to_string()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "lhs_pk".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some(
+                    "The primary key column name for the left hand side message".to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -103,6 +113,7 @@ impl ToolTrait for ExtractTabular {
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
+                    "lhs_pk".to_string(),
                     "lhs_values".to_string(),
                     "encoding".to_string(), 
                     "format".to_string(), 
@@ -124,6 +135,10 @@ impl DataOperatorTrait for ExtractTabular {
     where
         Self: Sized,
     {
+        let lhs_pk = config.lhs_pk.as_ref().cloned().ok_or(anyhow!(
+            "Missing `lhs_pk` for `{}`.",
+            Self::get_static_name()
+        ))?;
         let lhs_values = config
             .lhs_values
             .as_ref()
@@ -151,6 +166,7 @@ impl DataOperatorTrait for ExtractTabular {
             Self::get_static_name()
         ))?;
         Ok(ExtractTabular {
+            lhs_pk,
             lhs_values,
             encoding,
             format,
@@ -164,6 +180,7 @@ impl DataOperatorTrait for ExtractTabular {
         _device: &Device,
     ) -> Result<RecordBatch> {
         extract_tabular(
+            &self.lhs_pk,
             &self.lhs_values,
             lhs_args,
             &self.encoding,
@@ -174,8 +191,9 @@ impl DataOperatorTrait for ExtractTabular {
 }
 
 /// Extract tabular data in either CSV or JSON format from Bytes
-#[instrument(skip(lhs_values, lhs_args))]
+#[instrument(skip(lhs_pk, lhs_values, lhs_args, encoding, format, schema))]
 pub fn extract_tabular(
+    lhs_pk: &str,
     lhs_values: &str,
     lhs_args: &[RecordBatch],
     encoding: &DataEncoding,
@@ -187,228 +205,257 @@ pub fn extract_tabular(
         .with_name("extract_tabular")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
+    let pk_vec = args_table
+        .get_column_as_vec_str(lhs_pk);
     let values_vec = args_table
-        .get_column_as_vec_nested_primitive::<u8>(lhs_values)?
-        .into_iter()
-        .flatten()
+        .get_column_as_vec_nested_primitive::<u8>(lhs_values)?;
+
+    let mut subjects = pk_vec.into_iter()
+        .zip(values_vec)
+        .map(|(pk, bytes)| {
+            // Deflate the values depending upon the specified encoding
+            let values_vec = match encoding {
+                DataEncoding::Deflate => {
+                    let cursor = Cursor::new(bytes);
+                    let mut decoder = DeflateDecoder::new(cursor);
+                    let mut out = Vec::new();
+                    decoder.read_to_end(&mut out)?;
+                    out
+                }
+                DataEncoding::Zlib => {
+                    let cursor = Cursor::new(bytes);
+                    let mut decoder = ZlibDecoder::new(cursor);
+                    let mut out = Vec::new();
+                    decoder.read_to_end(&mut out)?;
+                    out
+                }
+                DataEncoding::Gz => {
+                    let cursor = Cursor::new(bytes);
+                    let mut decoder = GzDecoder::new(cursor);
+                    let mut out = Vec::new();
+                    decoder.read_to_end(&mut out)?;
+                    out
+                }
+                DataEncoding::None => bytes,
+            };
+
+            // Parse the values depending upon the specified format
+            let subject = match format {
+                DataFormat::Csv(csv_format) => Subject::get_builder()
+                    .with_name(pk)
+                    .with_csv(
+                        &values_vec,
+                        csv_format.delimiter,
+                        csv_format.header,
+                        csv_format.batch_size,
+                    )?
+                    .build()?,
+                DataFormat::CsvDefault => {
+                    let csv_format = CsvFormat::default();
+                    Subject::get_builder()
+                        .with_name(pk)
+                        .with_csv(
+                            &values_vec,
+                            csv_format.delimiter,
+                            csv_format.header,
+                            csv_format.batch_size,
+                        )?
+                        .build()?
+                }
+                DataFormat::Json(json_format) => Subject::get_builder()
+                    .with_name(pk)
+                    .with_json(&values_vec, json_format.batch_size)?
+                    .build()?,
+                DataFormat::JsonDefault => {
+                    let json_format = JsonFormat::default();
+                    Subject::get_builder()
+                        .with_name(pk)
+                        .with_json(&values_vec, json_format.batch_size)?
+                        .build()?
+                }
+                DataFormat::JsonSchema => match schema {
+                    AvailableSubjects::OpenAlexResponseWorks => {
+                        match serde_json::from_slice::<open_alex::OpenAlexResponseWorks>(&values_vec) {
+                            Ok(open_alex_response) => {
+                                let batch = open_alex_response.to_record_batch("extract_tabular")?;
+                                Subject::get_builder()
+                                    .with_name("OpenAlexResponseWorks")
+                                    .with_record_batches(vec![batch])?
+                                    .build()?
+                            }
+                            Err(_err) => match open_alex::OpenAlexResponseWorks::from_jsonl(&values_vec) {
+                                Ok(open_alex_response) => {
+                                    let batch = open_alex_response.to_record_batch("extract_tabular")?;
+                                    Subject::get_builder()
+                                        .with_name("OpenAlexResponseWorks")
+                                        .with_record_batches(vec![batch])?
+                                        .build()?
+                                }
+                                Err(err) => {
+                                    return Err(anyhow!(
+                                        "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
+                                    ));
+                                }
+                            },
+                        }
+                    }
+                    AvailableSubjects::OpenAlexResponseAuthors => {
+                        match serde_json::from_slice::<open_alex::OpenAlexResponseAuthors>(&values_vec) {
+                            Ok(open_alex_response) => {
+                                let batch = open_alex_response.to_record_batch("extract_tabular")?;
+                                Subject::get_builder()
+                                    .with_name("OpenAlexResponseAuthors")
+                                    .with_record_batches(vec![batch])?
+                                    .build()?
+                            }
+                            Err(err) => {
+                                return Err(anyhow!(
+                                    "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
+                                ));
+                            }
+                        }
+                    }
+                    AvailableSubjects::OpenAlexResponseInstitutions => {
+                        match serde_json::from_slice::<open_alex::OpenAlexResponseInstitution>(&values_vec)
+                        {
+                            Ok(open_alex_response) => {
+                                let batch = open_alex_response.to_record_batch("extract_tabular")?;
+                                Subject::get_builder()
+                                    .with_name("OpenAlexResponseInstitutions")
+                                    .with_record_batches(vec![batch])?
+                                    .build()?
+                            }
+                            Err(err) => {
+                                return Err(anyhow!(
+                                    "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
+                                ));
+                            }
+                        }
+                    }
+                    AvailableSubjects::OpenAlexResponseTopics => {
+                        match serde_json::from_slice::<open_alex::OpenAlexResponseTopic>(&values_vec) {
+                            Ok(open_alex_response) => {
+                                let batch = open_alex_response.to_record_batch("extract_tabular")?;
+                                Subject::get_builder()
+                                    .with_name("OpenAlexResponseTopics")
+                                    .with_record_batches(vec![batch])?
+                                    .build()?
+                            }
+                            Err(err) => {
+                                return Err(anyhow!(
+                                    "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
+                                ));
+                            }
+                        }
+                    }
+                    AvailableSubjects::OpenAlexResponseAwards => {
+                        match serde_json::from_slice::<open_alex::OpenAlexResponseAward>(&values_vec) {
+                            Ok(open_alex_response) => {
+                                let batch = open_alex_response.to_record_batch("extract_tabular")?;
+                                Subject::get_builder()
+                                    .with_name("OpenAlexResponseAwards")
+                                    .with_record_batches(vec![batch])?
+                                    .build()?
+                            }
+                            Err(err) => {
+                                return Err(anyhow!(
+                                    "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
+                                ));
+                            }
+                        }
+                    }
+                    AvailableSubjects::OpenAlexResponseFunders => {
+                        match serde_json::from_slice::<open_alex::OpenAlexResponseFunder>(&values_vec) {
+                            Ok(open_alex_response) => {
+                                let batch = open_alex_response.to_record_batch("extract_tabular")?;
+                                Subject::get_builder()
+                                    .with_name("OpenAlexResponseFunders")
+                                    .with_record_batches(vec![batch])?
+                                    .build()?
+                            }
+                            Err(err) => {
+                                return Err(anyhow!(
+                                    "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
+                                ));
+                            }
+                        }
+                    }
+                    AvailableSubjects::OpenAlexResponsePublishers => {
+                        match serde_json::from_slice::<open_alex::OpenAlexResponsePublisher>(&values_vec) {
+                            Ok(open_alex_response) => {
+                                let batch = open_alex_response.to_record_batch("extract_tabular")?;
+                                Subject::get_builder()
+                                    .with_name("OpenAlexResponsePublishers")
+                                    .with_record_batches(vec![batch])?
+                                    .build()?
+                            }
+                            Err(err) => {
+                                return Err(anyhow!(
+                                    "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
+                                ));
+                            }
+                        }
+                    }
+                    AvailableSubjects::OpenAlexResponseSources => {
+                        match serde_json::from_slice::<open_alex::OpenAlexResponseSource>(&values_vec) {
+                            Ok(open_alex_response) => {
+                                let batch = open_alex_response.to_record_batch("extract_tabular")?;
+                                Subject::get_builder()
+                                    .with_name("OpenAlexResponseSources")
+                                    .with_record_batches(vec![batch])?
+                                    .build()?
+                            }
+                            Err(err) => {
+                                return Err(anyhow!(
+                                    "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
+                                ));
+                            }
+                        }
+                    }
+                    _ => {
+                        return Err(anyhow!(
+                            "Unsupported format `{format}` and schema `{schema}` for extract_tabular operator."
+                        ));
+                    }
+                },
+                DataFormat::Ipc => SubjectBuilder::new_from_ipc_stream(&values_vec)?
+                    .with_name(pk)
+                    .build()?,
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported format {format:?} for extract_tabular operator."
+                    ));
+                }
+            };
+            Ok(subject)
+        })
         .collect::<Vec<_>>();
 
-    // Deflate the values depending upon the specified encoding
-    let values_vec = match encoding {
-        DataEncoding::Deflate => {
-            let cursor = Cursor::new(values_vec);
-            let mut decoder = DeflateDecoder::new(cursor);
-            let mut out = Vec::new();
-            decoder.read_to_end(&mut out)?;
-            out
-        }
-        DataEncoding::Zlib => {
-            let cursor = Cursor::new(values_vec);
-            let mut decoder = ZlibDecoder::new(cursor);
-            let mut out = Vec::new();
-            decoder.read_to_end(&mut out)?;
-            out
-        }
-        DataEncoding::Gz => {
-            let cursor = Cursor::new(values_vec);
-            let mut decoder = GzDecoder::new(cursor);
-            let mut out = Vec::new();
-            decoder.read_to_end(&mut out)?;
-            out
-        }
-        DataEncoding::None => values_vec,
-    };
+    // Route using the PK if the number of subjects > 1
+    let batch = if subjects.len() > 1 {
+        // Wrap into IPC [RecordBatch]
+        let mut names = Vec::new();
+        let mut publishers = Vec::new();
+        let mut subject_names = Vec::new();
+        let mut formats = Vec::new();
+        let mut bytes = Vec::new();
 
-    // Parse the values depending upon the specified format
-    let table = match format {
-        DataFormat::Csv(csv_format) => Subject::get_builder()
-            .with_name("attachment")
-            .with_csv(
-                &values_vec,
-                csv_format.delimiter,
-                csv_format.header,
-                csv_format.batch_size,
-            )?
-            .build()?,
-        DataFormat::CsvDefault => {
-            let csv_format = CsvFormat::default();
-            Subject::get_builder()
-                .with_name("attachment")
-                .with_csv(
-                    &values_vec,
-                    csv_format.delimiter,
-                    csv_format.header,
-                    csv_format.batch_size,
-                )?
-                .build()?
+        for subject in subjects {
+            let subject = subject?;
+            names.push(subject.get_name().to_string());
+            publishers.push("extract_tabular".to_string());
+            subject_names.push(subject.get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(subject.to_ipc_stream()?);
         }
-        DataFormat::Json(json_format) => Subject::get_builder()
-            .with_name("attachment")
-            .with_json(&values_vec, json_format.batch_size)?
-            .build()?,
-        DataFormat::JsonDefault => {
-            let json_format = JsonFormat::default();
-            Subject::get_builder()
-                .with_name("attachment")
-                .with_json(&values_vec, json_format.batch_size)?
-                .build()?
-        }
-        DataFormat::JsonSchema => match schema {
-            AvailableSubjects::OpenAlexResponseWorks => {
-                match serde_json::from_slice::<open_alex::OpenAlexResponseWorks>(&values_vec) {
-                    Ok(open_alex_response) => {
-                        let batch = open_alex_response.to_record_batch("extract_tabular")?;
-                        Subject::get_builder()
-                            .with_name("OpenAlexResponseWorks")
-                            .with_record_batches(vec![batch])?
-                            .build()?
-                    }
-                    Err(_err) => match open_alex::OpenAlexResponseWorks::from_jsonl(&values_vec) {
-                        Ok(open_alex_response) => {
-                            let batch = open_alex_response.to_record_batch("extract_tabular")?;
-                            Subject::get_builder()
-                                .with_name("OpenAlexResponseWorks")
-                                .with_record_batches(vec![batch])?
-                                .build()?
-                        }
-                        Err(err) => {
-                            return Err(anyhow!(
-                                "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
-                            ));
-                        }
-                    },
-                }
-            }
-            AvailableSubjects::OpenAlexResponseAuthors => {
-                match serde_json::from_slice::<open_alex::OpenAlexResponseAuthors>(&values_vec) {
-                    Ok(open_alex_response) => {
-                        let batch = open_alex_response.to_record_batch("extract_tabular")?;
-                        Subject::get_builder()
-                            .with_name("OpenAlexResponseAuthors")
-                            .with_record_batches(vec![batch])?
-                            .build()?
-                    }
-                    Err(err) => {
-                        return Err(anyhow!(
-                            "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
-                        ));
-                    }
-                }
-            }
-            AvailableSubjects::OpenAlexResponseInstitutions => {
-                match serde_json::from_slice::<open_alex::OpenAlexResponseInstitution>(&values_vec)
-                {
-                    Ok(open_alex_response) => {
-                        let batch = open_alex_response.to_record_batch("extract_tabular")?;
-                        Subject::get_builder()
-                            .with_name("OpenAlexResponseInstitutions")
-                            .with_record_batches(vec![batch])?
-                            .build()?
-                    }
-                    Err(err) => {
-                        return Err(anyhow!(
-                            "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
-                        ));
-                    }
-                }
-            }
-            AvailableSubjects::OpenAlexResponseTopics => {
-                match serde_json::from_slice::<open_alex::OpenAlexResponseTopic>(&values_vec) {
-                    Ok(open_alex_response) => {
-                        let batch = open_alex_response.to_record_batch("extract_tabular")?;
-                        Subject::get_builder()
-                            .with_name("OpenAlexResponseTopics")
-                            .with_record_batches(vec![batch])?
-                            .build()?
-                    }
-                    Err(err) => {
-                        return Err(anyhow!(
-                            "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
-                        ));
-                    }
-                }
-            }
-            AvailableSubjects::OpenAlexResponseAwards => {
-                match serde_json::from_slice::<open_alex::OpenAlexResponseAward>(&values_vec) {
-                    Ok(open_alex_response) => {
-                        let batch = open_alex_response.to_record_batch("extract_tabular")?;
-                        Subject::get_builder()
-                            .with_name("OpenAlexResponseAwards")
-                            .with_record_batches(vec![batch])?
-                            .build()?
-                    }
-                    Err(err) => {
-                        return Err(anyhow!(
-                            "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
-                        ));
-                    }
-                }
-            }
-            AvailableSubjects::OpenAlexResponseFunders => {
-                match serde_json::from_slice::<open_alex::OpenAlexResponseFunder>(&values_vec) {
-                    Ok(open_alex_response) => {
-                        let batch = open_alex_response.to_record_batch("extract_tabular")?;
-                        Subject::get_builder()
-                            .with_name("OpenAlexResponseFunders")
-                            .with_record_batches(vec![batch])?
-                            .build()?
-                    }
-                    Err(err) => {
-                        return Err(anyhow!(
-                            "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
-                        ));
-                    }
-                }
-            }
-            AvailableSubjects::OpenAlexResponsePublishers => {
-                match serde_json::from_slice::<open_alex::OpenAlexResponsePublisher>(&values_vec) {
-                    Ok(open_alex_response) => {
-                        let batch = open_alex_response.to_record_batch("extract_tabular")?;
-                        Subject::get_builder()
-                            .with_name("OpenAlexResponsePublishers")
-                            .with_record_batches(vec![batch])?
-                            .build()?
-                    }
-                    Err(err) => {
-                        return Err(anyhow!(
-                            "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
-                        ));
-                    }
-                }
-            }
-            AvailableSubjects::OpenAlexResponseSources => {
-                match serde_json::from_slice::<open_alex::OpenAlexResponseSource>(&values_vec) {
-                    Ok(open_alex_response) => {
-                        let batch = open_alex_response.to_record_batch("extract_tabular")?;
-                        Subject::get_builder()
-                            .with_name("OpenAlexResponseSources")
-                            .with_record_batches(vec![batch])?
-                            .build()?
-                    }
-                    Err(err) => {
-                        return Err(anyhow!(
-                            "Parse error `{err:?}` for format `{format}` and schema `{schema}` for extract_tabular operator."
-                        ));
-                    }
-                }
-            }
-            _ => {
-                return Err(anyhow!(
-                    "Unsupported format `{format}` and schema `{schema}` for extract_tabular operator."
-                ));
-            }
-        },
-        DataFormat::Ipc => SubjectBuilder::new_from_ipc_stream(&values_vec)?
-            .with_name("attachment")
-            .build()?,
-        _ => {
-            return Err(anyhow!(
-                "Unsupported format {format:?} for extract_tabular operator."
-            ));
-        }
-    };
 
-    let batch = table.get_record_batches_own().remove(0);
+        create_route_bytes_record_batch(names, publishers, subject_names, formats, bytes)?
+
+    } else {
+        let subject = subjects.pop().unwrap()?;
+        subject.get_record_batches_own().remove(0)
+        
+    };
     Ok(batch)
 }
 
@@ -469,6 +516,7 @@ mod tests {
 
         // Extract the tabular data
         let extracted = extract_tabular(
+            "filename",
             "bytes",
             &[csv_batch],
             &DataEncoding::None,
@@ -517,6 +565,7 @@ mod tests {
 
         // Extract the tabular data
         let extracted = extract_tabular(
+            "filename",
             "bytes",
             &[csv_batch],
             &DataEncoding::Deflate,
@@ -565,6 +614,7 @@ mod tests {
 
         // Extract the tabular data
         let extracted = extract_tabular(
+            "filename",
             "bytes",
             &[csv_batch],
             &DataEncoding::Zlib,
@@ -613,6 +663,7 @@ mod tests {
 
         // Extract the tabular data
         let extracted = extract_tabular(
+            "filename",
             "bytes",
             &[csv_batch],
             &DataEncoding::Gz,
@@ -656,6 +707,7 @@ mod tests {
 
         // Extract the tabular data
         let extracted = extract_tabular(
+            "filename",
             "bytes",
             &[json_batch],
             &DataEncoding::None,
@@ -696,6 +748,7 @@ mod tests {
 
         // Extract the tabular data
         let extracted = extract_tabular(
+            "filename",
             "bytes",
             &[json_batch],
             &DataEncoding::None,
@@ -858,6 +911,7 @@ mod tests {
 
         // Extract the tabular data
         let extracted = extract_tabular(
+            "filename",
             "bytes",
             &[json_batch],
             &DataEncoding::None,
@@ -931,6 +985,7 @@ mod tests {
 
         // Extract the tabular data
         let extracted = extract_tabular(
+            "filename",
             "bytes",
             &[json_batch],
             &DataEncoding::None,
@@ -1018,6 +1073,7 @@ mod tests {
 
         // Extract the tabular data
         let extracted = extract_tabular(
+            "filename",
             "bytes",
             &[json_batch],
             &DataEncoding::None,
@@ -1082,6 +1138,7 @@ mod tests {
 
         // Extract the tabular data
         let extracted = extract_tabular(
+            "filename",
             "bytes",
             &[json_batch],
             &DataEncoding::None,
@@ -1125,6 +1182,7 @@ mod tests {
 
         // Extract the tabular data
         let extracted = extract_tabular(
+            "filename",
             "bytes",
             &[json_batch],
             &DataEncoding::None,
@@ -1189,6 +1247,7 @@ mod tests {
 
         // Extract the tabular data
         let extracted = extract_tabular(
+            "filename",
             "bytes",
             &[json_batch],
             &DataEncoding::None,
@@ -1263,6 +1322,7 @@ mod tests {
 
         // Extract the tabular data
         let extracted = extract_tabular(
+            "filename",
             "bytes",
             &[json_batch],
             &DataEncoding::None,
@@ -1315,5 +1375,69 @@ mod tests {
         assert_eq!(test, ["Ipc", "Ipc", "Ipc", "Ipc", "Ipc", "Ipc"]);
 
         Ok(())
+    }
+
+    #[test]
+    fn test_extract_tabular_csv_format_routes() {
+        let csv_format = CsvFormat::default();
+
+        // Make the tabular data
+        let tabular_data = make_scores_table().unwrap();
+        let bytes = tabular_data
+            .to_csv(csv_format.delimiter, csv_format.header)
+            .unwrap();
+        let csv_batch_1 = create_attachments_batch(
+            vec!["attachment_1".to_string()],
+            vec!["csv".to_string()],
+            vec![bytes],
+            vec!["".to_string()],
+            vec![create_timestamp_micros()],
+        )
+        .unwrap();
+        let tabular_data = make_scores_table().unwrap();
+        let bytes = tabular_data
+            .to_csv(csv_format.delimiter, csv_format.header)
+            .unwrap();
+        let csv_batch_2 = create_attachments_batch(
+            vec!["attachment_2".to_string()],
+            vec!["csv".to_string()],
+            vec![bytes],
+            vec!["".to_string()],
+            vec![create_timestamp_micros()],
+        )
+        .unwrap();
+
+        // Extract the tabular data
+        let extracted = extract_tabular(
+            "filename",
+            "bytes",
+            &[csv_batch_1, csv_batch_2],
+            &DataEncoding::None,
+            &DataFormat::Csv(csv_format),
+            &AvailableSubjects::Empty,
+        )
+        .unwrap();
+
+        // Check the dimensions of the extracted data
+        assert_eq!(extracted.num_columns(), 5);
+        assert_eq!(extracted.num_rows(), 2);
+
+        // Check the contents of the extracted data
+        let table = Subject::get_builder()
+            .with_name("extracted")
+            .with_record_batches(vec![extracted])
+            .unwrap()
+            .build()
+            .unwrap();
+        let column = table.get_column_as_vec_str("name");
+        assert_eq!(column, ["attachment_1", "attachment_2"]);
+        let column = table.get_column_as_vec_str("publisher");
+        assert_eq!(column, ["extract_tabular", "extract_tabular"]);
+        let column = table.get_column_as_vec_str("subject");
+        assert_eq!(column, ["attachment_1", "attachment_2"]);
+        let column = table.get_column_as_vec_str("format");
+        assert_eq!(column, ["Ipc", "Ipc"]);
+        let column = table.get_column_as_vec_nested_primitive::<u8>("bytes").unwrap().into_iter().flatten().collect::<Vec<_>>();
+        assert_eq!(column.len(), 1552);
     }
 }

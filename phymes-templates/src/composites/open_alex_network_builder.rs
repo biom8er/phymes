@@ -100,6 +100,7 @@ impl Default for OpenAlexNetworkBuilder {
             let network_name = "extract_open_alex_aws_bucket";
             let config = DataConfig {
                 lhs_name: Some(AvailableInterfaceSubjects::UserObject.to_string()),
+                lhs_pk: Some("location".to_string()),
                 lhs_values: Some(vec!["bytes".to_string()]),
                 encoding: Some(DataEncoding::Gz),
                 format: Some(DataFormat::JsonSchema),
@@ -1226,6 +1227,7 @@ impl Default for OpenAlexNetworkBuilder {
                 let network_name = "extract_owl";
                 let config = DataConfig {
                     lhs_name: Some(AvailableInterfaceSubjects::UserScript.to_string()),
+                    lhs_pk: Some("filename"),
                     lhs_values: Some(
                         ["bytes"]
                             .into_iter()

@@ -5,8 +5,7 @@ use arrow::array::RecordBatch;
 use candle_core::Device;
 use clap::ValueEnum;
 use phymes_schemas::{
-    DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType,
-    create_parse_owl_batch, create_parse_xml_batch,
+    DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolType, create_parse_owl_batch, create_parse_xml_batch, create_route_bytes_record_batch,
 };
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
@@ -27,7 +26,7 @@ use crate::{
 /// Extract xml tags in either XML or OWL format from Bytes
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ExtractXML {
-    lhs_name: String,
+    lhs_pk: String,
     lhs_values: String,
     format: DataFormat,
     doc_filter: DocumentFilterType,
@@ -51,6 +50,16 @@ impl ToolTrait for ExtractXML {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some("The name of the left hand side message (Apache Arrow `RecordBatch`es)".to_string()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "lhs_pk".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some(
+                    "The primary key column name for the left hand side message".to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -99,6 +108,7 @@ impl ToolTrait for ExtractXML {
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
+                    "lhs_pk".to_string(),
                     "lhs_values".to_string(),
                     "format".to_string(),
                     "doc_filter".to_string(),
@@ -120,8 +130,8 @@ impl DataOperatorTrait for ExtractXML {
         Self: Sized,
     {
         // Extract the members from the DataConfig
-        let lhs_name = config.lhs_name.clone().ok_or(anyhow!(
-            "Missing `lhs_name` for `{}`.",
+        let lhs_pk = config.lhs_pk.as_ref().cloned().ok_or(anyhow!(
+            "Missing `lhs_pk` for `{}`.",
             Self::get_static_name()
         ))?;
         let lhs_values = config
@@ -152,7 +162,7 @@ impl DataOperatorTrait for ExtractXML {
         ))?;
 
         Ok(ExtractXML {
-            lhs_name,
+            lhs_pk,
             lhs_values,
             format,
             doc_filter,
@@ -166,7 +176,7 @@ impl DataOperatorTrait for ExtractXML {
         device: &Device,
     ) -> Result<RecordBatch> {
         extract_xml(
-            &self.lhs_name,
+            &self.lhs_pk,
             &self.lhs_values,
             lhs_args,
             &self.format,
@@ -876,7 +886,7 @@ fn xml_to_parsed_owl_record_batch(
 /// Extract Set (or Graph data) in XML, HTML, or OWL format from Bytes
 ///
 /// # Arguments
-/// * `lhs_name` - The name of the XML document
+/// * `lhs_pk` - The name of the XML document
 /// * `lhs_values` - The column to extract data from (i.e., `bytes`)
 /// * `lhs_args` - Slice of [RecordBatch]es
 /// * `format` - The format of the bytes
@@ -887,9 +897,9 @@ fn xml_to_parsed_owl_record_batch(
 /// * Hierarchical or nested children structures are supported
 /// *
 /// * See <https://github.com/phillord/horned-owl> for a full-fledged OWL parser
-#[instrument(skip(lhs_values, lhs_args, format, doc_filter, doc_extraction, device))]
+#[instrument(skip(lhs_pk, lhs_values, lhs_args, format, doc_filter, doc_extraction, device))]
 pub fn extract_xml(
-    lhs_name: &str,
+    lhs_pk: &str,
     lhs_values: &str,
     lhs_args: &[RecordBatch],
     format: &DataFormat,
@@ -902,25 +912,59 @@ pub fn extract_xml(
         .with_name("extract_xml")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
+    let pk_vec = args_table
+        .get_column_as_vec_str(lhs_pk);
     let values_vec = args_table
-        .get_column_as_vec_nested_primitive::<u8>(lhs_values)?
-        .into_iter()
-        .flatten()
+        .get_column_as_vec_nested_primitive::<u8>(lhs_values)?;
+
+    // Read the XML documents
+    let mut subjects = pk_vec.into_iter()
+        .zip(values_vec)
+        .map(|(pk, bytes)| {
+            let parsed = parse_xml(&bytes)?;
+            let batch = match format {
+                DataFormat::Html | DataFormat::Xml => {
+                    xml_to_parsed_xml_record_batch(parsed, pk, device)?
+                }
+                DataFormat::Owl => {
+                    xml_to_parsed_owl_record_batch(parsed, pk, doc_filter, doc_extraction, device)?
+                }
+                _ => return Err(anyhow!(
+                    "Unsupported format {format:?} for extract_set_data operator."
+                )),
+            };
+            let subject = Subject::get_builder().with_name(pk)
+                .with_record_batches(vec![batch])?
+                .build()?;
+            Ok(subject)
+        })
         .collect::<Vec<_>>();
 
-    // Read the XML document
-    let parsed = parse_xml(&values_vec)?;
-    match format {
-        DataFormat::Html | DataFormat::Xml => {
-            xml_to_parsed_xml_record_batch(parsed, lhs_name, device)
+    // Route using the PK if the number of subjects > 1
+    let batch = if subjects.len() > 1 {
+        // Wrap into IPC [RecordBatch]
+        let mut names = Vec::new();
+        let mut publishers = Vec::new();
+        let mut subject_names = Vec::new();
+        let mut formats = Vec::new();
+        let mut bytes = Vec::new();
+
+        for subject in subjects {
+            let subject = subject?;
+            names.push(subject.get_name().to_string());
+            publishers.push("extract_xml".to_string());
+            subject_names.push(subject.get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(subject.to_ipc_stream()?);
         }
-        DataFormat::Owl => {
-            xml_to_parsed_owl_record_batch(parsed, lhs_name, doc_filter, doc_extraction, device)
-        }
-        _ => Err(anyhow!(
-            "Unsupported format {format:?} for extract_set_data operator."
-        )),
-    }
+
+        create_route_bytes_record_batch(names, publishers, subject_names, formats, bytes)?
+
+    } else {
+        let subject = subjects.pop().unwrap()?;
+        subject.get_record_batches_own().remove(0)        
+    };
+    Ok(batch)
 }
 
 #[cfg(test)]
@@ -978,7 +1022,7 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_xml() {
+    fn test_extract_xml_no_routes() {
         // Test owl file
         let owl = r#"<?xml version="1.0"?>
 <rdf:RDF xmlns="http://www.example.com/iri#"
@@ -1022,7 +1066,7 @@ mod tests {
 
         // Extract the xml tags
         let extracted = extract_xml(
-            "test",
+            "filename",
             "bytes",
             &[batch],
             &DataFormat::Xml,
@@ -1043,8 +1087,9 @@ mod tests {
         assert_eq!(
             result,
             [
-                "test", "test", "test", "test", "test", "test", "test", "test", "test", "test",
-                "test", "test", "test", "test", "test", "test",
+                "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", 
+                "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", 
+                "attachment", "attachment", "attachment", "attachment"
             ]
         );
         let result = table
@@ -1132,6 +1177,88 @@ mod tests {
                 "{\"rdf:parseType\":\"Collection\"}"
             ]
         );
+    }
+
+    #[test]
+    fn test_extract_xml_routes() {
+        // Test owl file
+        let owl = r#"<?xml version="1.0"?>
+<rdf:RDF xmlns="http://www.example.com/iri#"
+     xml:base="http://www.example.com/iri"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+    <owl:Ontology rdf:about="http://www.example.com/iri">
+        <owl:versionIRI rdf:resource="http://www.example.com/viri"/>
+    </owl:Ontology>  
+
+    <!-- http://purl.obolibrary.org/obo/GO_0010958 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/GO_0010958">
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://purl.obolibrary.org/obo/GO_0065007"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://purl.obolibrary.org/obo/RO_0002211"/>
+                        <owl:someValuesFrom rdf:resource="http://purl.obolibrary.org/obo/GO_0089718"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:label>regulation of amino acid import across plasma membrane</rdfs:label>
+    </owl:Class>
+</rdf:RDF>"#;
+
+        // Make the xml data
+        let batch_1 = create_attachments_batch(
+            vec!["attachment_1".to_string()],
+            vec!["owl".to_string()],
+            vec![owl.into()],
+            vec!["".to_string()],
+            vec![create_timestamp_micros()],
+        )
+        .unwrap();
+        let batch_2 = create_attachments_batch(
+            vec!["attachment_2".to_string()],
+            vec!["owl".to_string()],
+            vec![owl.into()],
+            vec!["".to_string()],
+            vec![create_timestamp_micros()],
+        )
+        .unwrap();
+
+        // Make the device
+        let device = device(false).unwrap();
+
+        // Extract the xml tags
+        let extracted = extract_xml(
+            "filename",
+            "bytes",
+            &[batch_1, batch_2],
+            &DataFormat::Xml,
+            &DocumentFilterType::Default,
+            &DocumentExtractType::Default,
+            &device,
+        )
+        .unwrap();
+
+        // Check the contents of the extracted data
+        let table = Subject::get_builder()
+            .with_name("extracted")
+            .with_record_batches(vec![extracted])
+            .unwrap()
+            .build()
+            .unwrap();
+        let column = table.get_column_as_vec_str("name");
+        assert_eq!(column, ["attachment_1", "attachment_2"]);
+        let column = table.get_column_as_vec_str("publisher");
+        assert_eq!(column, ["extract_xml", "extract_xml"]);
+        let column = table.get_column_as_vec_str("subject");
+        assert_eq!(column, ["attachment_1", "attachment_2"]);
+        let column = table.get_column_as_vec_str("format");
+        assert_eq!(column, ["Ipc", "Ipc"]);
+        let column = table.get_column_as_vec_nested_primitive::<u8>("bytes").unwrap().into_iter().flatten().collect::<Vec<_>>();
+        assert_eq!(column.len(), 10000);
     }
 
     #[test]
@@ -1316,7 +1443,7 @@ WHERE {
 
         // Extract the xml tags
         let extracted = extract_xml(
-            "test",
+            "filename",
             "bytes",
             &[batch],
             &DataFormat::Owl,
@@ -1337,13 +1464,7 @@ WHERE {
         assert_eq!(
             result,
             [
-                "test", "test", "test", "test", "test", "test", "test", "test", "test", "test",
-                "test", "test", "test", "test", "test", "test", "test", "test", "test", "test",
-                "test", "test", "test", "test", "test", "test", "test", "test", "test", "test",
-                "test", "test", "test", "test", "test", "test", "test", "test", "test", "test",
-                "test", "test", "test", "test", "test", "test", "test", "test", "test", "test",
-                "test", "test", "test", "test", "test", "test", "test", "test", "test", "test",
-                "test", "test", "test", "test", "test", "test", "test", "test", "test"
+                "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment", "attachment"
             ]
         );
         let mut result = table.get_column_as_vec_str("graph");

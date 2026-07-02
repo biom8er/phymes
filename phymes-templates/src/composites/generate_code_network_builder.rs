@@ -144,6 +144,7 @@ impl Default for GenerateCodeNetworkBuilder {
             let network_name = "extract_csv";
             let config = DataConfig {
                 lhs_name: Some(AvailableInterfaceSubjects::UserCsv.to_string()),
+                lhs_pk: Some("filename".to_string()),
                 lhs_values: Some(
                     ["bytes"]
                         .into_iter()
