@@ -176,6 +176,7 @@ pub fn get_subject(
     // 5. Extract the tabular subject
     let config = DataConfig {
         lhs_name: Some(sn.to_string()),
+        lhs_pk: Some("location".to_string()),
         lhs_values: Some(vec!["bytes".to_string()]),
         encoding: Some(DataEncoding::default()),
         format: Some(DataFormat::Ipc),

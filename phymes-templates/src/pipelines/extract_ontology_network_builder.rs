@@ -2119,8 +2119,8 @@ mod tests {
                 &"http://purl.obolibrary.org/obo/ro.owl-http://purl.org/dc/terms/title-OBO Relations Ontology"
             );
             let column = subject.get_column_as_vec_str("dataset");
-            assert_eq!(column.first().unwrap(), &"UserScript");
-            assert_eq!(column.last().unwrap(), &"UserScript");
+            assert_eq!(column.first().unwrap(), &"attachment");
+            assert_eq!(column.last().unwrap(), &"attachment");
         }
 
         // Run the second superstep
@@ -2187,8 +2187,8 @@ mod tests {
                 &"http://purl.obolibrary.org/obo/ro.owl-http://purl.org/dc/terms/title-OBO Relations Ontology"
             );
             let column = subject.get_column_as_vec_str("dataset");
-            assert_eq!(column.first().unwrap(), &"UserScript");
-            assert_eq!(column.last().unwrap(), &"UserScript");
+            assert_eq!(column.first().unwrap(), &"attachment");
+            assert_eq!(column.last().unwrap(), &"attachment");
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_annotation_property_entity_s".to_string(),
             }
@@ -2244,8 +2244,8 @@ mod tests {
                 &"http://www.w3.org/2000/01/rdf-schema#subPropertyOf-http://www.w3.org/2000/01/rdf-schema#label-subPropertyOf"
             );
             let column = subject.get_column_as_vec_str("dataset");
-            assert_eq!(column.first().unwrap(), &"UserScript");
-            assert_eq!(column.last().unwrap(), &"UserScript");
+            assert_eq!(column.first().unwrap(), &"attachment");
+            assert_eq!(column.last().unwrap(), &"attachment");
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_datatype_property_entity_s".to_string(),
             }
@@ -2309,8 +2309,8 @@ mod tests {
                 &"http://purl.obolibrary.org/obo/BFO_0000003-http://www.w3.org/2000/01/rdf-schema#label-occurrent"
             );
             let column = subject.get_column_as_vec_str("dataset");
-            assert_eq!(column.first().unwrap(), &"UserScript");
-            assert_eq!(column.last().unwrap(), &"UserScript");
+            assert_eq!(column.first().unwrap(), &"attachment");
+            assert_eq!(column.last().unwrap(), &"attachment");
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_object_property_entity_s".to_string(),
             }
@@ -2366,8 +2366,8 @@ mod tests {
                 &"http://purl.obolibrary.org/obo/RO_0002131-http://www.w3.org/2000/01/rdf-schema#label-overlaps"
             );
             let column = subject.get_column_as_vec_str("dataset");
-            assert_eq!(column.first().unwrap(), &"UserScript");
-            assert_eq!(column.last().unwrap(), &"UserScript");
+            assert_eq!(column.first().unwrap(), &"attachment");
+            assert_eq!(column.last().unwrap(), &"attachment");
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_named_individual_entity_s".to_string(),
             }
@@ -2406,7 +2406,7 @@ mod tests {
                 &"http://purl.obolibrary.org/obo/ENVO_01001569-http://www.w3.org/2000/01/rdf-schema#label-Western Australian Mulga Shrublands Ecoregion"
             );
             let column = subject.get_column_as_vec_str("dataset");
-            assert_eq!(column.first().unwrap(), &"UserScript");
+            assert_eq!(column.first().unwrap(), &"attachment");
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_axiom_entity_s".to_string(),
             }
@@ -2880,8 +2880,8 @@ mod tests {
             );
             let mut column = subject.get_column_as_vec_str("document_id");
             column.sort();
-            assert_eq!(column.first().unwrap(), &"UserScript");
-            assert_eq!(column.last().unwrap(), &"UserScript");
+            assert_eq!(column.first().unwrap(), &"attachment");
+            assert_eq!(column.last().unwrap(), &"attachment");
             let mut column = subject.get_column_as_vec_str("text");
             column.sort();
             assert_eq!(
