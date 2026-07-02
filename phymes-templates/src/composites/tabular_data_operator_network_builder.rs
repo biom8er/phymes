@@ -36,7 +36,7 @@ impl TabularDataOperatorNetworkBuilder {
         let builder = DynamicTaskNetworkBuilder {
             network_name: task_name,
             dynamic_type: DynamicTaskNetworkTypes::Function,
-            processor: processor,
+            processor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_name_lhs.to_string(),
             },
@@ -66,7 +66,7 @@ impl TabularDataOperatorNetworkBuilder {
         let builder = DynamicTaskNetworkBuilder {
             network_name: task_name,
             dynamic_type: DynamicTaskNetworkTypes::Function,
-            processor: processor,
+            processor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_name_lhs.to_string(),
             },

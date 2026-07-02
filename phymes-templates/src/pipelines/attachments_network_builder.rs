@@ -26,7 +26,7 @@ impl<'a> AttachmentsNetworkBuilder<'a> {
 impl<'a> NetworkBuilderCustomTrait for AttachmentsNetworkBuilder<'a> {    
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![TaskPlan {
-            task_name: DynamicTaskNetworkNames::Task(&self.network_name).to_string(),
+            task_name: DynamicTaskNetworkNames::Task(self.network_name).to_string(),
             processor_names: vec![DynamicTaskNetworkNames::Processor(&AvailableProcessors::AggregatorProcessor.to_string()).to_string()],
         }];
 
@@ -34,7 +34,7 @@ impl<'a> NetworkBuilderCustomTrait for AttachmentsNetworkBuilder<'a> {
     }
 
     fn make_processors(&self) -> Option<Vec<ProcessorPlan>> {
-        let subscriptions = self.subject_names.into_iter()
+        let subscriptions = self.subject_names.iter()
             .map(|s| Subscription::OnUpdateAllRecordBatches {
                 subject_name: s.to_string(),
             })

@@ -7,7 +7,7 @@ mod pipelines;
 pub use app::{
     AvailableNetworks, MermaidNetworkBuilder, DiagnosticNetworkBuilder, UserNetwork, make_example_mermaid_table,
 };
-pub use composites::{RetrievalAugmentedGenerationPDFNetworkBuilder, RetrieveTextPDFNetworkBuilder};
+pub use composites::{RetrievalAugmentedGenerationPDFNetworkBuilder, RetrieveTextPDFNetworkBuilder, TabularDataOperatorNetworkBuilder};
 #[cfg(feature = "api")]
 pub use composites::{GenerateCodeNetworkBuilder, OpenAlexNetworkBuilder};
 pub use diagnostics::{
