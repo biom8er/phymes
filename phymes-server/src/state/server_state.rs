@@ -313,9 +313,11 @@ impl ServerState {
                     )?
                     .with_name(&network_name)
                     .with_subjects_from_mermaid_erdiagram(&user_network.er_diagram, false, true)?
+                    .with_diagnostics(true)
                     .add_processor_subjects()?
                     .add_network_interface(None)?
-                    .with_diagnostics(true)
+                    .add_next_tasks()?
+                    .add_next_supersteps()?
                     .with_runtime_env(runtime_env.clone())
                     .build_with_tables()?;
                     let network_arc = Arc::new(network);
@@ -404,10 +406,10 @@ mod tests {
                 "contact@biom8er.com",
                 "contact@biom8er.com",
                 "contact@biom8er.com",
-                // "contact@biom8er.com",
+                "contact@biom8er.com",
                 "user@biom8er.com",
                 "user@biom8er.com",
-                // "user@biom8er.com"
+                "user@biom8er.com"
             ]
         );
         assert_eq!(
@@ -415,11 +417,11 @@ mod tests {
             [
                 "GenerateText",
                 "RAGTextPDF",
-                // "ToolChat",
+                "TabularDataOps",
                 "Builder",
                 "GenerateText",
                 "RAGTextPDF",
-                // "ToolChat"
+                "TabularDataOps"
             ]
         );
         assert_eq!(
@@ -427,11 +429,11 @@ mod tests {
             [
                 "GenerateText",
                 "RAGTextPDF",
-                // "ToolChat",
+                "TabularDataOps",
                 "Builder",
                 "GenerateText",
                 "RAGTextPDF",
-                // "ToolChat"
+                "TabularDataOps"
             ]
         );
 
@@ -444,8 +446,7 @@ mod tests {
         let user = UserState::new(None, &runtime_env).await?;
         let (user_info, user_networks) = user.get_user_by_email("contact@biom8er.com").await?;
         assert_eq!(user_info.len(), 1);
-        // assert_eq!(user_networks.len(), 4);
-        assert_eq!(user_networks.len(), 3);
+        assert_eq!(user_networks.len(), 4);
         assert_eq!(user_info.first().unwrap().email, "contact@biom8er.com");
         assert_eq!(user_info.first().unwrap().first_name, "con");
         assert_eq!(user_info.first().unwrap().last_name, "tact");
@@ -455,8 +456,8 @@ mod tests {
         assert_eq!(user_networks.get(1).unwrap().network_name, "GenerateText");
         assert_eq!(user_networks.get(2).unwrap().email, "contact@biom8er.com");
         assert_eq!(user_networks.get(2).unwrap().network_name, "RAGTextPDF");
-        // assert_eq!(user_networks.get(3).unwrap().email, "contact@biom8er.com");
-        // assert_eq!(user_networks.get(3).unwrap().network_name, "ToolChat");
+        assert_eq!(user_networks.get(3).unwrap().email, "contact@biom8er.com");
+        assert_eq!(user_networks.get(3).unwrap().network_name, "TabularDataOps");
 
         Ok(())
     }
@@ -477,7 +478,7 @@ mod tests {
                 .collect::<HashSet<_>>(),
             [
                 "contactbiom8ercomRAGTextPDF",
-                // "contactbiom8ercomToolChat",
+                "contactbiom8ercomTabularDataOps",
                 "contactbiom8ercomGenerateText",
                 "contactbiom8ercomBuilder"
             ]

@@ -728,7 +728,7 @@ Second, iteratively query the phymes-server using `wasmtime`.
 ```bash
 # Sign-in and get our JWT token
 wastime --dir=$HOME/.cache phymes-server.wasm --route app/v1/sign_in --basic_auth EMAIL:PASSWORD
-# mock response {"email":"EMAIL","jwt":"JWTTOKEN","session_plans":["Chat","DocChat","ToolChat"]}
+# mock response {"email":"EMAIL","jwt":"JWTTOKEN","session_plans":["GenerateText", ...]}
 
 # Get information about the different subjects
 wastime --dir=$HOME/.cache phymes-server.wasm curl --route app/v1/subjects_schema --bearer_auth JWTTOKEN --data '{"session_name":"EMAILChat","subject_name":"","format":"Bytes","publish":"None","content":"","metadata":"","stream":false}'

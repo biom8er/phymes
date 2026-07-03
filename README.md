@@ -79,7 +79,7 @@ Alternatively, you can make REST API requests against the server using e.g., `cu
 ```bash
 # Sign-in and get our JWT token
 curl -X POST -u EMAIL:PASSWORD http://localhost:4000/app/v1/sign_in
-# mock response {"email":"EMAIL","jwt":"JWTTOKEN","session_plans":["Chat","DocChat","ToolChat"]}
+# mock response {"email":"EMAIL","jwt":"JWTTOKEN","session_plans":["GenerateText","RAGTextPDF","TabularDataOps"]}
 
 # View a subject table from the session state
 curl -H "Content-Type: application/json" -H "Authorization: Bearer JWTTOKEN" -d '{"name":"","subject":"chat_processor_1","publisher":"EMAILChat","message":[],"update":"None","session_name":"EMAILChat","format":"Bytes","stream":false}' http://localhost:4000/app/v1/get_state
@@ -129,7 +129,7 @@ WASM builds of `phymes-server` can be ran as stateless functions for embedded ap
 ```bash
 # Sign-in and get our JWT token
 wasmtime target/wasm32-wasip2/release/phymes-server.wasm --route app/v1/sign_in --basic-auth EMAIL:PASSWORD
-# mock response {"email":"EMAIL","jwt":"JWTTOKEN","session_plans":["Chat","DocChat","ToolChat"]}
+# mock response {"email":"EMAIL","jwt":"JWTTOKEN","session_plans":["GenerateText","RAGTextPDF","TabularDataOps"]}
 
 # View a subject table from the session state
 wasmtime --dir=$HOME/.cache target/wasm32-wasip2/release/phymes-server.wasm --route app/v1/get_state --bearer-auth JWTTOKEN --data '{"name":"","subject":"chat_processor_1","publisher":"EMAILChat","message":[],"update":"None","session_name":"EMAILChat","format":"Bytes","stream":false}'
