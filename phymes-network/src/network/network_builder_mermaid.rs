@@ -460,10 +460,14 @@ flowchart TD"#, self.name.as_ref().unwrap())];
                     iter += 1;
                 }
             }
-        } else {
+        } else if let Some(line) = flowchart_lines.first() {
             return Err(anyhow!(
                 "Parsing Error on line {iter}: {}. Unrecognized mermaid.js flowchart type. Should have found `flowchart`, `flowchart TD`, or `flowchart LR`.",
-                flowchart_lines.get(iter).unwrap()
+                line
+            ));
+        } else {
+            return Err(anyhow!(
+                "Parsing Error on line {iter}. Unrecognized mermaid.js flowchart type. Should have found `flowchart`, `flowchart TD`, or `flowchart LR`.",
             ));
         }
 
