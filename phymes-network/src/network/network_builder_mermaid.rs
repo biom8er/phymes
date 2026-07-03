@@ -314,7 +314,13 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
         publications_vec.sort();
 
         // Create the final mermaid.js flowchart script
-        let mut mermaid_js = vec!["flowchart TD".to_string()];
+        let mut mermaid_js = vec![format!(r#"---
+title: {}
+config:
+    flowchart:
+        defaultRenderer: "elk"
+---
+flowchart TD"#, self.name.as_ref().unwrap())];
         mermaid_js.extend(tasks_vec);
         mermaid_js.extend(runtime_envs_to_tasks_vec);
         mermaid_js.extend(processors_vec);
@@ -415,38 +421,63 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
         let mut runtime_env_names_vec = Vec::new();
         let mut task_names_vec = Vec::new();
 
-        let is_first_line = |line: &str| -> bool {
+        // Lambda for start of flowchart
+        let is_flowchart = |line: &str| -> bool {
             match line.split_whitespace().next() {
                 Some(line) => line == "flowchart",
                 None => false,
             }
         };
 
-        // Parse the mermaid.js flowchart string
-        let flowchart_lines = flowchart.split("\n").collect::<Vec<_>>();
+        // Lambda for config section
+        let is_config = |line: &str| -> bool {
+            match line.split_whitespace().next() {
+                Some(line) => line == "---",
+                None => false,
+            }
+        };
+
+        // Parse the mermaid.js configuration section
+        let flowchart_lines = flowchart.lines().collect::<Vec<_>>();
         let mut iter = 0;
-        if !is_first_line(flowchart_lines.first().unwrap()) {
+        if let Some(line) = flowchart_lines.first() && is_flowchart(line) {
+            iter += 1;
+        } else if let Some(line) = flowchart_lines.first() && is_config(line) {
+            iter += 1;
+            while iter < flowchart_lines.len() {
+                if let Some(line) = flowchart_lines.get(iter) && is_config(line) {
+                    iter += 1;
+                    if let Some(line) = flowchart_lines.get(iter) && is_flowchart(line) {
+                        iter += 1;
+                        break;
+                    } else {
+                        return Err(anyhow!(
+                            "Parsing Error on line {iter}: {}. Unrecognized mermaid.js flowchart type after configuration section. Should have found `flowchart`, `flowchart TD`, or `flowchart LR`.",
+                            flowchart_lines.get(iter).unwrap()
+                        ));
+                    }
+                } else {
+                    iter += 1;
+                }
+            }
+        } else {
             return Err(anyhow!(
-                "Parsing Error on line {iter}: {}. Unrecognized mermaid.js flowchart type",
+                "Parsing Error on line {iter}: {}. Unrecognized mermaid.js flowchart type. Should have found `flowchart`, `flowchart TD`, or `flowchart LR`.",
                 flowchart_lines.get(iter).unwrap()
             ));
         }
-        while iter < flowchart_lines.len() {
-            // Check the chart type
-            if is_first_line(flowchart_lines.get(iter).unwrap()) {
 
-                // Ignore blank lines and comments
-            } else if flowchart_lines.get(iter).unwrap().trim().is_empty()
-                || flowchart_lines.get(iter).unwrap().trim().starts_with("%%")
+        // Parse the mermaid.js flowchart
+        while iter < flowchart_lines.len() {
+            // Ignore blank lines and comments
+            if let Some(line) = flowchart_lines.get(iter)
+                && (line.trim().is_empty() || line.trim().starts_with("%%"))
             {
 
                 // Task section
-            } else if flowchart_lines.get(iter).unwrap().contains("subgraph") {
+            } else if let Some(line) = flowchart_lines.get(iter) && line.contains("subgraph") {
                 // Start building the task plan
-                let task_name = flowchart_lines
-                    .get(iter)
-                    .unwrap()
-                    .split("subgraph")
+                let task_name = line.split("subgraph")
                     .last()
                     .unwrap()
                     .trim()
@@ -460,20 +491,19 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
 
                 iter += 1;
                 while iter < flowchart_lines.len() {
-                    if flowchart_lines.get(iter).unwrap().trim() == "end" {
+                    if let Some(line) = flowchart_lines.get(iter) && line.trim() == "end" {
                         break;
 
                     // Subject, Subscription, Subscribe triple
                     // e.g., state_1-subject-.->|AllRecordBatches|processor_1-subscribe
-                    } else if flowchart_lines.get(iter).unwrap().contains("-subject")
-                        & flowchart_lines.get(iter).unwrap().contains("->")
-                        & flowchart_lines.get(iter).unwrap().contains("|")
-                        & flowchart_lines.get(iter).unwrap().contains("-subscribe")
+                    } else if let Some(line) = flowchart_lines.get(iter)
+                        && line.contains("-subject")
+                        && line.contains("->")
+                        && line.contains("|")
+                        && line.contains("-subscribe")
                     {
                         // Extract out the subscription
-                        let split_line = flowchart_lines
-                            .get(iter)
-                            .unwrap()
+                        let split_line = line
                             .split("-subject")
                             .collect::<Vec<_>>();
                         if split_line.len() > 2 {
@@ -572,14 +602,13 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
 
                     // Subscribe, Processor triple
                     // e.g., processor_1-subscribe-->processor_1-processor
-                    } else if flowchart_lines.get(iter).unwrap().contains("-subscribe")
-                        & flowchart_lines.get(iter).unwrap().contains("-->")
-                        & flowchart_lines.get(iter).unwrap().contains("-processor")
+                    } else if let Some(line) = flowchart_lines.get(iter)
+                        && line.contains("-subscribe")
+                        && line.contains("-->")
+                        && line.contains("-processor")
                     {
                         // Check the processor name
-                        let split_line = flowchart_lines
-                            .get(iter)
-                            .unwrap()
+                        let split_line = line
                             .split("-subscribe")
                             .collect::<Vec<_>>();
                         if split_line.len() > 2 {
@@ -648,14 +677,13 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
 
                     // Processor, Publish triple
                     // e.g., processor_1-processor-->processor_1-publish
-                    } else if flowchart_lines.get(iter).unwrap().contains("-processor")
-                        & flowchart_lines.get(iter).unwrap().contains("-->")
-                        & flowchart_lines.get(iter).unwrap().contains("-publish")
+                    } else if let Some(line) = flowchart_lines.get(iter)
+                        && line.contains("-processor")
+                        && line.contains("-->")
+                        && line.contains("-publish")
                     {
                         // Check the processor name
-                        let split_line = flowchart_lines
-                            .get(iter)
-                            .unwrap()
+                        let split_line = line
                             .split("-processor")
                             .collect::<Vec<_>>();
                         if split_line.len() > 2 {
@@ -724,15 +752,14 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
 
                     // Publish, Publication, Subject triple
                     // e.g., processor_1-publish-->|Extend|state_1-subject
-                    } else if flowchart_lines.get(iter).unwrap().contains("-publish")
-                        & flowchart_lines.get(iter).unwrap().contains("-->")
-                        & flowchart_lines.get(iter).unwrap().contains("|")
-                        & flowchart_lines.get(iter).unwrap().contains("-subject")
+                    } else if let Some(line) = flowchart_lines.get(iter)
+                        && line.contains("-publish")
+                        && line.contains("-->")
+                        && line.contains("|")
+                        && line.contains("-subject")
                     {
                         // Check the processor name
-                        let split_line = flowchart_lines
-                            .get(iter)
-                            .unwrap()
+                        let split_line = line
                             .split("-publish")
                             .collect::<Vec<_>>();
                         if split_line.len() > 2 {
@@ -830,30 +857,32 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
                         subject_names.insert(subject);
 
                     // Unrecognized arrows
-                    } else if flowchart_lines.get(iter).unwrap().contains("---")
-                        | flowchart_lines.get(iter).unwrap().contains("-.-")
-                        | flowchart_lines.get(iter).unwrap().contains("==")
-                        | flowchart_lines.get(iter).unwrap().contains("~~")
-                        | flowchart_lines.get(iter).unwrap().contains("--o")
-                        | flowchart_lines.get(iter).unwrap().contains("--x")
-                        | flowchart_lines.get(iter).unwrap().contains("<--")
-                        | flowchart_lines.get(iter).unwrap().contains("o--")
-                        | flowchart_lines.get(iter).unwrap().contains("x--")
+                    } else if let Some(line) = flowchart_lines.get(iter)
+                        && (line.contains("---")
+                        || line.contains("-.-")
+                        || line.contains("==")
+                        || line.contains("~~")
+                        || line.contains("--o")
+                        || line.contains("--x")
+                        || line.contains("<--")
+                        || line.contains("o--")
+                        || line.contains("x--"))
                     {
                         return Err(anyhow!(
                             "Parsing Error on line {iter}: {}. Unsupported arrow type in subgraph {task_name}. Only --> and .-> arrows are supported in PHYMES.",
-                            flowchart_lines.get(iter).unwrap()
+                            line
                         ));
 
                     // Unrecognized qualifier
-                    } else if !flowchart_lines.get(iter).unwrap().contains("subject")
-                        | !flowchart_lines.get(iter).unwrap().contains("subscribe")
-                        | !flowchart_lines.get(iter).unwrap().contains("processor")
-                        | !flowchart_lines.get(iter).unwrap().contains("publish")
+                    } else if let Some(line) = flowchart_lines.get(iter) 
+                        && (!line.contains("subject")
+                        || !line.contains("subscribe")
+                        || !line.contains("processor")
+                        || !line.contains("publish"))
                     {
                         return Err(anyhow!(
                             "Parsing Error on line {iter}: {}. Unsupported processor or subject qualifier in subgraph {task_name}. Only -subject, -subscribe, -processor, and -publish qualifiers are supported in PHYMES.",
-                            flowchart_lines.get(iter).unwrap()
+                            line
                         ));
 
                     // Any others
@@ -867,11 +896,9 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
                 }
 
             // Extract out the task runtime environments
-            } else if flowchart_lines.get(iter).unwrap().contains("-rt-->") {
+            } else if let Some(line) = flowchart_lines.get(iter) && line.contains("-rt-->") {
                 // Extract the runtime and task names
-                let split_line = flowchart_lines
-                    .get(iter)
-                    .unwrap()
+                let split_line = line
                     .split("-rt-->")
                     .collect::<Vec<_>>();
                 if split_line.len() > 2 {
@@ -893,15 +920,9 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
                 runtime_envs_names.insert(runtime_env_name);
 
             // Extract out the runtime environments
-            } else if flowchart_lines
-                .get(iter)
-                .unwrap()
-                .contains("-rt@{shape: subproc,")
-            {
+            } else if let Some(line) = flowchart_lines.get(iter) && line.contains("-rt@{shape: subproc,") {
                 // Extract the runtime and task names
-                let split_line = flowchart_lines
-                    .get(iter)
-                    .unwrap()
+                let split_line = line
                     .split("-rt@{shape: subproc,")
                     .collect::<Vec<_>>();
                 let runtime_env_name = split_line.first().unwrap().trim().to_string();
@@ -910,15 +931,11 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
                 runtime_env_names_vec.push(runtime_env_name.to_owned());
 
             // Extract out the processors
-            } else if flowchart_lines
-                .get(iter)
-                .unwrap()
-                .contains("-processor@{shape: rect,")
+            } else if let Some(line) = flowchart_lines.get(iter)
+                && line.contains("-processor@{shape: rect,")
             {
                 // Extract the processor name
-                let split_line = flowchart_lines
-                    .get(iter)
-                    .unwrap()
+                let split_line = line
                     .split("-processor@{shape: rect,")
                     .collect::<Vec<_>>();
                 let processor_name = split_line.first().unwrap().trim().to_string();
@@ -959,15 +976,11 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
                 processor_names_vec.push(processor_name.to_owned());
 
             // Extract out the subjects
-            } else if flowchart_lines
-                .get(iter)
-                .unwrap()
-                .contains("-subject@{shape: doc")
+            } else if let Some(line) = flowchart_lines.get(iter)
+                && line.contains("-subject@{shape: doc")
             {
                 // Extract the subject name
-                let split_line = flowchart_lines
-                    .get(iter)
-                    .unwrap()
+                let split_line = line
                     .split("-subject@{shape: doc")
                     .collect::<Vec<_>>();
                 let subject_name = split_line.first().unwrap().trim().to_string();
@@ -976,15 +989,11 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
                 subject_names_vec.push(subject_name.to_owned());
 
             // Extract out the subscribe
-            } else if flowchart_lines
-                .get(iter)
-                .unwrap()
-                .contains("-subscribe@{shape: diamond, label:")
+            } else if let Some(line) = flowchart_lines.get(iter)
+                && line.contains("-subscribe@{shape: diamond, label:")
             {
                 // Extract the processor name
-                let split_line = flowchart_lines
-                    .get(iter)
-                    .unwrap()
+                let split_line = line
                     .split("-subscribe@{shape: diamond, label:")
                     .collect::<Vec<_>>();
                 let processor_name = split_line.first().unwrap().trim().to_string();
@@ -1052,16 +1061,11 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
                 processor_names.insert(processor_name);
 
             // Extract out the publish
-            } else if flowchart_lines
-                .get(iter)
-                .unwrap()
-                .contains("-publish@{shape: fork}")
+            } else if let Some(line) = flowchart_lines.get(iter)
+                && line.contains("-publish@{shape: fork}")
             {
                 // Extract the processor name
-                let split_line = flowchart_lines
-                    .get(iter)
-                    .unwrap()
-                    .split("-publish@{shape: fork}")
+                let split_line = line.split("-publish@{shape: fork}")
                     .collect::<Vec<_>>();
                 let processor_name = split_line.first().unwrap().trim().to_string();
                 if !processor_builders.contains_key(&processor_name) {
@@ -1462,12 +1466,12 @@ mod tests {
         let mermaid_js = builder.to_mermaid_flowchart(false, false)?;
         assert_eq!(
             mermaid_js,
-            "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|AllRecordBatches|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|AllRecordBatches|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tstate_2-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}"
+            "---\ntitle: session_1\nconfig:\n    flowchart:\n        defaultRenderer: \"elk\"\n---\nflowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|AllRecordBatches|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|AllRecordBatches|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tstate_2-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}"
         );
         let mermaid_js = builder.to_mermaid_flowchart(false, true)?;
         assert_eq!(
             mermaid_js,
-            "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|AllRecordBatches|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|AllRecordBatches|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tstate_2-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_2-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_3-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish-->|Extend|state_1-subject\n\t\tsession_1-publish-->|Extend|state_2-subject\n\t\tsession_1-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\trt_1-rt-->session_1\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\tsession_1-processor@{shape: rect, label: ProcessorEcho}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tsession_1-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tsession_1-subscribe@{shape: diamond, label: Any}"
+            "---\ntitle: session_1\nconfig:\n    flowchart:\n        defaultRenderer: \"elk\"\n---\nflowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|AllRecordBatches|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|AllRecordBatches|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tstate_2-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_2-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_3-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish-->|Extend|state_1-subject\n\t\tsession_1-publish-->|Extend|state_2-subject\n\t\tsession_1-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\trt_1-rt-->session_1\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\tsession_1-processor@{shape: rect, label: ProcessorEcho}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tsession_1-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tsession_1-subscribe@{shape: diamond, label: Any}"
         );
 
         Ok(())
