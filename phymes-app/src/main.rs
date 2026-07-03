@@ -50,42 +50,15 @@ fn app() -> Element {
 fn mermaid_js() -> Element {
     #[cfg(feature = "mermaid_js_cdn")]
     rsx! {
-        script { src: "https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.2.2/+esm", onload: move |_| {
-            document::eval(r#"import("https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.2.2/+esm").then(({ default: mermaidJslayoutElk  }) => {
-    window.elkLayouts = mermaidJslayoutElk ;"#
-            );
-        }}
-        script { src: "https://cdn.jsdelivr.net/npm/mermaid@11.16.0/+esm", onload: move |_| {
-            document::eval(r#"import("https://cdn.jsdelivr.net/npm/mermaid@11.16.0/+esm").then(({ default: mermaid }) => {
-    window.mermaid = mermaid;
-    mermaid.registerLayoutLoaders(window.mermaidJslayoutElk );
-    mermaid.initialize({
-        theme: "dark",
-        startOnLoad: false,
-        maxTextSize: 50000,
-        maxEdges: 500,
-        securityLevel: "loose",
-        suppressErrorRendering: true
-    })
-    .catch(err => {
-      console.error("Failed to load mermaid module:", err);
-    });;
-});"#
-            );
-        }}
-        script { src: "https://unpkg.com/@panzoom/panzoom@4.6.0/dist/panzoom.min.js" }
-//         script { src: "https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.2.2/+esm" }
-//         script { src: "https://cdn.jsdelivr.net/npm/mermaid@11.16.0/+esm", onload: move |_| {
-//             document::eval(r#"import("https://cdn.jsdelivr.net/npm/mermaid@11.16.0/+esm").then(({ default: mermaid }) => {
-//     window.mermaid = mermaid;
-// });"#
+//         script { src: "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs", onload: move |_| {
+//             document::eval(r#"import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs").then(({ default: elkLayouts }) => {
+//     window.elkLayouts = elkLayouts;"#
 //             );
 //         }}
-//         script { r#type: "module", onload: move |_| {
-//             document::eval(r#"
-//     import mermaidJslayoutElk from 'https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.2.2/+esm'
-//     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.16.0/+esm'
-//     mermaid.registerLayoutLoaders(mermaidJslayoutElk);
+//         script { src: "https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0/dist/mermaid-layout-elk.esm.min.mjs", onload: move |_| {
+//             document::eval(r#"import("https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0/dist/mermaid-layout-elk.esm.min.mjs").then(({ default: mermaid }) => {
+//     window.mermaid = mermaid;
+//     mermaid.registerLayoutLoaders(window.elkLayouts);
 //     mermaid.initialize({
 //         theme: "dark",
 //         startOnLoad: false,
@@ -93,9 +66,15 @@ fn mermaid_js() -> Element {
 //         maxEdges: 500,
 //         securityLevel: "loose",
 //         suppressErrorRendering: true
-//     });
-// "#);
+//     })
+//     .catch(err => {
+//       console.error("Failed to load mermaid module:", err);
+//     });;
+// });"#
+//             );
 //         }}
+        script { src: "https://unpkg.com/@panzoom/panzoom@4.6.0/dist/panzoom.min.js" }
+        script { r#type: "module", src: asset!("/assets/mermaid.cdn.js")}
     }
 
     #[cfg(feature = "mermaid_js_embed")]
