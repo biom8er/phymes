@@ -15,6 +15,8 @@ pub struct GenerateTextNetworkBuilder<'a> {
     pub api_url: Option<String>,
     /// The processor to use for text generation
     pub chat_processor: &'a str,
+    /// Whether a tool message is required before text generation can run
+    pub tool_message_required: bool,
 }
 
 impl<'a> Default for GenerateTextNetworkBuilder<'a> {
@@ -85,6 +87,7 @@ impl<'a> Default for GenerateTextNetworkBuilder<'a> {
             tokenizer_file,
             api_url,
             chat_processor,
+            tool_message_required: false,
         }
     }
 }
@@ -100,6 +103,7 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
         tokenizer_file: Option<String>,
         tokenizer_config_file: Option<String>,
         api_url: Option<String>,
+        tool_message_required: bool
     ) -> Self {
         let chat_processor = if cfg!(all(feature = "api", not(feature = "candle"))) {
             "OpenAIChatProcessor"
@@ -116,6 +120,7 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
             tokenizer_config_file,
             api_url,
             chat_processor,
+            tool_message_required
         }
     }
     fn generate_text_inference_p(&self) -> String {
@@ -165,6 +170,11 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
         let chat_processor = self.chat_processor;
+        let subscribe_policy = if self.tool_message_required {
+            "Any"
+        } else {
+            "ChatContentSubscribe"
+        };
         format!(
             r#"flowchart TD
 	%% ------------------------------------------------------------------------------
@@ -187,7 +197,7 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
 	AssistantMessages-subject@{{shape: doc, label: AssistantMessages}}
 	aggregate_messages_generate_text_p-processor@{{shape: rect, label: AggregatorProcessor}}
 	aggregate_messages_generate_text_p-publish@{{shape: fork}}
-	aggregate_messages_generate_text_p-subscribe@{{shape: diamond, label: ChatContentSubscribe}}
+	aggregate_messages_generate_text_p-subscribe@{{shape: diamond, label: {subscribe_policy}}}
 	aggregate_messages_generate_text_s-subject@{{shape: doc, label: aggregate_messages_generate_text_s}}
 	%% ------------------------------------------------------------------------------
 	%% Message aggregation for the UI
@@ -538,6 +548,7 @@ mod tests {
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             None,
+            false,
         );
         let mut network_builder = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_network.as_mermaid_flowchart(),
@@ -1007,6 +1018,7 @@ mod tests {
                 std::env::var("HOME").unwrap_or("".to_string())
             )),
             None,
+            false
         );
         let mut network_builder = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_network.as_mermaid_flowchart(),

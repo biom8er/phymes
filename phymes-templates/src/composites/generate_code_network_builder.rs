@@ -113,6 +113,7 @@ impl Default for GenerateCodeNetworkBuilder {
             None,
             None,
             None,
+            false,
         );
         let network_builder = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_network.as_mermaid_flowchart(),

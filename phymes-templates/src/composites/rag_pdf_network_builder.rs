@@ -17,7 +17,8 @@ impl Default for RetrievalAugmentedGenerationPDFNetworkBuilder {
             .unwrap();
 
         // Generate text network
-        let generate_text_network = GenerateTextNetworkBuilder::default();
+        let mut generate_text_network = GenerateTextNetworkBuilder::default();
+        generate_text_network.tool_message_required = true;
         let network_builder = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_network.as_mermaid_flowchart(),
             false,
