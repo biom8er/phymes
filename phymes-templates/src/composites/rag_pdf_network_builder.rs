@@ -62,7 +62,9 @@ mod tests {
     };
     use phymes_task::SubscriptionTrait;
 
-    use super::*;
+    use crate::{extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
+
+use super::*;
 
     #[tokio::test]
     async fn test_rag_pdf_network() -> Result<()> {
@@ -127,28 +129,6 @@ mod tests {
                 .build()?,
         );
 
-        // Make the query data
-        let role = vec!["user".to_string()];
-        let content = vec!["What are the four molecules that compose DNA?".to_string()];
-        let timestamp = vec![0_i64];
-        let batch = create_chat_record_batch(role, content, timestamp)?;
-        let queries = AvailableInterfaceSubjects::UserMessages
-            .to_subject_builder(None)
-            .with_record_batches(vec![batch])?
-            .build()?;
-        let _ = message_map.insert(
-            queries.get_name().to_string(),
-            IPCMessage::get_builder()
-                .with_message(queries.to_ipc_stream()?)
-                .with_subject(queries.get_name())
-                .with_update(&Publication::Extend {
-                    subject_name: queries.get_name().to_string(),
-                })
-                .with_publisher(network_arc.get_name())
-                .make_name()?
-                .build()?,
-        );
-
         let _ = network_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
@@ -163,6 +143,48 @@ mod tests {
             feature = "gpu"
         )) {
             let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
+
+            assert_eq!(response.len(), 0);
+
+            // Make the query data
+            let mut message_map = HashMap::<String, IPCMessage>::new();
+            let role = vec!["user".to_string()];
+            let content = vec!["What are the four nucleobases that compose DNA?".to_string()];
+            let timestamp = vec![0_i64];
+            let batch = create_chat_record_batch(role, content, timestamp)?;
+            let queries = AvailableInterfaceSubjects::UserMessages
+                .to_subject_builder(None)
+                .with_record_batches(vec![batch])?
+                .build()?;
+            let _ = message_map.insert(
+                queries.get_name().to_string(),
+                IPCMessage::get_builder()
+                    .with_message(queries.to_ipc_stream()?)
+                    .with_subject(queries.get_name())
+                    .with_update(&Publication::Extend {
+                        subject_name: queries.get_name().to_string(),
+                    })
+                    .with_publisher(network_arc.get_name())
+                    .make_name()?
+                    .build()?,
+            );
+
+            // 2. Run the session
+            let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
+            let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
+
+            let extended_diagnostic_subjects = extended_diagnostic_subjects();
+            let subject_names = extended_diagnostic_subjects
+                .iter()
+                .map(|s| s.as_str())
+                .chain(["AssistantMessages", "ToolMessages", "EmbeddingScores", "Documents", "UserQueries"])
+                .collect::<Vec<_>>();
+            write_diagnostic_subjects_to_csv(
+                &subject_names,
+                network_arc.runtime_env(),
+                network_arc.get_name(),
+            )
+            .await?;
 
             assert_eq!(response.len(), 0);
 
@@ -182,15 +204,15 @@ mod tests {
                 )
                 .with_record_batches(batches)?
                 .build()?;
-            assert!(subject.count_rows() > 0);
+            assert_eq!(subject.count_rows(), 1);
             let column = subject.get_column_as_vec_str("role");
             assert_eq!(column.first().unwrap(), &"assistant");
             let column = subject.get_column_as_vec_str("content");
             // dbg!(column.first().unwrap());
-            assert!(column.first().unwrap().contains("Adenine"));
-            assert!(column.first().unwrap().contains("Thymine"));
-            assert!(column.first().unwrap().contains("Guanine"));
-            assert!(column.first().unwrap().contains("Cytosine"));
+            assert!(column.first().unwrap().contains("adenine"));
+            assert!(column.first().unwrap().contains("thymine"));
+            assert!(column.first().unwrap().contains("guanine"));
+            assert!(column.first().unwrap().contains("cytosine"));
             // assert_eq!(column.first().unwrap(), &"");
             let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
             for c in column {

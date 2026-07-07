@@ -141,7 +141,7 @@ impl<'a> RetrieveTextNetworkBuilder<'a> {
 	threshold_scores_p["threshold_scores_p"] {
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Float32','Float32']"
 	    List-Utf8 cast_operators "['None','None','None','None']"
-	    List-Utf8 cast_templates "['','','','0.15']"
+	    List-Utf8 cast_templates "['','','','0.5']"
 	    List-Utf8 column_operators "['None','None','None','Value']"
 	    List-Utf8 lhs_values "['query_id','chunk_id','score','threshold']"
 	    Boolean cpu "false"
