@@ -60,8 +60,8 @@ pub struct DiagnosticNetworkBuilder<'a> {
     pub apply_sequence_diagram_messages_processor_name: &'a str,
     pub select_sequence_diagram_messages_task_name: &'a str,
     pub select_sequence_diagram_messages_processor_name: &'a str,
-    pub session_tasks_to_sequence_diagram_participants_task_name: &'a str,
-    pub session_tasks_to_sequence_diagram_participants_processor_name: &'a str,
+    pub network_tasks_to_sequence_diagram_participants_task_name: &'a str,
+    pub network_tasks_to_sequence_diagram_participants_processor_name: &'a str,
     pub apply_sequence_diagram_participants_task_name: &'a str,
     pub apply_sequence_diagram_participants_processor_name: &'a str,
     pub select_sequence_diagram_participants_task_name: &'a str,
@@ -88,7 +88,7 @@ pub struct DiagnosticNetworkBuilder<'a> {
     pub events_apply_kanban_processor_name: &'a str,
     pub events_runtime_env_name: &'a str,
 
-    /// Session
+    /// Network
     pub network_name: &'a str,
 }
 
@@ -135,8 +135,8 @@ impl Default for DiagnosticNetworkBuilder<'_> {
             apply_sequence_diagram_messages_processor_name: "apply_sequence_diagram_messages_p",
             select_sequence_diagram_messages_task_name: "select_sequence_diagram_messages_t",
             select_sequence_diagram_messages_processor_name: "select_sequence_diagram_messages_p",
-            session_tasks_to_sequence_diagram_participants_task_name: "session_tasks_to_sequence_diagram_participants_t",
-            session_tasks_to_sequence_diagram_participants_processor_name: "session_tasks_to_sequence_diagram_participants_p",
+            network_tasks_to_sequence_diagram_participants_task_name: "network_tasks_to_sequence_diagram_participants_t",
+            network_tasks_to_sequence_diagram_participants_processor_name: "network_tasks_to_sequence_diagram_participants_p",
             apply_sequence_diagram_participants_task_name: "apply_sequence_diagram_participants_t",
             apply_sequence_diagram_participants_processor_name: "apply_sequence_diagram_participants_p",
             select_sequence_diagram_participants_task_name: "select_sequence_diagram_participants_t",
@@ -254,10 +254,10 @@ impl NetworkBuilderCustomTrait for DiagnosticNetworkBuilder<'_> {
             },
             TaskPlan {
                 task_name: self
-                    .session_tasks_to_sequence_diagram_participants_task_name
+                    .network_tasks_to_sequence_diagram_participants_task_name
                     .to_string(),
                 processor_names: vec![
-                    self.session_tasks_to_sequence_diagram_participants_processor_name
+                    self.network_tasks_to_sequence_diagram_participants_processor_name
                         .to_string(),
                 ],
             },
@@ -571,12 +571,12 @@ impl NetworkBuilderCustomTrait for DiagnosticNetworkBuilder<'_> {
             ProcessorPlanBuilder::default()
                 .with_processor(
                     AvailableProcessors::CandleDataProcessor.build_arc(
-                        self.session_tasks_to_sequence_diagram_participants_processor_name,
+                        self.network_tasks_to_sequence_diagram_participants_processor_name,
                     ),
                 )
                 .with_publications(&[Publication::Replace {
                     subject_name: self
-                        .session_tasks_to_sequence_diagram_participants_task_name
+                        .network_tasks_to_sequence_diagram_participants_task_name
                         .to_string(),
                 }])
                 .with_subscriptions(&[
@@ -590,7 +590,7 @@ impl NetworkBuilderCustomTrait for DiagnosticNetworkBuilder<'_> {
                     },
                     Subscription::AlwaysAllRecordBatches {
                         subject_name: self
-                            .session_tasks_to_sequence_diagram_participants_processor_name
+                            .network_tasks_to_sequence_diagram_participants_processor_name
                             .to_string(),
                     },
                 ])
@@ -610,7 +610,7 @@ impl NetworkBuilderCustomTrait for DiagnosticNetworkBuilder<'_> {
                 .with_subscriptions(&[
                     Subscription::OnUpdateAllRecordBatches {
                         subject_name: self
-                            .session_tasks_to_sequence_diagram_participants_task_name
+                            .network_tasks_to_sequence_diagram_participants_task_name
                             .to_string(),
                     },
                     Subscription::AlwaysAllRecordBatches {
@@ -1210,7 +1210,7 @@ impl NetworkBuilderCustomTrait for DiagnosticNetworkBuilder<'_> {
             .unwrap();
 
         // Traces to sequence diagram participants
-        let session_tasks_to_sequence_diagram_participants_config = DataConfig {
+        let network_tasks_to_sequence_diagram_participants_config = DataConfig {
             lhs_name: Some(AvailableSubjects::AnalyticsTasks.to_string()),
             rhs_name: Some(
                 self.traces_to_sequence_diagram_messages_task_name
@@ -1219,12 +1219,12 @@ impl NetworkBuilderCustomTrait for DiagnosticNetworkBuilder<'_> {
             operator: AvailableOperators::FromTasksToParticipants,
             ..Default::default()
         };
-        let session_tasks_to_sequence_diagram_participants_config_json =
-            serde_json::to_vec(&session_tasks_to_sequence_diagram_participants_config).unwrap();
-        let session_tasks_to_sequence_diagram_participants_config_state = SubjectBuilder::new()
-            .with_name(self.session_tasks_to_sequence_diagram_participants_processor_name)
+        let network_tasks_to_sequence_diagram_participants_config_json =
+            serde_json::to_vec(&network_tasks_to_sequence_diagram_participants_config).unwrap();
+        let network_tasks_to_sequence_diagram_participants_config_state = SubjectBuilder::new()
+            .with_name(self.network_tasks_to_sequence_diagram_participants_processor_name)
             .with_json(
-                &session_tasks_to_sequence_diagram_participants_config_json,
+                &network_tasks_to_sequence_diagram_participants_config_json,
                 1,
             )
             .unwrap()
@@ -1234,7 +1234,7 @@ impl NetworkBuilderCustomTrait for DiagnosticNetworkBuilder<'_> {
         // Traces apply sequence diagram participants
         let apply_sequence_diagram_participants_config = DataConfig {
             lhs_name: Some(
-                self.session_tasks_to_sequence_diagram_participants_task_name
+                self.network_tasks_to_sequence_diagram_participants_task_name
                     .to_string(),
             ),
             doc_template: Some(
@@ -1652,7 +1652,7 @@ impl NetworkBuilderCustomTrait for DiagnosticNetworkBuilder<'_> {
             traces_to_sequence_diagram_messages_config_state,
             apply_sequence_diagram_messages_config_state,
             select_sequence_diagram_messages_config_state,
-            session_tasks_to_sequence_diagram_participants_config_state,
+            network_tasks_to_sequence_diagram_participants_config_state,
             apply_sequence_diagram_participants_config_state,
             select_sequence_diagram_participants_config_state,
             aggregator_1_state,
@@ -1726,7 +1726,7 @@ impl NetworkBuilderCustomTrait for DiagnosticNetworkBuilder<'_> {
                 .unwrap(),
             AvailableSubjects::MermaidSequenceDiagramParticipantsTemplate
                 .to_subject(
-                    Some(self.session_tasks_to_sequence_diagram_participants_task_name),
+                    Some(self.network_tasks_to_sequence_diagram_participants_task_name),
                     None,
                 )
                 .unwrap(),
@@ -1827,25 +1827,25 @@ mod tests {
 
     use super::*;
 
-    /// Make the test data for the diagnostic session
+    /// Make the test data for the diagnostic network
     async fn make_test_data(name: &str) -> Result<HashMap<String, IPCMessage>> {
-        // Make the test sequential session
-        let (network, session_messages) =
-            test_network_builder::make_test_network_builder_sequential("session_1", 2)?
+        // Make the test sequential network
+        let (network, network_messages) =
+            test_network_builder::make_test_network_builder_sequential("network_1", 2)?
                 .with_diagnostics(true)
                 .add_network_interface(Some(&["state_1"]))?
                 .add_next_tasks()?
                 .add_next_supersteps()?
                 .build_with_tables()?;
 
-        // Mimic a session run for 1 steps
+        // Mimic a network run for 1 steps
         let network_arc = Arc::new(network);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let messages = test_task::make_test_input_message(
             "task_1",
-            "session_1",
+            "network_1",
             "state_1",
             "state_1",
             &Publication::Replace {
@@ -1858,14 +1858,14 @@ mod tests {
 
         // Extract the subjects
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionMetrics.to_string(),
+            subject_name: AvailableSubjects::NetworkMetrics.to_string(),
         }
         .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
         let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionMetrics.to_string().as_str())
+            .with_name(AvailableSubjects::NetworkMetrics.to_string().as_str())
             .with_record_batches(batches)
             .unwrap()
             .build()
@@ -1880,14 +1880,14 @@ mod tests {
             .make_name()?
             .build()?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTraces.to_string(),
+            subject_name: AvailableSubjects::NetworkTraces.to_string(),
         }
         .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
         let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
+            .with_name(AvailableSubjects::NetworkTraces.to_string().as_str())
             .with_record_batches(batches)
             .unwrap()
             .build()
@@ -1902,14 +1902,14 @@ mod tests {
             .make_name()?
             .build()?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionEvents.to_string(),
+            subject_name: AvailableSubjects::NetworkEvents.to_string(),
         }
         .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
         let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionEvents.to_string().as_str())
+            .with_name(AvailableSubjects::NetworkEvents.to_string().as_str())
             .with_record_batches(batches)
             .unwrap()
             .build()
@@ -1924,14 +1924,14 @@ mod tests {
             .make_name()?
             .build()?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTasks.to_string(),
+            subject_name: AvailableSubjects::NetworkTasks.to_string(),
         }
         .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
         let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionTasks.to_string().as_str())
+            .with_name(AvailableSubjects::NetworkTasks.to_string().as_str())
             .with_record_batches(batches)
             .unwrap()
             .build()
@@ -1946,7 +1946,7 @@ mod tests {
             .make_name()?
             .build()?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionErrors.to_string(),
+            subject_name: AvailableSubjects::NetworkErrors.to_string(),
         }
         .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
@@ -1955,7 +1955,7 @@ mod tests {
 
         let messages = if !batches.is_empty() {
             let subject = Subject::get_builder()
-                .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+                .with_name(AvailableSubjects::NetworkErrors.to_string().as_str())
                 .with_record_batches(batches)
                 .unwrap()
                 .build()
@@ -1990,9 +1990,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_diagnostic_network_builder() -> Result<()> {
-        // initialize the session
+        // initialize the network
         let diagnostic_network = DiagnosticNetworkBuilder::default();
-        let (network, session_messages) = diagnostic_network
+        let (network, network_messages) = diagnostic_network
             .build()
             .with_name(diagnostic_network.network_name)
             .with_diagnostics(true) // Debugging
@@ -2017,10 +2017,10 @@ mod tests {
             .build_with_tables()?;
         let network_arc = Arc::new(network);
 
-        // Make diagnostic data and session tasks data
+        // Make diagnostic data and network tasks data
         let message_map = make_test_data(diagnostic_network.network_name).await?;
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
         // Run
@@ -2187,7 +2187,7 @@ mod tests {
         let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
         assert_eq!(&column[..16], "\n        kanban\n");
 
-        // Check the session
+        // Check the network
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string(),
         }

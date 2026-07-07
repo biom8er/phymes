@@ -52,7 +52,7 @@ pub trait TaskTrait: MappableTrait + BuildableTrait + Sync + Send {
         diagnostic_builder: Option<&DiagnosticBuilder>,
         processor_subjects: &ProcessorSubjectsMap,
         runtime_env: &Arc<RuntimeEnv>,
-        session_name: &str,
+        network_name: &str,
     ) -> Result<SendableRecordBatchStreamMessageMap>;
 
     /// Get an immutable reference to the processors
@@ -90,7 +90,7 @@ impl TaskTrait for Task {
         diagnostic_builder: Option<&DiagnosticBuilder>,
         processor_subjects: &ProcessorSubjectsMap,
         runtime_env: &Arc<RuntimeEnv>,
-        session_name: &str,
+        network_name: &str,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Running task {}", self.get_name());
 
@@ -125,7 +125,7 @@ impl TaskTrait for Task {
                     &processor_subject.subscriptions,
                     &processor_subject.publications,
                     runtime_env,
-                    session_name,
+                    network_name,
                     &mut messages,
                 )?;
 
@@ -507,7 +507,7 @@ mod tests {
                 subject.subject_own().get_record_batches_own(),
                 0,
                 "",
-                "test_session",
+                "test_network",
             )?
             .unwrap()
             .try_collect()
@@ -517,7 +517,7 @@ mod tests {
             Some(&diagnostic_builder),
             &test_procesor_subjects,
             &runtime_env,
-            "test_session",
+            "test_network",
         )?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table").is_some());
@@ -584,7 +584,7 @@ mod tests {
                 subject.subject_own().get_record_batches_own(),
                 0,
                 "",
-                "test_session",
+                "test_network",
             )?
             .unwrap()
             .try_collect()
@@ -594,7 +594,7 @@ mod tests {
             Some(&diagnostic_builder),
             &test_procesor_subjects,
             &runtime_env,
-            "test_session",
+            "test_network",
         )?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table_1").is_some());
@@ -661,7 +661,7 @@ mod tests {
                 subject.subject_own().get_record_batches_own(),
                 0,
                 "",
-                "test_session",
+                "test_network",
             )?
             .unwrap()
             .try_collect()
@@ -671,7 +671,7 @@ mod tests {
             Some(&diagnostic_builder),
             &test_procesor_subjects,
             &runtime_env,
-            "test_session",
+            "test_network",
         )?;
         assert_eq!(response.len(), 2);
         assert!(response.get("from_test_task_on_test_table_2").is_some());

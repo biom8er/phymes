@@ -32,7 +32,7 @@ pub trait RuntimeEnvTrait: BuildableTrait + MappableTrait + Send + Sync {
     fn object_store(&self) -> &Arc<dyn ObjectStore>;
 }
 
-/// The runtime environment for the session
+/// The runtime environment for the network
 #[derive(Debug)]
 pub struct RuntimeEnv {
     /// name for the runtime environment config

@@ -13,7 +13,7 @@ use phymes_subject::{
     SubjectPlanBuilderTrait,
 };
 
-/// A session for extracting and chunking PDF documents
+/// A network for extracting and chunking PDF documents
 ///
 /// # Notes
 ///
@@ -295,10 +295,10 @@ use super::*;
 
     #[tokio::test]
     async fn test_extract_pdf_network() -> Result<()> {
-        // Initialize the session
+        // Initialize the network
         let extract_pdf_network_builder = ExtractPDFNetworkBuilder::default().inner.take().unwrap();
         let network_name = extract_pdf_network_builder.name.clone().unwrap();
-        let (network, session_messages) = extract_pdf_network_builder
+        let (network, network_messages) = extract_pdf_network_builder
             .with_runtime_env(
                 RuntimeEnv::get_builder()
                     .with_name(
@@ -343,7 +343,7 @@ use super::*;
             .build()?;
         let message_map = create_message_map(vec![blob_message]);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
         // Run the network

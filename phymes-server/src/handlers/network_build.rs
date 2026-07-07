@@ -35,8 +35,8 @@ pub async fn network_build(
         Ok(payload) => {
             // We got a valid JSON payload
             tracing::debug!(
-                "Build new session with session_name {}",
-                payload.get_session_name()
+                "Build new network with network_name {}",
+                payload.get_network_name()
             );
 
             // Add user state if it does not exist already
@@ -46,12 +46,12 @@ pub async fn network_build(
                 .unwrap()
                 .contains_key(&current_user)
             {
-                // Initialize the user session contexts
-                let _session_names = match state
+                // Initialize the user network contexts
+                let _network_names = match state
                     .make_networks(&user_networks, true, users.users.runtime_env())
                     .await
                 {
-                    Ok(session_names) => session_names,
+                    Ok(network_names) => network_names,
                     Err(err) => {
                         return JsonError::new(err.to_string())
                             .to_response(StatusCode::INTERNAL_SERVER_ERROR);
@@ -62,7 +62,7 @@ pub async fn network_build(
             // Extract out the Mermaid table
             let table = match payload.get_format() {
                 DataFormat::Csv(csv_format) => SubjectBuilder::new()
-                    .with_schema(AvailableSubjects::SessionMermaid.to_schema())
+                    .with_schema(AvailableSubjects::NetworkMermaid.to_schema())
                     .with_name(payload.get_subject())
                     .with_csv(
                         payload.get_message(),
@@ -76,7 +76,7 @@ pub async fn network_build(
                 DataFormat::CsvDefault => {
                     let csv_format = CsvFormat::default();
                     SubjectBuilder::new()
-                        .with_schema(AvailableSubjects::SessionMermaid.to_schema())
+                        .with_schema(AvailableSubjects::NetworkMermaid.to_schema())
                         .with_name(payload.get_subject())
                         .with_csv(
                             payload.get_message(),
@@ -92,7 +92,7 @@ pub async fn network_build(
                     let json_value: Vec<serde_json::Value> =
                         serde_json::from_slice(payload.get_message()).unwrap();
                     SubjectBuilder::new()
-                        .with_schema(AvailableSubjects::SessionMermaid.to_schema())
+                        .with_schema(AvailableSubjects::NetworkMermaid.to_schema())
                         .with_name(payload.get_subject())
                         .with_json_values(&json_value)
                         .unwrap()
@@ -100,7 +100,7 @@ pub async fn network_build(
                         .unwrap()
                 }
                 DataFormat::Bytes => SubjectBuilder::new()
-                    .with_schema(AvailableSubjects::SessionMermaid.to_schema())
+                    .with_schema(AvailableSubjects::NetworkMermaid.to_schema())
                     .with_name(payload.get_subject())
                     .with_bytes(payload.get_message())
                     .unwrap()
@@ -141,19 +141,19 @@ pub async fn network_build(
                 })
                 .collect::<Vec<JoinUserInboxNetworksMermaidDiagrams>>();
 
-            // Add the new mermaid diagrams to the user session contexts
-            let _session_names = match state
+            // Add the new mermaid diagrams to the user network contexts
+            let _network_names = match state
                 .make_networks(&combined, true, users.users.runtime_env())
                 .await
             {
-                Ok(session_names) => session_names,
+                Ok(network_names) => network_names,
                 Err(err) => {
                     return JsonError::new(err.to_string())
                         .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                 }
             };
 
-            // Update the users state with the new sessions
+            // Update the users state with the new networks
             users
                 .update_user_networks(
                     current_user.as_str(),
@@ -174,7 +174,7 @@ pub async fn network_build(
                 .unwrap();
 
             // Send the response
-            Body::from(serde_json::to_string("State updated with new sessions.").unwrap())
+            Body::from(serde_json::to_string("State updated with new networks.").unwrap())
                 .into_response()
         }
         Err(JsonRejection::MissingJsonContentType(_err)) => {

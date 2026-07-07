@@ -68,13 +68,13 @@ use super::*;
 
     #[tokio::test]
     async fn test_rag_pdf_network() -> Result<()> {
-        // Initialize the session
+        // Initialize the network
         let rag_pdf_network_builder = RetrievalAugmentedGenerationPDFNetworkBuilder::default()
             .inner
             .take()
             .unwrap();
         let network_name = rag_pdf_network_builder.name.clone().unwrap();
-        let (network, session_messages) = rag_pdf_network_builder
+        let (network, network_messages) = rag_pdf_network_builder
             .with_runtime_env(
                 RuntimeEnv::get_builder()
                     .with_name(
@@ -92,7 +92,7 @@ use super::*;
             .build_with_tables()?;
         let network_arc = Arc::new(network);
 
-        // Make the test session data
+        // Make the test network data
         let mut message_map = HashMap::<String, IPCMessage>::new();
 
         // Create the PDF document
@@ -130,10 +130,10 @@ use super::*;
         );
 
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
-        // 1. Run the session
+        // 1. Run the network
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
 
         // DM: Skip actually running the tests as they take too long on the CPU
@@ -169,7 +169,7 @@ use super::*;
                     .build()?,
             );
 
-            // 2. Run the session
+            // 2. Run the network
             let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
             let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 

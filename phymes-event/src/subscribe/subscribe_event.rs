@@ -281,7 +281,7 @@ impl SubscribeEventTrait for ChatContentSubscribe {
             // in `AvailableinterfaceSubjects` and `AvailableinterfaceSubjects`
             user_message_table_name: "UserMessages".to_string(),
             tool_message_table_name: "ToolMessages".to_string(),
-            error_message_table_name: "SessionErrors".to_string(),
+            error_message_table_name: "NetworkErrors".to_string(),
         })
     }
     fn clone_boxed(&self) -> Box<dyn SubscribeEventTrait> {

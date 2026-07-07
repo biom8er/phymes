@@ -51,8 +51,8 @@ pub async fn network_stream(
         Ok(payload) => {
             // We got a valid JSON payload
             tracing::debug!(
-                "Running chat session for session_name {}",
-                payload.get_session_name()
+                "Running chat network for network_name {}",
+                payload.get_network_name()
             );
 
             // Add user state if it does not exist already
@@ -62,12 +62,12 @@ pub async fn network_stream(
                 .unwrap()
                 .contains_key(&current_user)
             {
-                // Initialize the user session contexts
-                let _session_names = match state
+                // Initialize the user network contexts
+                let _network_names = match state
                     .make_networks(&user_networks, true, users.users.runtime_env())
                     .await
                 {
-                    Ok(session_names) => session_names,
+                    Ok(network_names) => network_names,
                     Err(err) => {
                         return JsonError::new(err.to_string())
                             .to_response(StatusCode::INTERNAL_SERVER_ERROR);
@@ -79,11 +79,11 @@ pub async fn network_stream(
                 .networks
                 .try_write()
                 .unwrap()
-                .get(payload.get_session_name())
+                .get(payload.get_network_name())
             {
-                Some(session) => Arc::clone(session),
+                Some(network) => Arc::clone(network),
                 None => {
-                    return JsonError::new("Failed to get the session stream state".to_string())
+                    return JsonError::new("Failed to get the network stream state".to_string())
                         .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                 }
             };
@@ -123,12 +123,12 @@ pub async fn network_stream(
                 .build()
                 .unwrap();
 
-            // Make the session stream
+            // Make the network stream
             // DM: we assume only a single message per request
             let message_map = create_message_map(vec![message]);
             let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
 
-            // Run and update the session and convert the output to the user specified format
+            // Run and update the network and convert the output to the user specified format
             // Note: that we cannot write state updates to disk for
             //   streaming responses since we need to execute the stream first
             match (&payload.get_format(), payload.get_stream()) {
@@ -136,7 +136,7 @@ pub async fn network_stream(
                     // Convert the output to bytes
                     let response = network_stream.into_stream().map_ok(move |f| {
                         f.into_iter()
-                            .filter(|(_k, v)| v.get_name().contains(payload.get_session_name()))
+                            .filter(|(_k, v)| v.get_name().contains(payload.get_network_name()))
                             .flat_map(|(_k, v)| {
                                 let name = v.get_name().to_string();
                                 SubjectBuilder::new_from_ipc_stream(&v.get_message_own())
@@ -160,7 +160,7 @@ pub async fn network_stream(
                     let response = response
                         .into_iter()
                         .flatten()
-                        .filter(|(_k, v)| v.get_name().contains(payload.get_session_name()))
+                        .filter(|(_k, v)| v.get_name().contains(payload.get_network_name()))
                         .flat_map(|(_k, v)| {
                             let name = v.get_name().to_string();
                             SubjectBuilder::new_from_ipc_stream(&v.get_message_own())
@@ -184,7 +184,7 @@ pub async fn network_stream(
                     // Convert the output to IPC
                     let response = network_stream.into_stream().map_ok(move |f| {
                         f.into_iter()
-                            .filter(|(_k, v)| v.get_name().contains(payload.get_session_name()))
+                            .filter(|(_k, v)| v.get_name().contains(payload.get_network_name()))
                             .flat_map(|(_k, v)| v.get_message_own())
                             .collect::<Vec<_>>()
                     });
@@ -203,7 +203,7 @@ pub async fn network_stream(
                         .flat_map(|map| {
                             map.into_iter()
                                 .filter_map(|(_k, v)| {
-                                    if v.get_name().contains(payload.get_session_name()) {
+                                    if v.get_name().contains(payload.get_network_name()) {
                                         let batches = SubjectBuilder::new_from_ipc_stream(
                                             &v.get_message_own(),
                                         )

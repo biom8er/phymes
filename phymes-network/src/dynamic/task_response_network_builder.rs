@@ -1,14 +1,14 @@
 use crate::DynamicNetworkBuilderTrait;
 
-/// A session for dynamic tool response summarization
+/// A network for dynamic tool response summarization
 ///
 /// # Note
 /// - Specifying the schema for each subject is not needed because
-///   `extend`ing with this session will skip duplicate subjects
-///   that are already defined in the source session
+///   `extend`ing with this network will skip duplicate subjects
+///   that are already defined in the source network
 /// - Any limits to the row counts prior to "summarization" should be taken care of before calling the network
 pub struct TaskResponseNetworkBuilder<'a> {
-    /// Session
+    /// Network
     pub network_name: &'a str,
     /// Subjects to listen for
     pub subject_names: &'a [&'a str],
@@ -36,7 +36,7 @@ impl<'a> TaskResponseNetworkBuilder<'a> {
             subject_names,
         }
     }
-    /// Return the Mermaid.js flowchart representation of the session
+    /// Return the Mermaid.js flowchart representation of the network
     pub fn as_mermaid_flowchart(&self) -> String {
         let subgraphs = self
             .subject_names()
@@ -72,7 +72,7 @@ impl<'a> TaskResponseNetworkBuilder<'a> {
         .join("")
     }
 
-    /// Return the Mermaid.js ER Diagram representation of the session
+    /// Return the Mermaid.js ER Diagram representation of the network
     pub fn as_mermaid_erdiagram(&self) -> String {
         let subgraphs = self
             .subject_names()
@@ -138,9 +138,9 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_task_response_network() -> Result<()> {
-        // Initialize the session
+        // Initialize the network
         let task_response_network = TaskResponseNetworkBuilder::default();
-        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
+        let (network, network_messages) = NetworkBuilder::from_mermaid_flowchart(
             &task_response_network.as_mermaid_flowchart(),
             false,
         )?
@@ -157,11 +157,11 @@ mod tests {
         .build_with_tables()?;
         let network_arc = Arc::new(network);
 
-        // Replace the Bytes to trigger the session
+        // Replace the Bytes to trigger the network
         let message_map = {
             let batch = create_bytes_record_batch(vec!["{}".into()])?;
             let table = AvailableSubjects::Bytes.to_subject(None, Some(vec![batch]))?;
-            let session_tasks_message = IPCMessage::get_builder()
+            let network_tasks_message = IPCMessage::get_builder()
                 .with_subject(table.get_name())
                 .with_update(&Publication::Replace {
                     subject_name: table.get_name().to_string(),
@@ -170,13 +170,13 @@ mod tests {
                 .with_message(table.to_ipc_stream()?)
                 .make_name()?
                 .build()?;
-            create_message_map(vec![session_tasks_message])
+            create_message_map(vec![network_tasks_message])
         };
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
-        // Run the session
+        // Run the network
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 

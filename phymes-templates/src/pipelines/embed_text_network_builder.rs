@@ -1,8 +1,8 @@
-/// A session for embedding text querries and documents
+/// A network for embedding text querries and documents
 ///
 /// # Notes
 pub struct EmbedTextNetworkBuilder<'a> {
-    /// Session
+    /// Network
     pub network_name: &'a str,
     /// The Asset to use for Text Generation and related parameters
     pub candle_asset: Option<String>,
@@ -121,7 +121,7 @@ impl<'a> EmbedTextNetworkBuilder<'a> {
         }
         lines.join("\n\t\t")
     }
-    /// Return the Mermaid.js flowchart representation of the session
+    /// Return the Mermaid.js flowchart representation of the network
     pub fn as_mermaid_flowchart(&self) -> String {
         let embed_processor = self.embed_processor;
         format!(
@@ -190,7 +190,7 @@ impl<'a> EmbedTextNetworkBuilder<'a> {
 	%% ------------------------------------------------------------------------------"#
         )
     }
-    /// Return the Mermaid.js ER diagram representation of the session
+    /// Return the Mermaid.js ER diagram representation of the network
     ///
     /// # Note
     /// * for QWEN, the following cast template should be used
@@ -290,9 +290,9 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_embed_text_network() -> Result<()> {
-        // Initialize the session
+        // Initialize the network
         let embed_text_network = EmbedTextNetworkBuilder::default();
-        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
+        let (network, network_messages) = NetworkBuilder::from_mermaid_flowchart(
             &embed_text_network.as_mermaid_flowchart(),
             false,
         )?
@@ -376,7 +376,7 @@ mod tests {
             .build()?;
         let message_map = create_message_map(vec![chat_message, document_message]);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
         // Avoid running with Candle without GPU acceleration

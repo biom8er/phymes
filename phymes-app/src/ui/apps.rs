@@ -6,7 +6,7 @@ use phymes_message::{
     NetworkInterfaceMessageBuilderTrait,
 };
 use phymes_schemas::{AvailableSubjects, DataFormat};
-use phymes_server::create_session_name;
+use phymes_server::create_network_name;
 use phymes_subject::{
     BuildableTrait, BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
@@ -14,13 +14,13 @@ use phymes_templates::AvailableNetworks;
 
 use crate::{
     state::{
-        filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects,
+        filter_in_mermaid_diagrams_by_network_name, get_non_duplicated_sorted_subjects,
         svg_icons::{ms_search_icon_svg, ms_sync_icon_svg},
-        sync_current_active_session_state, SyncCurrentActiveSessionState, ACTIVE_SESSION_NAME,
+        sync_current_active_network_state, SyncCurrentActiveNetworkState, ACTIVE_SESSION_NAME,
         BUILDER, EMAIL, JWT, SESSION_NAMES,
     },
     ui::{
-        builds::session_name_editor,
+        builds::network_name_editor,
         builds_dropdown_view, diagram_code_editor,
         main_window::{split_panel, SnapPct},
     },
@@ -54,7 +54,7 @@ use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 pub fn apps_interface_view() -> Element {
     // Intialize signals
     let is_flowchart_shown = use_signal(|| true);
-    let active_session_name = use_signal(String::new);
+    let active_network_name = use_signal(String::new);
     let mut active_flowchart_diagram = use_signal(String::new);
     let mut active_er_diagram = use_signal(String::new);
 
@@ -63,26 +63,26 @@ pub fn apps_interface_view() -> Element {
     let mut mermaid_er_diagrams = use_signal(Vec::<String>::new);
     let mut mermaid_timestamps = use_signal(Vec::<i64>::new);
 
-    // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state: Memo<NetworkInterfaceMessageBuilder> = use_memo(move || {
-        let session_name = if BUILDER() {
-            // DM: this can be better optimized to prevent redundant API calls each time the active session is changed in Builder mode
-            create_session_name(
+    // `get_network_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
+    let get_network_state: Memo<NetworkInterfaceMessageBuilder> = use_memo(move || {
+        let network_name = if BUILDER() {
+            // DM: this can be better optimized to prevent redundant API calls each time the active network is changed in Builder mode
+            create_network_name(
                 EMAIL().as_str(),
                 AvailableNetworks::Builder.to_string().as_str(),
             )
         } else {
-            create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str())
+            create_network_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str())
         };
         NetworkInterfaceMessage::get_builder()
-            .with_session_name(&session_name)
+            .with_network_name(&network_name)
             .with_format(&DataFormat::Ipc)
-            .with_publisher(&session_name)
+            .with_publisher(&network_name)
             .with_update(&Publication::None)
             .with_stream(false)
     });
 
-    // Get the mermaid.js diagrams for the session
+    // Get the mermaid.js diagrams for the network
     use_resource(move || async move {
         // clear the current mermaid state
         mermaid_network_names.set(Vec::new());
@@ -95,10 +95,10 @@ pub fn apps_interface_view() -> Element {
         let subject = if BUILDER() {
             AvailableSubjects::BuilderMermaid.to_string()
         } else {
-            AvailableSubjects::SessionMermaid.to_string()
+            AvailableSubjects::NetworkMermaid.to_string()
         };
         let data_serialized = serde_json::to_string(
-            &get_session_state()
+            &get_network_state()
                 .with_subject(subject.as_str())
                 .make_name()
                 .unwrap()
@@ -239,19 +239,19 @@ pub fn apps_interface_view() -> Element {
         }
     });
 
-    // Filter the mermaid.js diagrams for the session
+    // Filter the mermaid.js diagrams for the network
     let filtered_diagrams = use_memo(move || {
-        // The builder session names do not contain the email
-        let session_name = if BUILDER() {
-            active_session_name()
+        // The builder network names do not contain the email
+        let network_name = if BUILDER() {
+            active_network_name()
         } else {
-            create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str())
+            create_network_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str())
         };
 
         // Filter in the active diagrams
         let (_network_names, flowchart_diagrams, er_diagrams, timestamps) =
-            filter_in_mermaid_diagrams_by_session_name(
-                &session_name,
+            filter_in_mermaid_diagrams_by_network_name(
+                &network_name,
                 &mermaid_network_names
                     .read()
                     .iter()
@@ -286,7 +286,7 @@ pub fn apps_interface_view() -> Element {
         }
     });
 
-    // Update the active mermaid.js diagrams for the session
+    // Update the active mermaid.js diagrams for the network
     use_resource(move || async move {
         if let Some(diagram) = filtered_diagrams().0 {
             active_flowchart_diagram.set(diagram.to_string());
@@ -333,12 +333,12 @@ pub fn apps_interface_view() -> Element {
         if JWT.read().is_empty() {
             div {
                 class: "p-2 flex flex-col items-center",
-                p { "Please sign-in before activating a session." },
+                p { "Please sign-in before activating a network." },
             }
         } else if SESSION_NAMES.read().is_empty() {
             div {
                 class: "p-2 flex flex-col items-center",
-                p { "Waiting to retrieve available session plans..." },
+                p { "Waiting to retrieve available network plans..." },
             }
         } else {
             if BUILDER() {
@@ -346,14 +346,14 @@ pub fn apps_interface_view() -> Element {
                     top: rsx! {
                         div {
                             class: "h-full w-full p-2 flex flex-col items-center",
-                            builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_network_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps, is_saved, build_errors }
-                            diagram_code_editor { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, is_saved }
+                            builds_dropdown_view { is_flowchart_shown, active_network_name, active_flowchart_diagram, active_er_diagram, mermaid_network_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps, is_saved, build_errors }
+                            diagram_code_editor { is_flowchart_shown, active_network_name, active_flowchart_diagram, active_er_diagram, is_saved }
                         }
                     },
                     bottom: rsx! {
                         div {
                             class: "h-full w-full p-2 flex flex-col items-center",
-                            session_name_editor { active_session_name }
+                            network_name_editor { active_network_name }
                             mermaid_view { diagram_code, build_errors }
                         }
                     },
@@ -364,10 +364,10 @@ pub fn apps_interface_view() -> Element {
                 div {
                     class: "h-full w-full p-2 flex flex-col items-center",
                     apps_dropdown_view { is_flowchart_shown }
-                    if !active_session_name().is_empty() {
+                    if !active_network_name().is_empty() {
                         p {
                             class: "w-full rounded p-2 items-center text-center text-gray-200 bg-neutral-800",
-                            "{active_session_name}"
+                            "{active_network_name}"
                         }
                     }
                     mermaid_view { diagram_code, build_errors }
@@ -381,8 +381,8 @@ pub fn apps_interface_view() -> Element {
 #[component]
 pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
     // Intialize state and coroutines
-    use_coroutine(sync_current_active_session_state);
-    let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
+    use_coroutine(sync_current_active_network_state);
+    let sync_current_active_network_state = use_coroutine_handle::<SyncCurrentActiveNetworkState>();
 
     // Dropdown signals
     let mut show_subject_dropdown = use_signal(|| false);
@@ -449,11 +449,11 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
                     class: "p-2 rounded hover:bg-neutral-700 cursor-pointer flex-none",
                     onclick: move |_evt| async move {
                         // Reset the dropdown
-                        let active_session = subject_dropdown.try_read().unwrap().to_string();
+                        let active_network = subject_dropdown.try_read().unwrap().to_string();
                         subject_dropdown.set(String::new());
 
-                        // Set the active session
-                        sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: active_session.clone() });
+                        // Set the active network
+                        sync_current_active_network_state.send(SyncCurrentActiveNetworkState { name: active_network.clone() });
                     },
                     svg {
                         class: "max-w-[48px] max-h-[48px]",

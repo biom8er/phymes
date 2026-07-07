@@ -13,7 +13,7 @@ use phymes_message::{
 };
 use phymes_schemas::{
     AvailableSchemaTrait, AvailableSubjects, create_bytes_fields,
-    create_session_tasks_subscribe_publish_batch, create_values_fields,
+    create_network_tasks_subscribe_publish_batch, create_values_fields,
 };
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStream, RuntimeEnv,
@@ -55,7 +55,7 @@ impl ToolCallStream {
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
-            schema: AvailableSubjects::SessionTasksSubscribePublish.to_schema(),
+            schema: AvailableSubjects::NetworkTasksSubscribePublish.to_schema(),
             messages,
             config_stream,
             runtime_env,
@@ -134,7 +134,7 @@ impl Stream for ToolCallStream {
                     .with_name("task/publisher subscriptions and publications")
                     .with_record_batches(batches)?
                     .build()?;
-                let session_names = table.get_column_as_vec_string("session_name")?;
+                let network_names = table.get_column_as_vec_string("network_name")?;
                 let task_names = table.get_column_as_vec_string("task_name")?;
                 let processor_names = table.get_column_as_vec_string("processor_name")?;
                 let processor_types = table.get_column_as_vec_string("processor_type")?;
@@ -146,7 +146,7 @@ impl Stream for ToolCallStream {
                     table.get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
                 let publication_table_names = table
                     .get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
-                session_names
+                network_names
                     .into_iter()
                     .zip(task_names)
                     .zip(processor_names)
@@ -161,7 +161,7 @@ impl Stream for ToolCallStream {
                                 (
                                     (
                                         (
-                                            ((session_name, task_name), processor_name),
+                                            ((network_name, task_name), processor_name),
                                             processor_type,
                                         ),
                                         subscription_name,
@@ -175,7 +175,7 @@ impl Stream for ToolCallStream {
                             (
                                 processor_name,
                                 (
-                                    session_name,
+                                    network_name,
                                     task_name,
                                     processor_type,
                                     subscription_name,
@@ -207,7 +207,7 @@ impl Stream for ToolCallStream {
                 .unwrap_or("AlwaysAllRecordBatches".to_string());
             let subject_names = self.config.as_ref().unwrap().subject_names.clone();
             let batch = {
-                let mut session_names = Vec::new();
+                let mut network_names = Vec::new();
                 let mut task_names = Vec::new();
                 let mut processor_names = Vec::new();
                 let mut processor_types = Vec::new();
@@ -303,11 +303,11 @@ impl Stream for ToolCallStream {
                             .collect::<Vec<String>>()
                     };
 
-                    // Create the `SessionTasksSubscribePublish` batches
+                    // Create the `NetworkTasksSubscribePublish` batches
                     if let Some(all_subscribe_publish) =
                         all_subscribe_publish_map.remove(&subject_name)
                     {
-                        session_names.push(all_subscribe_publish.0);
+                        network_names.push(all_subscribe_publish.0);
                         task_names.push(all_subscribe_publish.1);
                         processor_types.push(all_subscribe_publish.2);
                         let (sub, name): (Vec<_>, Vec<_>) = tool_call_subject_names
@@ -342,8 +342,8 @@ impl Stream for ToolCallStream {
                         ))));
                     };
                 }
-                create_session_tasks_subscribe_publish_batch(
-                    session_names,
+                create_network_tasks_subscribe_publish_batch(
+                    network_names,
                     task_names,
                     processor_names,
                     processor_types,

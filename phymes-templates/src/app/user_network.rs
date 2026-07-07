@@ -17,21 +17,21 @@ use phymes_task::TaskPlan;
 
 use crate::{AvailableNetworks, make_example_mermaid_table};
 
-/// A session for all user management tasks
+/// A network for all user management tasks
 ///
 /// # Notes
 ///
 /// Supported tasks include the following:
 ///
 /// 1. Filtering the user information by email
-/// 2. Joining the user sessions with their mermaid diagrams
+/// 2. Joining the user networks with their mermaid diagrams
 /// 3. Registering new users
 pub struct UserNetwork<'a> {
-    /// Filter session contexts by email subtask
+    /// Filter network contexts by email subtask
     pub filter_networks_by_email_runtime_env_name: &'a str,
     pub filter_networks_by_email_task_name: &'a str,
     pub filter_networks_by_email_processor_name: &'a str,
-    /// Join session contexts by email subtask
+    /// Join network contexts by email subtask
     pub join_networks_with_mermaid_diagrams_runtime_env_name: &'a str,
     pub join_networks_with_mermaid_diagrams_task_name: &'a str,
     pub join_networks_with_mermaid_diagrams_processor_name: &'a str,
@@ -42,7 +42,7 @@ pub struct UserNetwork<'a> {
     pub filter_user_info_by_email_processor_name: &'a str,
     pub filter_user_info_by_email_table_name: &'a str,
 
-    /// Session
+    /// Network
     pub network_name: &'a str,
 }
 
@@ -89,7 +89,7 @@ impl<'a> UserNetwork<'a> {
     pub fn make_user_network_table(&self) -> Result<Subject> {
         let mut email = Vec::new();
         let mut network_name = Vec::new();
-        for name in AvailableNetworks::get_all_session_plan_names() {
+        for name in AvailableNetworks::get_all_network_plan_names() {
             email.push("contact@biom8er.com".to_string());
             network_name.push(name);
         }
@@ -312,11 +312,11 @@ pub(crate) mod user_network_inner {
     use super::*;
 
     pub async fn user_network() -> Result<(Arc<Network>, NetworkStream)> {
-        // initialize the session
-        let user_agent_session = UserNetwork::default();
-        let (network, session_messages) = user_agent_session
+        // initialize the network
+        let user_agent_network = UserNetwork::default();
+        let (network, network_messages) = user_agent_network
             .build()
-            .with_name(user_agent_session.network_name)
+            .with_name(user_agent_network.network_name)
             .with_diagnostics(true)
             .add_next_tasks()?
             .add_next_supersteps()?
@@ -335,12 +335,12 @@ pub(crate) mod user_network_inner {
             .with_update(&Publication::Replace {
                 subject_name: table.get_name().to_string(),
             })
-            .with_publisher(user_agent_session.network_name)
+            .with_publisher(user_agent_network.network_name)
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![message]);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));

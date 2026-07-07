@@ -12,7 +12,7 @@ use phymes_message::{
 };
 use phymes_processor::ProcessorSubjectsMap;
 use phymes_schemas::{
-    AvailableSubjects, AvailableSubjectsTrait, create_session_tasks_run_log_batch,
+    AvailableSubjects, AvailableSubjectsTrait, create_network_tasks_run_log_batch,
 };
 use phymes_subject::{
     BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
@@ -78,12 +78,12 @@ pub trait NetworkStreamStepTrait {
     ///
     /// # Arguments
     ///
-    /// * `network` - [Network] to use while running the current session stream super step
+    /// * `network` - [Network] to use while running the current network stream super step
     /// * `messages` - [IPCMessageMap] input messages for the superstep
     ///
     /// # Returns
     ///
-    /// [IPCMessageMap] if any of the subscribing session sujects were updated and None otherwise.
+    /// [IPCMessageMap] if any of the subscribing network sujects were updated and None otherwise.
     fn run_superstep(
         network: Arc<Network>,
         messages: IPCMessageMap,
@@ -95,7 +95,7 @@ pub trait NetworkStreamStepTrait {
         network: &Arc<Network>,
         step: u32,
     ) -> Result<(Vec<Diagnostics>, Span, TraceRecord)> {
-        // Create the span for the session
+        // Create the span for the network
         let span = SpanBuilder::default()
             .with_span(network.get_name())
             .build()?;
@@ -106,7 +106,7 @@ pub trait NetworkStreamStepTrait {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
         diagnostics_vec.push(diagnostics);
 
-        // Trace the session step
+        // Trace the network step
         let trace = diagnostic_builder
             .clone()
             .messages(line!(), file!(), network.get_name());
@@ -137,7 +137,7 @@ pub trait NetworkStreamStepTrait {
         }
     }
 
-    /// Update the session context subjects from messages including updating the subjects change log
+    /// Update the network context subjects from messages including updating the subjects change log
     fn update_subjects_and_changelog_from_messages(
         network: &Arc<Network>,
         messages: IPCMessageMap,
@@ -181,7 +181,7 @@ pub trait NetworkStreamStepTrait {
                     .with_subject(subject.get_name())
                     .with_publisher(&network_name)
                     .with_update(&Publication::Extend {
-                        subject_name: AvailableSubjects::SessionErrors.to_string(),
+                        subject_name: AvailableSubjects::NetworkErrors.to_string(),
                     })
                     .with_message(subject.to_ipc_stream()?)
                     .make_random_name()?
@@ -226,7 +226,7 @@ pub trait NetworkStreamStepTrait {
         }
     }
 
-    /// Update the session context subjects from the ran tasks including the subjects change log
+    /// Update the network context subjects from the ran tasks including the subjects change log
     fn update_subjects_and_changelog_from_tasks(
         network: &Arc<Network>,
         tasks: HashMap<(String, String), ProcessorSubjectsMap>,
@@ -235,25 +235,25 @@ pub trait NetworkStreamStepTrait {
         async move {
             // Create the tasks run log message
             let network_name = network.get_name().to_string();
-            let (session_names, (task_names, (supersteps, timestamps))): (
+            let (network_names, (task_names, (supersteps, timestamps))): (
                 Vec<_>,
                 (Vec<_>, (Vec<_>, Vec<_>)),
             ) = tasks
                 .into_iter()
-                .map(|((task_name, session_name), _)| {
+                .map(|((task_name, network_name), _)| {
                     (
-                        session_name,
+                        network_name,
                         (task_name, (step as i64, create_timestamp_micros())),
                     )
                 })
                 .unzip();
-            let tasks_run_log_batch = create_session_tasks_run_log_batch(
-                session_names,
+            let tasks_run_log_batch = create_network_tasks_run_log_batch(
+                network_names,
                 task_names,
                 supersteps,
                 timestamps,
             )?;
-            let tasks_run_log_table = AvailableSubjects::SessionTasksRunLog
+            let tasks_run_log_table = AvailableSubjects::NetworkTasksRunLog
                 .to_subject(None, Some(vec![tasks_run_log_batch]))?;
             let messages = create_message_map(vec![
                 IPCMessageBuilder::new()
@@ -377,10 +377,10 @@ pub trait NetworkStreamStepTrait {
         async move {
             // Check if there are tasks subscribe and publish available, and determine them if not
             let rt = network.runtime_env.clone();
-            let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string() }
+            let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::NetworkTasksSubscribePublish.to_string() }
                 .subscribe_to_subject(&rt, network.get_name()).unwrap()
-                .ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` while getting the next task.", 
-                    AvailableSubjects::SessionTasksSubscribePublish,
+                .ok_or(anyhow!("Unable to get the subject `{}` from object storage for network `{}` while getting the next task.", 
+                    AvailableSubjects::NetworkTasksSubscribePublish,
                     network.get_name()
                 )).unwrap()
                 .try_collect()
@@ -424,10 +424,10 @@ pub trait NetworkStreamStepTrait {
     ///
     /// # Arguments
     ///
-    /// * `network` - [Network] to use while running the current session stream super step
+    /// * `network` - [Network] to use while running the current network stream super step
     /// * `tasks` - Tasks that are ready to run
     /// * `diagnostics_vec` - Optional vector of [Diagnostics]
-    /// * `span` - [Span] for the current session stream super step
+    /// * `span` - [Span] for the current network stream super step
     ///
     /// # Returns
     ///
@@ -441,7 +441,7 @@ pub trait NetworkStreamStepTrait {
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         // Iterate through each task and collect the resulting stream responses
         let mut subject_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        for ((task_name, _session_name), processor_subjects_map) in tasks.iter() {
+        for ((task_name, _network_name), processor_subjects_map) in tasks.iter() {
             event!(Level::INFO, "Superstep for task {}", &task_name);
 
             // Clone the task
@@ -450,7 +450,7 @@ pub trait NetworkStreamStepTrait {
                 .get(task_name)
                 .unwrap_or_else(|| {
                     panic!(
-                        "Missing task `{task_name}` in session `{}`.",
+                        "Missing task `{task_name}` in network `{}`.",
                         network.get_name()
                     )
                 })
@@ -593,7 +593,7 @@ impl NetworkStreamStepTrait for NetworkStreamStep {
             (None, None, None)
         };
 
-        // Update the session context with the incoming messages
+        // Update the network context with the incoming messages
         if !messages.is_empty() {
             Self::update_subjects_and_changelog_from_messages(&network, messages, step).await?;
         }
@@ -618,15 +618,15 @@ impl NetworkStreamStepTrait for NetworkStreamStep {
             Ok(None)
         } else {
             // Iterate through each task and collect the resulting stream responses
-            let (subject_tasks, session_tasks) = tasks.into_iter().partition(|((t, s), _v)| t != s);
+            let (subject_tasks, network_tasks) = tasks.into_iter().partition(|((t, s), _v)| t != s);
             let subject_streams =
                 Self::run_tasks(&network, &subject_tasks, &mut diagnostics_vec, &span)?;
             let user_streams =
-                Self::run_tasks(&network, &session_tasks, &mut diagnostics_vec, &span)?;
+                Self::run_tasks(&network, &network_tasks, &mut diagnostics_vec, &span)?;
 
             // Update the tasks run log
             Self::update_subjects_and_changelog_from_tasks(&network, subject_tasks, step).await?;
-            Self::update_subjects_and_changelog_from_tasks(&network, session_tasks, step).await?;
+            Self::update_subjects_and_changelog_from_tasks(&network, network_tasks, step).await?;
 
             // Increment the superstep
             let _step = Self::increment_superstep(&network).await;
@@ -637,7 +637,7 @@ impl NetworkStreamStepTrait for NetworkStreamStep {
                 Err(err) => create_error_message_map(&err, network.get_name(), true)?,
             };
 
-            // Update the session context with the incoming messages
+            // Update the network context with the incoming messages
             if !subject_batches.is_empty() {
                 Self::update_subjects_and_changelog_from_messages(&network, subject_batches, step)
                     .await?;
@@ -716,7 +716,7 @@ impl NetworkStreamStepTrait for NetworkStreamStepMinimal {
         network: Arc<Network>,
         messages: IPCMessageMap,
     ) -> Result<Option<IPCMessageMap>> {
-        // Update the session context with the incoming messages
+        // Update the network context with the incoming messages
         if !messages.is_empty() {
             let (_update, _meta, errors) = network.update_subjects_from_messages(messages, 0).await;
             if let Some(table) = errors {
@@ -735,7 +735,7 @@ impl NetworkStreamStepTrait for NetworkStreamStepMinimal {
             // Join each of the response futures
             let subject_batches = Self::join_message_streams(subject_streams).await?;
 
-            // Update the session context with the incoming messages
+            // Update the network context with the incoming messages
             if !subject_batches.is_empty() {
                 let (_update, _meta, errors) = network
                     .update_subjects_from_messages(subject_batches, 0)
@@ -770,21 +770,21 @@ mod tests {
     use phymes_task::{TaskPlan, test_task};
 
     #[tokio::test]
-    async fn test_session_run_superstep_no_state_update() -> Result<()> {
-        let (network, session_messages) =
-            test_network_builder::make_test_network_builder_parallel("session_1", 4)?
+    async fn test_network_run_superstep_no_state_update() -> Result<()> {
+        let (network, network_messages) =
+            test_network_builder::make_test_network_builder_parallel("network_1", 4)?
                 .with_diagnostics(true)
                 .add_next_tasks()?
                 .add_next_supersteps()?
                 .build_with_tables()?;
         let network_arc = Arc::new(network);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
         let messages = test_task::make_test_input_message(
             "task_1",
-            "session_1",
+            "network_1",
             "state_1",
             "state_1",
             &Publication::None,
@@ -793,11 +793,11 @@ mod tests {
         let response = NetworkStreamStep::run_superstep(Arc::clone(&network_arc), messages).await?;
         assert!(response.is_none());
 
-        // check the session and network
+        // check the network and network
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_1".to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -806,7 +806,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_2".to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -814,23 +814,23 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_3".to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 3);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionErrors.to_string(),
+            subject_name: AvailableSubjects::NetworkErrors.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 0);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTasksRunLog.to_string(),
+            subject_name: AvailableSubjects::NetworkTasksRunLog.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -838,7 +838,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -846,39 +846,39 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionMetrics.to_string(),
+            subject_name: AvailableSubjects::NetworkMetrics.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 0);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionEvents.to_string(),
+            subject_name: AvailableSubjects::NetworkEvents.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTraces.to_string(),
+            subject_name: AvailableSubjects::NetworkTraces.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionSupersteps.to_string(),
+            subject_name: AvailableSubjects::NetworkSupersteps.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -888,20 +888,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_session_run_superstep_extend_state_update_single_task() -> Result<()> {
-        let (network, session_messages) =
-            test_network_builder::make_test_network_builder_parallel("session_1", 4)?
+    async fn test_network_run_superstep_extend_state_update_single_task() -> Result<()> {
+        let (network, network_messages) =
+            test_network_builder::make_test_network_builder_parallel("network_1", 4)?
                 .with_diagnostics(true)
                 .add_next_tasks()?
                 .add_next_supersteps()?
                 .build_with_tables()?;
         let network_arc = Arc::new(network);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let messages = test_task::make_test_input_message(
             "task_1",
-            "session_1",
+            "network_1",
             "state_1",
             "state_1",
             &Publication::Extend {
@@ -914,11 +914,11 @@ mod tests {
             .unwrap();
         assert!(response.is_empty());
 
-        // check the session and network
+        // check the network and network
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_1".to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -927,7 +927,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_2".to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -935,15 +935,15 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_3".to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 3);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTasksRunLog.to_string(),
+            subject_name: AvailableSubjects::NetworkTasksRunLog.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -951,7 +951,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -959,47 +959,47 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionMetrics.to_string(),
+            subject_name: AvailableSubjects::NetworkMetrics.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionEvents.to_string(),
+            subject_name: AvailableSubjects::NetworkEvents.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTraces.to_string(),
+            subject_name: AvailableSubjects::NetworkTraces.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionErrors.to_string(),
+            subject_name: AvailableSubjects::NetworkErrors.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 0);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionSupersteps.to_string(),
+            subject_name: AvailableSubjects::NetworkSupersteps.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1009,20 +1009,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_session_run_superstep_replace_state_update_single_task() -> Result<()> {
-        let (network, session_messages) =
-            test_network_builder::make_test_network_builder_parallel("session_1", 4)?
+    async fn test_network_run_superstep_replace_state_update_single_task() -> Result<()> {
+        let (network, network_messages) =
+            test_network_builder::make_test_network_builder_parallel("network_1", 4)?
                 .with_diagnostics(true)
                 .add_next_tasks()?
                 .add_next_supersteps()?
                 .build_with_tables()?;
         let network_arc = Arc::new(network);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let messages = test_task::make_test_input_message(
             "task_1",
-            "session_1",
+            "network_1",
             "state_1",
             "state_1",
             &Publication::Replace {
@@ -1035,11 +1035,11 @@ mod tests {
             .unwrap();
         assert!(response.is_empty());
 
-        // check the session and network
+        // check the network and network
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_1".to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1048,7 +1048,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_2".to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1056,15 +1056,15 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_3".to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 3);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTasksRunLog.to_string(),
+            subject_name: AvailableSubjects::NetworkTasksRunLog.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1072,7 +1072,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1080,47 +1080,47 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionMetrics.to_string(),
+            subject_name: AvailableSubjects::NetworkMetrics.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionEvents.to_string(),
+            subject_name: AvailableSubjects::NetworkEvents.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTraces.to_string(),
+            subject_name: AvailableSubjects::NetworkTraces.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionErrors.to_string(),
+            subject_name: AvailableSubjects::NetworkErrors.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 0);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionSupersteps.to_string(),
+            subject_name: AvailableSubjects::NetworkSupersteps.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1130,10 +1130,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_session_run_superstep_replace_state_update_parallel_tasks() -> Result<()> {
+    async fn test_network_run_superstep_replace_state_update_parallel_tasks() -> Result<()> {
         // Superstep 1
-        let (network, session_messages) =
-            test_network_builder::make_test_network_builder_parallel("session_1", 4)?
+        let (network, network_messages) =
+            test_network_builder::make_test_network_builder_parallel("network_1", 4)?
                 .with_diagnostics(true)
                 .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?
                 .add_next_tasks()?
@@ -1141,11 +1141,11 @@ mod tests {
                 .build_with_tables()?;
         let network_arc = Arc::new(network);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let mut messages = test_task::make_test_input_message(
             "task_1",
-            "session_1",
+            "network_1",
             "state_1",
             "state_1",
             &Publication::Replace {
@@ -1155,7 +1155,7 @@ mod tests {
         )?;
         messages.extend(test_task::make_test_input_message(
             "task_2",
-            "session_1",
+            "network_1",
             "state_2",
             "state_2",
             &Publication::Replace {
@@ -1165,7 +1165,7 @@ mod tests {
         )?);
         messages.extend(test_task::make_test_input_message(
             "task_3",
-            "session_1",
+            "network_1",
             "state_3",
             "state_3",
             &Publication::Replace {
@@ -1179,28 +1179,28 @@ mod tests {
         assert_eq!(response.len(), 3);
         assert_eq!(
             response
-                .get("from_session_1_on_state_1")
+                .get("from_network_1_on_state_1")
                 .unwrap()
                 .get_name(),
-            "from_session_1_on_state_1"
+            "from_network_1_on_state_1"
         );
         assert_eq!(
             response
-                .get("from_session_1_on_state_1")
+                .get("from_network_1_on_state_1")
                 .unwrap()
                 .get_publisher(),
-            "session_1"
+            "network_1"
         );
         assert_eq!(
             response
-                .get("from_session_1_on_state_1")
+                .get("from_network_1_on_state_1")
                 .unwrap()
                 .get_subject(),
             "state_1"
         );
         assert_eq!(
             *response
-                .get("from_session_1_on_state_1")
+                .get("from_network_1_on_state_1")
                 .unwrap()
                 .get_update(),
             Publication::Extend {
@@ -1209,7 +1209,7 @@ mod tests {
         );
 
         let bytes = response
-            .remove("from_session_1_on_state_1")
+            .remove("from_network_1_on_state_1")
             .unwrap()
             .get_message_own();
         let partitions = SubjectBuilder::new_from_ipc_stream(&bytes)?
@@ -1220,28 +1220,28 @@ mod tests {
 
         assert_eq!(
             response
-                .get("from_session_1_on_state_2")
+                .get("from_network_1_on_state_2")
                 .unwrap()
                 .get_name(),
-            "from_session_1_on_state_2"
+            "from_network_1_on_state_2"
         );
         assert_eq!(
             response
-                .get("from_session_1_on_state_2")
+                .get("from_network_1_on_state_2")
                 .unwrap()
                 .get_publisher(),
-            "session_1"
+            "network_1"
         );
         assert_eq!(
             response
-                .get("from_session_1_on_state_2")
+                .get("from_network_1_on_state_2")
                 .unwrap()
                 .get_subject(),
             "state_2"
         );
         assert_eq!(
             *response
-                .get("from_session_1_on_state_2")
+                .get("from_network_1_on_state_2")
                 .unwrap()
                 .get_update(),
             Publication::Extend {
@@ -1250,7 +1250,7 @@ mod tests {
         );
 
         let bytes = response
-            .remove("from_session_1_on_state_2")
+            .remove("from_network_1_on_state_2")
             .unwrap()
             .get_message_own();
         let partitions = SubjectBuilder::new_from_ipc_stream(&bytes)?
@@ -1261,28 +1261,28 @@ mod tests {
 
         assert_eq!(
             response
-                .get("from_session_1_on_state_3")
+                .get("from_network_1_on_state_3")
                 .unwrap()
                 .get_name(),
-            "from_session_1_on_state_3"
+            "from_network_1_on_state_3"
         );
         assert_eq!(
             response
-                .get("from_session_1_on_state_3")
+                .get("from_network_1_on_state_3")
                 .unwrap()
                 .get_publisher(),
-            "session_1"
+            "network_1"
         );
         assert_eq!(
             response
-                .get("from_session_1_on_state_3")
+                .get("from_network_1_on_state_3")
                 .unwrap()
                 .get_subject(),
             "state_3"
         );
         assert_eq!(
             *response
-                .get("from_session_1_on_state_3")
+                .get("from_network_1_on_state_3")
                 .unwrap()
                 .get_update(),
             Publication::Extend {
@@ -1291,7 +1291,7 @@ mod tests {
         );
 
         let bytes = response
-            .remove("from_session_1_on_state_3")
+            .remove("from_network_1_on_state_3")
             .unwrap()
             .get_message_own();
         let partitions = SubjectBuilder::new_from_ipc_stream(&bytes)?
@@ -1300,11 +1300,11 @@ mod tests {
         let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 5); // DM, Check!(): changed from 4
 
-        // check the session and network
+        // check the network and network
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_1".to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1313,7 +1313,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_2".to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1322,16 +1322,16 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_3".to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 6);
         assert_eq!(subscriptions.last().unwrap().num_rows(), 5);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTasksRunLog.to_string(),
+            subject_name: AvailableSubjects::NetworkTasksRunLog.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1339,7 +1339,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1347,47 +1347,47 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionMetrics.to_string(),
+            subject_name: AvailableSubjects::NetworkMetrics.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionEvents.to_string(),
+            subject_name: AvailableSubjects::NetworkEvents.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTraces.to_string(),
+            subject_name: AvailableSubjects::NetworkTraces.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionErrors.to_string(),
+            subject_name: AvailableSubjects::NetworkErrors.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 0);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionSupersteps.to_string(),
+            subject_name: AvailableSubjects::NetworkSupersteps.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1406,10 +1406,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_session_run_superstep_replace_state_update_sequential_tasks() -> Result<()> {
+    async fn test_network_run_superstep_replace_state_update_sequential_tasks() -> Result<()> {
         // Superstep 1
-        let (network, session_messages) =
-            test_network_builder::make_test_network_builder_sequential("session_1", 4)?
+        let (network, network_messages) =
+            test_network_builder::make_test_network_builder_sequential("network_1", 4)?
                 .with_diagnostics(true)
                 .add_network_interface(Some(&["state_1"]))?
                 .add_next_tasks()?
@@ -1417,11 +1417,11 @@ mod tests {
                 .build_with_tables()?;
         let network_arc = Arc::new(network);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let messages = test_task::make_test_input_message(
             "task_1",
-            "session_1",
+            "network_1",
             "state_1",
             "state_1",
             &Publication::Replace {
@@ -1437,28 +1437,28 @@ mod tests {
         assert_eq!(response.len(), 1);
         assert_eq!(
             response
-                .get("from_session_1_on_state_1")
+                .get("from_network_1_on_state_1")
                 .unwrap()
                 .get_name(),
-            "from_session_1_on_state_1"
+            "from_network_1_on_state_1"
         );
         assert_eq!(
             response
-                .get("from_session_1_on_state_1")
+                .get("from_network_1_on_state_1")
                 .unwrap()
                 .get_publisher(),
-            "session_1"
+            "network_1"
         );
         assert_eq!(
             response
-                .get("from_session_1_on_state_1")
+                .get("from_network_1_on_state_1")
                 .unwrap()
                 .get_subject(),
             "state_1"
         );
         assert_eq!(
             *response
-                .get("from_session_1_on_state_1")
+                .get("from_network_1_on_state_1")
                 .unwrap()
                 .get_update(),
             Publication::Extend {
@@ -1467,7 +1467,7 @@ mod tests {
         );
 
         let bytes = response
-            .remove("from_session_1_on_state_1")
+            .remove("from_network_1_on_state_1")
             .unwrap()
             .get_message_own();
         let partitions = SubjectBuilder::new_from_ipc_stream(&bytes)?
@@ -1476,20 +1476,20 @@ mod tests {
         let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 7); // DM, Check!(): changed from 4
 
-        // check the session and network
+        // check the network and network
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_1".to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 6); // Originally 3
         assert_eq!(subscriptions.last().unwrap().num_rows(), 7);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTasksRunLog.to_string(),
+            subject_name: AvailableSubjects::NetworkTasksRunLog.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1497,7 +1497,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1505,47 +1505,47 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionMetrics.to_string(),
+            subject_name: AvailableSubjects::NetworkMetrics.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionEvents.to_string(),
+            subject_name: AvailableSubjects::NetworkEvents.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTraces.to_string(),
+            subject_name: AvailableSubjects::NetworkTraces.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionErrors.to_string(),
+            subject_name: AvailableSubjects::NetworkErrors.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 0);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionSupersteps.to_string(),
+            subject_name: AvailableSubjects::NetworkSupersteps.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1564,20 +1564,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_session_run_superstep_schema_mismatch_error() -> Result<()> {
-        let (network, session_messages) =
-            test_network_builder::make_test_network_builder_sequential("session_1", 4)?
+    async fn test_network_run_superstep_schema_mismatch_error() -> Result<()> {
+        let (network, network_messages) =
+            test_network_builder::make_test_network_builder_sequential("network_1", 4)?
                 .with_diagnostics(true)
                 .add_next_tasks()?
                 .add_next_supersteps()?
                 .build_with_tables()?;
         let network_arc = Arc::new(network);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let messages = test_task::make_test_input_message(
             "task_1",
-            "session_1",
+            "network_1",
             "state_1",
             "state_1",
             &Publication::Replace {
@@ -1589,9 +1589,9 @@ mod tests {
         assert!(response.is_none());
 
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionErrors.to_string(),
+            subject_name: AvailableSubjects::NetworkErrors.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1601,8 +1601,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_session_run_superstep_processor_error() -> Result<()> {
-        // Create an error emitting session plan
+    async fn test_network_run_superstep_processor_error() -> Result<()> {
+        // Create an error emitting network plan
         let task_plans = vec![
             TaskPlan {
                 task_name: "task_1".to_string(),
@@ -1668,8 +1668,8 @@ mod tests {
             .with_max_steps(1)
             .with_object_store(make_store(&ObjectStorageBackend::InMemory, None, None)?)
             .build_arc()?;
-        let (network, session_messages) = NetworkBuilder::new()
-            .with_name("session_1")
+        let (network, network_messages) = NetworkBuilder::new()
+            .with_name("network_1")
             .with_tasks(task_plans)
             .with_processors(processors)
             .with_runtime_env(rt)
@@ -1679,14 +1679,14 @@ mod tests {
             .add_next_supersteps()?
             .build_with_tables()?;
 
-        // Run the session context
+        // Run the network context
         let network_arc = Arc::new(network);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let messages = test_task::make_test_input_message(
             "task_1",
-            "session_1",
+            "network_1",
             "state_1",
             "state_1",
             &Publication::Replace {
@@ -1700,9 +1700,9 @@ mod tests {
 
         assert!(response.is_empty());
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTasksRunLog.to_string(),
+            subject_name: AvailableSubjects::NetworkTasksRunLog.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1710,7 +1710,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1718,45 +1718,45 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionMetrics.to_string(),
+            subject_name: AvailableSubjects::NetworkMetrics.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionEvents.to_string(),
+            subject_name: AvailableSubjects::NetworkEvents.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTraces.to_string(),
+            subject_name: AvailableSubjects::NetworkTraces.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionErrors.to_string(),
+            subject_name: AvailableSubjects::NetworkErrors.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
         let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+            .with_name(AvailableSubjects::NetworkErrors.to_string().as_str())
             .with_record_batches(subscriptions)
             .unwrap()
             .build()
@@ -1764,15 +1764,15 @@ mod tests {
         let errors = subject.get_column_as_vec_str("content");
         assert!(errors.first().unwrap().contains("This is an error!"));
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionSupersteps.to_string(),
+            subject_name: AvailableSubjects::NetworkSupersteps.to_string(),
         }
-        .subscribe_to_subject(network_arc.runtime_env(), "session_1")?
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 2);
         let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionSupersteps.to_string().as_str())
+            .with_name(AvailableSubjects::NetworkSupersteps.to_string().as_str())
             .with_record_batches(subscriptions)
             .unwrap()
             .build()

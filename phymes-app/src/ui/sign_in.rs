@@ -1,8 +1,8 @@
 use crate::state::{
-    clear_jwt_state, clear_session_names_state, sync_builder_state,
-    sync_current_active_session_state, sync_debugger_state, sync_jwt_state,
-    sync_session_names_state, ClearJWTState, ClearSessionNamesState, SignInState, SyncBuilderState,
-    SyncCurrentActiveSessionState, SyncDebuggerState, SyncJWTState, SyncSessionNamesState, BUILDER,
+    clear_jwt_state, clear_network_names_state, sync_builder_state,
+    sync_current_active_network_state, sync_debugger_state, sync_jwt_state,
+    sync_network_names_state, ClearJWTState, ClearNetworkNamesState, SignInState, SyncBuilderState,
+    SyncCurrentActiveNetworkState, SyncDebuggerState, SyncJWTState, SyncNetworkNamesState, BUILDER,
     DEBUGGER, EMAIL, JWT,
 };
 use dioxus::prelude::*;
@@ -48,10 +48,10 @@ pub fn sign_in_form() -> Element {
     // intialize state and coroutines
     use_coroutine(sync_jwt_state);
     let sync_jwt = use_coroutine_handle::<SyncJWTState>();
-    use_coroutine(sync_session_names_state);
-    let sync_session_names = use_coroutine_handle::<SyncSessionNamesState>();
-    use_coroutine(sync_current_active_session_state);
-    let sync_current_active_session_state = use_coroutine_handle::<SyncCurrentActiveSessionState>();
+    use_coroutine(sync_network_names_state);
+    let sync_network_names = use_coroutine_handle::<SyncNetworkNamesState>();
+    use_coroutine(sync_current_active_network_state);
+    let sync_current_active_network_state = use_coroutine_handle::<SyncCurrentActiveNetworkState>();
 
     // DM: Refactor the login to include a registration and forgot password
     //  1. enter email
@@ -104,11 +104,11 @@ pub fn sign_in_form() -> Element {
                     Ok(response) => match response.json::<SignInState>()
                         .await {
                             Ok(jwt_json) => {
-                                // Set the active session
-                                sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: jwt_json.session_names.session_plans.first().unwrap().to_string() });
+                                // Set the active network
+                                sync_current_active_network_state.send(SyncCurrentActiveNetworkState { name: jwt_json.network_names.network_plans.first().unwrap().to_string() });
 
-                                // Set the session names
-                                sync_session_names.send(SyncSessionNamesState { session_plans: jwt_json.session_names.session_plans });
+                                // Set the network names
+                                sync_network_names.send(SyncNetworkNamesState { network_plans: jwt_json.network_names.network_plans });
 
                                 // Set the sign-in credentials
                                 sync_jwt.send(SyncJWTState { jwt: jwt_json.jwt.jwt, email: jwt_json.jwt.email });
@@ -154,11 +154,11 @@ pub fn sign_in_form() -> Element {
                         let bytes = bytes.into_iter().flatten().collect::<Vec<_>>();
                         match serde_json::from_slice::<SignInState>(&bytes) {
                             Ok(jwt_json) => {
-                                // Set the active session
-                                sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: jwt_json.session_names.session_plans.first().unwrap().to_string() });
+                                // Set the active network
+                                sync_current_active_network_state.send(SyncCurrentActiveNetworkState { name: jwt_json.network_names.network_plans.first().unwrap().to_string() });
 
-                                // Set the session names
-                                sync_session_names.send(SyncSessionNamesState { session_plans: jwt_json.session_names.session_plans });
+                                // Set the network names
+                                sync_network_names.send(SyncNetworkNamesState { network_plans: jwt_json.network_names.network_plans });
 
                                 // Set the sign-in credentials
                                 sync_jwt.send(SyncJWTState { jwt: jwt_json.jwt.jwt, email: jwt_json.jwt.email });
@@ -198,8 +198,8 @@ pub fn sign_in_form() -> Element {
 pub fn sign_out_form() -> Element {
     use_coroutine(clear_jwt_state);
     let clear_jwt_state = use_coroutine_handle::<ClearJWTState>();
-    use_coroutine(clear_session_names_state);
-    let clear_session_names_state = use_coroutine_handle::<ClearSessionNamesState>();
+    use_coroutine(clear_network_names_state);
+    let clear_network_names_state = use_coroutine_handle::<ClearNetworkNamesState>();
 
     rsx! {
         p {
@@ -210,7 +210,7 @@ pub fn sign_out_form() -> Element {
             class: "block mx-auto mt-2 px-4 py-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
             onclick: move |_| async move {
                 clear_jwt_state.send(ClearJWTState {});
-                clear_session_names_state.send(ClearSessionNamesState {});
+                clear_network_names_state.send(ClearNetworkNamesState {});
             },
             "sign-out"
         },

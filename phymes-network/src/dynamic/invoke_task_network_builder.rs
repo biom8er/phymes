@@ -12,7 +12,7 @@ use crate::DynamicNetworkBuilderTrait;
 /// * task name = processor name = processor "config" name
 /// * The task should have ONLY 1 processor (all other processors will not be invoked)
 pub struct InvokeTaskNetworkBuilder<'a> {
-    /// Session
+    /// Network
     pub network_name: &'a str,
     /// Subjects to listen for
     pub subject_names: &'a [&'a str],
@@ -40,7 +40,7 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
             subject_names,
         }
     }
-    /// Return the Mermaid.js flowchart representation of the session
+    /// Return the Mermaid.js flowchart representation of the network
     pub fn as_mermaid_flowchart(&self) -> String {
         format!(
             r#"flowchart TD
@@ -98,7 +98,7 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
 		join_processors_subscriptions_publications_aggregated_p-processor-->join_processors_subscriptions_publications_aggregated_p-publish
 		join_processors_subscriptions_publications_aggregated_p-publish-->|Replace|join_processors_subscriptions_publications_aggregated_s-subject
 		join_processors_subscriptions_publications_aggregated_s-subject-->|AllRecordBatches|join_tasks_processors_subscriptions_publications_aggregated_p-subscribe
-		SessionTasks-subject-->|AllRecordBatches|join_tasks_processors_subscriptions_publications_aggregated_p-subscribe
+		NetworkTasks-subject-->|AllRecordBatches|join_tasks_processors_subscriptions_publications_aggregated_p-subscribe
 		join_tasks_processors_subscriptions_publications_aggregated_p-subscribe-->join_tasks_processors_subscriptions_publications_aggregated_p-processor
 		join_tasks_processors_subscriptions_publications_aggregated_p-processor-->join_tasks_processors_subscriptions_publications_aggregated_p-publish
 		join_tasks_processors_subscriptions_publications_aggregated_p-publish-->|Replace|join_tasks_processors_subscriptions_publications_aggregated_s-subject
@@ -112,7 +112,7 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
 	join_processors_subscriptions_publications_aggregated_p-processor@{{shape: rect, label: Join}}
 	join_processors_subscriptions_publications_aggregated_p-publish@{{shape: fork}}
 	join_processors_subscriptions_publications_aggregated_s-subject@{{shape: doc, label: join_processors_subscriptions_publications_aggregated_s}}
-	SessionTasks-subject@{{shape: doc, label: SessionTasks}}
+	NetworkTasks-subject@{{shape: doc, label: NetworkTasks}}
 	join_tasks_processors_subscriptions_publications_aggregated_p-subscribe@{{shape: diamond, label: All}}
 	join_tasks_processors_subscriptions_publications_aggregated_p-processor@{{shape: rect, label: Join}}
 	join_tasks_processors_subscriptions_publications_aggregated_p-publish@{{shape: fork}}
@@ -134,7 +134,7 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
 		{}
 		call_processor_p-subscribe-->call_processor_p-processor
 		call_processor_p-processor-->call_processor_p-publish
-		call_processor_p-publish-->|Extend|SessionTasksSubscribePublish-subject
+		call_processor_p-publish-->|Extend|NetworkTasksSubscribePublish-subject
 	end
 	ToolCallNetwork_runtime_env-rt-->call_processor_t
 	echo_processor_p-processor@{{shape: rect, label: ProcessorEcho}}
@@ -143,7 +143,7 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
 	call_processor_p-processor@{{shape: rect, label: ToolCallProcessor}}
 	call_processor_p-publish@{{shape: fork}}
 	call_processor_p-subscribe@{{shape: diamond, label: Any}}
-	SessionTasksSubscribePublish-subject@{{shape: doc, label: SessionTasksSubscribePublish}}"#,
+	NetworkTasksSubscribePublish-subject@{{shape: doc, label: NetworkTasksSubscribePublish}}"#,
             self.flowchart_subject_subscriptions_1(
                 &self
                     .subject_names()
@@ -181,13 +181,13 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
         )
     }
 
-    /// Return the Mermaid.js ER Diagram representation of the session
+    /// Return the Mermaid.js ER Diagram representation of the network
     pub fn as_mermaid_erdiagram(&self) -> Result<String> {
         let er_diagram = format!(
             r#"erDiagram
     {}
     select_processors_subscriptions_s["select_processors_subscriptions_s"] {{
-        Utf8 session_name
+        Utf8 network_name
         Utf8 processor_name
         Utf8 processor_type
         Utf8 publication_subscription_name
@@ -197,7 +197,7 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
         UInt8 is_subscription
     }}
     select_processors_publications_s["select_processors_publications_s"] {{
-        Utf8 session_name
+        Utf8 network_name
         Utf8 processor_name
         Utf8 processor_type
         Utf8 publication_subscription_name
@@ -211,7 +211,7 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
         List-Utf8 agg_operators "['List','List']"
         Boolean cpu "false"
         Utf8 lhs_name "select_processors_subscriptions_s"
-        List-Utf8 lhs_values "['session_name','processor_type','processor_name']"
+        List-Utf8 lhs_values "['network_name','processor_type','processor_name']"
         Utf8 operator "GroupBy"
         Utf8 lhs_stream "Accumulate"
     }}
@@ -219,12 +219,12 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
         List-Utf8 as_columns "['','','','subscription_names','subscription_table_names']"
         Boolean cpu "false"
         Utf8 lhs_name "group_by_processors_subscriptions_s"
-        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name-List','publication_subscription_table_name-List']"
+        List-Utf8 lhs_values "['network_name','processor_name','processor_type','publication_subscription_name-List','publication_subscription_table_name-List']"
         Utf8 operator "Select"
         Utf8 lhs_stream "Accumulate"
     }}
     select_processors_subscriptions_aggregated_s["select_processors_subscriptions_aggregated_s"] {{
-        Utf8 session_name
+        Utf8 network_name
         Utf8 processor_name
         Utf8 processor_type
         List-Utf8 subscription_names
@@ -235,7 +235,7 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
         List-Utf8 agg_operators "['List','List']"
         Boolean cpu "false"
         Utf8 lhs_name "select_processors_publications_s"
-        List-Utf8 lhs_values "['session_name','processor_type','processor_name']"
+        List-Utf8 lhs_values "['network_name','processor_type','processor_name']"
         Utf8 operator "GroupBy"
         Utf8 lhs_stream "Accumulate"
     }}
@@ -243,12 +243,12 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
         List-Utf8 as_columns "['','','','publication_names','publication_table_names']"
         Boolean cpu "false"
         Utf8 lhs_name "group_by_processors_publications_s"
-        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name-List','publication_subscription_table_name-List']"
+        List-Utf8 lhs_values "['network_name','processor_name','processor_type','publication_subscription_name-List','publication_subscription_table_name-List']"
         Utf8 operator "Select"
         Utf8 lhs_stream "Accumulate"
     }}
     select_processors_publications_aggregated_s["select_processors_publications_aggregated_s"] {{
-        Utf8 session_name
+        Utf8 network_name
         Utf8 processor_name
         Utf8 processor_type
         List-Utf8 publication_names
@@ -267,8 +267,8 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
         Utf8 rhs_stream "Accumulate"
         Utf8 join_operators "Inner"
     }}
-    SessionTasks["SessionTasks"] {{
-        Utf8 session_name
+    NetworkTasks["NetworkTasks"] {{
+        Utf8 network_name
         Utf8 task_name
         Utf8 processor_name
         Utf8 runtime_env_name
@@ -280,7 +280,7 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
         Utf8 lhs_pk "processor_name"
         Utf8 operator "Join"
         Utf8 rhs_fk "processor_name"
-        Utf8 rhs_name "SessionTasks"
+        Utf8 rhs_name "NetworkTasks"
         Utf8 rhs_pk "processor_name"
         Utf8 lhs_stream "Accumulate"
         Utf8 rhs_stream "Accumulate"
@@ -289,12 +289,12 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
     select_tasks_processors_subscriptions_publications_aggregated_p["select_tasks_processors_subscriptions_publications_aggregated_p"] {{
         Boolean cpu "false"
         Utf8 lhs_name "join_tasks_processors_subscriptions_publications_aggregated_s"
-        List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type','subscription_names','subscription_table_names','publication_names','publication_table_names']"
+        List-Utf8 lhs_values "['network_name','task_name','processor_name','processor_type','subscription_names','subscription_table_names','publication_names','publication_table_names']"
         Utf8 operator "Select"
         Utf8 lhs_stream "Accumulate"
     }}
     select_tasks_processors_subscriptions_publications_aggregated_s["select_tasks_processors_subscriptions_publications_aggregated_s"] {{
-        Utf8 session_name
+        Utf8 network_name
         Utf8 task_name
         Utf8 processor_name
         Utf8 processor_type
@@ -308,8 +308,8 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
         List-Utf8 subject_names "[{}]"
         List-Utf8 subscription_table_names "['lhs_name', 'rhs_name', 'subject_name']"
     }}
-    SessionTasksSubscribePublish["SessionTasksSubscribePublish"] {{
-        Utf8 session_name
+    NetworkTasksSubscribePublish["NetworkTasksSubscribePublish"] {{
+        Utf8 network_name
         Utf8 task_name
         Utf8 processor_name
         Utf8 processor_type
@@ -355,9 +355,9 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_invoke_task_network() -> Result<()> {
-        // Initialize the session
+        // Initialize the network
         let invoke_task_network = InvokeTaskNetworkBuilder::default();
-        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
+        let (network, network_messages) = NetworkBuilder::from_mermaid_flowchart(
             &invoke_task_network.as_mermaid_flowchart(),
             false,
         )?
@@ -374,11 +374,11 @@ mod tests {
         .build_with_tables()?;
         let network_arc = Arc::new(network);
 
-        // Replace the Bytes to trigger the session
+        // Replace the Bytes to trigger the network
         let message_map = {
             let batch = create_bytes_record_batch(vec!["{}".into()])?;
             let table = AvailableSubjects::Bytes.to_subject(None, Some(vec![batch]))?;
-            let session_tasks_message = IPCMessage::get_builder()
+            let network_tasks_message = IPCMessage::get_builder()
                 .with_subject(table.get_name())
                 .with_update(&Publication::Replace {
                     subject_name: table.get_name().to_string(),
@@ -387,13 +387,13 @@ mod tests {
                 .with_message(table.to_ipc_stream()?)
                 .make_name()?
                 .build()?;
-            create_message_map(vec![session_tasks_message])
+            create_message_map(vec![network_tasks_message])
         };
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
-        // Run the session
+        // Run the network
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
@@ -412,7 +412,7 @@ mod tests {
                 .with_name("select_processors_subscriptions_s")
                 .with_record_batches(batches)?
                 .build()?;
-            let column = subject.get_column_as_vec_str("session_name");
+            let column = subject.get_column_as_vec_str("network_name");
             assert_eq!(
                 column,
                 [
@@ -546,7 +546,7 @@ mod tests {
                     "select_processors_publications_aggregated_s",
                     "join_processors_subscriptions_publications_aggregated_p",
                     "join_processors_subscriptions_publications_aggregated_s",
-                    "SessionTasks",
+                    "NetworkTasks",
                     "join_tasks_processors_subscriptions_publications_aggregated_p",
                     "join_tasks_processors_subscriptions_publications_aggregated_s",
                     "select_tasks_processors_subscriptions_publications_aggregated_p",
@@ -614,7 +614,7 @@ mod tests {
                 .with_name("select_processors_publications_s")
                 .with_record_batches(batches)?
                 .build()?;
-            let column = subject.get_column_as_vec_str("session_name");
+            let column = subject.get_column_as_vec_str("network_name");
             assert_eq!(
                 column,
                 [
@@ -679,7 +679,7 @@ mod tests {
                     "join_tasks_processors_subscriptions_publications_aggregated_s",
                     "select_tasks_processors_subscriptions_publications_aggregated_s",
                     "select_tasks_processors_subscriptions_publications_aggregated_s",
-                    "SessionTasksSubscribePublish"
+                    "NetworkTasksSubscribePublish"
                 ]
             );
             let column = subject.get_column_as_vec_str("subscribe_type");
@@ -718,7 +718,7 @@ mod tests {
                 .with_name("select_processors_subscriptions_aggregated_s")
                 .with_record_batches(batches)?
                 .build()?;
-            let column = subject.get_column_as_vec_str("session_name");
+            let column = subject.get_column_as_vec_str("network_name");
             assert_eq!(
                 column,
                 [
@@ -815,7 +815,7 @@ mod tests {
                     "select_processors_publications_aggregated_s",
                     "join_processors_subscriptions_publications_aggregated_p",
                     "join_processors_subscriptions_publications_aggregated_s",
-                    "SessionTasks",
+                    "NetworkTasks",
                     "join_tasks_processors_subscriptions_publications_aggregated_p",
                     "group_by_processors_publications_s",
                     "select_processors_publications_aggregated_p",
@@ -837,7 +837,7 @@ mod tests {
                 .with_name("select_processors_publications_aggregated_s")
                 .with_record_batches(batches)?
                 .build()?;
-            let column = subject.get_column_as_vec_str("session_name");
+            let column = subject.get_column_as_vec_str("network_name");
             assert_eq!(
                 column,
                 [
@@ -898,7 +898,7 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
-                    "SessionTasksSubscribePublish",
+                    "NetworkTasksSubscribePublish",
                     "select_tasks_processors_subscriptions_publications_aggregated_s",
                     "group_by_processors_publications_s",
                     "group_by_processors_subscriptions_s",
@@ -922,7 +922,7 @@ mod tests {
                 .with_name("select_tasks_processors_subscriptions_publications_aggregated_s")
                 .with_record_batches(batches)?
                 .build()?;
-            let column = subject.get_column_as_vec_str("session_name");
+            let column = subject.get_column_as_vec_str("network_name");
             assert_eq!(
                 column,
                 [
@@ -1034,7 +1034,7 @@ mod tests {
                     "select_processors_publications_aggregated_s",
                     "join_processors_subscriptions_publications_aggregated_p",
                     "join_processors_subscriptions_publications_aggregated_s",
-                    "SessionTasks",
+                    "NetworkTasks",
                     "join_tasks_processors_subscriptions_publications_aggregated_p",
                     "group_by_processors_publications_s",
                     "select_processors_publications_aggregated_p",
@@ -1060,7 +1060,7 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
-                    "SessionTasksSubscribePublish",
+                    "NetworkTasksSubscribePublish",
                     "select_tasks_processors_subscriptions_publications_aggregated_s",
                     "group_by_processors_publications_s",
                     "group_by_processors_subscriptions_s",
@@ -1073,7 +1073,7 @@ mod tests {
             );
 
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+                subject_name: AvailableSubjects::NetworkTasksSubscribePublish.to_string(),
             }
             .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
@@ -1081,14 +1081,14 @@ mod tests {
             .await?;
             assert_eq!(batches.len(), 0);
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                subject_name: AvailableSubjects::SessionErrors.to_string(),
+                subject_name: AvailableSubjects::NetworkErrors.to_string(),
             }
             .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
             let subject = Subject::get_builder()
-                .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+                .with_name(AvailableSubjects::NetworkErrors.to_string().as_str())
                 .with_record_batches(batches)?
                 .build()?;
             assert_eq!(subject.count_rows(), 1);

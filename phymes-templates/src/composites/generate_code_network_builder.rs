@@ -323,7 +323,7 @@ mod tests {
         let subject_name_o = "subject_name_o";
         let workspace_name = "apply_patch_s";
 
-        // Initialize the session
+        // Initialize the network
         let generate_code_network_builder =
             GenerateCodeNetworkBuilder::default().inner.take().unwrap();
 
@@ -351,7 +351,7 @@ mod tests {
             generate_code_network_builder.extend(network_builder)?;
 
         let network_name = generate_code_network_builder.name.clone().unwrap();
-        let (network, session_messages) = generate_code_network_builder
+        let (network, network_messages) = generate_code_network_builder
             .with_runtime_env(
                 RuntimeEnv::get_builder()
                     .with_name(
@@ -473,10 +473,10 @@ pip install --no-cache-dir -r requirements.txt"#,
         );
 
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
-        // 1. Run the session
+        // 1. Run the network
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
@@ -576,7 +576,7 @@ pip install --no-cache-dir -r requirements.txt"#,
         let subject_name_o = "subject_name_o";
         let workspace_name = "apply_patch_s";
 
-        // Initialize the session
+        // Initialize the network
         let generate_code_network_builder =
             GenerateCodeNetworkBuilder::default().inner.take().unwrap();
 
@@ -604,7 +604,7 @@ pip install --no-cache-dir -r requirements.txt"#,
             generate_code_network_builder.extend(network_builder)?;
 
         let network_name = generate_code_network_builder.name.clone().unwrap();
-        let (network, session_messages) = generate_code_network_builder
+        let (network, network_messages) = generate_code_network_builder
             .with_runtime_env(
                 RuntimeEnv::get_builder()
                     .with_name(
@@ -764,10 +764,10 @@ apt install --assume-yes protobuf-compiler clang"#,
         );
 
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
-        // 1. Run the session
+        // 1. Run the network
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 

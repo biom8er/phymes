@@ -296,13 +296,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_tabular_data_operator_network() -> Result<()> {
-        // Initialize the session
+        // Initialize the network
         let tabular_data_operator_network_builder = TabularDataOperatorNetworkBuilder::default()
             .inner
             .take()
             .unwrap();
         let network_name = tabular_data_operator_network_builder.name.clone().unwrap();
-        let (network, session_messages) = tabular_data_operator_network_builder
+        let (network, network_messages) = tabular_data_operator_network_builder
             .with_runtime_env(
                 RuntimeEnv::get_builder()
                     .with_name(
@@ -320,7 +320,7 @@ mod tests {
             .build_with_tables()?;
         let network_arc = Arc::new(network);
 
-        // Make the test session data
+        // Make the test network data
         let mut message_map = HashMap::<String, IPCMessage>::new();
 
         // Make the CSV attachments
@@ -373,7 +373,7 @@ mod tests {
         );
 
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
         // Avoid running with Candle without GPU acceleration

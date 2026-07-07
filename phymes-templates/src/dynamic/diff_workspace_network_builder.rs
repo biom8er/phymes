@@ -187,7 +187,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_diff_workspace_network_dynamic_wo_subjects() -> Result<()> {
         let diff_workspace_network = DiffWorkspaceNetworkBuilderDynamicWOSubject::default();
-        let (network, session_messages) = diff_workspace_network
+        let (network, network_messages) = diff_workspace_network
             .inner
             .build_dynamic()
             .with_runtime_env(
@@ -328,9 +328,9 @@ pub use todo::Todo"#,
             );
         }
 
-        // Run the session
+        // Run the network
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
@@ -385,7 +385,7 @@ pub use todo::Todo"#,
     #[tokio::test(flavor = "current_thread")]
     async fn test_diff_workspace_network_static() -> Result<()> {
         let diff_workspace_network = DiffWorkspaceNetworkBuilderStaticWSubject::default();
-        let (network, session_messages) = diff_workspace_network
+        let (network, network_messages) = diff_workspace_network
             .inner
             .build_dynamic()
             .with_runtime_env(
@@ -492,9 +492,9 @@ pub use todo::Todo"#,
             );
         }
 
-        // Run the session
+        // Run the network
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;

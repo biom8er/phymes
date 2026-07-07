@@ -50,18 +50,18 @@ fn benchmark_chat_agent_network(c: &mut Criterion) {
     for user_content in &user_content_vec {
         // Create a unique tag and id for each benchmark
         let tag = format!("{}_{wasm}_{gpu}_{candle}", user_content.0.len());
-        let id = format!("chat-agent-session_{tag}");
+        let id = format!("chat-agent-network_{tag}");
         let mut iter = 0; // DM: not so useful as there is only one configuration we test at this point in time
 
         // The actual benchmark function
         c.bench_function(id.as_str(), |b| {
             b.iter(|| {
-                // Create the session configuration
-                let network_name = format!("session_1_{tag}_{iter}");
+                // Create the network configuration
+                let network_name = format!("network_1_{tag}_{iter}");
 
-                // Initialize the session
+                // Initialize the network
                 let generate_text_network = GenerateTextNetworkBuilder::default();
-                let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
+                let (network, network_messages) = NetworkBuilder::from_mermaid_flowchart(
                     &generate_text_network.as_mermaid_flowchart(),
                     false,
                 )
@@ -85,7 +85,7 @@ fn benchmark_chat_agent_network(c: &mut Criterion) {
                 let network_arc = Arc::new(network);
                 let sample_id = format!("{id}_{iter}");
 
-                // Run the benchmark for the chat agent session with metrics
+                // Run the benchmark for the chat agent network with metrics
                 // DM: Cannot use tokio::runtime::Runtime in WASM context
                 let rt = tokio::runtime::Builder::new_current_thread()
                     .build()
@@ -106,7 +106,7 @@ fn benchmark_chat_agent_network(c: &mut Criterion) {
                         .build()?;
                     let incoming_message_map = create_message_map(vec![message]);
                     let _ = network_arc
-                        .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+                        .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
                         .await;
                     let network_stream =
                         NetworkStream::new(incoming_message_map, Arc::clone(&network_arc));
@@ -136,7 +136,7 @@ fn benchmark_chat_agent_network(c: &mut Criterion) {
                         .await
                 });
 
-                // Extract out the metrics from the session
+                // Extract out the metrics from the network
                 let batches: Vec<_> = rt.block_on(async {
                     Subscription::AlwaysAllRecordBatches {
                         subject_name: AvailableSubjects::MetricPivot.to_string(),

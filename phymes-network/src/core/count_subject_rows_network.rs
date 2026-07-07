@@ -1,6 +1,6 @@
 /// Count the number of rows for each subject
 pub struct CountSubjectRowsNetwork<'a> {
-    /// Session
+    /// Network
     pub network_name: &'a str,
 }
 
@@ -43,7 +43,7 @@ impl<'a> CountSubjectRowsNetwork<'a> {
     SubjectsChangeLog["SubjectsChangeLog"] {
         Utf8 subject_name
         Utf8 task_name
-        Utf8 session_name
+        Utf8 network_name
         Int64 num_rows
         Int64 superstep
     }
@@ -95,16 +95,16 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_count_subject_rows_network() -> Result<()> {
-        // Initialize the session
-        let subjects_session = CountSubjectRowsNetwork::default();
-        let (network, session_messages) =
-            NetworkBuilder::from_mermaid_flowchart(subjects_session.as_mermaid_flowchart(), false)?
+        // Initialize the network
+        let subjects_network = CountSubjectRowsNetwork::default();
+        let (network, network_messages) =
+            NetworkBuilder::from_mermaid_flowchart(subjects_network.as_mermaid_flowchart(), false)?
                 .with_subjects_from_mermaid_erdiagram(
-                    subjects_session.as_mermaid_erdiagram(),
+                    subjects_network.as_mermaid_erdiagram(),
                     false,
                     true,
                 )?
-                .with_name(subjects_session.network_name)
+                .with_name(subjects_network.network_name)
                 .with_diagnostics(true)
                 .add_processor_subjects()?
                 .add_next_tasks()?
@@ -112,25 +112,25 @@ mod tests {
                 .build_with_tables()?;
         let network_arc = Arc::new(network);
 
-        // Make the test session data
+        // Make the test network data
         let message_map = {
-            // Make the test sequential session
-            let (network, session_messages) =
-                test_network_builder::make_test_network_builder_sequential("session_1", 2)?
+            // Make the test sequential network
+            let (network, network_messages) =
+                test_network_builder::make_test_network_builder_sequential("network_1", 2)?
                     .with_diagnostics(false)
                     .add_network_interface(Some(&["state_1"]))?
                     .add_next_tasks()?
                     .add_next_supersteps()?
                     .build_with_tables()?;
 
-            // Mimic a session run for 1 steps
+            // Mimic a network run for 1 steps
             let network_arc = Arc::new(network);
             let _ = network_arc
-                .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+                .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
                 .await;
             let messages = test_task::make_test_input_message(
                 "task_1",
-                "session_1",
+                "network_1",
                 "state_1",
                 "state_1",
                 &Publication::Replace {
@@ -161,22 +161,22 @@ mod tests {
                 .with_update(&Publication::Extend {
                     subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
                 })
-                .with_publisher(subjects_session.network_name)
+                .with_publisher(subjects_network.network_name)
                 .make_name()?
                 .build()?;
             create_message_map(vec![subjects_change_log_message])
         };
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
-        // Run the session
+        // Run the network
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
 
-        // Test session stream
+        // Test network stream
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
         }
@@ -194,7 +194,7 @@ mod tests {
         assert_eq!(
             column,
             [
-                "SessionTasksRunLog",
+                "NetworkTasksRunLog",
                 "SubjectsChangeLog",
                 "SubjectsNumRows",
                 "group_by_subject_change_log_delta_p",

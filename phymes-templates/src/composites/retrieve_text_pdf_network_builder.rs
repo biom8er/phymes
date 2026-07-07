@@ -10,11 +10,11 @@ pub struct RetrieveTextPDFNetworkBuilder {
 
 impl Default for RetrieveTextPDFNetworkBuilder {
     fn default() -> Self {
-        // Extract PDF session
+        // Extract PDF network
         let retrieve_text_pdf_network_builder =
             ExtractPDFNetworkBuilder::default().inner.take().unwrap();
 
-        // Embed text session
+        // Embed text network
         let embed_text_network = EmbedTextNetworkBuilder::default();
         let embed_text_network_builder = NetworkBuilder::from_mermaid_flowchart(
             &embed_text_network.as_mermaid_flowchart(),
@@ -32,7 +32,7 @@ impl Default for RetrieveTextPDFNetworkBuilder {
             .extend(embed_text_network_builder)
             .unwrap();
 
-        // Retrieve text session
+        // Retrieve text network
         let retrieve_text_network = RetrieveTextNetworkBuilder::default();
         let retrieve_text_builder = NetworkBuilder::from_mermaid_flowchart(
             retrieve_text_network.as_mermaid_flowchart(),
@@ -83,13 +83,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_retrieve_text_pdf_network() -> Result<()> {
-        // Initialize the session
+        // Initialize the network
         let retrieve_text_pdf_network_builder = RetrieveTextPDFNetworkBuilder::default()
             .inner
             .take()
             .unwrap();
         let network_name = retrieve_text_pdf_network_builder.name.clone().unwrap();
-        let (network, session_messages) = retrieve_text_pdf_network_builder
+        let (network, network_messages) = retrieve_text_pdf_network_builder
             .with_runtime_env(
                 RuntimeEnv::get_builder()
                     .with_name(
@@ -107,7 +107,7 @@ mod tests {
             .build_with_tables()?;
         let network_arc = Arc::new(network);
 
-        // Make the test session data
+        // Make the test network data
         let mut message_map = HashMap::<String, IPCMessage>::new();
 
         // Create the PDF document
@@ -145,10 +145,10 @@ mod tests {
         );
 
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
-        // 1. Run the session (embed documents)
+        // 1. Run the network (embed documents)
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
 
         // Avoid running with Candle without GPU acceleration
@@ -159,7 +159,7 @@ mod tests {
         )) {
             let _response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
-            // Make the test session data
+            // Make the test network data
             let mut message_map = HashMap::<String, IPCMessage>::new();
 
             // Make the query data
@@ -183,7 +183,7 @@ mod tests {
                     .build()?,
             );
 
-            // 2. Run the session (embed queries and retrieve)
+            // 2. Run the network (embed queries and retrieve)
             let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
             let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 

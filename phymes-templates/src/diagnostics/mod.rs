@@ -13,10 +13,10 @@ use phymes_task::SubscriptionTrait;
 /// Default diagnostic subjects for Errors, Events, Traces, and Metrics
 pub fn default_diagnostic_subjects() -> Vec<String> {
     vec![
-        AvailableSubjects::SessionErrors.to_string(),
-        AvailableSubjects::SessionEvents.to_string(),
-        AvailableSubjects::SessionTraces.to_string(),
-        AvailableSubjects::SessionMetrics.to_string(),
+        AvailableSubjects::NetworkErrors.to_string(),
+        AvailableSubjects::NetworkEvents.to_string(),
+        AvailableSubjects::NetworkTraces.to_string(),
+        AvailableSubjects::NetworkMetrics.to_string(),
     ]
 }
 
@@ -24,7 +24,7 @@ pub fn default_diagnostic_subjects() -> Vec<String> {
 pub fn extended_diagnostic_subjects() -> Vec<String> {
     let mut subjects = default_diagnostic_subjects();
     let extension = vec![
-        AvailableSubjects::SessionTasksRunLog.to_string(),
+        AvailableSubjects::NetworkTasksRunLog.to_string(),
         AvailableSubjects::SubjectsChangeLog.to_string(),
     ];
     subjects.extend(extension);

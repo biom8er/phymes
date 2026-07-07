@@ -23,9 +23,9 @@ use phymes_subject::{
 };
 
 pub async fn run_main() -> Result<()> {
-    // Initialize the session
+    // Initialize the network
     let generate_text_network = GenerateTextNetworkBuilder::default();
-    let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
+    let (network, network_messages) = NetworkBuilder::from_mermaid_flowchart(
         &generate_text_network.as_mermaid_flowchart(),
         false,
     )?
@@ -59,7 +59,7 @@ pub async fn run_main() -> Result<()> {
         .build()?;
     let incoming_message_map = create_message_map(vec![message]);
     let _ = network_arc
-        .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+        .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
         .await;
     let network_stream = NetworkStream::new(incoming_message_map, Arc::clone(&network_arc));
     let mut response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;

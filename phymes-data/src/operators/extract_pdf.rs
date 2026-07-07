@@ -560,7 +560,7 @@ fn extract_pdf_docs(
 ///
 /// # Notes
 /// * use [prepare_pdf_documents] after calling [load_pdf_document] but before calling [extract_pdf]
-/// * The output schema of the RecordBatch matches that used in the document RAG session plans i.e.,
+/// * The output schema of the RecordBatch matches that used in the document RAG network plans i.e.,
 ///   `document_id`: The ID of the document, `chunk_id`: The page number, `text`: The text content of the page.
 ///
 /// # Errors

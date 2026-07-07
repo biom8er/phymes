@@ -81,7 +81,7 @@ pub trait NetworkBuilderAppsTrait {
     where
         Self: Sized;
 
-    /// Add tasks, processors, and runtime environments for a session interface that
+    /// Add tasks, processors, and runtime environments for a network interface that
     /// subscribes to all [AvailableInterfaceSubjects]
     ///
     /// # Arguments
@@ -93,7 +93,7 @@ pub trait NetworkBuilderAppsTrait {
     /// Add tasks that automatically update the number of subject rows
     ///
     /// # Notes
-    /// * See [CountSubjectRowsNetwork] for stand alone session and testing
+    /// * See [CountSubjectRowsNetwork] for stand alone network and testing
     fn add_subjects_num_rows(self) -> Result<Self>
     where
         Self: Sized;
@@ -101,7 +101,7 @@ pub trait NetworkBuilderAppsTrait {
     /// Add tasks that dynamically compute the next set of tasks that are ready to subscribe to their subjects
     ///
     /// # Notes
-    /// * See [NextTaskNetwork] for stand alone session and testing
+    /// * See [NextTaskNetwork] for stand alone network and testing
     fn add_next_tasks(self) -> Result<Self>
     where
         Self: Sized;
@@ -109,7 +109,7 @@ pub trait NetworkBuilderAppsTrait {
     /// Add tasks that dynamically compute the next superstep
     ///
     /// # Notes
-    /// * See [NextSuperstepNetwork] for stand alone session and testing
+    /// * See [NextSuperstepNetwork] for stand alone network and testing
     fn add_next_supersteps(self) -> Result<Self>
     where
         Self: Sized;
@@ -146,7 +146,7 @@ impl NetworkBuilderAppsTrait for NetworkBuilder {
             })
             .collect();
 
-        // ready to build the session
+        // ready to build the network
         let network = Network::new(name, tasks, schemas, runtime_env, diagnostics);
         Ok((network, Some(messages?)))
     }
@@ -895,7 +895,7 @@ impl NetworkBuilderAppsTrait for NetworkBuilder {
         }
         if self.name.is_none() {
             return Err(anyhow!(
-                "Add a name for the session before making the default processor configuration subjects."
+                "Add a name for the network before making the default processor configuration subjects."
             ));
         }
 
@@ -1054,26 +1054,26 @@ impl NetworkBuilderAppsTrait for NetworkBuilder {
     {
         if self.name.is_none() {
             return Err(anyhow!(
-                "Add a name for the session before making the session interface."
+                "Add a name for the network before making the network interface."
             ));
         }
         if self.subjects.is_none() {
             return Err(anyhow!(
-                "Add state for the session before making the session interface."
+                "Add state for the network before making the network interface."
             ));
         }
 
-        // Add the session task
-        let session_name = self.name.as_ref().unwrap().to_string();
+        // Add the network task
+        let network_name = self.name.as_ref().unwrap().to_string();
         let mut tasks = self.tasks.take().unwrap_or_default();
         tasks.push(TaskPlan {
-            task_name: session_name.to_string(),
-            processor_names: vec![session_name.to_string()],
+            task_name: network_name.to_string(),
+            processor_names: vec![network_name.to_string()],
         });
         self.tasks.replace(tasks);
 
         // Add the processors
-        // DM: Since we use [ProcessorEcho], we also need to include the subscription in the publications so that it is "echoed" to the session!
+        // DM: Since we use [ProcessorEcho], we also need to include the subscription in the publications so that it is "echoed" to the network!
         let mut publications = subscriptions
             .map(|s| {
                 s.iter()
@@ -1098,17 +1098,17 @@ impl NetworkBuilderAppsTrait for NetworkBuilder {
                     AvailableInterfaceSubjects::from_str(subject_plan.get_name(), false)
                 {
                     // DM: Leave the option for AvailableInterfaceSubjects to be both subscriptions and publications
-                    // DM: Use publications/subscription policies that retain the information across sessions
-                    if subject.is_session_publication() {
+                    // DM: Use publications/subscription policies that retain the information across networks
+                    if subject.is_network_publication() {
                         publications.push(Publication::Extend {
                             subject_name: subject.to_string(),
                         });
                     }
-                    if subject.is_session_subscription() {
+                    if subject.is_network_subscription() {
                         subscriptions.push(Subscription::OnUpdateLastRecordBatch {
                             subject_name: subject.to_string(),
                         });
-                        // DM: Since we use [ProcessorEcho], we also need to include the subscription in the publications so that it is "echoed" to the session!
+                        // DM: Since we use [ProcessorEcho], we also need to include the subscription in the publications so that it is "echoed" to the network!
                         publications.push(Publication::Extend {
                             subject_name: subject.to_string(),
                         });
@@ -1117,7 +1117,7 @@ impl NetworkBuilderAppsTrait for NetworkBuilder {
             }
         }
         let mut processors = self.processors.take().unwrap_or_default();
-        let processor = AvailableProcessors::ProcessorEcho.build_arc(session_name.as_str());
+        let processor = AvailableProcessors::ProcessorEcho.build_arc(network_name.as_str());
         let processor_plan = ProcessorPlanBuilder::default()
             .with_processor(processor)
             .with_subscriptions(&subscriptions)
@@ -1134,19 +1134,19 @@ impl NetworkBuilderAppsTrait for NetworkBuilder {
     where
         Self: Sized,
     {
-        // Initialize the subjects num rows session
-        let subjects_session = CountSubjectRowsNetwork::default();
+        // Initialize the subjects num rows network
+        let subjects_network = CountSubjectRowsNetwork::default();
         let other_builder =
-            NetworkBuilder::from_mermaid_flowchart(subjects_session.as_mermaid_flowchart(), false)?
+            NetworkBuilder::from_mermaid_flowchart(subjects_network.as_mermaid_flowchart(), false)?
                 .with_subjects_from_mermaid_erdiagram(
-                    subjects_session.as_mermaid_erdiagram(),
+                    subjects_network.as_mermaid_erdiagram(),
                     false,
                     true,
                 )?
-                .with_name(subjects_session.network_name)
+                .with_name(subjects_network.network_name)
                 .add_processor_subjects()?;
 
-        // Extend the current session context builder
+        // Extend the current network context builder
         self.extend(other_builder)
     }
 
@@ -1154,7 +1154,7 @@ impl NetworkBuilderAppsTrait for NetworkBuilder {
     where
         Self: Sized,
     {
-        // Initialize the task subscribe and publish session
+        // Initialize the task subscribe and publish network
         let next_task_network = NextTaskNetwork::default();
         let other_builder = NetworkBuilder::from_mermaid_flowchart(
             next_task_network.as_mermaid_flowchart(),
@@ -1168,7 +1168,7 @@ impl NetworkBuilderAppsTrait for NetworkBuilder {
         .with_name(next_task_network.network_name)
         .add_processor_subjects()?;
 
-        // Extend the current session context builder
+        // Extend the current network context builder
         self.extend(other_builder)
     }
 
@@ -1176,7 +1176,7 @@ impl NetworkBuilderAppsTrait for NetworkBuilder {
     where
         Self: Sized,
     {
-        // Initialize the task subscribe and publish session
+        // Initialize the task subscribe and publish network
         let next_superstep_network = NextSuperstepNetwork::default();
         let other_builder = NetworkBuilder::from_mermaid_flowchart(
             next_superstep_network.as_mermaid_flowchart(),
@@ -1190,7 +1190,7 @@ impl NetworkBuilderAppsTrait for NetworkBuilder {
         .with_name(next_superstep_network.network_name)
         .add_processor_subjects()?;
 
-        // Extend the current session context builder
+        // Extend the current network context builder
         self.extend(other_builder)
     }
 }
@@ -1383,14 +1383,14 @@ mod tests {
 
     #[test]
     fn test_network_builder_apps_build_with_tables_success() -> Result<()> {
-        let (session, messages) =
-            test_network_builder_apps::make_test_network_builder_apps("session_1")?
+        let (network, messages) =
+            test_network_builder_apps::make_test_network_builder_apps("network_1")?
                 .build_with_tables()?;
-        assert_eq!(session.subjects().len(), 19);
-        assert_eq!(session.tasks().len(), 3);
-        assert_eq!(session.get_name(), "session_1");
-        assert_eq!(session.get_max_steps(), 25);
-        assert!(session.get_diagnostics());
+        assert_eq!(network.subjects().len(), 19);
+        assert_eq!(network.tasks().len(), 3);
+        assert_eq!(network.get_name(), "network_1");
+        assert_eq!(network.get_max_steps(), 25);
+        assert!(network.get_diagnostics());
         let mut keys = messages
             .unwrap()
             .keys()
@@ -1400,12 +1400,12 @@ mod tests {
         assert_eq!(
             keys,
             [
-                "SessionMermaid",
-                "SessionProcessors",
-                "SessionRuntimeEnvs",
-                "SessionSubjectSchemas",
-                "SessionTasks",
-                "SessionTasksRunLog",
+                "NetworkMermaid",
+                "NetworkProcessors",
+                "NetworkRuntimeEnvs",
+                "NetworkSubjectSchemas",
+                "NetworkTasks",
+                "NetworkTasksRunLog",
                 "SubjectsChangeLog",
                 "SubjectsNumRows",
                 "SubjectsObjectStoreMeta",
@@ -1421,29 +1421,29 @@ mod tests {
     }
 
     #[test]
-    fn test_network_builder_apps_build_with_tables_add_session_interface() -> Result<()> {
-        let (session, messages) =
-            test_network_builder_apps::make_test_network_builder_apps("session_1")?
+    fn test_network_builder_apps_build_with_tables_add_network_interface() -> Result<()> {
+        let (network, messages) =
+            test_network_builder_apps::make_test_network_builder_apps("network_1")?
                 .add_network_interface(Some(&["state_1"]))?
                 .build_with_tables()?;
-        assert_eq!(session.subjects().len(), 19);
-        assert_eq!(session.tasks().len(), 4);
+        assert_eq!(network.subjects().len(), 19);
+        assert_eq!(network.tasks().len(), 4);
         assert_eq!(
-            session.tasks().get("session_1").unwrap().get_name(),
-            "session_1"
+            network.tasks().get("network_1").unwrap().get_name(),
+            "network_1"
         );
-        let test = session
+        let test = network
             .tasks()
-            .get("session_1")
+            .get("network_1")
             .unwrap()
             .get_processors()
             .iter()
             .map(|p| p.get_name())
             .collect::<Vec<_>>();
-        assert_eq!(test, ["session_1"]);
-        assert_eq!(session.get_name(), "session_1");
-        assert_eq!(session.get_max_steps(), 25);
-        assert!(session.get_diagnostics());
+        assert_eq!(test, ["network_1"]);
+        assert_eq!(network.get_name(), "network_1");
+        assert_eq!(network.get_max_steps(), 25);
+        assert!(network.get_diagnostics());
         let mut keys = messages
             .unwrap()
             .keys()
@@ -1453,12 +1453,12 @@ mod tests {
         assert_eq!(
             keys,
             [
-                "SessionMermaid",
-                "SessionProcessors",
-                "SessionRuntimeEnvs",
-                "SessionSubjectSchemas",
-                "SessionTasks",
-                "SessionTasksRunLog",
+                "NetworkMermaid",
+                "NetworkProcessors",
+                "NetworkRuntimeEnvs",
+                "NetworkSubjectSchemas",
+                "NetworkTasks",
+                "NetworkTasksRunLog",
                 "SubjectsChangeLog",
                 "SubjectsNumRows",
                 "SubjectsObjectStoreMeta",
@@ -1520,7 +1520,7 @@ mod tests {
                 .build()?,
         );
         let result = NetworkBuilder::new()
-            .with_name("session_1")
+            .with_name("network_1")
             .with_tasks(task_plans.clone())
             .with_processors(processor_plans)
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
@@ -1549,8 +1549,8 @@ mod tests {
                 .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()?,
         );
-        let (session, messages) = NetworkBuilder::new()
-            .with_name("session_1")
+        let (network, messages) = NetworkBuilder::new()
+            .with_name("network_1")
             .with_tasks(task_plans)
             .with_processors(processor_plans)
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
@@ -1558,10 +1558,10 @@ mod tests {
             .with_subjects(subjects_plan.clone())
             .add_processor_subjects()?
             .build_with_tables()?;
-        assert_eq!(session.subjects().len(), 20);
-        assert_eq!(session.tasks().len(), 4);
-        assert_eq!(session.get_name(), "session_1");
-        assert_eq!(session.get_max_steps(), 25);
+        assert_eq!(network.subjects().len(), 20);
+        assert_eq!(network.tasks().len(), 4);
+        assert_eq!(network.get_name(), "network_1");
+        assert_eq!(network.get_max_steps(), 25);
         let mut keys = messages
             .unwrap()
             .keys()
@@ -1571,12 +1571,12 @@ mod tests {
         assert_eq!(
             keys,
             [
-                "SessionMermaid",
-                "SessionProcessors",
-                "SessionRuntimeEnvs",
-                "SessionSubjectSchemas",
-                "SessionTasks",
-                "SessionTasksRunLog",
+                "NetworkMermaid",
+                "NetworkProcessors",
+                "NetworkRuntimeEnvs",
+                "NetworkSubjectSchemas",
+                "NetworkTasks",
+                "NetworkTasksRunLog",
                 "SubjectsChangeLog",
                 "SubjectsNumRows",
                 "SubjectsObjectStoreMeta",
@@ -1621,7 +1621,7 @@ mod tests {
         let result = NetworkBuilder::new()
             .with_tasks(test_network_builder::make_test_network_builder_parallel_tasks())
             .with_processors(test_network_builder_apps::make_test_processors_agents()?)
-            .with_name("session_1")
+            .with_name("network_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plans)
             .with_diagnostics(true)
@@ -1663,7 +1663,7 @@ mod tests {
         let result = NetworkBuilder::new()
             .with_tasks(test_network_builder::make_test_network_builder_parallel_tasks())
             .with_processors(test_network_builder_apps::make_test_processors_agents()?)
-            .with_name("session_1")
+            .with_name("network_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plans)
             .with_diagnostics(true)
@@ -1706,7 +1706,7 @@ mod tests {
         let result = NetworkBuilder::new()
             .with_tasks(test_network_builder::make_test_network_builder_parallel_tasks())
             .with_processors(test_network_builder_apps::make_test_processors_agents()?)
-            .with_name("session_1")
+            .with_name("network_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plans)
             .with_diagnostics(true)
@@ -1748,7 +1748,7 @@ mod tests {
         let result = NetworkBuilder::new()
             .with_tasks(test_network_builder::make_test_network_builder_parallel_tasks())
             .with_processors(test_network_builder_apps::make_test_processors_agents()?)
-            .with_name("session_1")
+            .with_name("network_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plans)
             .with_diagnostics(true)
@@ -1787,7 +1787,7 @@ mod tests {
         let result = NetworkBuilder::new()
             .with_tasks(test_network_builder::make_test_network_builder_parallel_tasks())
             .with_processors(test_network_builder_apps::make_test_processors_agents()?)
-            .with_name("session_1")
+            .with_name("network_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plans)
             .with_diagnostics(true)
@@ -1826,7 +1826,7 @@ mod tests {
         let result = NetworkBuilder::new()
             .with_tasks(test_network_builder::make_test_network_builder_parallel_tasks())
             .with_processors(test_network_builder_apps::make_test_processors_agents()?)
-            .with_name("session_1")
+            .with_name("network_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plans)
             .with_diagnostics(true)

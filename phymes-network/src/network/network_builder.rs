@@ -15,15 +15,15 @@ use phymes_task::{Task, TaskBuilderTrait, TaskMap, TaskPlan};
 use crate::Network;
 
 pub trait NetworkBuilderTrait: BuilderTrait {
-    /// The [ProcessorPlan]s to include in the session
+    /// The [ProcessorPlan]s to include in the network
     fn with_processors(self, processors: Vec<ProcessorPlan>) -> Self;
-    /// The [SubjectPlan]s with optional initial subject [Subject]s to launch the session with
+    /// The [SubjectPlan]s with optional initial subject [Subject]s to launch the network with
     fn with_subjects(self, subjects: Vec<SubjectPlan>) -> Self;
-    /// The [RuntimeEnv] configuration for session execution
+    /// The [RuntimeEnv] configuration for network execution
     fn with_runtime_env(self, runtime_env: Arc<RuntimeEnv>) -> Self;
-    /// The [TaskPlan]s to include in the session
+    /// The [TaskPlan]s to include in the network
     fn with_tasks(self, tasks: Vec<TaskPlan>) -> Self;
-    /// Whether to measure diagnostics during the session execution or not
+    /// Whether to measure diagnostics during the network execution or not
     fn with_diagnostics(self, diagnostics: bool) -> Self;
     /// Check that the [TaskPlan] and `name are given
     fn check_tasks(&self) -> Result<()>;
@@ -208,7 +208,7 @@ impl NetworkBuilder {
             .collect::<HashMap<_, _>>();
 
         let name = self.name.ok_or(anyhow!(
-            "Please give the session a name before attempting to build the network."
+            "Please give the network a name before attempting to build the network."
         ))?;
         Ok((
             name,
@@ -220,7 +220,7 @@ impl NetworkBuilder {
         ))
     }
 
-    /// Extend a session with another
+    /// Extend a network with another
     pub fn extend(mut self, other: NetworkBuilder) -> Result<Self> {
         // Extend the subjects
         let other_subjects = if let Some(subjects) = self.subjects.as_ref() {
@@ -385,7 +385,7 @@ impl BuilderTrait for NetworkBuilder {
             })
             .collect();
 
-        // ready to build the session
+        // ready to build the network
         let network = Network::new(name, tasks, schemas, runtime_env, diagnostics);
         Ok((network, Some(messages?)))
     }
@@ -415,7 +415,7 @@ impl NetworkBuilderTrait for NetworkBuilder {
     fn check_tasks(&self) -> Result<()> {
         if self.name.is_none() {
             return Err(anyhow!(
-                "Please give the session a name before attempting to build the network."
+                "Please give the network a name before attempting to build the network."
             ));
         }
 
@@ -491,7 +491,7 @@ impl NetworkBuilderTrait for NetworkBuilder {
     }
 }
 
-/// Mock objects and functions for session context builer testing
+/// Mock objects and functions for network context builer testing
 pub mod test_network_builder {
     use phymes_event::AvailableSubscribeEvents;
     use phymes_processor::{AvailableProcessors, ProcessorPlanBuilder};
@@ -583,7 +583,7 @@ pub mod test_network_builder {
                 .unwrap(),
         ];
 
-        // Build the session
+        // Build the network
         NetworkBuilder::new()
             .with_tasks(make_test_network_builder_parallel_tasks())
             .with_processors(processor_plans)
@@ -642,7 +642,7 @@ pub mod test_network_builder {
                 .unwrap(),
         ];
 
-        // Build the session
+        // Build the network
         NetworkBuilder::new()
             .with_tasks(make_test_network_builder_sequential_tasks())
             .with_processors(processor_plans)
@@ -791,14 +791,14 @@ mod tests {
 
     #[test]
     fn test_network_builder_extend_duplicate() -> Result<()> {
-        let plan = test_network_builder::make_test_network_builder_parallel("session_1", 25)?;
+        let plan = test_network_builder::make_test_network_builder_parallel("network_1", 25)?;
         let plan = plan.extend(test_network_builder::make_test_network_builder_parallel(
-            "session_1",
+            "network_1",
             25,
         )?)?;
         assert_eq!(
             plan,
-            test_network_builder::make_test_network_builder_parallel("session_1", 25)?
+            test_network_builder::make_test_network_builder_parallel("network_1", 25)?
         );
 
         Ok(())
@@ -838,10 +838,10 @@ mod tests {
             .with_runtime_env(test_task::make_runtime_env("rt_4")?)
             .with_subjects(subject_plans)
             .with_diagnostics(false);
-        let plan = test_network_builder::make_test_network_builder_parallel("session_1", 25)?
+        let plan = test_network_builder::make_test_network_builder_parallel("network_1", 25)?
             .with_diagnostics(true);
         let plan = plan.extend(other_plan)?;
-        assert_eq!(plan.name.unwrap(), "session_1");
+        assert_eq!(plan.name.unwrap(), "network_1");
         assert!(plan.diagnostics.unwrap());
         let names = plan
             .tasks
@@ -887,14 +887,14 @@ mod tests {
 
     #[test]
     fn test_network_builder_build_success() -> Result<()> {
-        let (session, messages) =
-            test_network_builder::make_test_network_builder_parallel("session_1", 25)?
+        let (network, messages) =
+            test_network_builder::make_test_network_builder_parallel("network_1", 25)?
                 .with_diagnostics(true)
                 .build()?;
-        assert_eq!(session.runtime_env.name, "rt_1");
-        assert_eq!(session.tasks().len(), 3);
-        assert_eq!(session.get_name(), "session_1");
-        assert!(session.get_diagnostics());
+        assert_eq!(network.runtime_env.name, "rt_1");
+        assert_eq!(network.tasks().len(), 3);
+        assert_eq!(network.get_name(), "network_1");
+        assert!(network.get_diagnostics());
         let mut keys = messages
             .unwrap()
             .keys()
@@ -922,7 +922,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Please give the session a name before attempting to build the network."
+                "Please give the network a name before attempting to build the network."
             ),
         }
         Ok(())
@@ -930,7 +930,7 @@ mod tests {
 
     #[test]
     fn test_network_builder_build_fail_missing_plan() -> Result<()> {
-        let result = NetworkBuilder::new().with_name("session_1").build();
+        let result = NetworkBuilder::new().with_name("network_1").build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -945,7 +945,7 @@ mod tests {
     fn test_network_builder_build_fail_missing_processor() -> Result<()> {
         // No tasks
         let result = NetworkBuilder::new()
-            .with_name("session_1")
+            .with_name("network_1")
             .with_tasks(test_network_builder::make_test_network_builder_parallel_tasks())
             .build();
         match result {
@@ -972,7 +972,7 @@ mod tests {
                 .build()?,
         ];
         let result = NetworkBuilder::new()
-            .with_name("session_1")
+            .with_name("network_1")
             .with_tasks(test_network_builder::make_test_network_builder_parallel_tasks())
             .with_processors(processors)
             .build();
@@ -1012,7 +1012,7 @@ mod tests {
                 .build()?,
         ];
         let result = NetworkBuilder::new()
-            .with_name("session_1")
+            .with_name("network_1")
             .with_tasks(test_network_builder::make_test_network_builder_parallel_tasks())
             .with_processors(processors)
             .build();
@@ -1030,7 +1030,7 @@ mod tests {
     fn test_network_builder_build_fail_missing_runtime_env() -> Result<()> {
         // No runtime env
         let result = test_network_builder::make_test_network_builder_parallel_processors()
-            .with_name("session_1")
+            .with_name("network_1")
             .build();
         match result {
             Ok(_) => panic!("Should have failed"),
@@ -1042,7 +1042,7 @@ mod tests {
 
         // Missing runtime env
         let result = test_network_builder::make_test_network_builder_parallel_processors()
-            .with_name("session_1")
+            .with_name("network_1")
             .build();
         match result {
             Ok(_) => panic!("Should have failed"),
@@ -1059,7 +1059,7 @@ mod tests {
     fn test_network_builder_build_fail_missing_state() -> Result<()> {
         // No state
         let result = test_network_builder::make_test_network_builder_parallel_processors()
-            .with_name("session_1")
+            .with_name("network_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .build();
         match result {
@@ -1079,7 +1079,7 @@ mod tests {
         }
 
         let result = test_network_builder::make_test_network_builder_parallel_processors()
-            .with_name("session_1")
+            .with_name("network_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subject_plans)
             .build();
@@ -1101,7 +1101,7 @@ mod tests {
             subject_plans.push(plan);
         }
         let result = test_network_builder::make_test_network_builder_parallel_processors()
-            .with_name("session_1")
+            .with_name("network_1")
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subject_plans)
             .build();

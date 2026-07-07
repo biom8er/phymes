@@ -177,7 +177,7 @@ mod tests {
                 subject.subject_own().get_record_batches_own(),
                 0,
                 "",
-                "test_session",
+                "test_network",
             )?
             .unwrap()
             .try_collect()
@@ -192,7 +192,7 @@ mod tests {
             &subscriptions,
             &publications,
             &runtime_env,
-            "test_session",
+            "test_network",
             &mut stream,
         )?;
         assert_eq!(messages.len(), 2);
@@ -242,7 +242,7 @@ mod tests {
             &subscriptions,
             &publications,
             &runtime_env,
-            "test_session",
+            "test_network",
             &mut stream,
         )?;
         assert_eq!(messages.len(), 3);
@@ -294,7 +294,7 @@ mod tests {
             &subscriptions,
             &publications,
             &runtime_env,
-            "test_session",
+            "test_network",
             &mut stream,
         )?;
         assert_eq!(messages.len(), 2);

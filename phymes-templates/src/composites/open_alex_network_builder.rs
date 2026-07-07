@@ -1093,7 +1093,7 @@ impl Default for OpenAlexNetworkBuilder {
         };
         let open_alex_network_builder = open_alex_network_builder.extend(network_builder).unwrap();
 
-        // Extract PDF session
+        // Extract PDF network
         let extract_pdf_network_builder = ExtractPDFNetworkBuilder::default().inner.take().unwrap();
         let open_alex_network_builder = open_alex_network_builder
             .extend(extract_pdf_network_builder)
@@ -1567,7 +1567,7 @@ impl Default for OpenAlexNetworkBuilder {
             .extend(extract_owl_network_builder)
             .unwrap();
 
-        // Embed text session
+        // Embed text network
         let embed_text_network = EmbedTextNetworkBuilder::default();
         let embed_text_network_builder = NetworkBuilder::from_mermaid_flowchart(
             &embed_text_network.as_mermaid_flowchart(),
@@ -1585,7 +1585,7 @@ impl Default for OpenAlexNetworkBuilder {
             .extend(embed_text_network_builder)
             .unwrap();
 
-        // Retrieve text session
+        // Retrieve text network
         let retrieve_text_network = RetrieveTextNetworkBuilder::default();
         let retrieve_text_builder = NetworkBuilder::from_mermaid_flowchart(
             retrieve_text_network.as_mermaid_flowchart(),
@@ -1638,10 +1638,10 @@ mod tests {
     #[ignore = "In progress... `cargo test -p phymes-templates test_open_alex_network_v_rust --features api,gpu,hf_hub --release -- --nocapture`"]
     #[tokio::test]
     async fn test_open_alex_network_v_rust() -> Result<()> {
-        // Initialize the session
+        // Initialize the network
         let open_alex_network_builder = OpenAlexNetworkBuilder::default().inner.take().unwrap();
         let network_name = open_alex_network_builder.name.clone().unwrap();
-        let (network, session_messages) = open_alex_network_builder
+        let (network, network_messages) = open_alex_network_builder
             .with_runtime_env(
                 RuntimeEnv::get_builder()
                     .with_name(
@@ -1659,7 +1659,7 @@ mod tests {
             .build_with_tables()?;
         let network_arc = Arc::new(network);
 
-        // Make the test session data
+        // Make the test network data
         let mut message_map = HashMap::<String, IPCMessage>::new();
 
         // Make the list of paths to Get
@@ -1757,10 +1757,10 @@ mod tests {
         );
 
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
-        // 1. Run the session
+        // 1. Run the network
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
@@ -2190,7 +2190,7 @@ mod tests {
         //                 .build()?,
         //         );
 
-        //         // 2. Run the session
+        //         // 2. Run the network
         //         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         //         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
@@ -2208,7 +2208,7 @@ mod tests {
         //             .await?;
 
         // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-        //     subject_name: AvailableSubjects::SessionErrors.to_string(),
+        //     subject_name: AvailableSubjects::NetworkErrors.to_string(),
         // }
         // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         // .unwrap()
@@ -2216,17 +2216,17 @@ mod tests {
         // .await?;
         // if !batches.is_empty() {
         //     let subject = Subject::get_builder()
-        //         .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+        //         .with_name(AvailableSubjects::NetworkErrors.to_string().as_str())
         //         .with_record_batches(batches)?
         //         .build()?;
         //     println!(
         //         "{}\n{}",
-        //         AvailableSubjects::SessionErrors,
+        //         AvailableSubjects::NetworkErrors,
         //         String::from_utf8(subject.to_csv(b',', true)?)?
         //     );
         // }
         // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-        //     subject_name: AvailableSubjects::SessionEvents.to_string(),
+        //     subject_name: AvailableSubjects::NetworkEvents.to_string(),
         // }
         // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         // .unwrap()
@@ -2234,17 +2234,17 @@ mod tests {
         // .await?;
         // if !batches.is_empty() {
         //     let subject = Subject::get_builder()
-        //         .with_name(AvailableSubjects::SessionEvents.to_string().as_str())
+        //         .with_name(AvailableSubjects::NetworkEvents.to_string().as_str())
         //         .with_record_batches(batches)?
         //         .build()?;
         //     println!(
         //         "{}\n{}",
-        //         AvailableSubjects::SessionEvents,
+        //         AvailableSubjects::NetworkEvents,
         //         String::from_utf8(subject.to_csv(b',', true)?)?
         //     );
         // }
         // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-        //     subject_name: AvailableSubjects::SessionMetrics.to_string(),
+        //     subject_name: AvailableSubjects::NetworkMetrics.to_string(),
         // }
         // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         // .unwrap()
@@ -2252,12 +2252,12 @@ mod tests {
         // .await?;
         // if !batches.is_empty() {
         //     let subject = Subject::get_builder()
-        //         .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
+        //         .with_name(AvailableSubjects::NetworkTraces.to_string().as_str())
         //         .with_record_batches(batches)?
         //         .build()?;
         //     println!(
         //         "{}\n{}",
-        //         AvailableSubjects::SessionTraces,
+        //         AvailableSubjects::NetworkTraces,
         //         String::from_utf8(subject.to_csv(b',', true)?)?
         //     );
         // }

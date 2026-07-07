@@ -6,7 +6,7 @@ use phymes_message::{
     MessageBuilderTrait, NetworkInterfaceMessage, NetworkInterfaceMessageBuilderTrait,
 };
 use phymes_schemas::{create_attachments_batch, DataFormat};
-use phymes_server::create_session_name;
+use phymes_server::create_network_name;
 use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 
 #[cfg(not(feature = "serverless"))]
@@ -151,12 +151,12 @@ pub fn attach_files_input(
 
                             // Create the message to upload
                             let data = NetworkInterfaceMessage::get_builder()
-                                .with_session_name(&create_session_name(
+                                .with_network_name(&create_network_name(
                                     EMAIL().as_str(),
                                     ACTIVE_SESSION_NAME().as_str(),
                                 ))
                                 .with_format(&format)
-                                .with_publisher(&create_session_name(
+                                .with_publisher(&create_network_name(
                                     EMAIL().as_str(),
                                     ACTIVE_SESSION_NAME().as_str(),
                                 ))
@@ -421,9 +421,9 @@ pub fn download_files_button(
                 extensions_downloaded.set(Vec::new());
 
                 let data = NetworkInterfaceMessage::get_builder()
-                    .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                    .with_network_name(&create_network_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                     .with_format(&data_format())
-                    .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                    .with_publisher(&create_network_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                     .with_update(&Publication::None)
                     .with_stream(false)
                     .with_subject(&active_subject_name.read())

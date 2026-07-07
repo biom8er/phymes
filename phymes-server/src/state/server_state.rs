@@ -21,7 +21,7 @@ use phymes_subject::{
 use phymes_task::SubscriptionTrait;
 use phymes_templates::AvailableNetworks;
 
-use crate::handlers::create_session_name;
+use crate::handlers::create_network_name;
 
 /// The user state
 ///
@@ -44,14 +44,14 @@ impl UserState {
         user_network_name: Option<&str>,
         runtime_env: &Arc<RuntimeEnv>,
     ) -> Result<Self> {
-        let session_name = user_network_name.unwrap_or("Users");
+        let network_name = user_network_name.unwrap_or("Users");
         let (network_arc, network_messages) = AvailableNetworks::get_network_stream_state_by_name(
             "Users",
-            session_name,
+            network_name,
             runtime_env,
         )?;
 
-        // Write the session messages to the store
+        // Write the network messages to the store
         let _ = network_arc
             .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
@@ -80,14 +80,14 @@ impl UserState {
             .build()?;
         let message_map = create_message_map(vec![message]);
 
-        // Run the tasks for the user session
+        // Run the tasks for the user network
         let network_stream = NetworkStream::new(message_map, self.users.clone());
         let _response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         // Parse out the results
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::User.to_string() }
 			.subscribe_to_subject(self.users.runtime_env(), self.users.get_name())?
-			.ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` while getting the user by email.", 
+			.ok_or(anyhow!("Unable to get the subject `{}` from object storage for network `{}` while getting the user by email.", 
 				AvailableSubjects::User,
 				self.users.get_name()
 			))?
@@ -101,7 +101,7 @@ impl UserState {
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::JoinUserInboxNetworksMermaid.to_string() }
 			.subscribe_to_subject(self.users.runtime_env(), self.users.get_name())?
-			.ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` while getting the user by email.", 
+			.ok_or(anyhow!("Unable to get the subject `{}` from object storage for network `{}` while getting the user by email.", 
 				AvailableSubjects::JoinUserInboxNetworksMermaid,
 				self.users.get_name()
 			))?
@@ -151,7 +151,7 @@ impl UserState {
         // Create the update message
         let user_networks_message = IPCMessageBuilder::new()
             .with_subject(AvailableSubjects::UserNetworks.to_string().as_str())
-            .with_publisher(&create_session_name(email, self.users.get_name()))
+            .with_publisher(&create_network_name(email, self.users.get_name()))
             .with_message(user_networks_bytes)
             .with_update(&Publication::Extend {
                 subject_name: AvailableSubjects::UserNetworks.to_string(),
@@ -160,7 +160,7 @@ impl UserState {
             .build()?;
         let mermaid_message = IPCMessageBuilder::new()
             .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
-            .with_publisher(&create_session_name(email, self.users.get_name()))
+            .with_publisher(&create_network_name(email, self.users.get_name()))
             .with_message(mermaid_bytes)
             .with_update(&Publication::Extend {
                 subject_name: AvailableSubjects::BuilderMermaid.to_string(),
@@ -169,7 +169,7 @@ impl UserState {
             .build()?;
         let message_map = create_message_map(vec![user_networks_message, mermaid_message]);
 
-        // Update the session state with the new message
+        // Update the network state with the new message
         let (changelog, meta, _errors) = self
             .users
             .update_subjects_from_messages(message_map, 0)
@@ -213,17 +213,17 @@ impl UserState {
 /// # Notes
 ///
 /// The server state is composed of two parts:
-/// 1. the session contexts which store the available sessions for each user
-/// 2. the user session names cache which store session context names per user
+/// 1. the network contexts which store the available networks for each user
+/// 2. the user network names cache which store network context names per user
 ///
 /// A default user "contact at biom8er dot com" is created upon initialization
 #[derive(Clone)]
 pub struct ServerState {
-    /// Session context
-    /// HashMap of sessions indexed by session name
-    ///   where the session name = session_name + user_name
+    /// Network context
+    /// HashMap of networks indexed by network name
+    ///   where the network name = network_name + user_name
     pub networks: Arc<RwLock<HashMap<String, Arc<Network>>>>,
-    /// Cache of user session_names indexed by user_name
+    /// Cache of user network_names indexed by user_name
     pub user_network_names: Arc<RwLock<HashMap<String, Vec<String>>>>,
 }
 
@@ -242,29 +242,29 @@ impl ServerState {
         }
     }
 
-    /// Create the sessions
+    /// Create the networks
     ///
     /// # Arguments
     ///
-    /// `user_networks` - &[JoinUserInboxNetworksMermaidDiagrams], session plans to create for the user
-    /// `make_networks` - makes the session contexts if true or just returns the session names if false
+    /// `user_networks` - &[JoinUserInboxNetworksMermaidDiagrams], network plans to create for the user
+    /// `make_networks` - makes the network contexts if true or just returns the network names if false
     ///
     /// # Returns
     ///
-    /// `Vec<String>` of created session_names
+    /// `Vec<String>` of created network_names
     pub async fn make_networks(
         &mut self,
         user_networks: &[JoinUserInboxNetworksMermaidDiagrams],
         make_networks: bool,
         runtime_env: &Arc<RuntimeEnv>,
     ) -> Result<Vec<String>> {
-        let mut session_names = Vec::new();
+        let mut network_names = Vec::new();
         for user_network in user_networks {
-            // Create the session name
-            let network_name = create_session_name(&user_network.email, &user_network.network_name);
+            // Create the network name
+            let network_name = create_network_name(&user_network.email, &user_network.network_name);
 
             if make_networks {
-                // Create the session stream state if it does not yet exist
+                // Create the network stream state if it does not yet exist
                 if self
                     .networks
                     .try_read()
@@ -276,10 +276,10 @@ impl ServerState {
                         &user_network.network_name,
                         &network_name
                     );
-                } else if AvailableNetworks::get_all_session_plan_names()
+                } else if AvailableNetworks::get_all_network_plan_names()
                     .contains(&user_network.network_name)
                 {
-                    // Prioritize the available session plans with initialized configs and other state
+                    // Prioritize the available network plans with initialized configs and other state
                     let (network_arc, network_messages) =
                         AvailableNetworks::get_network_stream_state_by_name(
                             &user_network.network_name,
@@ -287,12 +287,12 @@ impl ServerState {
                             runtime_env,
                         )?;
 
-                    // Write the session messages to the store
+                    // Write the network messages to the store
                     let _ = network_arc
                         .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
                         .await;
 
-                    // Add the session stream state to the state
+                    // Add the network stream state to the state
                     let _ = self
                         .networks
                         .try_write()
@@ -304,8 +304,8 @@ impl ServerState {
                         &network_name
                     );
                 } else {
-                    // Build the session stream state with tables from Mermaid
-                    // and leave the upload of configs and other initial session state to another step
+                    // Build the network stream state with tables from Mermaid
+                    // and leave the upload of configs and other initial network state to another step
                     // DM: turn agent subject tests back on after refactoring BuilderNetwork
                     let (network, network_messages) = NetworkBuilder::from_mermaid_flowchart(
                         &user_network.flowchart_diagram,
@@ -322,19 +322,19 @@ impl ServerState {
                     .build_with_tables()?;
                     let network_arc = Arc::new(network);
 
-                    // Write the session messages to the store
+                    // Write the network messages to the store
                     let _ = network_arc
                         .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
                         .await;
 
-                    // Add the session stream state to the state
+                    // Add the network stream state to the state
                     let _ = self
                         .networks
                         .try_write()
                         .unwrap()
                         .insert(network_name.to_string(), network_arc);
                     tracing::debug!(
-                        "Creating network {} for session_name {} from mermaid diagrams.",
+                        "Creating network {} for network_name {} from mermaid diagrams.",
                         &user_network.network_name,
                         &network_name
                     );
@@ -360,9 +360,9 @@ impl ServerState {
                     );
                 }
             }
-            session_names.push(network_name);
+            network_names.push(network_name);
         }
-        Ok(session_names)
+        Ok(network_names)
     }
 }
 
@@ -468,11 +468,11 @@ mod tests {
         let user = UserState::new(None, &runtime_env).await?;
         let (_user_info, user_networks) = user.get_user_by_email("contact@biom8er.com").await?;
         let mut state = ServerState::new();
-        let session_names = state
+        let network_names = state
             .make_networks(&user_networks, true, &runtime_env)
             .await?;
         assert_eq!(
-            session_names
+            network_names
                 .iter()
                 .map(|s| s.to_string())
                 .collect::<HashSet<_>>(),
@@ -494,7 +494,7 @@ mod tests {
                 .keys()
                 .map(|s| s.to_owned())
                 .collect::<HashSet<_>>(),
-            session_names
+            network_names
                 .iter()
                 .map(|s| s.to_string())
                 .collect::<HashSet<_>>()

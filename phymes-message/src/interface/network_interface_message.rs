@@ -6,14 +6,14 @@ use phymes_event::Publication;
 use phymes_schemas::DataFormat;
 use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait};
 
-/// Composition of [MessageTrait] with additional functions for inter-session communication
+/// Composition of [MessageTrait] with additional functions for inter-network communication
 pub trait NetworkInterfaceMessageTrait: MessageTrait {
-    fn get_session_name(&self) -> &str;
+    fn get_network_name(&self) -> &str;
     fn get_format(&self) -> &DataFormat;
     fn get_stream(&self) -> &bool;
 }
 
-/// Message format that can be communicated between different sessions
+/// Message format that can be communicated between different networks
 ///   with different data formats
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
 pub struct NetworkInterfaceMessage {
@@ -27,8 +27,8 @@ pub struct NetworkInterfaceMessage {
     message: Vec<u8>,
     /// How to update the state
     update: Publication,
-    /// The name of the session
-    session_name: String,
+    /// The name of the network
+    network_name: String,
     /// Format of the message
     format: DataFormat,
     /// Stream the response
@@ -43,7 +43,7 @@ impl NetworkInterfaceMessage {
         publisher: &str,
         message: Option<Vec<u8>>,
         update: Option<Publication>,
-        session_name: &str,
+        network_name: &str,
         format: &DataFormat,
         stream: bool,
     ) -> Self {
@@ -53,7 +53,7 @@ impl NetworkInterfaceMessage {
             publisher: publisher.to_string(),
             message: message.unwrap_or_default(),
             update: update.unwrap_or_default(),
-            session_name: session_name.to_string(),
+            network_name: network_name.to_string(),
             format: format.to_owned(),
             stream,
         }
@@ -99,8 +99,8 @@ impl MessageTrait for NetworkInterfaceMessage {
 }
 
 impl NetworkInterfaceMessageTrait for NetworkInterfaceMessage {
-    fn get_session_name(&self) -> &str {
-        &self.session_name
+    fn get_network_name(&self) -> &str {
+        &self.network_name
     }
     fn get_format(&self) -> &DataFormat {
         &self.format
@@ -111,7 +111,7 @@ impl NetworkInterfaceMessageTrait for NetworkInterfaceMessage {
 }
 
 pub trait NetworkInterfaceMessageBuilderTrait: MessageBuilderTrait {
-    fn with_session_name(self, session_name: &str) -> Self;
+    fn with_network_name(self, network_name: &str) -> Self;
     fn with_format(self, format: &DataFormat) -> Self;
     fn with_stream(self, stream: bool) -> Self;
 }
@@ -128,8 +128,8 @@ pub struct NetworkInterfaceMessageBuilder {
     pub message: Option<Vec<u8>>,
     /// How to update the state
     pub update: Option<Publication>,
-    /// The name of the session
-    pub session_name: Option<String>,
+    /// The name of the network
+    pub network_name: Option<String>,
     /// Format of the message
     pub format: Option<DataFormat>,
     /// Stream the response
@@ -145,7 +145,7 @@ impl BuilderTrait for NetworkInterfaceMessageBuilder {
             publisher: None,
             message: None,
             update: None,
-            session_name: None,
+            network_name: None,
             format: None,
             stream: None,
         }
@@ -168,7 +168,7 @@ impl BuilderTrait for NetworkInterfaceMessageBuilder {
             publisher: self.publisher.unwrap_or_default(),
             message: self.message.unwrap_or_default(),
             update: self.update.unwrap(),
-            session_name: self.session_name.unwrap_or_default(),
+            network_name: self.network_name.unwrap_or_default(),
             format: self.format.unwrap(),
             stream: self.stream.unwrap_or_default(),
         })
@@ -198,11 +198,11 @@ impl MessageBuilderTrait for NetworkInterfaceMessageBuilder {
             Some(ref s) => s,
             None => return Err(anyhow!("Cannot make name without subject name")),
         };
-        let session_name = match self.session_name {
+        let network_name = match self.network_name {
             Some(ref s) => s,
-            None => return Err(anyhow!("Cannot make name without session name")),
+            None => return Err(anyhow!("Cannot make name without network name")),
         };
-        let name = format!("from_{publisher}_on_{subject}_in_{session_name}");
+        let name = format!("from_{publisher}_on_{subject}_in_{network_name}");
         Ok(self.with_name(&name))
     }
     fn make_random_name(self) -> Result<Self>
@@ -239,8 +239,8 @@ impl MessageBuilderTrait for NetworkInterfaceMessageBuilder {
 }
 
 impl NetworkInterfaceMessageBuilderTrait for NetworkInterfaceMessageBuilder {
-    fn with_session_name(mut self, session_name: &str) -> Self {
-        self.session_name = Some(session_name.to_string());
+    fn with_network_name(mut self, network_name: &str) -> Self {
+        self.network_name = Some(network_name.to_string());
         self
     }
     fn with_format(mut self, format: &DataFormat) -> Self {

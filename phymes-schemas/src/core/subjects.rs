@@ -38,7 +38,7 @@ pub fn create_subjects_num_rows_batch(
 }
 
 pub(crate) fn create_subjects_change_log_fields() -> Fields {
-    let field_names = ["subject_name", "task_name", "session_name"];
+    let field_names = ["subject_name", "task_name", "network_name"];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -56,19 +56,19 @@ pub(crate) fn create_subjects_change_log_fields() -> Fields {
 pub fn create_subjects_change_log_batch(
     subject_names: Vec<String>,
     task_names: Vec<String>,
-    session_names: Vec<String>,
+    network_names: Vec<String>,
     num_rows: Vec<i64>,
     supersteps: Vec<i64>,
 ) -> Result<RecordBatch> {
     let subject_names: ArrayRef = Arc::new(StringArray::from(subject_names));
     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
-    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let network_names: ArrayRef = Arc::new(StringArray::from(network_names));
     let num_rows: ArrayRef = Arc::new(Int64Array::from(num_rows));
     let supersteps: ArrayRef = Arc::new(Int64Array::from(supersteps));
     let batch = RecordBatch::try_from_iter(vec![
         ("subject_name", subject_names),
         ("task_name", task_names),
-        ("session_name", session_names),
+        ("network_name", network_names),
         ("num_rows", num_rows),
         ("superstep", supersteps),
     ])?;
@@ -76,7 +76,7 @@ pub fn create_subjects_change_log_batch(
 }
 
 pub(crate) fn create_subjects_object_store_meta_fields() -> Fields {
-    let field_names = ["subject_name", "task_name", "session_name"];
+    let field_names = ["subject_name", "task_name", "network_name"];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -96,7 +96,7 @@ pub(crate) fn create_subjects_object_store_meta_fields() -> Fields {
 pub fn create_subjects_object_store_meta_batch(
     subject_names: Vec<String>,
     task_names: Vec<String>,
-    session_names: Vec<String>,
+    network_names: Vec<String>,
     num_rows: Vec<i64>,
     supersteps: Vec<i64>,
     location: Vec<String>,
@@ -108,7 +108,7 @@ pub fn create_subjects_object_store_meta_batch(
 ) -> Result<RecordBatch> {
     let subject_names: ArrayRef = Arc::new(StringArray::from(subject_names));
     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
-    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let network_names: ArrayRef = Arc::new(StringArray::from(network_names));
     let num_rows: ArrayRef = Arc::new(Int64Array::from(num_rows));
     let supersteps: ArrayRef = Arc::new(Int64Array::from(supersteps));
     let location: ArrayRef = Arc::new(StringArray::from(location));
@@ -120,7 +120,7 @@ pub fn create_subjects_object_store_meta_batch(
     let batch = RecordBatch::try_from_iter(vec![
         ("subject_name", subject_names),
         ("task_name", task_names),
-        ("session_name", session_names),
+        ("network_name", network_names),
         ("num_rows", num_rows),
         ("superstep", supersteps),
         ("location", location),
@@ -134,7 +134,7 @@ pub fn create_subjects_object_store_meta_batch(
 }
 
 // pub(crate) fn create_group_by_subject_change_log_delta_fields() -> Fields {
-//     let field_names = ["subject_name", "task_name", "session_name"];
+//     let field_names = ["subject_name", "task_name", "network_name"];
 //     let mut fields_vec = field_names
 //         .iter()
 //         .map(|f| Field::new(*f, DataType::Utf8, false))

@@ -8,7 +8,7 @@ use phymes_message::{
     NetworkInterfaceMessageBuilderTrait,
 };
 use phymes_schemas::{AvailableInterfaceSubjects, DataFormat};
-use phymes_server::create_session_name;
+use phymes_server::create_network_name;
 use phymes_subject::{
     BuildableTrait, BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
@@ -67,15 +67,15 @@ pub fn attachments_interface_view() -> Element {
         }
     });
 
-    // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state: Memo<NetworkInterfaceMessageBuilder> = use_memo(move || {
+    // `get_network_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
+    let get_network_state: Memo<NetworkInterfaceMessageBuilder> = use_memo(move || {
         NetworkInterfaceMessage::get_builder()
-            .with_session_name(&create_session_name(
+            .with_network_name(&create_network_name(
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
             .with_format(&DataFormat::Ipc)
-            .with_publisher(&create_session_name(
+            .with_publisher(&create_network_name(
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
@@ -91,7 +91,7 @@ pub fn attachments_interface_view() -> Element {
             return;
         }
 
-        let data = get_session_state()
+        let data = get_network_state()
             .with_subject(
                 AvailableInterfaceSubjects::AggregatedAttachments
                     .to_string()
@@ -267,7 +267,7 @@ pub fn attachments_interface_view() -> Element {
         } else if ACTIVE_SESSION_NAME.read().is_empty() {
             div {
                 class: "p-2 flex flex-col items-center",
-                p { "Please activate a session before attachments." },
+                p { "Please activate a network before attachments." },
             }
         } else {
             split_panel {

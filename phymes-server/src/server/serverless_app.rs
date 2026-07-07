@@ -99,7 +99,7 @@ mod tests {
     use phymes_subject::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, SubjectTrait};
     use serde_json::{Map, Value};
 
-    use crate::handlers::{basic_auth, create_session_name};
+    use crate::handlers::{basic_auth, create_network_name};
 
     use super::*;
 
@@ -163,19 +163,19 @@ mod tests {
         let token = values.get("jwt").unwrap().as_str().unwrap();
         let bearer = format!("Bearer {token}");
 
-        // Create the session state JSON value
-        let session_name = create_session_name(
+        // Create the network state JSON value
+        let network_name = create_network_name(
             values.get("email").unwrap().as_str().unwrap(),
             "GenerateText",
         );
-        let session_response = NetworkInterfaceMessage::get_builder()
-            .with_session_name(session_name.as_str())
+        let network_response = NetworkInterfaceMessage::get_builder()
+            .with_network_name(network_name.as_str())
             .with_format(&DataFormat::Bytes)
-            .with_publisher(session_name.as_str())
+            .with_publisher(network_name.as_str())
             .with_update(&Publication::None)
             .with_stream(false)
             .with_subject(
-                AvailableSubjects::SessionSubjectSchemas
+                AvailableSubjects::NetworkSubjectSchemas
                     .to_string()
                     .as_str(),
             )
@@ -183,7 +183,7 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
-        let data = serde_json::to_string(&session_response).unwrap();
+        let data = serde_json::to_string(&network_response).unwrap();
 
         // Make the request for the subjects_schema
         let request: Request<String> = Request::builder()
@@ -216,10 +216,10 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
-        let session_response = NetworkInterfaceMessage::get_builder()
-            .with_session_name(session_name.as_str())
+        let network_response = NetworkInterfaceMessage::get_builder()
+            .with_network_name(network_name.as_str())
             .with_format(&DataFormat::Bytes)
-            .with_publisher(session_name.as_str())
+            .with_publisher(network_name.as_str())
             .with_update(&Publication::Extend {
                 subject_name: chat.get_name().to_string(),
             })
@@ -230,7 +230,7 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
-        let data = serde_json::to_string(&session_response).unwrap();
+        let data = serde_json::to_string(&network_response).unwrap();
 
         // Make the request for the network_stream
         let request: Request<String> = Request::builder()
@@ -285,18 +285,18 @@ mod tests {
         // Test subjects_schema using serverless_app
         let token = values.get("jwt").unwrap().as_str().unwrap();
         let bearer = token.to_string();
-        let session_name = create_session_name(
+        let network_name = create_network_name(
             values.get("email").unwrap().as_str().unwrap(),
             "GenerateText",
         );
-        let session_response = NetworkInterfaceMessage::get_builder()
-            .with_session_name(session_name.as_str())
+        let network_response = NetworkInterfaceMessage::get_builder()
+            .with_network_name(network_name.as_str())
             .with_format(&DataFormat::Bytes)
-            .with_publisher(session_name.as_str())
+            .with_publisher(network_name.as_str())
             .with_update(&Publication::None)
             .with_stream(false)
             .with_subject(
-                AvailableSubjects::SessionSubjectSchemas
+                AvailableSubjects::NetworkSubjectSchemas
                     .to_string()
                     .as_str(),
             )
@@ -304,7 +304,7 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
-        let data = serde_json::to_string(&session_response).unwrap();
+        let data = serde_json::to_string(&network_response).unwrap();
 
         let config = ServerlessConfig {
             route: "app/v1/get_state".to_string(),
@@ -327,10 +327,10 @@ mod tests {
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test subjects_num_rows using serverless_app
-        let session_response = NetworkInterfaceMessage::get_builder()
-            .with_session_name(session_name.as_str())
+        let network_response = NetworkInterfaceMessage::get_builder()
+            .with_network_name(network_name.as_str())
             .with_format(&DataFormat::Bytes)
-            .with_publisher(session_name.as_str())
+            .with_publisher(network_name.as_str())
             .with_update(&Publication::None)
             .with_stream(false)
             .with_subject(AvailableSubjects::SubjectsNumRows.to_string().as_str())
@@ -338,7 +338,7 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
-        let data = serde_json::to_string(&session_response).unwrap();
+        let data = serde_json::to_string(&network_response).unwrap();
 
         let config = ServerlessConfig {
             route: "app/v1/get_state".to_string(),
@@ -361,18 +361,18 @@ mod tests {
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test mermaid_js using serverless_app
-        let session_response = NetworkInterfaceMessage::get_builder()
-            .with_session_name(session_name.as_str())
+        let network_response = NetworkInterfaceMessage::get_builder()
+            .with_network_name(network_name.as_str())
             .with_format(&DataFormat::Bytes)
-            .with_publisher(session_name.as_str())
+            .with_publisher(network_name.as_str())
             .with_update(&Publication::None)
             .with_stream(false)
-            .with_subject(AvailableSubjects::SessionMermaid.to_string().as_str())
+            .with_subject(AvailableSubjects::NetworkMermaid.to_string().as_str())
             .make_name()
             .unwrap()
             .build()
             .unwrap();
-        let data = serde_json::to_string(&session_response).unwrap();
+        let data = serde_json::to_string(&network_response).unwrap();
 
         let config = ServerlessConfig {
             route: "app/v1/get_state".to_string(),
@@ -401,10 +401,10 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
-        let session_response = NetworkInterfaceMessage::get_builder()
-            .with_session_name(session_name.as_str())
+        let network_response = NetworkInterfaceMessage::get_builder()
+            .with_network_name(network_name.as_str())
             .with_format(&DataFormat::Bytes)
-            .with_publisher(session_name.as_str())
+            .with_publisher(network_name.as_str())
             .with_update(&Publication::Extend {
                 subject_name: chat.get_name().to_string(),
             })
@@ -415,7 +415,7 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
-        let data = serde_json::to_string(&session_response).unwrap();
+        let data = serde_json::to_string(&network_response).unwrap();
 
         let config = ServerlessConfig {
             route: "app/v1/chat".to_string(),
@@ -439,11 +439,11 @@ mod tests {
             serde_json::from_slice(bytes.first().unwrap()).unwrap();
         println!("{values:?}");
 
-        // Test session_diagnostics using serverless_app
-        let session_response = NetworkInterfaceMessage::get_builder()
-            .with_session_name(session_name.as_str())
+        // Test network_diagnostics using serverless_app
+        let network_response = NetworkInterfaceMessage::get_builder()
+            .with_network_name(network_name.as_str())
             .with_format(&DataFormat::Bytes)
-            .with_publisher(session_name.as_str())
+            .with_publisher(network_name.as_str())
             .with_update(&Publication::None)
             .with_stream(false)
             .with_subject("")
@@ -451,7 +451,7 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
-        let data = serde_json::to_string(&session_response).unwrap();
+        let data = serde_json::to_string(&network_response).unwrap();
 
         let config = ServerlessConfig {
             route: "app/v1/diagnostics".to_string(),

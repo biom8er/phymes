@@ -7,18 +7,18 @@ use phymes_message::{
 };
 use phymes_network::{NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait};
 use phymes_schemas::{create_network_mermaid_batch, AvailableSubjects, DataFormat};
-use phymes_server::create_session_name;
+use phymes_server::create_network_name;
 use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 use phymes_templates::AvailableNetworks;
 
 use crate::state::{
-    filter_in_mermaid_diagrams_by_session_name, filter_out_mermaid_diagrams_by_session_name,
+    filter_in_mermaid_diagrams_by_network_name, filter_out_mermaid_diagrams_by_network_name,
     get_non_duplicated_sorted_subjects,
     svg_icons::{
         b8_save_icon_svg, fa_trash_icon_svg, ms_code_icon_svg, ms_column_arrow_right_icon_svg,
         ms_deploy_icon_svg, ms_edit_icon_svg, ms_search_icon_svg, ms_sync_icon_svg,
     },
-    sync_session_names_state, SyncSessionNamesState, EMAIL, JWT, SESSION_NAMES,
+    sync_network_names_state, SyncNetworkNamesState, EMAIL, JWT, SESSION_NAMES,
 };
 
 #[cfg(not(feature = "serverless"))]
@@ -40,7 +40,7 @@ use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 #[component]
 pub fn builds_dropdown_view(
     mut is_flowchart_shown: Signal<bool>,
-    mut active_session_name: Signal<String>,
+    mut active_network_name: Signal<String>,
     mut active_flowchart_diagram: Signal<String>,
     mut active_er_diagram: Signal<String>,
     mut mermaid_network_names: Signal<Vec<String>>,
@@ -51,8 +51,8 @@ pub fn builds_dropdown_view(
     mut build_errors: Signal<String>,
 ) -> Element {
     // Intialize state and coroutines
-    use_coroutine(sync_session_names_state);
-    let sync_session_names = use_coroutine_handle::<SyncSessionNamesState>();
+    use_coroutine(sync_network_names_state);
+    let sync_network_names = use_coroutine_handle::<SyncNetworkNamesState>();
 
     // Dropdown signals
     let mut show_subject_dropdown = use_signal(|| false);
@@ -77,7 +77,7 @@ pub fn builds_dropdown_view(
                 input {
                     class: "w-full p-2 rounded bg-neutral-700",
                     r#type: "text",
-                    placeholder: "search session",
+                    placeholder: "search network",
                     value: "{subject_dropdown}",
                     onclick: move |_| show_subject_dropdown.set(true),
                     onfocusout: move |_| show_subject_dropdown.set(false),
@@ -96,7 +96,7 @@ pub fn builds_dropdown_view(
                 div {
                     class: "p-2 rounded bg-neutral-800 list-none flex row-span-1 col-span-1 row-start-2 col-start-1",
                     ul {
-                        {subjects_vec().iter().filter(|s| active_session_name.read().to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
+                        {subjects_vec().iter().filter(|s| active_network_name.read().to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
                             let sub = sub.clone();
                             rsx! {
                                 li {
@@ -119,7 +119,7 @@ pub fn builds_dropdown_view(
                     class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                     onclick: move |_evt| async move {
                         // Reset the dropdown
-                        active_session_name.set(subject_dropdown.try_read().unwrap().to_string());
+                        active_network_name.set(subject_dropdown.try_read().unwrap().to_string());
                         subject_dropdown.set(String::new());
                     },
                     svg {
@@ -128,21 +128,21 @@ pub fn builds_dropdown_view(
                     },
                 },
 
-                if !active_session_name().is_empty() {
+                if !active_network_name().is_empty() {
                     button {
                         class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         onclick: move |_evt| async move {
-                            // Make a defualt name for the copy of the active session
-                            let active_session = format!("{}-copy", active_session_name.read());
+                            // Make a defualt name for the copy of the active network
+                            let active_network = format!("{}-copy", active_network_name.read());
 
                             // Copy the diagrams
-                            mermaid_network_names.push(active_session.clone());
+                            mermaid_network_names.push(active_network.clone());
                             mermaid_flowchart_diagrams.push(active_flowchart_diagram.read().to_string());
                             mermaid_er_diagrams.push(active_er_diagram.read().to_string());
                             mermaid_timestamps.push(create_timestamp_micros());
 
-                            // Set the active session
-                            active_session_name.set(active_session.clone());
+                            // Set the active network
+                            active_network_name.set(active_network.clone());
                         },
                         svg {
                             class: "max-w-[48px] max-h-[48px]",
@@ -152,9 +152,9 @@ pub fn builds_dropdown_view(
                     button {
                         class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         onclick: move |_evt| async move {
-                            // Change the name of all active session diagrams
-                            let (network_names, flowchart_diagrams, er_diagrams, timestamps) = filter_in_mermaid_diagrams_by_session_name(
-                                &active_session_name(),
+                            // Change the name of all active network diagrams
+                            let (network_names, flowchart_diagrams, er_diagrams, timestamps) = filter_in_mermaid_diagrams_by_network_name(
+                                &active_network_name(),
                                 &mermaid_network_names
                                     .read()
                                     .iter()
@@ -174,9 +174,9 @@ pub fn builds_dropdown_view(
                             let network_names = network_names.into_iter().map(|s| format!("__deleted__{s}")).collect::<Vec<_>>();
                             let batch_deleted = create_network_mermaid_batch(network_names, flowchart_diagrams, er_diagrams, timestamps).unwrap();
 
-                            // Filter out the active session
-                            let (network_names, flowchart_diagrams, er_diagrams, timestamps) = filter_out_mermaid_diagrams_by_session_name(
-                                &active_session_name(),
+                            // Filter out the active network
+                            let (network_names, flowchart_diagrams, er_diagrams, timestamps) = filter_out_mermaid_diagrams_by_network_name(
+                                &active_network_name(),
                                 &mermaid_network_names
                                     .read()
                                     .iter()
@@ -193,7 +193,7 @@ pub fn builds_dropdown_view(
                                     .map(|s| s.as_str())
                                     .collect::<Vec<_>>(),
                                 &mermaid_timestamps());
-                            let active_session = network_names.first().unwrap().to_string();
+                            let active_network = network_names.first().unwrap().to_string();
                             let batch = create_network_mermaid_batch(network_names, flowchart_diagrams, er_diagrams, timestamps).unwrap();
 
                             // Update the mermaid state with the active diagram
@@ -207,9 +207,9 @@ pub fn builds_dropdown_view(
                                 .to_ipc_stream()
                                 .unwrap();
                             let data_serialized = serde_json::to_string(&NetworkInterfaceMessage::get_builder()
-                                .with_session_name(&create_session_name(EMAIL().as_str(), AvailableNetworks::Builder.to_string().as_str()))
+                                .with_network_name(&create_network_name(EMAIL().as_str(), AvailableNetworks::Builder.to_string().as_str()))
                                 .with_format(&DataFormat::Ipc)
-                                .with_publisher(&create_session_name(EMAIL().as_str(), AvailableNetworks::Builder.to_string().as_str()))
+                                .with_publisher(&create_network_name(EMAIL().as_str(), AvailableNetworks::Builder.to_string().as_str()))
                                 .with_update(&Publication::Replace { subject_name: AvailableSubjects::BuilderMermaid.to_string() })
                                 .with_stream(false)
                                 .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
@@ -262,8 +262,8 @@ pub fn builds_dropdown_view(
                                 Err(err) => tracing::error!("{err:?}"),
                             }
 
-                            // Reset the active session to the first session
-                            active_session_name.set(active_session);
+                            // Reset the active network to the first network
+                            active_network_name.set(active_network);
                         },
                         svg {
                             class: "max-w-[48px] max-h-[48px]",
@@ -287,7 +287,7 @@ pub fn builds_dropdown_view(
                             // Clear any text
                             build_errors.set(String::new());
 
-                            // Check if the current session can be built
+                            // Check if the current network can be built
                             let mut builder = match NetworkBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), false) {
                                 Ok(builder) => builder,
                                 Err(err) => {
@@ -302,25 +302,25 @@ pub fn builds_dropdown_view(
                                     return;
                                 },
                             };
-                            if SESSION_NAMES.read().iter().any(|s| s==&active_session_name()) {
-                                build_errors.write().push_str(format!("Session name '{}' already exists. Please choose a different name.", active_session_name()).as_str());
+                            if SESSION_NAMES.read().iter().any(|s| s==&active_network_name()) {
+                                build_errors.write().push_str(format!("Network name '{}' already exists. Please choose a different name.", active_network_name()).as_str());
                                 return;
                             }
-                            let _session = match builder.with_name(&active_session_name())
+                            let _network = match builder.with_name(&active_network_name())
                                 .add_processor_subjects().unwrap()
                                 .add_network_interface(None).unwrap()
                                 .build_with_tables()
                             {
-                                Ok(session) => session,
+                                Ok(network) => network,
                                 Err(err) => {
                                     build_errors.write().push_str(format!("{err:?}").as_str());
                                     return;
                                 },
                             };
 
-                            // Update the server with the new session
+                            // Update the server with the new network
                             let route = "/app/v1/build";
-                            let batch = create_network_mermaid_batch(vec![active_session_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
+                            let batch = create_network_mermaid_batch(vec![active_network_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
                             let message = Subject::get_builder()
                                 .with_name(AvailableSubjects::BuilderMermaid.to_string().as_str())
                                 .with_record_batches(vec![batch])
@@ -330,9 +330,9 @@ pub fn builds_dropdown_view(
                                 .to_ipc_stream()
                                 .unwrap();
                             let data_serialized = serde_json::to_string(&NetworkInterfaceMessage::get_builder()
-                                .with_session_name(&create_session_name(EMAIL().as_str(), active_session_name().as_str()))
+                                .with_network_name(&create_network_name(EMAIL().as_str(), active_network_name().as_str()))
                                 .with_format(&DataFormat::Ipc)
-                                .with_publisher(&create_session_name(EMAIL().as_str(), active_session_name().as_str()))
+                                .with_publisher(&create_network_name(EMAIL().as_str(), active_network_name().as_str()))
                                 .with_update(&Publication::None)
                                 .with_stream(false)
                                 .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
@@ -385,11 +385,11 @@ pub fn builds_dropdown_view(
                                 Err(err) => tracing::error!("{err:?}"),
                             }
 
-                            // Update the frontend state with the new session so as not to require the user to re-signin
-                            let mut session_plans = vec![active_session_name().to_string()];
-                            session_plans.extend(SESSION_NAMES.read().iter().filter(|s| *s!=&active_session_name()).cloned());
-                            sync_session_names.send(SyncSessionNamesState { session_plans });
-                            build_errors.write().push_str(format!("Session name '{}' has been built successfully.", active_session_name()).as_str());
+                            // Update the frontend state with the new network so as not to require the user to re-signin
+                            let mut network_plans = vec![active_network_name().to_string()];
+                            network_plans.extend(SESSION_NAMES.read().iter().filter(|s| *s!=&active_network_name()).cloned());
+                            sync_network_names.send(SyncNetworkNamesState { network_plans });
+                            build_errors.write().push_str(format!("Network name '{}' has been built successfully.", active_network_name()).as_str());
 
                         },
                         svg {
@@ -406,7 +406,7 @@ pub fn builds_dropdown_view(
                         onclick: move |_| async move {
                             // Update the mermaid state with the active diagram
                             let route = "/app/v1/put_state";
-                            let batch = create_network_mermaid_batch(vec![active_session_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
+                            let batch = create_network_mermaid_batch(vec![active_network_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
                             let message = Subject::get_builder()
                                 .with_name(AvailableSubjects::BuilderMermaid.to_string().as_str())
                                 .with_record_batches(vec![batch])
@@ -416,9 +416,9 @@ pub fn builds_dropdown_view(
                                 .to_ipc_stream()
                                 .unwrap();
                             let data_serialized = serde_json::to_string(&NetworkInterfaceMessage::get_builder()
-                                .with_session_name(&create_session_name(EMAIL().as_str(), AvailableNetworks::Builder.to_string().as_str()))
+                                .with_network_name(&create_network_name(EMAIL().as_str(), AvailableNetworks::Builder.to_string().as_str()))
                                 .with_format(&DataFormat::Ipc)
-                                .with_publisher(&create_session_name(EMAIL().as_str(), AvailableNetworks::Builder.to_string().as_str()))
+                                .with_publisher(&create_network_name(EMAIL().as_str(), AvailableNetworks::Builder.to_string().as_str()))
                                 .with_update(&Publication::Extend { subject_name: AvailableSubjects::BuilderMermaid.to_string() })
                                 .with_stream(false)
                                 .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
@@ -500,7 +500,7 @@ pub fn builds_dropdown_view(
                                         // Revert
                                         NetworkBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), false).unwrap()
                                     };
-                                    match builder.with_name(&active_session_name()).add_processor_subjects() {
+                                    match builder.with_name(&active_network_name()).add_processor_subjects() {
                                         // Include the last row of data during the prototyping stage
                                         Ok(builder) => match builder.to_mermaid_erdiagram(true, true) {
                                             Ok(diagram) => {
@@ -532,7 +532,7 @@ pub fn builds_dropdown_view(
 #[component]
 pub fn diagram_code_editor(
     is_flowchart_shown: Signal<bool>,
-    active_session_name: Signal<String>,
+    active_network_name: Signal<String>,
     mut active_flowchart_diagram: Signal<String>,
     mut active_er_diagram: Signal<String>,
     mut is_saved: Signal<bool>,
@@ -599,13 +599,13 @@ code.addEventListener('scroll', () => {
     }
 }
 
-/// View for modifying the session name
+/// View for modifying the network name
 #[component]
-pub fn session_name_editor(mut active_session_name: Signal<String>) -> Element {
+pub fn network_name_editor(mut active_network_name: Signal<String>) -> Element {
     let mut is_editing = use_signal(|| false);
-    let mut session_name = use_signal(String::new);
+    let mut network_name = use_signal(String::new);
 
-    if !active_session_name().is_empty() {
+    if !active_network_name().is_empty() {
         if is_editing() {
             rsx! {
                 div {
@@ -614,16 +614,16 @@ pub fn session_name_editor(mut active_session_name: Signal<String>) -> Element {
                         class: "w-full p-2 gap-2 rounded bg-neutral-800",
                         input {
                             r#type: "text",
-                            placeholder: "{active_session_name}",
-                            oninput: move |event| session_name.set(event.value()),
+                            placeholder: "{active_network_name}",
+                            oninput: move |event| network_name.set(event.value()),
                             class: "w-full p-2 rounded bg-neutral-700",
                         }
                     }
                     button {
                         class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         onclick: move |_| async move {
-                            active_session_name.set(session_name());
-                            session_name.write().clear();
+                            active_network_name.set(network_name());
+                            network_name.write().clear();
                             is_editing.set(false)
                         },
                         svg {
@@ -649,7 +649,7 @@ pub fn session_name_editor(mut active_session_name: Signal<String>) -> Element {
                     class: "w-full rounded p-2 items-center flex flex-row bg-neutral-800",
                     p {
                         class: "w-full text-center bg-neutral-800",
-                        "{active_session_name}"
+                        "{active_network_name}"
                     }
                     button {
                         class: "p-2 hover:bg-neutral-700 rounded cursor-pointer",

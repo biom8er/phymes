@@ -4,7 +4,7 @@
 ///
 /// * Does not consider pre-filtering by ontology before vector search
 pub struct ExtractOntologyNetworkBuilder<'a> {
-    /// Session
+    /// Network
     pub network_name: &'a str,
     /// Is the output Documents or Queries?
     pub as_documents: bool,
@@ -23,7 +23,7 @@ impl<'a> Default for ExtractOntologyNetworkBuilder<'a> {
 }
 
 impl<'a> ExtractOntologyNetworkBuilder<'a> {
-    /// Return the Mermaid.js flowchart representation of the session
+    /// Return the Mermaid.js flowchart representation of the network
     pub fn as_mermaid_flowchart(&self) -> String {
         let subject_o = if self.as_documents {
             "Documents"
@@ -1932,18 +1932,18 @@ mod tests {
 
     #[tokio::test]
     async fn test_extract_ontology_network() -> Result<()> {
-        // Initialize the session
-        let extract_onto_session = ExtractOntologyNetworkBuilder::default();
-        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            &extract_onto_session.as_mermaid_flowchart(),
+        // Initialize the network
+        let extract_onto_network = ExtractOntologyNetworkBuilder::default();
+        let (network, network_messages) = NetworkBuilder::from_mermaid_flowchart(
+            &extract_onto_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &extract_onto_session.as_mermaid_erdiagram(),
+            &extract_onto_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(extract_onto_session.network_name)
+        .with_name(extract_onto_network.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
@@ -2050,12 +2050,12 @@ mod tests {
             .with_update(&Publication::Replace {
                 subject_name: AvailableInterfaceSubjects::UserScript.to_string(),
             })
-            .with_publisher(extract_onto_session.network_name)
+            .with_publisher(extract_onto_network.network_name)
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![owl_message]);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
         // Run the first superstep

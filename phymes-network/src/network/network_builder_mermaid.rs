@@ -31,11 +31,11 @@ use serde_json::Map;
 
 /// Trait extension for [NetworkBuilderTrait] to enable exporting to and importing from mermaid.js
 pub trait NetworkBuilderMermaidTrait {
-    /// Make a mermaid.js flowchart of the session
+    /// Make a mermaid.js flowchart of the network
     ///
     /// # Arguments
     /// * `with_processor_configs` - whether to add the processor config subjects to the diagram
-    /// * `with_session_interface` - whether to add the session interface tasks, processors, and runtime environments to the diagram
+    /// * `with_network_interface` - whether to add the network interface tasks, processors, and runtime environments to the diagram
     /// * `with_next_tasks` - whether to add the tasks subscribe and publish tasks, processors, and runtime environments to the diagram
     ///
     /// # Notes
@@ -44,10 +44,10 @@ pub trait NetworkBuilderMermaidTrait {
     fn to_mermaid_flowchart(
         &self,
         with_processor_configs: bool,
-        with_session_interface: bool,
+        with_network_interface: bool,
     ) -> Result<String>;
 
-    /// Make a mermaid.js erDiagram of the session
+    /// Make a mermaid.js erDiagram of the network
     ///
     /// # Arguments
     /// * `with_example_data` - whether to add last row of data as an example to the diagram
@@ -58,7 +58,7 @@ pub trait NetworkBuilderMermaidTrait {
         with_processor_config_data: bool,
     ) -> Result<String>;
 
-    /// Create a session builder from a mermaid flowchart
+    /// Create a network builder from a mermaid flowchart
     ///
     /// # Arguments
     /// * `flowchart`: the flowchart diagram String
@@ -91,7 +91,7 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
     fn to_mermaid_flowchart(
         &self,
         with_configs: bool,
-        with_session_interface: bool,
+        with_network_interface: bool,
     ) -> Result<String> {
         // Check if there are members
         if self.tasks.is_none() {
@@ -116,10 +116,10 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
         }
         if self.name.is_none() {
             return Err(anyhow!(
-                "Add a session name before making the Mermaid Flowchart."
+                "Add a network name before making the Mermaid Flowchart."
             ));
         }
-        let session_name = self.name.as_ref().unwrap().to_string();
+        let network_name = self.name.as_ref().unwrap().to_string();
 
         // Tasks, Processors, and Runtime_envs to exclude
         let mut tasks_exclude = HashSet::new();
@@ -188,9 +188,9 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
             }
             subjects_exclude.extend(subjects);
         }
-        if !with_session_interface {
-            tasks_exclude.insert(session_name.to_owned());
-            processors_exclude.insert(session_name.to_owned());
+        if !with_network_interface {
+            tasks_exclude.insert(network_name.to_owned());
+            processors_exclude.insert(network_name.to_owned());
         }
 
         // Entities with expanded shape/label attributes that will be appended to flowchart
@@ -1462,7 +1462,7 @@ mod tests {
     use super::*;
     #[test]
     fn test_to_mermaid_flowchart() -> Result<()> {
-        let builder = test_network_builder_apps::make_test_network_builder_apps("session_1")?
+        let builder = test_network_builder_apps::make_test_network_builder_apps("network_1")?
             .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?
             .add_next_tasks()?;
 
@@ -1470,12 +1470,12 @@ mod tests {
         let mermaid_js = builder.to_mermaid_flowchart(false, false)?;
         assert_eq!(
             mermaid_js,
-            "---\ntitle: session_1\nconfig:\n    flowchart:\n        defaultRenderer: \"elk\"\n---\nflowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|AllRecordBatches|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|AllRecordBatches|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tstate_2-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}"
+            "---\ntitle: network_1\nconfig:\n    flowchart:\n        defaultRenderer: \"elk\"\n---\nflowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|AllRecordBatches|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|AllRecordBatches|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tstate_2-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}"
         );
         let mermaid_js = builder.to_mermaid_flowchart(false, true)?;
         assert_eq!(
             mermaid_js,
-            "---\ntitle: session_1\nconfig:\n    flowchart:\n        defaultRenderer: \"elk\"\n---\nflowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|AllRecordBatches|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|AllRecordBatches|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tstate_2-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_2-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_3-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish-->|Extend|state_1-subject\n\t\tsession_1-publish-->|Extend|state_2-subject\n\t\tsession_1-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\trt_1-rt-->session_1\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\tsession_1-processor@{shape: rect, label: ProcessorEcho}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tsession_1-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tsession_1-subscribe@{shape: diamond, label: Any}"
+            "---\ntitle: network_1\nconfig:\n    flowchart:\n        defaultRenderer: \"elk\"\n---\nflowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|AllRecordBatches|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|AllRecordBatches|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tstate_2-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\tsubgraph network_1\n\t\tstate_1-subject-.->|LastRecordBatch|network_1-subscribe\n\t\tstate_2-subject-.->|LastRecordBatch|network_1-subscribe\n\t\tstate_3-subject-.->|LastRecordBatch|network_1-subscribe\n\t\tnetwork_1-subscribe-->network_1-processor\n\t\tnetwork_1-processor-->network_1-publish\n\t\tnetwork_1-publish-->|Extend|state_1-subject\n\t\tnetwork_1-publish-->|Extend|state_2-subject\n\t\tnetwork_1-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\trt_1-rt-->network_1\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\tnetwork_1-processor@{shape: rect, label: ProcessorEcho}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tnetwork_1-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tnetwork_1-subscribe@{shape: diamond, label: Any}"
         );
 
         Ok(())
@@ -1483,7 +1483,7 @@ mod tests {
 
     #[test]
     fn test_to_mermaid_erdiagram() -> Result<()> {
-        let builder = test_network_builder_apps::make_test_network_builder_apps("session_1")?;
+        let builder = test_network_builder_apps::make_test_network_builder_apps("network_1")?;
 
         // Make the ER Diagram
         let mermaid_js = builder.to_mermaid_erdiagram(false, false)?;
@@ -1506,8 +1506,8 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_parallel_with_config_and_session_no_data() -> Result<()> {
-        let builder = test_network_builder_apps::make_test_network_builder_apps("session_1")?
+    fn test_from_mermaid_parallel_with_config_and_network_no_data() -> Result<()> {
+        let builder = test_network_builder_apps::make_test_network_builder_apps("network_1")?
             .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
@@ -1570,15 +1570,15 @@ mod tests {
             }
         }
 
-        // Test that we can build the session
-        let _ = builder_test.with_name("session_1").build()?;
+        // Test that we can build the network
+        let _ = builder_test.with_name("network_1").build()?;
 
         Ok(())
     }
 
     #[test]
-    fn test_from_mermaid_parallel_with_config_and_session_with_data() -> Result<()> {
-        let builder = test_network_builder_apps::make_test_network_builder_apps("session_1")?
+    fn test_from_mermaid_parallel_with_config_and_network_with_data() -> Result<()> {
+        let builder = test_network_builder_apps::make_test_network_builder_apps("network_1")?
             .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
@@ -1646,15 +1646,15 @@ mod tests {
             assert_eq!(table.subject().count_rows(), 1)
         }
 
-        // Test that we can build the session
-        let _ = builder_test.with_name("session_1").build()?;
+        // Test that we can build the network
+        let _ = builder_test.with_name("network_1").build()?;
 
         Ok(())
     }
 
     #[test]
-    fn test_from_mermaid_parallel_no_config_with_session_and_data() -> Result<()> {
-        let builder = test_network_builder_apps::make_test_network_builder_apps("session_1")?
+    fn test_from_mermaid_parallel_no_config_with_network_and_data() -> Result<()> {
+        let builder = test_network_builder_apps::make_test_network_builder_apps("network_1")?
             .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
@@ -1713,7 +1713,7 @@ mod tests {
 
         // Test that the processor configs were added to the subscriptions
         let builder_test = builder_test
-            .with_name("session_1")
+            .with_name("network_1")
             .add_processor_subjects()?;
         let mut test = builder_test
             .get_subject_names_from_processors()
@@ -1727,7 +1727,7 @@ mod tests {
         expected.sort();
         assert_eq!(test, expected);
 
-        // Test that we can build the session
+        // Test that we can build the network
         let _ = builder_test.build()?;
 
         Ok(())

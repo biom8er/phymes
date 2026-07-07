@@ -14,20 +14,20 @@ use phymes_task::TaskPlan;
 
 use crate::AvailableNetworks;
 
-/// Example Mermaid diagrams for available app sessions
+/// Example Mermaid diagrams for available app networks
 pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Subject> {
-    let available_session_plans = if deployable {
-        AvailableNetworks::get_deployable_session_plan_names()
+    let available_network_plans = if deployable {
+        AvailableNetworks::get_deployable_network_plan_names()
     } else {
-        AvailableNetworks::get_all_session_plan_names()
+        AvailableNetworks::get_all_network_plan_names()
     };
 
-    // Initialize with available app session diagrams
+    // Initialize with available app network diagrams
     let mut network_names = Vec::new();
     let mut flowchart_diagram = Vec::new();
     let mut er_diagram = Vec::new();
     let mut timestamp = Vec::new();
-    for network_name in available_session_plans {
+    for network_name in available_network_plans {
         let builder = AvailableNetworks::get_network_builder_by_name(&network_name, &network_name)?
             .with_name(&network_name);
         flowchart_diagram.push(builder.to_mermaid_flowchart(false, false)?);
@@ -40,7 +40,7 @@ pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Sub
     let subject_name = if builder {
         AvailableSubjects::BuilderMermaid.to_string()
     } else {
-        AvailableSubjects::SessionMermaid.to_string()
+        AvailableSubjects::NetworkMermaid.to_string()
     };
     let batch =
         create_network_mermaid_batch(network_names, flowchart_diagram, er_diagram, timestamp)?;
@@ -50,9 +50,9 @@ pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Sub
         .build()
 }
 
-/// Session for building new networks via Mermaid diagrams
+/// Network for building new networks via Mermaid diagrams
 pub struct MermaidNetworkBuilder<'a> {
-    /// Session and state
+    /// Network and state
     pub network_name: &'a str,
 }
 
@@ -127,7 +127,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_mermaid_network_builder() -> Result<()> {
-        // initialize the session
+        // initialize the network
         let builder_network = MermaidNetworkBuilder::default();
         let _network = builder_network
             .build()

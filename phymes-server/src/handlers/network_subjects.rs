@@ -45,8 +45,8 @@ pub async fn network_put_subjects(
         Ok(payload) => {
             // We got a valid JSON payload
             tracing::debug!(
-                "Put session state for session_name {}",
-                payload.get_session_name()
+                "Put network state for network_name {}",
+                payload.get_network_name()
             );
 
             // Add user state if it does not exist already
@@ -56,12 +56,12 @@ pub async fn network_put_subjects(
                 .unwrap()
                 .contains_key(&current_user)
             {
-                // Initialize the user session contexts
-                let _session_names = match state
+                // Initialize the user network contexts
+                let _network_names = match state
                     .make_networks(&user_networks, true, users.users.runtime_env())
                     .await
                 {
-                    Ok(session_names) => session_names,
+                    Ok(network_names) => network_names,
                     Err(err) => {
                         return JsonError::new(err.to_string())
                             .to_response(StatusCode::INTERNAL_SERVER_ERROR);
@@ -73,11 +73,11 @@ pub async fn network_put_subjects(
                 .networks
                 .try_write()
                 .unwrap()
-                .get(payload.get_session_name())
+                .get(payload.get_network_name())
             {
-                Some(session) => Arc::clone(session),
+                Some(network) => Arc::clone(network),
                 None => {
-                    return JsonError::new("Failed to get the session stream state".to_string())
+                    return JsonError::new("Failed to get the network stream state".to_string())
                         .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                 }
             };
@@ -86,7 +86,7 @@ pub async fn network_put_subjects(
             let schema = if let Some(schema) = network_arc.subjects().get(payload.get_subject()) {
                 schema.clone()
             } else {
-                return JsonError::new("Failed to get the schema for the session".to_string())
+                return JsonError::new("Failed to get the schema for the network".to_string())
                     .to_response(StatusCode::INTERNAL_SERVER_ERROR);
             };
             let bytes = match payload.get_format() {
@@ -159,7 +159,7 @@ pub async fn network_put_subjects(
                 .unwrap();
             let messages = create_message_map(vec![message]);
 
-            // Update the session state with the new message
+            // Update the network state with the new message
             let _step = NetworkStreamStep::current_superstep(&network_arc).await;
             if let Err(e) = NetworkStreamStep::update_subjects_and_changelog_from_messages(
                 &network_arc,
@@ -168,7 +168,7 @@ pub async fn network_put_subjects(
             )
             .await
             {
-                return JsonError::new(format!("Failed to update the session stream state {e:?}"))
+                return JsonError::new(format!("Failed to update the network stream state {e:?}"))
                     .to_response(StatusCode::INTERNAL_SERVER_ERROR);
             }
 
@@ -221,8 +221,8 @@ pub async fn network_get_subjects(
         Ok(payload) => {
             // We got a valid JSON payload
             tracing::debug!(
-                "Get session state for session_name {}",
-                payload.get_session_name()
+                "Get network state for network_name {}",
+                payload.get_network_name()
             );
 
             // Add user state if it does not exist already
@@ -232,12 +232,12 @@ pub async fn network_get_subjects(
                 .unwrap()
                 .contains_key(&current_user)
             {
-                // Initialize the user session contexts
-                let _session_names = match state
+                // Initialize the user network contexts
+                let _network_names = match state
                     .make_networks(&user_networks, true, users.users.runtime_env())
                     .await
                 {
-                    Ok(session_names) => session_names,
+                    Ok(network_names) => network_names,
                     Err(err) => {
                         return JsonError::new(err.to_string())
                             .to_response(StatusCode::INTERNAL_SERVER_ERROR);
@@ -245,10 +245,10 @@ pub async fn network_get_subjects(
                 };
             }
 
-            let network_arc = match state.networks.write().get(payload.get_session_name()) {
+            let network_arc = match state.networks.write().get(payload.get_network_name()) {
                 Some(network_arc) => network_arc.clone(),
                 None => {
-                    return JsonError::new("Failed to get the session stream state".to_string())
+                    return JsonError::new("Failed to get the network stream state".to_string())
                         .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                 }
             };

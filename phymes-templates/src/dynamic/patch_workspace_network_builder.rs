@@ -318,7 +318,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_patch_workspace_network_dynamic_w_subjects() -> Result<()> {
         let patch_workspace_network = PatchWorkspaceNetworkBuilderDynamicWSubject::default();
-        let (network, session_messages) = patch_workspace_network
+        let (network, network_messages) = patch_workspace_network
             .inner
             .build_dynamic()
             .with_runtime_env(
@@ -376,9 +376,9 @@ mod tests {
             );
         }
 
-        // Run the session
+        // Run the network
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
@@ -425,7 +425,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_patch_workspace_network_dynamic_wo_subjects() -> Result<()> {
         let patch_workspace_network = PatchWorkspaceNetworkBuilderDynamicWOSubject::default();
-        let (network, session_messages) = patch_workspace_network
+        let (network, network_messages) = patch_workspace_network
             .inner
             .build_dynamic()
             .with_runtime_env(
@@ -565,9 +565,9 @@ pub use todo::Todo"#,
             );
         }
 
-        // Run the session
+        // Run the network
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
@@ -614,7 +614,7 @@ pub use todo::Todo"#,
     #[tokio::test(flavor = "current_thread")]
     async fn test_patch_workspace_network_static() -> Result<()> {
         let patch_workspace_network = PatchWorkspaceNetworkBuilderStaticWSubject::default();
-        let (network, session_messages) = patch_workspace_network
+        let (network, network_messages) = patch_workspace_network
             .inner
             .build_dynamic()
             .with_runtime_env(
@@ -720,9 +720,9 @@ pub use todo::Todo"#,
             );
         }
 
-        // Run the session
+        // Run the network
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;

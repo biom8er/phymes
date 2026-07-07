@@ -8,7 +8,7 @@ use phymes_message::{
     NetworkInterfaceMessageBuilderTrait,
 };
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjectsTrait, DataFormat};
-use phymes_server::create_session_name;
+use phymes_server::create_network_name;
 use phymes_streams::ChatBuilderTraitExt;
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
@@ -59,15 +59,15 @@ pub fn messaging_interface_view() -> Element {
         }
     });
 
-    // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state: Memo<NetworkInterfaceMessageBuilder> = use_memo(move || {
+    // `get_network_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
+    let get_network_state: Memo<NetworkInterfaceMessageBuilder> = use_memo(move || {
         NetworkInterfaceMessage::get_builder()
-            .with_session_name(&create_session_name(
+            .with_network_name(&create_network_name(
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
             .with_format(&DataFormat::Ipc)
-            .with_publisher(&create_session_name(
+            .with_publisher(&create_network_name(
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
@@ -83,7 +83,7 @@ pub fn messaging_interface_view() -> Element {
             return;
         }
 
-        let data = get_session_state()
+        let data = get_network_state()
             .with_subject(
                 AvailableInterfaceSubjects::AggregatedMessages
                     .to_string()
@@ -268,7 +268,7 @@ pub fn messaging_interface_view() -> Element {
         } else if ACTIVE_SESSION_NAME.read().is_empty() {
             div {
                 class: "p-2 flex flex-col items-center",
-                p { "Please activate a session before messaging." },
+                p { "Please activate a network before messaging." },
             }
         } else {
             split_panel {
@@ -425,9 +425,9 @@ pub fn messaging_interface_footer(
                                 .build()
                                 .unwrap();
                             let data = NetworkInterfaceMessage::get_builder()
-                                .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                                .with_network_name(&create_network_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                                 .with_format(&DataFormat::Ipc)
-                                .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                                .with_publisher(&create_network_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                                 .with_update(&Publication::Extend { subject_name: AvailableInterfaceSubjects::UserMessages.to_string() })
                                 .with_stream(false)
                                 .with_subject(chat.get_name())
@@ -497,7 +497,7 @@ pub fn messaging_interface_footer(
                                                         messaging_indices,
                                                         messaging_timestamps,
                                                         "assistant",
-                                                        "Session returned without a text message response.",
+                                                        "Network returned without a text message response.",
                                                         create_timestamp_micros());
                                                 } else {
                                                     for (r, c, t, index) in combined {
@@ -513,7 +513,7 @@ pub fn messaging_interface_footer(
                                                     messaging_indices,
                                                     messaging_timestamps,
                                                     "assistant",
-                                                    "Session returned without a text message response.",
+                                                    "Network returned without a text message response.",
                                                     create_timestamp_micros());
                                             }
                                         }
@@ -524,7 +524,7 @@ pub fn messaging_interface_footer(
                                                 messaging_indices,
                                                 messaging_timestamps,
                                                 "assistant",
-                                                "Session returned without a text message response.",
+                                                "Network returned without a text message response.",
                                                 create_timestamp_micros());
                                         },
                                     }

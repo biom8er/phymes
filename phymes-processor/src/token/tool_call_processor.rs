@@ -14,7 +14,7 @@ use tracing::{Level, event, instrument};
 use crate::ProcessorTrait;
 
 /// Processor that parses a [ProcessorTrait] configuration subject and
-///   creates an on-the-fly `SessionTasksSubscribePublish` subject which calls
+///   creates an on-the-fly `NetworkTasksSubscribePublish` subject which calls
 ///   the [ProcessorTrait] with subscriptions provided in the configuration subject
 ///
 /// # Notes
@@ -89,7 +89,7 @@ mod tests {
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
     use phymes_event::Publication;
     use phymes_schemas::{
-        AvailableSubjects, create_bytes_record_batch, create_session_tasks_subscribe_publish_batch,
+        AvailableSubjects, create_bytes_record_batch, create_network_tasks_subscribe_publish_batch,
     };
     use phymes_streams::ToolCallConfig;
     use phymes_subject::{Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
@@ -109,7 +109,7 @@ mod tests {
         // Make the tool_call_processor config
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let tool_call_processor_config = ToolCallConfig {
-            subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+            subject_name: AvailableSubjects::NetworkTasksSubscribePublish.to_string(),
             subject_names: vec!["processor_1".to_string(), "processor_2".to_string()],
             subscription_table_names: vec!["lhs_name".to_string(), "rhs_name".to_string()],
             ..Default::default()
@@ -210,12 +210,12 @@ mod tests {
             .into_iter()
             .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
             .collect::<Vec<_>>();
-        let session_names = task_names
+        let network_names = task_names
             .iter()
-            .map(|_| "session_1".to_string())
+            .map(|_| "network_1".to_string())
             .collect::<Vec<_>>();
-        let batch = create_session_tasks_subscribe_publish_batch(
-            session_names,
+        let batch = create_network_tasks_subscribe_publish_batch(
+            network_names,
             task_names,
             processor_names,
             processor_types,
@@ -226,7 +226,7 @@ mod tests {
         )?;
         let table = Subject::get_builder()
             .with_name(
-                AvailableSubjects::SessionTasksSubscribePublish
+                AvailableSubjects::NetworkTasksSubscribePublish
                     .to_string()
                     .as_str(),
             )
@@ -254,8 +254,8 @@ mod tests {
         .await?
         .with_name("")
         .build()?;
-        let column = table_reading.get_column_as_vec_str("session_name");
-        assert_eq!(column, ["session_1", "session_1"]);
+        let column = table_reading.get_column_as_vec_str("network_name");
+        assert_eq!(column, ["network_1", "network_1"]);
         let column = table_reading.get_column_as_vec_str("processor_name");
         assert_eq!(column, ["processor_1", "processor_2"]);
         let column = table_reading.get_column_as_vec_str("processor_type");
@@ -311,7 +311,7 @@ mod tests {
         // Make the tool_call_processor config
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let tool_call_processor_config = ToolCallConfig {
-            subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+            subject_name: AvailableSubjects::NetworkTasksSubscribePublish.to_string(),
             subject_names: vec!["processor_1".to_string(), "processor_2".to_string()],
             subscription_table_names: vec!["lhs_name".to_string(), "rhs_name".to_string()],
             ..Default::default()
@@ -414,12 +414,12 @@ mod tests {
             .into_iter()
             .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
             .collect::<Vec<_>>();
-        let session_names = task_names
+        let network_names = task_names
             .iter()
-            .map(|_| "session_1".to_string())
+            .map(|_| "network_1".to_string())
             .collect::<Vec<_>>();
-        let batch = create_session_tasks_subscribe_publish_batch(
-            session_names,
+        let batch = create_network_tasks_subscribe_publish_batch(
+            network_names,
             task_names,
             processor_names,
             processor_types,
@@ -430,7 +430,7 @@ mod tests {
         )?;
         let table = Subject::get_builder()
             .with_name(
-                AvailableSubjects::SessionTasksSubscribePublish
+                AvailableSubjects::NetworkTasksSubscribePublish
                     .to_string()
                     .as_str(),
             )
@@ -458,8 +458,8 @@ mod tests {
         .await?
         .with_name("")
         .build()?;
-        let column = table_reading.get_column_as_vec_str("session_name");
-        assert_eq!(column, ["session_1", "session_1"]);
+        let column = table_reading.get_column_as_vec_str("network_name");
+        assert_eq!(column, ["network_1", "network_1"]);
         let column = table_reading.get_column_as_vec_str("processor_name");
         assert_eq!(column, ["processor_1", "processor_2"]);
         let column = table_reading.get_column_as_vec_str("processor_type");
@@ -515,7 +515,7 @@ mod tests {
         // Make the tool_call_processor config
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let tool_call_processor_config = ToolCallConfig {
-            subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+            subject_name: AvailableSubjects::NetworkTasksSubscribePublish.to_string(),
             subject_names: vec!["processor_1".to_string()],
             subscription_table_names: vec!["lhs_name".to_string(), "rhs_name".to_string()],
             ..Default::default()
@@ -616,12 +616,12 @@ mod tests {
             .into_iter()
             .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
             .collect::<Vec<_>>();
-        let session_names = task_names
+        let network_names = task_names
             .iter()
-            .map(|_| "session_1".to_string())
+            .map(|_| "network_1".to_string())
             .collect::<Vec<_>>();
-        let batch = create_session_tasks_subscribe_publish_batch(
-            session_names,
+        let batch = create_network_tasks_subscribe_publish_batch(
+            network_names,
             task_names,
             processor_names,
             processor_types,
@@ -632,7 +632,7 @@ mod tests {
         )?;
         let table = Subject::get_builder()
             .with_name(
-                AvailableSubjects::SessionTasksSubscribePublish
+                AvailableSubjects::NetworkTasksSubscribePublish
                     .to_string()
                     .as_str(),
             )
@@ -660,8 +660,8 @@ mod tests {
         .await?
         .with_name("")
         .build()?;
-        let column = table_reading.get_column_as_vec_str("session_name");
-        assert_eq!(column, ["session_1"]);
+        let column = table_reading.get_column_as_vec_str("network_name");
+        assert_eq!(column, ["network_1"]);
         let column = table_reading.get_column_as_vec_str("processor_name");
         assert_eq!(column, ["processor_1"]);
         let column = table_reading.get_column_as_vec_str("processor_type");

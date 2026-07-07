@@ -1,8 +1,8 @@
-/// A session for retrieving text via vector search
+/// A network for retrieving text via vector search
 ///
 /// # Notes
 pub struct RetrieveTextNetworkBuilder<'a> {
-    /// Session
+    /// Network
     pub network_name: &'a str,
 }
 
@@ -15,7 +15,7 @@ impl<'a> Default for RetrieveTextNetworkBuilder<'a> {
 }
 
 impl<'a> RetrieveTextNetworkBuilder<'a> {
-    /// Return the Mermaid.js flowchart representation of the session
+    /// Return the Mermaid.js flowchart representation of the network
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
 	%% ------------------------------------------------------------------------------
@@ -111,7 +111,7 @@ impl<'a> RetrieveTextNetworkBuilder<'a> {
 	%% ------------------------------------------------------------------------------"#
     }
 
-    /// Return the Mermaid.js ER diagram representation of the session
+    /// Return the Mermaid.js ER diagram representation of the network
     pub fn as_mermaid_erdiagram(&self) -> &str {
         r#"erDiagram
 	QueryEmbeddings["QueryEmbeddings"] {
@@ -259,7 +259,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_retrieve_text_network() -> Result<()> {
-        // Initialize the session
+        // Initialize the network
         let retrieve_text_network = RetrieveTextNetworkBuilder::default();
         let retrieve_text_builder = NetworkBuilder::from_mermaid_flowchart(
             retrieve_text_network.as_mermaid_flowchart(),
@@ -275,7 +275,7 @@ mod tests {
         .with_diagnostics(true)
         .add_next_tasks()?
         .add_next_supersteps()?;
-        let (network, session_messages) = retrieve_text_builder.build_with_tables()?;
+        let (network, network_messages) = retrieve_text_builder.build_with_tables()?;
         let network_arc = Arc::new(network);
 
         // Document text
@@ -3867,10 +3867,10 @@ mod tests {
             document_message,
         ]);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
-        // Run the session
+        // Run the network
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 

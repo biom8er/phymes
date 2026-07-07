@@ -11,9 +11,9 @@ pub use apps::MermaidJsObject;
 #[cfg(feature = "serverless")]
 pub use apps::RUNTIME_ENV;
 pub use apps::{
-    filter_in_mermaid_diagrams_by_session_name, filter_out_mermaid_diagrams_by_session_name,
-    get_non_duplicated_sorted_subjects, sync_current_active_session_state,
-    SyncCurrentActiveSessionState, ACTIVE_SESSION_NAME,
+    filter_in_mermaid_diagrams_by_network_name, filter_out_mermaid_diagrams_by_network_name,
+    get_non_duplicated_sorted_subjects, sync_current_active_network_state,
+    SyncCurrentActiveNetworkState, ACTIVE_SESSION_NAME,
 };
 pub use files::{
     extension_and_file_to_data_href, extension_to_icon_svg, extension_to_subject,
@@ -22,9 +22,9 @@ pub use files::{
 pub use messaging::{update_message_content_state, update_message_state};
 pub use metrics::get_metric_visualizations_by_metric_name;
 pub use sign_in::{
-    clear_jwt_state, clear_session_names_state, sync_builder_state, sync_debugger_state,
-    sync_jwt_state, sync_session_names_state, ClearJWTState, ClearSessionNamesState, SignInState,
-    SyncBuilderState, SyncDebuggerState, SyncJWTState, SyncSessionNamesState, BUILDER, DEBUGGER,
+    clear_jwt_state, clear_network_names_state, sync_builder_state, sync_debugger_state,
+    sync_jwt_state, sync_network_names_state, ClearJWTState, ClearNetworkNamesState, SignInState,
+    SyncBuilderState, SyncDebuggerState, SyncJWTState, SyncNetworkNamesState, BUILDER, DEBUGGER,
     EMAIL, JWT, SESSION_NAMES,
 };
 pub use subjects::{

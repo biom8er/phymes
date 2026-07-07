@@ -9,8 +9,8 @@ use arrow::{
     datatypes::{DataType, Field, Fields},
 };
 
-pub(crate) fn create_session_subject_schemas_fields() -> Fields {
-    let field_names = ["session_name", "subject_name", "column_name", "type_name"];
+pub(crate) fn create_network_subject_schemas_fields() -> Fields {
+    let field_names = ["network_name", "subject_name", "column_name", "type_name"];
     let fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -18,18 +18,18 @@ pub(crate) fn create_session_subject_schemas_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_session_subject_schemas_batch(
-    session_names: Vec<String>,
+pub fn create_network_subject_schemas_batch(
+    network_names: Vec<String>,
     subject_names: Vec<String>,
     cols_names: Vec<String>,
     type_names: Vec<String>,
 ) -> Result<RecordBatch> {
-    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let network_names: ArrayRef = Arc::new(StringArray::from(network_names));
     let subject_names: ArrayRef = Arc::new(StringArray::from(subject_names));
     let cols_names: ArrayRef = Arc::new(StringArray::from(cols_names));
     let type_names: ArrayRef = Arc::new(StringArray::from(type_names));
     let batch = RecordBatch::try_from_iter(vec![
-        ("session_name", session_names),
+        ("network_name", network_names),
         ("subject_name", subject_names),
         ("column_name", cols_names),
         ("type_name", type_names),
@@ -37,8 +37,8 @@ pub fn create_session_subject_schemas_batch(
     Ok(batch)
 }
 
-pub(crate) fn create_session_tasks_fields() -> Fields {
-    let field_names = ["session_name", "task_name", "processor_name"];
+pub(crate) fn create_network_tasks_fields() -> Fields {
+    let field_names = ["network_name", "task_name", "processor_name"];
     let fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -46,25 +46,25 @@ pub(crate) fn create_session_tasks_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_session_tasks_batch(
-    session_names: Vec<String>,
+pub fn create_network_tasks_batch(
+    network_names: Vec<String>,
     task_names: Vec<String>,
     processor_names: Vec<String>,
 ) -> Result<RecordBatch> {
-    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let network_names: ArrayRef = Arc::new(StringArray::from(network_names));
     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
     let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
     let batch = RecordBatch::try_from_iter(vec![
-        ("session_name", session_names),
+        ("network_name", network_names),
         ("task_name", task_names),
         ("processor_name", processor_names),
     ])?;
     Ok(batch)
 }
 
-pub(crate) fn create_session_processors_fields() -> Fields {
+pub(crate) fn create_network_processors_fields() -> Fields {
     let field_names = [
-        "session_name",
+        "network_name",
         "processor_name",
         "processor_type",
         "publication_subscription_name",
@@ -87,8 +87,8 @@ pub(crate) fn create_session_processors_fields() -> Fields {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn create_session_processors_batch(
-    session_names: Vec<String>,
+pub fn create_network_processors_batch(
+    network_names: Vec<String>,
     processor_names: Vec<String>,
     processor_types: Vec<String>,
     pub_sub_name: Vec<String>,
@@ -97,7 +97,7 @@ pub fn create_session_processors_batch(
     update_types: Vec<String>,
     is_sub: Vec<u8>,
 ) -> Result<RecordBatch> {
-    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let network_names: ArrayRef = Arc::new(StringArray::from(network_names));
     let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
     let processor_types: ArrayRef = Arc::new(StringArray::from(processor_types));
     let pub_sub_name: ArrayRef = Arc::new(StringArray::from(pub_sub_name));
@@ -106,7 +106,7 @@ pub fn create_session_processors_batch(
     let update_types: ArrayRef = Arc::new(StringArray::from(update_types));
     let is_sub: ArrayRef = Arc::new(UInt8Array::from(is_sub));
     let batch = RecordBatch::try_from_iter(vec![
-        ("session_name", session_names),
+        ("network_name", network_names),
         ("processor_name", processor_names),
         ("processor_type", processor_types),
         ("publication_subscription_name", pub_sub_name),
@@ -118,9 +118,9 @@ pub fn create_session_processors_batch(
     Ok(batch)
 }
 
-pub(crate) fn create_session_runtime_envs_fields() -> Fields {
+pub(crate) fn create_network_runtime_envs_fields() -> Fields {
     let field_names = [
-        "session_name",
+        "network_name",
         "runtime_env_name",
         "object_store_backend",
         "object_store_bucket",
@@ -143,8 +143,8 @@ pub(crate) fn create_session_runtime_envs_fields() -> Fields {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn create_session_runtime_envs_batch(
-    session_names: Vec<String>,
+pub fn create_network_runtime_envs_batch(
+    network_names: Vec<String>,
     runtime_env_names: Vec<String>,
     object_store_backend: Vec<String>,
     object_store_bucket: Vec<String>,
@@ -156,7 +156,7 @@ pub fn create_session_runtime_envs_batch(
     max_steps: Vec<u32>,
     max_tasks: Vec<u32>,
 ) -> Result<RecordBatch> {
-    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let network_names: ArrayRef = Arc::new(StringArray::from(network_names));
     let runtime_env_names: ArrayRef = Arc::new(StringArray::from(runtime_env_names));
     let object_store_backend: ArrayRef = Arc::new(StringArray::from(object_store_backend));
     let object_store_bucket: ArrayRef = Arc::new(StringArray::from(object_store_bucket));
@@ -170,7 +170,7 @@ pub fn create_session_runtime_envs_batch(
     let max_steps: ArrayRef = Arc::new(UInt32Array::from(max_steps));
     let max_tasks: ArrayRef = Arc::new(UInt32Array::from(max_tasks));
     let batch = RecordBatch::try_from_iter(vec![
-        ("session_name", session_names),
+        ("network_name", network_names),
         ("runtime_env_name", runtime_env_names),
         ("object_store_backend", object_store_backend),
         ("object_store_bucket", object_store_bucket),
@@ -185,8 +185,8 @@ pub fn create_session_runtime_envs_batch(
     Ok(batch)
 }
 
-pub(crate) fn create_session_tasks_run_log_fields() -> Fields {
-    let field_names = ["session_name", "task_name"];
+pub(crate) fn create_network_tasks_run_log_fields() -> Fields {
+    let field_names = ["network_name", "task_name"];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -201,18 +201,18 @@ pub(crate) fn create_session_tasks_run_log_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_session_tasks_run_log_batch(
-    session_names: Vec<String>,
+pub fn create_network_tasks_run_log_batch(
+    network_names: Vec<String>,
     task_names: Vec<String>,
     supersteps: Vec<i64>,
     timestamps: Vec<i64>,
 ) -> Result<RecordBatch> {
-    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let network_names: ArrayRef = Arc::new(StringArray::from(network_names));
     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
     let supersteps: ArrayRef = Arc::new(Int64Array::from(supersteps));
     let timestamps: ArrayRef = Arc::new(Int64Array::from(timestamps));
     let batch = RecordBatch::try_from_iter(vec![
-        ("session_name", session_names),
+        ("network_name", network_names),
         ("task_name", task_names),
         ("superstep", supersteps),
         ("timestamp", timestamps),
@@ -220,8 +220,8 @@ pub fn create_session_tasks_run_log_batch(
     Ok(batch)
 }
 
-pub(crate) fn create_session_tasks_check_fields() -> Fields {
-    let field_names = ["session_name", "task_name"];
+pub(crate) fn create_network_tasks_check_fields() -> Fields {
+    let field_names = ["network_name", "task_name"];
     let fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -229,22 +229,22 @@ pub(crate) fn create_session_tasks_check_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_session_tasks_check_batch(
-    session_names: Vec<String>,
+pub fn create_network_tasks_check_batch(
+    network_names: Vec<String>,
     task_names: Vec<String>,
 ) -> Result<RecordBatch> {
-    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let network_names: ArrayRef = Arc::new(StringArray::from(network_names));
     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
     let batch = RecordBatch::try_from_iter(vec![
-        ("session_name", session_names),
+        ("network_name", network_names),
         ("task_name", task_names),
     ])?;
     Ok(batch)
 }
 
-pub(crate) fn create_session_tasks_subscribe_fields() -> Fields {
+pub(crate) fn create_network_tasks_subscribe_fields() -> Fields {
     let field_names = [
-        "session_name",
+        "network_name",
         "task_name",
         "processor_name",
         "processor_type",
@@ -260,8 +260,8 @@ pub(crate) fn create_session_tasks_subscribe_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_session_tasks_subscribe_batch(
-    session_names: Vec<String>,
+pub fn create_network_tasks_subscribe_batch(
+    network_names: Vec<String>,
     task_names: Vec<String>,
     processor_names: Vec<String>,
     processor_types: Vec<String>,
@@ -270,7 +270,7 @@ pub fn create_session_tasks_subscribe_batch(
     // subscribe_types: Vec<String>,
     // update_types: Vec<String>,
 ) -> Result<RecordBatch> {
-    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let network_names: ArrayRef = Arc::new(StringArray::from(network_names));
     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
     let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
     let processor_types: ArrayRef = Arc::new(StringArray::from(processor_types));
@@ -279,7 +279,7 @@ pub fn create_session_tasks_subscribe_batch(
     // let subscribe_types: ArrayRef = Arc::new(StringArray::from(subscribe_types));
     // let update_types: ArrayRef = Arc::new(StringArray::from(update_types));
     let batch = RecordBatch::try_from_iter(vec![
-        ("session_name", session_names),
+        ("network_name", network_names),
         ("task_name", task_names),
         ("processor_name", processor_names),
         ("processor_type", processor_types),
@@ -292,9 +292,9 @@ pub fn create_session_tasks_subscribe_batch(
 }
 
 // DM: Only the subjects that are subscribed to should be here
-pub(crate) fn create_session_tasks_subscribe_aggregate_fields() -> Fields {
+pub(crate) fn create_network_tasks_subscribe_aggregate_fields() -> Fields {
     let field_names = [
-        "session_name",
+        "network_name",
         "task_name",
         "processor_name",
         "processor_type",
@@ -325,8 +325,8 @@ pub(crate) fn create_session_tasks_subscribe_aggregate_fields() -> Fields {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn create_session_tasks_subscribe_aggregate_batch(
-    session_names: Vec<String>,
+pub fn create_network_tasks_subscribe_aggregate_batch(
+    network_names: Vec<String>,
     task_names: Vec<String>,
     processor_names: Vec<String>,
     processor_types: Vec<String>,
@@ -337,7 +337,7 @@ pub fn create_session_tasks_subscribe_aggregate_batch(
     supersteps: Vec<Vec<i64>>,
     superstep_lasts: Vec<Vec<i64>>,
 ) -> Result<RecordBatch> {
-    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let network_names: ArrayRef = Arc::new(StringArray::from(network_names));
     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
     let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
     let processor_types: ArrayRef = Arc::new(StringArray::from(processor_types));
@@ -381,7 +381,7 @@ pub fn create_session_tasks_subscribe_aggregate_batch(
     }
     let superstep_lasts: ArrayRef = Arc::new(list_builder.finish());
     let batch = RecordBatch::try_from_iter(vec![
-        ("session_name", session_names),
+        ("network_name", network_names),
         ("task_name", task_names),
         ("processor_name", processor_names),
         ("processor_type", processor_types),
@@ -395,9 +395,9 @@ pub fn create_session_tasks_subscribe_aggregate_batch(
     Ok(batch)
 }
 
-pub(crate) fn create_session_tasks_publish_fields() -> Fields {
+pub(crate) fn create_network_tasks_publish_fields() -> Fields {
     let field_names = [
-        "session_name",
+        "network_name",
         "task_name",
         "processor_name",
         "processor_type",
@@ -411,8 +411,8 @@ pub(crate) fn create_session_tasks_publish_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub(crate) fn create_session_tasks_publish_aggregate_fields() -> Fields {
-    let field_names = ["session_name", "task_name"];
+pub(crate) fn create_network_tasks_publish_aggregate_fields() -> Fields {
+    let field_names = ["network_name", "task_name"];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -428,22 +428,22 @@ pub(crate) fn create_session_tasks_publish_aggregate_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_session_tasks_publish_batch(
-    session_names: Vec<String>,
+pub fn create_network_tasks_publish_batch(
+    network_names: Vec<String>,
     task_names: Vec<String>,
     processor_names: Vec<String>,
     processor_types: Vec<String>,
     publication_names: Vec<String>,
     publication_table_names: Vec<String>,
 ) -> Result<RecordBatch> {
-    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let network_names: ArrayRef = Arc::new(StringArray::from(network_names));
     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
     let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
     let processor_types: ArrayRef = Arc::new(StringArray::from(processor_types));
     let publication_names: ArrayRef = Arc::new(StringArray::from(publication_names));
     let publication_table_names: ArrayRef = Arc::new(StringArray::from(publication_table_names));
     let batch = RecordBatch::try_from_iter(vec![
-        ("session_name", session_names),
+        ("network_name", network_names),
         ("task_name", task_names),
         ("processor_name", processor_names),
         ("processor_type", processor_types),
@@ -453,9 +453,9 @@ pub fn create_session_tasks_publish_batch(
     Ok(batch)
 }
 
-pub(crate) fn create_session_tasks_subscribe_publish_fields() -> Fields {
+pub(crate) fn create_network_tasks_subscribe_publish_fields() -> Fields {
     let field_names = [
-        "session_name",
+        "network_name",
         "task_name",
         "processor_name",
         "processor_type",
@@ -491,8 +491,8 @@ pub(crate) fn create_session_tasks_subscribe_publish_fields() -> Fields {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn create_session_tasks_subscribe_publish_batch(
-    session_names: Vec<String>,
+pub fn create_network_tasks_subscribe_publish_batch(
+    network_names: Vec<String>,
     task_names: Vec<String>,
     processor_names: Vec<String>,
     processor_types: Vec<String>,
@@ -501,7 +501,7 @@ pub fn create_session_tasks_subscribe_publish_batch(
     publication_names: Vec<Vec<String>>,
     publication_table_names: Vec<Vec<String>>,
 ) -> Result<RecordBatch> {
-    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let network_names: ArrayRef = Arc::new(StringArray::from(network_names));
     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
     let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
     let processor_types: ArrayRef = Arc::new(StringArray::from(processor_types));
@@ -547,7 +547,7 @@ pub fn create_session_tasks_subscribe_publish_batch(
     }
     let publication_table_names: ArrayRef = Arc::new(list_builder.finish());
     let batch = RecordBatch::try_from_iter(vec![
-        ("session_name", session_names),
+        ("network_name", network_names),
         ("task_name", task_names),
         ("processor_name", processor_names),
         ("processor_type", processor_types),
@@ -559,8 +559,8 @@ pub fn create_session_tasks_subscribe_publish_batch(
     Ok(batch)
 }
 
-pub(crate) fn create_session_supersteps_fields() -> Fields {
-    let field_names = ["session_name"];
+pub(crate) fn create_network_supersteps_fields() -> Fields {
+    let field_names = ["network_name"];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -575,21 +575,21 @@ pub(crate) fn create_session_supersteps_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_session_supersteps_batch(
-    session_names: Vec<String>,
+pub fn create_network_supersteps_batch(
+    network_names: Vec<String>,
     supersteps: Vec<u32>,
 ) -> Result<RecordBatch> {
-    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let network_names: ArrayRef = Arc::new(StringArray::from(network_names));
     let supersteps: ArrayRef = Arc::new(UInt32Array::from(supersteps));
     let batch = RecordBatch::try_from_iter(vec![
-        ("session_name", session_names),
+        ("network_name", network_names),
         ("superstep", supersteps),
     ])?;
     Ok(batch)
 }
 
-pub(crate) fn create_session_superstep_max_fields() -> Fields {
-    let field_names = ["session_name"];
+pub(crate) fn create_network_superstep_max_fields() -> Fields {
+    let field_names = ["network_name"];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))

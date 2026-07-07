@@ -43,7 +43,7 @@ use crate::{
 
 /// Chat inference endpoint
 #[axum::debug_handler]
-pub async fn session_diagnostics(
+pub async fn network_diagnostics(
     Extension((current_user, user_networks)): Extension<(
         String,
         Vec<JoinUserInboxNetworksMermaidDiagrams>,
@@ -56,8 +56,8 @@ pub async fn session_diagnostics(
         Ok(payload) => {
             // We got a valid JSON payload
             tracing::debug!(
-                "Running diagnostic session for session_name {}",
-                payload.get_session_name()
+                "Running diagnostic network for network_name {}",
+                payload.get_network_name()
             );
 
             // Add user state if it does not exist already
@@ -67,12 +67,12 @@ pub async fn session_diagnostics(
                 .unwrap()
                 .contains_key(&current_user)
             {
-                // Initialize the user session contexts
-                let _session_names = match state
+                // Initialize the user network contexts
+                let _network_names = match state
                     .make_networks(&user_networks, true, users.users.runtime_env())
                     .await
                 {
-                    Ok(session_names) => session_names,
+                    Ok(network_names) => network_names,
                     Err(err) => {
                         return JsonError::new(err.to_string())
                             .to_response(StatusCode::INTERNAL_SERVER_ERROR);
@@ -80,32 +80,32 @@ pub async fn session_diagnostics(
                 };
             }
 
-            // Initialize the diagnostics session
+            // Initialize the diagnostics network
             let diagnostic_network = DiagnosticNetworkBuilder::default();
 
-            // Get the diagnostic information from the session stream state
+            // Get the diagnostic information from the network stream state
             let message_map = {
                 let network_arc = match state
                     .networks
                     .try_write()
                     .unwrap()
-                    .get(payload.get_session_name())
+                    .get(payload.get_network_name())
                 {
-                    // Continue an existing session
-                    Some(session) => {
+                    // Continue an existing network
+                    Some(network) => {
                         // Copy
-                        Arc::clone(session)
+                        Arc::clone(network)
                     }
-                    // Create new session
+                    // Create new network
                     None => {
                         return JsonError::new(
-                            "Failed to get the session stream state".to_string(),
+                            "Failed to get the network stream state".to_string(),
                         )
                         .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 };
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableSubjects::SessionMetrics.to_string(),
+                    subject_name: AvailableSubjects::NetworkMetrics.to_string(),
                 }
                 .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())
                 .unwrap()
@@ -114,7 +114,7 @@ pub async fn session_diagnostics(
                 .await
                 .unwrap();
                 let subject = Subject::get_builder()
-                    .with_name(&AvailableSubjects::SessionMetrics.to_string())
+                    .with_name(&AvailableSubjects::NetworkMetrics.to_string())
                     .with_record_batches(batches)
                     .unwrap()
                     .build()
@@ -131,7 +131,7 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableSubjects::SessionTraces.to_string(),
+                    subject_name: AvailableSubjects::NetworkTraces.to_string(),
                 }
                 .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())
                 .unwrap()
@@ -140,7 +140,7 @@ pub async fn session_diagnostics(
                 .await
                 .unwrap();
                 let subject = Subject::get_builder()
-                    .with_name(&AvailableSubjects::SessionTraces.to_string())
+                    .with_name(&AvailableSubjects::NetworkTraces.to_string())
                     .with_record_batches(batches)
                     .unwrap()
                     .build()
@@ -157,7 +157,7 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableSubjects::SessionEvents.to_string(),
+                    subject_name: AvailableSubjects::NetworkEvents.to_string(),
                 }
                 .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())
                 .unwrap()
@@ -166,7 +166,7 @@ pub async fn session_diagnostics(
                 .await
                 .unwrap();
                 let subject = Subject::get_builder()
-                    .with_name(&AvailableSubjects::SessionEvents.to_string())
+                    .with_name(&AvailableSubjects::NetworkEvents.to_string())
                     .with_record_batches(batches)
                     .unwrap()
                     .build()
@@ -183,7 +183,7 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableSubjects::SessionTasks.to_string(),
+                    subject_name: AvailableSubjects::NetworkTasks.to_string(),
                 }
                 .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())
                 .unwrap()
@@ -192,7 +192,7 @@ pub async fn session_diagnostics(
                 .await
                 .unwrap();
                 let subject = Subject::get_builder()
-                    .with_name(&AvailableSubjects::SessionTasks.to_string())
+                    .with_name(&AvailableSubjects::NetworkTasks.to_string())
                     .with_record_batches(batches)
                     .unwrap()
                     .build()
@@ -209,7 +209,7 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableSubjects::SessionErrors.to_string(),
+                    subject_name: AvailableSubjects::NetworkErrors.to_string(),
                 }
                 .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())
                 .unwrap()
@@ -219,7 +219,7 @@ pub async fn session_diagnostics(
                 .unwrap();
                 if !batches.is_empty() {
                     let subject = Subject::get_builder()
-                        .with_name(&AvailableSubjects::SessionErrors.to_string())
+                        .with_name(&AvailableSubjects::NetworkErrors.to_string())
                         .with_record_batches(batches)
                         .unwrap()
                         .build()
@@ -253,8 +253,8 @@ pub async fn session_diagnostics(
                 }
             };
 
-            // Make the diagnostics session stream
-            let (network, session_messages) = diagnostic_network
+            // Make the diagnostics network stream
+            let (network, network_messages) = diagnostic_network
                 .build()
                 .with_name(diagnostic_network.network_name)
                 .with_diagnostics(true) // Debugging
@@ -284,14 +284,14 @@ pub async fn session_diagnostics(
             let network_arc = Arc::new(network);
             NetworkStreamStep::update_subjects_and_changelog_from_messages(
                 &network_arc,
-                session_messages.unwrap_or_default(),
+                network_messages.unwrap_or_default(),
                 0,
             )
             .await
             .unwrap();
             let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
 
-            // Run and update the session and convert the output to the user specified format
+            // Run and update the network and convert the output to the user specified format
             match (&payload.get_format(), payload.get_stream()) {
                 (DataFormat::Bytes, true) => {
                     // Convert the output to bytes

@@ -1,9 +1,9 @@
-/// A session for generating text in a structured format from a prompt
+/// A network for generating text in a structured format from a prompt
 ///   with support for tools
 ///
 /// # Notes
 pub struct GenerateTextNetworkBuilder<'a> {
-    /// Session
+    /// Network
     pub network_name: &'a str,
     /// The Asset to use for Text Generation and related parameters
     pub candle_asset: Option<String>,
@@ -167,7 +167,7 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
         }
         lines.join("\n\t\t")
     }
-    /// Return the Mermaid.js flowchart representation of the session
+    /// Return the Mermaid.js flowchart representation of the network
     pub fn as_mermaid_flowchart(&self) -> String {
         let chat_processor = self.chat_processor;
         let subscribe_policy = if self.tool_message_required {
@@ -183,7 +183,7 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
 	subgraph aggregate_messages_generate_text_t
 		UserMessages-subject-->|AllRecordBatches|aggregate_messages_generate_text_p-subscribe
 		ToolMessages-subject-.->|AllRecordBatches|aggregate_messages_generate_text_p-subscribe
-		SessionErrors-subject-.->|AllRecordBatches|aggregate_messages_generate_text_p-subscribe
+		NetworkErrors-subject-.->|AllRecordBatches|aggregate_messages_generate_text_p-subscribe
 		AssistantMessages-subject-->|AllRecordBatches|aggregate_messages_generate_text_p-subscribe
 		aggregate_messages_generate_text_p-subscribe-->aggregate_messages_generate_text_p-processor
 		aggregate_messages_generate_text_p-processor-->aggregate_messages_generate_text_p-publish
@@ -193,7 +193,7 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
 	generate_text_r-rt-->aggregate_messages_generate_text_t
 	UserMessages-subject@{{shape: doc, label: UserMessages}}
 	ToolMessages-subject@{{shape: doc, label: ToolMessages}}
-	SessionErrors-subject@{{shape: doc, label: SessionErrors}}
+	NetworkErrors-subject@{{shape: doc, label: NetworkErrors}}
 	AssistantMessages-subject@{{shape: doc, label: AssistantMessages}}
 	aggregate_messages_generate_text_p-processor@{{shape: rect, label: AggregatorProcessor}}
 	aggregate_messages_generate_text_p-publish@{{shape: fork}}
@@ -247,7 +247,7 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
         )
     }
 
-    /// Return the Mermaid.js ER diagram representation of the session
+    /// Return the Mermaid.js ER diagram representation of the network
     pub fn as_mermaid_erdiagram(&self) -> String {
         let generate_text_inference_p = self.generate_text_inference_p();
         let parse_generated_text_p = self.parse_generated_text_p();
@@ -263,7 +263,7 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
 	    Utf8 content
 	    Int64 timestamp
 	}}
-    SessionErrors["SessionErrors"] {{
+    NetworkErrors["NetworkErrors"] {{
         Utf8 role
         Utf8 content
         Int64 timestamp
@@ -364,9 +364,9 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_generate_text_network_no_tools() -> Result<()> {
-        // Initialize the session
+        // Initialize the network
         let generate_text_network = GenerateTextNetworkBuilder::default();
-        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
+        let (network, network_messages) = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_network.as_mermaid_flowchart(),
             false,
         )?
@@ -399,7 +399,7 @@ mod tests {
 
         let message_map = create_message_map(vec![chat_message]);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
         // Avoid running with Candle without GPU acceleration
@@ -408,7 +408,7 @@ mod tests {
             all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
-            // Run the session
+            // Run the network
             let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
             let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
@@ -526,7 +526,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_generate_text_network_tool_call() -> Result<()> {
-        // Initialize the session
+        // Initialize the network
         let generate_text_network = GenerateTextNetworkBuilder::new(
             "generate_text_network",
             Some("QwenV2p5_1p5bChat".to_string()),
@@ -565,7 +565,7 @@ mod tests {
         .add_next_tasks()?
         .add_next_supersteps()?;
 
-        // Add the target tool subjects to the session for testing
+        // Add the target tool subjects to the network for testing
         let mut subjects = network_builder.subjects.take().unwrap();
         let tool = AvailableSubjects::Bytes
             .to_subject(Some(AvailableOperators::Sort.to_string().as_str()), None)?;
@@ -576,9 +576,9 @@ mod tests {
         )?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
 
-        let (network, session_messages) = network_builder
+        let (network, network_messages) = network_builder
             .with_subjects(subjects)
-            // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
+            // DM: needed for the network to build, the target tool subjects need to be called by at least 1 task
             .add_network_interface(Some(&[
                 AvailableOperators::Sort.to_string().as_str(),
                 AvailableOperators::HumanInTheLoop.to_string().as_str(),
@@ -626,7 +626,7 @@ mod tests {
 
         let message_map = create_message_map(vec![tool_message, chat_message]);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
         // Avoid running with Candle without GPU acceleration
@@ -635,11 +635,11 @@ mod tests {
             all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
-            // Run the session
+            // Run the network
             let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
             let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
-            assert_eq!(response.len(), 1); // Due to session interface
+            assert_eq!(response.len(), 1); // Due to network interface
 
             {
                 // Test supsersteps
@@ -765,7 +765,7 @@ mod tests {
     // #[ignore = "Failing on WASM for unknown reason..."]
     #[tokio::test(flavor = "current_thread")]
     async fn test_generate_text_network_tool_response() -> Result<()> {
-        // Initialize the session
+        // Initialize the network
         let generate_text_network = GenerateTextNetworkBuilder::default();
         let mut network_builder = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_network.as_mermaid_flowchart(),
@@ -782,7 +782,7 @@ mod tests {
         .add_next_tasks()?
         .add_next_supersteps()?;
 
-        // Add the target tool subjects to the session for testing
+        // Add the target tool subjects to the network for testing
         let mut subjects = network_builder.subjects.take().unwrap();
         let tool = AvailableSubjects::Bytes
             .to_subject(Some(AvailableOperators::Sort.to_string().as_str()), None)?;
@@ -792,9 +792,9 @@ mod tests {
             None,
         )?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
-        let (network, session_messages) = network_builder
+        let (network, network_messages) = network_builder
             .with_subjects(subjects)
-            // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
+            // DM: needed for the network to build, the target tool subjects need to be called by at least 1 task
             .add_network_interface(Some(&[
                 AvailableOperators::Sort.to_string().as_str(),
                 AvailableOperators::HumanInTheLoop.to_string().as_str(),
@@ -856,7 +856,7 @@ mod tests {
 
         let message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
         // Avoid running with Candle without GPU acceleration
@@ -865,7 +865,7 @@ mod tests {
             all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
-            // Run the session
+            // Run the network
             let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
             let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
@@ -996,7 +996,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_generate_text_network_error_response() -> Result<()> {
-        // Initialize the session
+        // Initialize the network
         let generate_text_network = GenerateTextNetworkBuilder::new(
             "generate_text_network",
             Some("QwenV2p5_1p5bChat".to_string()),
@@ -1035,7 +1035,7 @@ mod tests {
         .add_next_tasks()?
         .add_next_supersteps()?;
 
-        // Add the target tool subjects to the session for testing
+        // Add the target tool subjects to the network for testing
         let mut subjects = network_builder.subjects.take().unwrap();
         let tool = AvailableSubjects::Bytes
             .to_subject(Some(AvailableOperators::Sort.to_string().as_str()), None)?;
@@ -1045,9 +1045,9 @@ mod tests {
             None,
         )?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
-        let (network, session_messages) = network_builder
+        let (network, network_messages) = network_builder
             .with_subjects(subjects)
-            // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
+            // DM: needed for the network to build, the target tool subjects need to be called by at least 1 task
             .add_network_interface(Some(&[
                 AvailableOperators::Sort.to_string().as_str(),
                 AvailableOperators::HumanInTheLoop.to_string().as_str(),
@@ -1094,7 +1094,7 @@ mod tests {
             .build()?;
 
         // Error response
-        let tool = AvailableSubjects::SessionErrors.to_subject_builder(None)
+        let tool = AvailableSubjects::NetworkErrors.to_subject_builder(None)
             .append_new_user_query_str("lhs_name `available_data_1` was not found. Available options are [`available_data_0`, `available_data_2`, `available_data_3`].", "tool")?
             .build()?;
         let tool_response = IPCMessage::get_builder()
@@ -1109,7 +1109,7 @@ mod tests {
 
         let message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
         // Avoid running with Candle without GPU acceleration
@@ -1118,7 +1118,7 @@ mod tests {
             all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
-            // Run the session
+            // Run the network
             let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
             let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
@@ -1253,8 +1253,8 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_generate_text_network_with_configs_and_session() -> Result<()> {
-        // initialize the session
+    fn test_from_mermaid_generate_text_network_with_configs_and_network() -> Result<()> {
+        // initialize the network
         let generate_text_network = GenerateTextNetworkBuilder::default();
         let builder = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_network.as_mermaid_flowchart(),
@@ -1308,15 +1308,15 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(test, expected);
 
-        // Test that we can build the session
-        let _ = builder_test.with_name("session_1").build()?;
+        // Test that we can build the network
+        let _ = builder_test.with_name("network_1").build()?;
 
         Ok(())
     }
 
     #[test]
-    fn test_from_mermaid_generate_text_network_without_configs_and_session() -> Result<()> {
-        // initialize the session
+    fn test_from_mermaid_generate_text_network_without_configs_and_network() -> Result<()> {
+        // initialize the network
         let generate_text_network = GenerateTextNetworkBuilder::default();
         let builder = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_network.as_mermaid_flowchart(),
@@ -1373,7 +1373,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(test, expected);
 
-        // Test that we can build the session
+        // Test that we can build the network
         let _ = builder_test.build()?;
 
         Ok(())
@@ -1381,7 +1381,7 @@ mod tests {
 
     #[test]
     fn test_from_mermaid_generate_text_network_with_data() -> Result<()> {
-        // initialize the session
+        // initialize the network
         let generate_text_network = GenerateTextNetworkBuilder::default();
         let builder = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_network.as_mermaid_flowchart(),
@@ -1479,7 +1479,7 @@ mod tests {
             }
         }
 
-        // Test that we can build the session
+        // Test that we can build the network
         let _ = builder_test.build()?;
 
         Ok(())

@@ -243,7 +243,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_object_network_static_w_subject() -> Result<()> {
         let get_content_network = GetObjectNetworkBuilderStaticWSubject::default();
-        let (network, session_messages) = get_content_network
+        let (network, network_messages) = get_content_network
             .inner
             .build_dynamic()
             .with_runtime_env(
@@ -297,9 +297,9 @@ mod tests {
                 .build()?,
         );
 
-        // Run the session
+        // Run the network
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
@@ -340,7 +340,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_object_network_dynamic_w_subject() -> Result<()> {
         let get_content_network = GetObjectNetworkBuilderDynamicWSubject::default();
-        let (network, session_messages) = get_content_network
+        let (network, network_messages) = get_content_network
             .inner
             .build_dynamic()
             .with_runtime_env(
@@ -401,9 +401,9 @@ mod tests {
                 .build()?,
         );
 
-        // Run the session
+        // Run the network
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
@@ -444,7 +444,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_object_network_dynamic_wo_subject() -> Result<()> {
         let get_content_network = GetObjectNetworkBuilderDynamicWSubject::default();
-        let (network, session_messages) = get_content_network
+        let (network, network_messages) = get_content_network
             .inner
             .build_dynamic()
             .with_runtime_env(
@@ -507,15 +507,15 @@ mod tests {
                 .build()?,
         );
 
-        // Run the session
+        // Run the network
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionErrors.to_string(),
+            subject_name: AvailableSubjects::NetworkErrors.to_string(),
         }
         .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
@@ -523,17 +523,17 @@ mod tests {
         .await?;
         if !batches.is_empty() {
             let subject = Subject::get_builder()
-                .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+                .with_name(AvailableSubjects::NetworkErrors.to_string().as_str())
                 .with_record_batches(batches)?
                 .build()?;
             println!(
                 "{}\n{}",
-                AvailableSubjects::SessionErrors,
+                AvailableSubjects::NetworkErrors,
                 String::from_utf8(subject.to_csv(b',', true)?)?
             );
         }
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTraces.to_string(),
+            subject_name: AvailableSubjects::NetworkTraces.to_string(),
         }
         .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
@@ -541,12 +541,12 @@ mod tests {
         .await?;
         if !batches.is_empty() {
             let subject = Subject::get_builder()
-                .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
+                .with_name(AvailableSubjects::NetworkTraces.to_string().as_str())
                 .with_record_batches(batches)?
                 .build()?;
             println!(
                 "{}\n{}",
-                AvailableSubjects::SessionTraces,
+                AvailableSubjects::NetworkTraces,
                 String::from_utf8(subject.to_csv(b',', true)?)?
             );
         }

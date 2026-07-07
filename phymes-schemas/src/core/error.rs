@@ -24,7 +24,7 @@ pub fn create_error_subject(err: &Error, with_display: bool) -> Result<Subject> 
         vec![create_timestamp_micros()],
     )?;
     SubjectBuilder::new()
-        .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+        .with_name(AvailableSubjects::NetworkErrors.to_string().as_str())
         .with_record_batches(vec![batch])?
         .build()
 }

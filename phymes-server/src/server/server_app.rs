@@ -34,7 +34,7 @@ use tokio::net::TcpListener;
 use crate::{
     handlers::{
         authorize, network_build, network_get_subjects, network_put_subjects, network_stream,
-        session_diagnostics, sign_in,
+        network_diagnostics, sign_in,
     },
     state::{ServerState, UserState},
 };
@@ -86,7 +86,7 @@ impl AppBuilder {
             )
             .route(
                 "/app/v1/diagnostics",
-                post(session_diagnostics).layer(middleware::from_fn_with_state(
+                post(network_diagnostics).layer(middleware::from_fn_with_state(
                     user_state.clone(),
                     authorize,
                 )),
