@@ -522,7 +522,7 @@ use super::*;
             .with_name(AvailableSubjects::Documents.to_string().as_str())
             .with_record_batches(batches)?
             .build()?;
-        assert_eq!(subject.count_rows(), 4);
+        assert_eq!(subject.count_rows(), 12);
         let column = subject.get_column_as_vec_str("chunk_id");
         assert_eq!(
             column.first().unwrap(),
@@ -530,8 +530,7 @@ use super::*;
         );
         assert_eq!(
             column.last().unwrap(),
-            &"WikiBioComponents4PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_0"
-        );
+&"WikiBioComponents4PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_1"        );
         let column = subject.get_column_as_vec_str("document_id");
         assert_eq!(column.first().unwrap(), &"WikiBioComponents");
         assert_eq!(column.last().unwrap(), &"WikiBioComponents");

@@ -414,11 +414,11 @@ mod tests {
                 "contact@biom8er.com",
                 "contact@biom8er.com",
                 "contact@biom8er.com",
-                // "contact@biom8er.com"
+                "contact@biom8er.com"
             ]
         );
         let column = subject.get_column_as_vec_str("network_name");
-        assert_eq!(column, ["Builder", "GenerateText", "RAGTextPDF"]);
+        assert_eq!(column, ["Builder", "GenerateText", "RAGTextPDF", "TabularDataOps"]);
         let column = subject.get_column_as_vec_str("er_diagram");
         for c in column {
             assert!(!c.is_empty());

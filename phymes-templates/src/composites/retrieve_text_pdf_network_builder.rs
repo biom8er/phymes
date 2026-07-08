@@ -164,7 +164,7 @@ mod tests {
 
             // Make the query data
             let query_ids = vec!["0".to_string()];
-            let text = vec!["What are the four molecules that compose DNA?".to_string()];
+            let text = vec!["What are the four nucleobases that compose DNA?".to_string()];
             let batch = create_queries_batch(query_ids, text)?;
             let queries = AvailableInterfaceSubjects::UserQueries
                 .to_subject_builder(None)

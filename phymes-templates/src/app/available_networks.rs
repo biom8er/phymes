@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     GenerateTextNetworkBuilder, MermaidNetworkBuilder, RetrievalAugmentedGenerationPDFNetworkBuilder, TabularDataOperatorNetworkBuilder, UserNetwork,
 };
+#[cfg(feature = "api")]
+use crate::GenerateCodeNetworkBuilder;
 
 /// The available network plans
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
@@ -23,6 +25,9 @@ pub enum AvailableNetworks {
     RAGTextPDF,
     #[value(name = "TabularDataOps")]
     TabularDataOps,
+    #[cfg(feature = "api")]
+    #[value(name = "GenerateCode")]
+    GenerateCode,
     #[value(name = "Builder")]
     Builder,
     #[value(name = "Users")]
@@ -35,6 +40,8 @@ impl Display for AvailableNetworks {
             Self::GenerateText => write!(f, "GenerateText"),
             Self::RAGTextPDF => write!(f, "RAGTextPDF"),
             Self::TabularDataOps => write!(f, "TabularDataOps"),
+            #[cfg(feature = "api")]
+            Self::GenerateCode => write!(f, "GenerateCode"),
             Self::Builder => write!(f, "Builder"),
             Self::Users => write!(f, "Users"),
         }
@@ -44,7 +51,11 @@ impl Display for AvailableNetworks {
 impl AvailableNetworks {
     /// Get all available network plans
     pub fn get_all_network_plan_names() -> Vec<String> {
-        let network_plans = ["GenerateText", "RAGTextPDF", "TabularDataOps", "Builder"];
+        let network_plans = ["GenerateText", "RAGTextPDF", "TabularDataOps", 
+            #[cfg(feature = "api")]
+            "GenerateCode", 
+            "Builder"
+        ];
         network_plans
             .iter()
             .map(|s| s.to_string())
@@ -53,7 +64,10 @@ impl AvailableNetworks {
 
     /// Get all available network plans
     pub fn get_deployable_network_plan_names() -> Vec<String> {
-        let network_plans = ["GenerateText", "RAGTextPDF", "TabularDataOps"];
+        let network_plans = ["GenerateText", "RAGTextPDF", "TabularDataOps", 
+            #[cfg(feature = "api")]
+            "GenerateCode"
+        ];
         network_plans
             .iter()
             .map(|s| s.to_string())
@@ -119,6 +133,26 @@ impl AvailableNetworks {
                 .with_name(network_name)
                 .add_processor_subjects()
                 .unwrap(),
+            #[cfg(feature = "api")]
+            Self::GenerateCode => GenerateCodeNetworkBuilder::default()
+                .inner
+                .take()
+                .unwrap()
+                // DM: will be overwritten anyway
+                .with_runtime_env(
+                    RuntimeEnv::get_builder()
+                        .with_name(
+                            DynamicTaskNetworkNames::RuntimeEnv(network_name)
+                                .to_string()
+                                .as_str(),
+                        )
+                        .with_max_steps(100)
+                        .build_arc()
+                        .unwrap(),
+                )
+                .with_name(network_name)
+                .add_processor_subjects()
+                .unwrap(),
             Self::Builder => MermaidNetworkBuilder::new_with_network_name(network_name).build(),
             Self::Users => UserNetwork::new_with_network_name(network_name).build(),
         }
@@ -140,6 +174,15 @@ impl AvailableNetworks {
         } else if network_plan_name == Self::Users.to_string() {
             Ok(Self::Users.get_network_builder(network_name))
         } else {
+            #[cfg(feature = "api")]
+            if network_plan_name == Self::GenerateCode.to_string() {
+                Ok(Self::GenerateCode.get_network_builder(network_name))
+            } else {
+                Err(anyhow!(
+                    "Plan name {network_plan_name} was not found in the available network plans."
+                ))
+            }
+            #[cfg(not(feature = "api"))]
             Err(anyhow!(
                 "Plan name {network_plan_name} was not found in the available network plans."
             ))
@@ -186,6 +229,15 @@ impl AvailableNetworks {
         } else if network_plan_name == Self::Users.to_string() {
             Ok(Self::Users.get_network_stream_state(network_name, runtime_env))
         } else {
+            #[cfg(feature = "api")]
+            if network_plan_name == Self::GenerateCode.to_string() {
+                Ok(Self::GenerateCode.get_network_stream_state(network_name, runtime_env))
+            } else {
+                Err(anyhow!(
+                    "Plan name {network_plan_name} was not found in the available network plans."
+                ))
+            }
+            #[cfg(not(feature = "api"))]
             Err(anyhow!(
                 "Plan name {network_plan_name} was not found in the available network plans."
             ))

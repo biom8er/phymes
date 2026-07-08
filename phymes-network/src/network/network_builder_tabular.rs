@@ -27,8 +27,7 @@ use phymes_task::TaskPlanBuilder;
 use serde_json::{Map, Value};
 
 use crate::{
-    NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
-    core::{CountSubjectRowsNetwork, NextSuperstepNetwork, NextTaskNetwork},
+    InvokeTaskNetworkBuilder, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait, TaskResponseNetworkBuilder, core::{CountSubjectRowsNetwork, NextSuperstepNetwork, NextTaskNetwork},
 };
 
 /// Trait extension for [NetworkBuilderTrait] to enable exporting to and importing from tabular format
@@ -1245,11 +1244,75 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
             Vec::new()
         };
 
+        // Exclude subjects from `InvokeTaskNetworkBuilder`
+        let invoke_task_network = InvokeTaskNetworkBuilder::default();
+        let tables_invoke_task = if let Some(network_name) = self.name.as_ref() {
+            if network_name != invoke_task_network.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
+                    &invoke_task_network.as_mermaid_flowchart(),
+                    false,
+                )?
+                .with_subjects_from_mermaid_erdiagram(
+                    &invoke_task_network.as_mermaid_erdiagram()?,
+                    false,
+                    false,
+                )?
+                .with_name(invoke_task_network.network_name)
+                .add_processor_subjects()?
+                .subjects
+                .unwrap()
+                .into_iter()
+                .filter_map(|t| if t.get_name() == "Bytes" {
+                    None
+                } else {
+                    Some(t.get_name().to_string())
+                })
+                .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+
+        // Exclude subjects from `TaskResponseNetworkBuilder`
+        let task_response_network = TaskResponseNetworkBuilder::default();
+        let tables_task_response = if let Some(network_name) = self.name.as_ref() {
+            if network_name != task_response_network.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
+                    &task_response_network.as_mermaid_flowchart(),
+                    false,
+                )?
+                .with_subjects_from_mermaid_erdiagram(
+                    &task_response_network.as_mermaid_erdiagram(),
+                    false,
+                    false,
+                )?
+                .with_name(task_response_network.network_name)
+                .add_processor_subjects()?
+                .subjects
+                .unwrap()
+                .into_iter()
+                .filter_map(|t| if t.get_name() == "Bytes" {
+                    None
+                } else {
+                    Some(t.get_name().to_string())
+                })
+                .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+
         // Wrap into a HashSet
         let exclusion_set = tables_publish_subscribe
             .into_iter()
             .chain(tables_next_superstep)
             .chain(tables_subjects)
+            .chain(tables_invoke_task)
+            .chain(tables_task_response)
             .collect::<HashSet<_>>();
         Ok(exclusion_set)
     }
@@ -1315,11 +1378,53 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
             Vec::new()
         };
 
+        // Exclude subjects from `InvokeTaskNetworkBuilder`
+        let invoke_task_network = InvokeTaskNetworkBuilder::default();
+        let tasks_invoke_task = if let Some(network_name) = self.name.as_ref() {
+            if network_name != invoke_task_network.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
+                    &invoke_task_network.as_mermaid_flowchart(),
+                    false,
+                )?
+                .tasks
+                .unwrap()
+                .into_iter()
+                .map(|t| t.task_name)
+                .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+
+        // Exclude subjects from `TaskResponseNetworkBuilder`
+        let task_response_network = TaskResponseNetworkBuilder::default();
+        let tasks_task_response = if let Some(network_name) = self.name.as_ref() {
+            if network_name != task_response_network.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
+                    &task_response_network.as_mermaid_flowchart(),
+                    false,
+                )?
+                .tasks
+                .unwrap()
+                .into_iter()
+                .map(|t| t.task_name)
+                .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+
         // Wrap into a HashSet
         let exclusion_set = tasks_publish_subscribe
             .into_iter()
             .chain(tasks_next_superstep)
             .chain(tasks_subjects)
+            .chain(tasks_invoke_task)
+            .chain(tasks_task_response)
             .collect::<HashSet<_>>();
         Ok(exclusion_set)
     }
@@ -1385,11 +1490,53 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
             Vec::new()
         };
 
+        // Exclude subjects from `InvokeTaskNetworkBuilder`
+        let invoke_task_network = InvokeTaskNetworkBuilder::default();
+        let processors_invoke_task = if let Some(network_name) = self.name.as_ref() {
+            if network_name != invoke_task_network.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
+                    &invoke_task_network.as_mermaid_flowchart(),
+                    false,
+                )?
+                .processors
+                .unwrap()
+                .into_iter()
+                .map(|t| t.get_name().to_string())
+                .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+
+        // Exclude subjects from `TaskResponseNetworkBuilder`
+        let task_response_network = TaskResponseNetworkBuilder::default();
+        let processors_task_response = if let Some(network_name) = self.name.as_ref() {
+            if network_name != task_response_network.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
+                    &task_response_network.as_mermaid_flowchart(),
+                    false,
+                )?
+                .processors
+                .unwrap()
+                .into_iter()
+                .map(|t| t.get_name().to_string())
+                .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+
         // Wrap into a HashSet
         let exclusion_set = processors_task_network
             .into_iter()
             .chain(processors_next_superstep)
             .chain(processors_subjects)
+            .chain(processors_invoke_task)
+            .chain(processors_task_response)
             .collect::<HashSet<_>>();
         Ok(exclusion_set)
     }

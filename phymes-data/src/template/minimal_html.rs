@@ -192,8 +192,7 @@ mod tests {
 
         assert_eq!(
             script_string,
-            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n        <script src=\"https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4\"></script>\n        <script type=\"module\">\n            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';\n            mermaid.initialize({theme: \"dark\", startOnLoad: true });\n        </script>\n    </head>\n    <body>\n<h1>Title 1</h1>\n<p>Version 1</p>\n<p>Description 1</p>\n<h2> Background</h2>\n<h1>Title 2</h1>\n<p>Version 2</p>\n<p>Description 2</p>\n<h2> Background</h2>\n<h1>Title 3</h1>\n<p>Version 3</p>\n<p>Description 3</p>\n<h2> Background</h2>\n    </body>\n</html>"
-        );
+"<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n        <script src=\"https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4\"></script>\n        <script type=\"module\">\n            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';\n            import elkLayouts from 'https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0/dist/mermaid-layout-elk.esm.min.mjs';\n            mermaid.registerLayoutLoaders(elkLayouts);\n            mermaid.initialize({theme: \"dark\", startOnLoad: true });\n        </script>\n    </head>\n    <body>\n<h1>Title 1</h1>\n<p>Version 1</p>\n<p>Description 1</p>\n<h2> Background</h2>\n<h1>Title 2</h1>\n<p>Version 2</p>\n<p>Description 2</p>\n<h2> Background</h2>\n<h1>Title 3</h1>\n<p>Version 3</p>\n<p>Description 3</p>\n<h2> Background</h2>\n    </body>\n</html>"        );
         Ok(())
     }
 }

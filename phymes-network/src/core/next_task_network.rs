@@ -1266,20 +1266,20 @@ mod tests {
             let column = subject.get_column_as_vec_str("network_name");
             assert_eq!(column, ["network_1", "network_1", "network_1", "network_1"]);
             let column = subject.get_column_as_vec_str("task_name");
-            assert_eq!(column, ["task_1", "task_1", "task_1", "network_1"]);
+            assert_eq!(column, ["network_1", "task_1", "task_1", "task_1"]);
             let column = subject.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
-                ["processor_1", "processor_2", "processor_3", "network_1"]
+                ["network_1", "processor_1", "processor_2", "processor_3"]
             );
             let column = subject.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
                 [
-                    "ProcessorMock",
-                    "ProcessorMock",
-                    "ProcessorMock",
                     "ProcessorEcho",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
                 ]
             );
             let column = subject
@@ -1288,13 +1288,7 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateAllRecordBatches",
-                    "OnUpdateLastRecordBatch",
+                    "OnUpdateLastRecordBatch", "AlwaysAllRecordBatches", "OnUpdateAllRecordBatches", "AlwaysAllRecordBatches", "OnUpdateAllRecordBatches", "AlwaysAllRecordBatches", "OnUpdateAllRecordBatches"
                 ]
             );
             let column = subject
@@ -1303,17 +1297,17 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
+                    "state_1",
                     "processor_1",
                     "state_1",
                     "processor_2",
                     "state_1",
                     "processor_3",
                     "state_1",
-                    "state_1",
                 ]
             );
             let column = subject.get_column_as_vec_str("subscribe_type-Last");
-            assert_eq!(column, ["All", "All", "All", "Any"]);
+            assert_eq!(column, ["Any", "All", "All", "All"]);
             let column = subject.get_column_as_vec_str("update_type-Last");
             assert_eq!(
                 column,
@@ -1376,64 +1370,64 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "task_1",
-                    "task_1",
-                    "task_1",
-                    "task_1",
-                    "task_1",
-                    "task_1",
                     "network_1",
+                    "task_1",
+                    "task_1",
+                    "task_1",
+                    "task_1",
+                    "task_1",
+                    "task_1",
                 ]
             );
             let column = subject.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
                 [
-                    "processor_1",
-                    "processor_1",
-                    "processor_2",
-                    "processor_2",
-                    "processor_3",
-                    "processor_3",
                     "network_1",
+                    "processor_1",
+                    "processor_1",
+                    "processor_2",
+                    "processor_2",
+                    "processor_3",
+                    "processor_3",
                 ]
             );
             let column = subject.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
                 [
-                    "ProcessorMock",
-                    "ProcessorMock",
-                    "ProcessorMock",
-                    "ProcessorMock",
-                    "ProcessorMock",
-                    "ProcessorMock",
                     "ProcessorEcho",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
                 ]
             );
             let column = subject.get_column_as_vec_str("subscription_name");
             assert_eq!(
                 column,
                 [
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateAllRecordBatches",
                     "OnUpdateLastRecordBatch",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
                 ]
             );
             let column = subject.get_column_as_vec_str("subscription_table_name");
             assert_eq!(
                 column,
                 [
+                    "state_1",
                     "processor_1",
                     "state_1",
                     "processor_2",
                     "state_1",
                     "processor_3",
-                    "state_1",
                     "state_1",
                 ]
             );
@@ -1470,16 +1464,16 @@ mod tests {
             let column = subject.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
-                ["processor_1", "processor_2", "processor_3", "network_1"]
+                ["network_1", "processor_1", "processor_2", "processor_3"]
             );
             let column = subject.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
                 [
+                    "ProcessorEcho",
                     "ProcessorMock",
                     "ProcessorMock",
                     "ProcessorMock",
-                    "ProcessorEcho"
                 ]
             );
             let column =
@@ -1488,13 +1482,13 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
+                    "OnUpdateLastRecordBatch",
                     "AlwaysAllRecordBatches",
                     "OnUpdateAllRecordBatches",
                     "AlwaysAllRecordBatches",
                     "OnUpdateAllRecordBatches",
                     "AlwaysAllRecordBatches",
                     "OnUpdateAllRecordBatches",
-                    "OnUpdateLastRecordBatch"
                 ]
             );
             let column = subject
@@ -1503,13 +1497,13 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
+                    "state_1",
                     "processor_1",
                     "state_1",
                     "processor_2",
                     "state_1",
                     "processor_3",
                     "state_1",
-                    "state_1"
                 ]
             );
             let column =
