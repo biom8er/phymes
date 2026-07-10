@@ -242,7 +242,8 @@ impl Default for SentenceSplitter {
         let regex = Regex::new("[^,.;。？！]+[,.;。？！]?|[,.;。？！]").unwrap();
         let tokenizer = Arc::new(default_tokenizer);
         Self {
-            chunk_size: 128, // Better for sentence resolution
+            chunk_size: 32, // Optimal for quantized BERT
+            // chunk_size: 128, // Better for sentence resolution
             // chunk_size: 512, // Better for paragraph resolution
             chunk_overlap: 0,
             separator: " ".to_string(),

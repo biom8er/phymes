@@ -134,12 +134,35 @@ impl AvailableNetworks {
                 .add_processor_subjects()
                 .unwrap(),
             #[cfg(feature = "api")]
-            Self::GenerateCode => GenerateCodeNetworkBuilder::default()
-                .inner
-                .take()
+            Self::GenerateCode => {
+                let generate_code_network_builder = GenerateCodeNetworkBuilder::default()
+                    .inner
+                    .take()
+                    .unwrap();
+
+                // Extend with execute_workspace_network
+                let execute_workspace_network = ExecuteWorkspaceNetwork::new(
+                    "execute_workspace_network_py",
+                    None,
+                    Some(subject_name_i),
+                    subject_name_o,
+                    &CommandSandboxEnvironments::Python,
+                );
+                let network_builder = NetworkBuilder::from_mermaid_flowchart(
+                    &execute_workspace_network.as_mermaid_flowchart(),
+                    false,
+                )
                 .unwrap()
-                // DM: will be overwritten anyway
-                .with_runtime_env(
+                .with_subjects_from_mermaid_erdiagram(
+                    &execute_workspace_network.as_mermaid_erdiagram().unwrap(),
+                    false,
+                    true,
+                )
+                .unwrap()
+                .with_name(execute_workspace_network.network_name);
+                let generate_code_network_builder = generate_code_network_builder.extend(network_builder).unwrap();
+                
+                generate_code_network_builder.with_runtime_env(
                     RuntimeEnv::get_builder()
                         .with_name(
                             DynamicTaskNetworkNames::RuntimeEnv(network_name)
@@ -152,7 +175,8 @@ impl AvailableNetworks {
                 )
                 .with_name(network_name)
                 .add_processor_subjects()
-                .unwrap(),
+                .unwrap()
+            },
             Self::Builder => MermaidNetworkBuilder::new_with_network_name(network_name).build(),
             Self::Users => UserNetwork::new_with_network_name(network_name).build(),
         }

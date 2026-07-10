@@ -308,7 +308,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test(flavor = "current_thread")]
+    #[tokio::test]
     async fn test_candle_embed_stream_wasm() -> Result<()> {
         // Case 1: streaming query
         // Make the query input stream

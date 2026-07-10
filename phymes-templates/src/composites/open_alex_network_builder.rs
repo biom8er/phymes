@@ -1593,7 +1593,7 @@ impl Default for OpenAlexNetworkBuilder {
         )
         .unwrap()
         .with_subjects_from_mermaid_erdiagram(
-            retrieve_text_network.as_mermaid_erdiagram(),
+            &retrieve_text_network.as_mermaid_erdiagram(),
             false,
             true,
         )

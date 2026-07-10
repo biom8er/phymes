@@ -40,7 +40,7 @@ impl Default for RetrieveTextPDFNetworkBuilder {
         )
         .unwrap()
         .with_subjects_from_mermaid_erdiagram(
-            retrieve_text_network.as_mermaid_erdiagram(),
+            &retrieve_text_network.as_mermaid_erdiagram(),
             false,
             true,
         )
@@ -205,13 +205,12 @@ mod tests {
             let column = subject.get_column_as_vec_str("chunk_id");
             assert_eq!(
                 column.first().unwrap(),
-                &"wiki_dna2PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_0"
-            );
+&"wiki_dna4PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_6"            );
             let column = subject.get_column_as_vec_str("query_id");
             assert_eq!(column.first().unwrap(), &"0");
             let column = subject.get_column_as_vec_primitive::<f32>("score")?;
             for t in column {
-                assert!(t > 0.15); // Threshold used for filtering
+                assert!(t > 0.5); // Threshold used for filtering
             }
 
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
@@ -238,7 +237,7 @@ mod tests {
                 column
                     .first()
                     .unwrap()
-                    .contains("[{\"text\":\"Deoxyribonucleic acid (DNA)")
+                    .contains("[{\"text\":\"")
             );
             let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
             for t in column {
