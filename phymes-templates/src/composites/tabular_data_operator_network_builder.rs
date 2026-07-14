@@ -287,8 +287,7 @@ mod tests {
         create_chat_record_batch,
     };
     use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
-        SubjectBuilderTrait, SubjectTrait, test_subject,
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectPlanTrait, SubjectTrait, test_subject,
     };
     use phymes_task::SubscriptionTrait;
 
@@ -625,6 +624,254 @@ mod tests {
 
             // 6. ...
         }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_mermaid_tabular_data_operator_network_with_configs_and_network() -> Result<()> {
+        // initialize the network
+        let tabular_data_operator_network_builder = TabularDataOperatorNetworkBuilder::default()
+            .inner
+            .take()
+            .unwrap();
+        let network_name = tabular_data_operator_network_builder.name.clone().unwrap();
+        let builder = tabular_data_operator_network_builder
+            .with_runtime_env(
+                RuntimeEnv::get_builder()
+                    .with_name(
+                        DynamicTaskNetworkNames::RuntimeEnv(&network_name)
+                            .to_string()
+                            .as_str(),
+                    )
+                    .with_max_steps(20)
+                    .build_arc()?,
+            )
+            .add_processor_subjects()?
+            .add_network_interface(None)?;
+
+        // Make the flowchart and erdiagram
+        let flowchart = builder.to_mermaid_flowchart(true, true)?;
+        let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
+
+        // Remake the builder
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?;
+
+        // Test that the names match
+        assert_eq!(builder_test.tasks, builder.tasks);
+        let mut test = builder_test
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+
+        // Test the order of the processors
+        let test = builder_test
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        let expected = builder
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        assert_eq!(test, expected);
+
+        // Test that we can build the network
+        let _ = builder_test.with_name("network_1").build()?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_mermaid_tabular_data_operator_network_without_configs_and_network() -> Result<()> {
+        // initialize the network
+        let tabular_data_operator_network_builder = TabularDataOperatorNetworkBuilder::default()
+            .inner
+            .take()
+            .unwrap();
+        let network_name = tabular_data_operator_network_builder.name.clone().unwrap();
+        let builder = tabular_data_operator_network_builder
+            .with_runtime_env(
+                RuntimeEnv::get_builder()
+                    .with_name(
+                        DynamicTaskNetworkNames::RuntimeEnv(&network_name)
+                            .to_string()
+                            .as_str(),
+                    )
+                    .with_max_steps(20)
+                    .build_arc()?,
+            )
+            .add_processor_subjects()?
+            .add_network_interface(None)?;
+
+        // Make the flowchart and erdiagram
+        let flowchart = builder.to_mermaid_flowchart(false, false)?;
+        let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
+
+        // Remake the builder
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?
+            .with_name(&network_name)
+            .add_processor_subjects()?
+            .add_network_interface(None)?;
+
+        // Test that the names match
+        assert_eq!(builder_test.tasks, builder.tasks);
+        let mut test = builder_test
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+
+        // Test the order of the processors
+        let test = builder_test
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        let expected = builder
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        assert_eq!(test, expected);
+
+        // Test that we can build the network
+        let _ = builder_test.build()?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_mermaid_tabular_data_operator_network_with_data() -> Result<()> {
+        // initialize the network
+        let tabular_data_operator_network_builder = TabularDataOperatorNetworkBuilder::default()
+            .inner
+            .take()
+            .unwrap();
+        let network_name = tabular_data_operator_network_builder.name.clone().unwrap();
+        let builder = tabular_data_operator_network_builder
+            .with_runtime_env(
+                RuntimeEnv::get_builder()
+                    .with_name(
+                        DynamicTaskNetworkNames::RuntimeEnv(&network_name)
+                            .to_string()
+                            .as_str(),
+                    )
+                    .with_max_steps(20)
+                    .build_arc()?,
+            )
+            .add_processor_subjects()?
+            .add_network_interface(None)?;
+
+        // Make the flowchart and erdiagram
+        let flowchart = builder.to_mermaid_flowchart(false, false)?;
+        let erdiagram = builder.to_mermaid_erdiagram(false, true)?;
+
+        // Remake the builder
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, true)?
+            .with_name(&network_name)
+            .add_processor_subjects()?
+            .add_network_interface(None)?;
+
+        // Test that the names match
+        assert_eq!(builder_test.tasks, builder.tasks);
+        let mut test = builder_test
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+
+        // Test the order of the processors
+        let test = builder_test
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        let expected = builder
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        assert_eq!(test, expected);
+
+        // Test that the schemas match
+        {
+            let test = builder_test
+                .subjects
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|p| (p.get_name(), p.subject().get_schema()))
+                .collect::<HashMap<_, _>>();
+            let expected = builder
+                .subjects
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|p| (p.get_name(), p.subject().get_schema()))
+                .collect::<HashMap<_, _>>();
+            for key in expected.keys() {
+                assert!(expected.get(key).eq(&test.get(key)));
+            }
+        }
+
+        // Test that the first row was captured
+        for table in builder_test.subjects.as_ref().unwrap().iter() {
+            if builder_test
+                .get_processor_names_from_tasks()
+                .contains(table.get_name())
+                && !builder_test
+                    .tasks
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .map(|t| t.task_name.as_str())
+                    .collect::<Vec<_>>()
+                    .contains(&table.get_name())
+            {
+                assert_eq!(table.subject().count_rows(), 1)
+            } else {
+                assert_eq!(table.subject().count_rows(), 0)
+            }
+        }
+
+        // Test that we can build the network
+        let _ = builder_test.build()?;
 
         Ok(())
     }

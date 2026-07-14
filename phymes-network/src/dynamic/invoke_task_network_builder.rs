@@ -135,6 +135,7 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
 		call_processor_p-subscribe-->call_processor_p-processor
 		call_processor_p-processor-->call_processor_p-publish
 		call_processor_p-publish-->|Extend|NetworkTasksSubscribePublish-subject
+		call_processor_p-publish-->|Extend|call_processor_s-subject
 	end
 	ToolCallNetwork_runtime_env-rt-->call_processor_t
 	echo_processor_p-processor@{{shape: rect, label: ProcessorEcho}}
@@ -143,7 +144,8 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
 	call_processor_p-processor@{{shape: rect, label: ToolCallProcessor}}
 	call_processor_p-publish@{{shape: fork}}
 	call_processor_p-subscribe@{{shape: diamond, label: Any}}
-	NetworkTasksSubscribePublish-subject@{{shape: doc, label: NetworkTasksSubscribePublish}}"#,
+	NetworkTasksSubscribePublish-subject@{{shape: doc, label: NetworkTasksSubscribePublish}}
+	call_processor_s-subject@{{shape: doc, label: call_processor_s}}"#,
             self.flowchart_subject_subscriptions_1(
                 &self
                     .subject_names()
@@ -317,6 +319,9 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
         List-Utf8 subscription_table_names
         List-Utf8 publication_names
         List-Utf8 publication_table_names
+    }}
+    call_processor_s["call_processor_s"] {{
+        List-UInt8 bytes
     }}"#,
             self.erdiagram_subject_subscriptions(
                 &self

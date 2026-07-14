@@ -7,6 +7,8 @@ use phymes_network::{
     DynamicTaskNetworkNames, Network, NetworkBuilder, NetworkBuilderAppsTrait,
     NetworkBuilderCustomTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
 };
+#[cfg(feature = "api")]
+use phymes_streams::CommandSandboxEnvironments;
 use phymes_subject::{BuildableTrait, BuilderTrait, RuntimeEnv, RuntimeEnvBuilderTrait};
 use serde::{Deserialize, Serialize};
 
@@ -14,7 +16,7 @@ use crate::{
     GenerateTextNetworkBuilder, MermaidNetworkBuilder, RetrievalAugmentedGenerationPDFNetworkBuilder, TabularDataOperatorNetworkBuilder, UserNetwork,
 };
 #[cfg(feature = "api")]
-use crate::GenerateCodeNetworkBuilder;
+use crate::{GenerateCodeNetworkBuilder, ExecuteWorkspaceNetwork};
 
 /// The available network plans
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
@@ -144,8 +146,8 @@ impl AvailableNetworks {
                 let execute_workspace_network = ExecuteWorkspaceNetwork::new(
                     "execute_workspace_network_py",
                     None,
-                    Some(subject_name_i),
-                    subject_name_o,
+                    Some("subject_name_i"),
+                    "subject_name_o",
                     &CommandSandboxEnvironments::Python,
                 );
                 let network_builder = NetworkBuilder::from_mermaid_flowchart(

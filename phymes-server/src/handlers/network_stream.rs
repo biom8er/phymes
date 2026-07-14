@@ -221,16 +221,20 @@ pub async fn network_stream(
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
-                    let response = SubjectBuilder::new()
-                        .with_name("network_stream_response")
-                        .with_record_batches(batches)
-                        .unwrap()
-                        .build()
-                        .unwrap()
-                        .concat_record_batches()
-                        .unwrap()
-                        .to_ipc_stream()
-                        .unwrap();
+                    let response = if batches.is_empty() {
+                        Vec::new()
+                    } else {
+                        SubjectBuilder::new()
+                            .with_name("network_stream_response")
+                            .with_record_batches(batches)
+                            .unwrap()
+                            .build()
+                            .unwrap()
+                            .concat_record_batches()
+                            .unwrap()
+                            .to_ipc_stream()
+                            .unwrap()
+                    };
 
                     // Update the row counts
                     let _ = network_arc.update_subject_num_rows().await;
