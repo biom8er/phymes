@@ -288,6 +288,7 @@ pub fn builds_dropdown_view(
                             build_errors.set(String::new());
 
                             // Check if the current network can be built
+                            // DM, todo!(): change to server-side
                             let mut builder = match NetworkBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), false) {
                                 Ok(builder) => builder,
                                 Err(err) => {

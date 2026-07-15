@@ -31,8 +31,6 @@ use futures::StreamExt;
 
 #[cfg(feature = "mermaid_js")]
 use crate::state::MermaidJsObject;
-#[cfg(feature = "mermaid_js")]
-use phymes_network::{NetworkBuilder, NetworkBuilderMermaidTrait};
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
@@ -304,23 +302,24 @@ pub fn apps_interface_view() -> Element {
             active_er_diagram.read().to_string()
         };
 
-        // Check for build warnings
-        let builder_error = if is_flowchart_shown() {
-            match NetworkBuilder::from_mermaid_flowchart(&diagram_code, false) {
-                Ok(_res) => None,
-                Err(err) => Some(err.to_string()),
-            }
-        } else {
-            match NetworkBuilder::default().with_subjects_from_mermaid_erdiagram(
-                &diagram_code,
-                false,
-                true,
-            ) {
-                Ok(_res) => None,
-                Err(err) => Some(err.to_string()),
-            }
-        };
-        (diagram_code, builder_error)
+        // // Check for build warnings
+        // // DM: Not needed for the app view
+        // let builder_error = if is_flowchart_shown() {
+        //     match NetworkBuilder::from_mermaid_flowchart(&diagram_code, false) {
+        //         Ok(_res) => None,
+        //         Err(err) => Some(err.to_string()),
+        //     }
+        // } else {
+        //     match NetworkBuilder::default().with_subjects_from_mermaid_erdiagram(
+        //         &diagram_code,
+        //         false,
+        //         true,
+        //     ) {
+        //         Ok(_res) => None,
+        //         Err(err) => Some(err.to_string()),
+        //     }
+        // };
+        (diagram_code, None)
     });
 
     // Track when the diagram code changes

@@ -1147,10 +1147,10 @@ mod tests {
                 assert_eq!(column.first().unwrap(), &"assistant");
                 let column = subject.get_column_as_vec_str("content");
                 let assistant_content = column.first().unwrap();
-                // assert!(assistant_content.contains("available_data_0")); //DM : response does not always contain the available subjects
-                assert!(assistant_content.contains("available_data_1"));
-                // assert!(assistant_content.contains("available_data_2"));
-                // assert!(assistant_content.contains("available_data_3"));
+                assert!(assistant_content.contains("available_data_0")); //DM : response does not always contain the available subjects
+                // assert!(assistant_content.contains("available_data_1")); //DM : response does not always contain the subject that could not be found
+                assert!(assistant_content.contains("available_data_2"));
+                assert!(assistant_content.contains("available_data_3"));
                 let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);

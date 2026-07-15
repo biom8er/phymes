@@ -10,12 +10,7 @@ use phymes_diagnostics::{HashSet, create_timestamp_micros};
 use phymes_event::{AvailableSubscribeEvents, AvailableUpdateEvents, Publication, Subscription};
 use phymes_processor::{AvailableProcessors, ProcessorPlanBuilder};
 use phymes_schemas::{
-    AvailableSubjects, AvailableSubjectsTrait, create_network_mermaid_batch,
-    create_network_processors_batch, create_network_runtime_envs_batch,
-    create_network_subject_schemas_batch, create_network_tasks_batch,
-    create_network_tasks_run_log_batch, create_subjects_change_log_batch,
-    create_subjects_num_rows_batch, create_subjects_object_store_meta_batch, from_data_type_to_str,
-    from_str_to_data_type,
+    AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, create_network_mermaid_batch, create_network_processors_batch, create_network_runtime_envs_batch, create_network_subject_schemas_batch, create_network_tasks_batch, create_network_tasks_run_log_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, create_subjects_object_store_meta_batch, from_data_type_to_str, from_str_to_data_type,
 };
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, RuntimeEnv,
@@ -1293,7 +1288,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
                 .subjects
                 .unwrap()
                 .into_iter()
-                .filter_map(|t| if t.get_name() == "Bytes" {
+                .filter_map(|t| if t.get_name() == AvailableSubjects::Bytes.to_string().as_str() || t.get_name() == AvailableInterfaceSubjects::ToolMessages.to_string().as_str() {
                     None
                 } else {
                     Some(t.get_name().to_string())

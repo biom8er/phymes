@@ -209,11 +209,10 @@ use super::*;
             assert_eq!(column.first().unwrap(), &"assistant");
             let column = subject.get_column_as_vec_str("content");
             dbg!(column.first().unwrap());
-            assert!(column.first().unwrap().contains("adenine"));
-            assert!(column.first().unwrap().contains("thymine"));
-            // DM: these are missed by Quantized BERT and default threshold of 0.5
-            // assert!(column.first().unwrap().contains("guanine"));
-            // assert!(column.first().unwrap().contains("cytosine"));
+            assert!(column.first().unwrap().to_lowercase().contains("adenine"));
+            assert!(column.first().unwrap().to_lowercase().contains("thymine"));
+            assert!(column.first().unwrap().to_lowercase().contains("guanine"));
+            assert!(column.first().unwrap().to_lowercase().contains("cytosine"));
             let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
             for c in column {
                 assert!(c > 0);

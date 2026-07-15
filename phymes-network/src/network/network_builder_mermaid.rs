@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    Network, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderTrait,
-    core::{NextSuperstepNetwork, NextTaskNetwork},
+    Network, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderTabularTrait, NetworkBuilderTrait,
 };
 use anyhow::{Result, anyhow};
 use arrow::{
@@ -121,64 +120,10 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
         }
         let network_name = self.name.as_ref().unwrap().to_string();
 
-        // Tasks, Processors, and Runtime_envs to exclude
-        let mut tasks_exclude = HashSet::new();
-        let mut processors_exclude = HashSet::new();
-        let mut subjects_exclude = HashSet::new();
-        {
-            // Exclusions from `NextTaskNetwork`
-            let next_task_network = NextTaskNetwork::default();
-            let tasks_publish_subscribe = NetworkBuilder::from_mermaid_flowchart(
-                next_task_network.as_mermaid_flowchart(),
-                false,
-            )?
-            .with_subjects_from_mermaid_erdiagram(
-                next_task_network.as_mermaid_erdiagram(),
-                false,
-                false,
-            )?
-            .with_name(next_task_network.network_name)
-            .add_processor_subjects()?;
-            if let Some(tasks) = tasks_publish_subscribe.tasks {
-                for task in tasks {
-                    tasks_exclude.insert(task.task_name);
-                    let processors = task.processor_names.into_iter().collect::<HashSet<_>>();
-                    processors_exclude.extend(processors);
-                }
-            }
-            if let Some(subjects) = tasks_publish_subscribe.subjects {
-                for table in subjects {
-                    subjects_exclude.insert(table.get_name().to_string());
-                }
-            }
-        }
-        {
-            // Exclusions from `NextSuperstepNetwork`
-            let next_superstep_network = NextSuperstepNetwork::default();
-            let tasks_next_superstep = NetworkBuilder::from_mermaid_flowchart(
-                next_superstep_network.as_mermaid_flowchart(),
-                false,
-            )?
-            .with_subjects_from_mermaid_erdiagram(
-                next_superstep_network.as_mermaid_erdiagram(),
-                false,
-                false,
-            )?
-            .with_name(next_superstep_network.network_name)
-            .add_processor_subjects()?;
-            if let Some(tasks) = tasks_next_superstep.tasks {
-                for task in tasks {
-                    tasks_exclude.insert(task.task_name);
-                    let processors = task.processor_names.into_iter().collect::<HashSet<_>>();
-                    processors_exclude.extend(processors);
-                }
-            }
-            if let Some(subjects) = tasks_next_superstep.subjects {
-                for table in subjects {
-                    subjects_exclude.insert(table.get_name().to_string());
-                }
-            }
-        }
+        // Exclusions
+        let mut tasks_exclude = self.tasks_to_exclude()?;
+        let mut processors_exclude = self.processors_to_exclude()?;
+        let mut subjects_exclude = self.subjects_to_exclude()?;
         if !with_configs {
             let mut subjects = self.get_processor_names_from_tasks();
             if let Some(tasks) = self.tasks.as_ref() {

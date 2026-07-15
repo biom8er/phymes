@@ -40,6 +40,50 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
             subject_names,
         }
     }
+
+    /// Tasks to exclude
+    pub fn exlude_tasks() -> Vec<String> {
+        [
+            "group_by_processors_subscriptions_t", 
+            "group_by_processors_publications_t", 
+            "join_tasks_processors_subscriptions_publications_aggregated_t", 
+            "call_processor_t", 
+        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()
+    }
+
+    /// Processors to exclude
+    pub fn exlude_processors() -> Vec<String> {
+        [
+            "group_by_processors_subscriptions_p", 
+            "select_processors_subscriptions_aggregated_p", 
+            "group_by_processors_publications_p", 
+            "select_processors_publications_aggregated_p", 
+            "join_processors_subscriptions_publications_aggregated_p", 
+            "join_tasks_processors_subscriptions_publications_aggregated_p", 
+            "select_tasks_processors_subscriptions_publications_aggregated_p", 
+            "echo_processor_p", 
+            "call_processor_p",
+        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()
+    }
+
+    /// Subjects to exclude
+    pub fn exlude_subjects() -> Vec<String> {
+        [
+            "select_processors_subscriptions_s", 
+            "group_by_processors_subscriptions_s", 
+            "select_processors_subscriptions_aggregated_s", 
+            "select_processors_publications_s", 
+            "group_by_processors_publications_s", 
+            "select_processors_publications_aggregated_s", 
+            "join_processors_subscriptions_publications_aggregated_s", 
+            "join_tasks_processors_subscriptions_publications_aggregated_s", 
+            "select_tasks_processors_subscriptions_publications_aggregated_s", 
+            "NetworkTasksSubscribePublish", 
+            "call_processor_s", 
+            "call_processor_t", 
+        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()
+    }
+
     /// Return the Mermaid.js flowchart representation of the network
     pub fn as_mermaid_flowchart(&self) -> String {
         format!(
@@ -135,7 +179,6 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
 		call_processor_p-subscribe-->call_processor_p-processor
 		call_processor_p-processor-->call_processor_p-publish
 		call_processor_p-publish-->|Extend|NetworkTasksSubscribePublish-subject
-		call_processor_p-publish-->|Extend|call_processor_s-subject
 	end
 	ToolCallNetwork_runtime_env-rt-->call_processor_t
 	echo_processor_p-processor@{{shape: rect, label: ProcessorEcho}}
@@ -144,8 +187,7 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
 	call_processor_p-processor@{{shape: rect, label: ToolCallProcessor}}
 	call_processor_p-publish@{{shape: fork}}
 	call_processor_p-subscribe@{{shape: diamond, label: Any}}
-	NetworkTasksSubscribePublish-subject@{{shape: doc, label: NetworkTasksSubscribePublish}}
-	call_processor_s-subject@{{shape: doc, label: call_processor_s}}"#,
+	NetworkTasksSubscribePublish-subject@{{shape: doc, label: NetworkTasksSubscribePublish}}"#,
             self.flowchart_subject_subscriptions_1(
                 &self
                     .subject_names()
@@ -319,9 +361,6 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
         List-Utf8 subscription_table_names
         List-Utf8 publication_names
         List-Utf8 publication_table_names
-    }}
-    call_processor_s["call_processor_s"] {{
-        List-UInt8 bytes
     }}"#,
             self.erdiagram_subject_subscriptions(
                 &self

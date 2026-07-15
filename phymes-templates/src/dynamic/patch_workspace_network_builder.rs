@@ -313,7 +313,9 @@ mod tests {
     };
     use phymes_task::SubscriptionTrait;
 
-    use super::*;
+    use crate::{extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
+
+use super::*;
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_patch_workspace_network_dynamic_w_subjects() -> Result<()> {
@@ -422,7 +424,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test(flavor = "current_thread")]
+    #[tokio::test]
     async fn test_patch_workspace_network_dynamic_wo_subjects() -> Result<()> {
         let patch_workspace_network = PatchWorkspaceNetworkBuilderDynamicWOSubject::default();
         let (network, network_messages) = patch_workspace_network
@@ -611,7 +613,7 @@ pub use todo::Todo"#,
         Ok(())
     }
 
-    #[tokio::test(flavor = "current_thread")]
+    #[tokio::test]
     async fn test_patch_workspace_network_static() -> Result<()> {
         let patch_workspace_network = PatchWorkspaceNetworkBuilderStaticWSubject::default();
         let (network, network_messages) = patch_workspace_network
