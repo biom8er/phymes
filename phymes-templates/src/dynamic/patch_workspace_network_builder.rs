@@ -313,8 +313,6 @@ mod tests {
     };
     use phymes_task::SubscriptionTrait;
 
-    use crate::{extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
-
 use super::*;
 
     #[tokio::test(flavor = "current_thread")]

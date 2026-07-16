@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    Network, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderTabularTrait, NetworkBuilderTrait,
+    InvokeTaskNetworkBuilder, Network, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderTabularTrait, NetworkBuilderTrait, TaskResponseNetworkBuilder,
 };
 use anyhow::{Result, anyhow};
 use arrow::{
@@ -124,6 +124,94 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
         let mut tasks_exclude = self.tasks_to_exclude()?;
         let mut processors_exclude = self.processors_to_exclude()?;
         let mut subjects_exclude = self.subjects_to_exclude()?;
+
+        let invoke_task_network = InvokeTaskNetworkBuilder::default();
+        let tasks = if let Some(network_name) = self.name.as_ref() {
+            if network_name != invoke_task_network.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
+                    &invoke_task_network.as_mermaid_flowchart(),
+                    false,
+                )?
+                .tasks
+                .unwrap()
+                .into_iter()
+                .map(|t| t.task_name)
+                .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+        tasks_exclude.extend(tasks);
+        let processors = if let Some(network_name) = self.name.as_ref() {
+            if network_name != invoke_task_network.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
+                    &invoke_task_network.as_mermaid_flowchart(),
+                    false,
+                )?
+                .processors
+                .unwrap()
+                .into_iter()
+                .map(|t| t.get_name().to_string())
+                .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+        processors_exclude.extend(processors);
+        let subjects = if let Some(network_name) = self.name.as_ref() {
+            if network_name != invoke_task_network.network_name {
+                InvokeTaskNetworkBuilder::exlude_subjects()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+        subjects_exclude.extend(subjects);
+
+        let task_response_network = TaskResponseNetworkBuilder::default();
+        let tasks = if let Some(network_name) = self.name.as_ref() {
+            if network_name != task_response_network.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
+                    &task_response_network.as_mermaid_flowchart(),
+                    false,
+                )?
+                .tasks
+                .unwrap()
+                .into_iter()
+                .map(|t| t.task_name)
+                .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+        tasks_exclude.extend(tasks);
+        let processors = if let Some(network_name) = self.name.as_ref() {
+            if network_name != task_response_network.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
+                    &task_response_network.as_mermaid_flowchart(),
+                    false,
+                )?
+                .processors
+                .unwrap()
+                .into_iter()
+                .map(|t| t.get_name().to_string())
+                .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+        processors_exclude.extend(processors.clone());
+        subjects_exclude.extend(processors);
+
         if !with_configs {
             let mut subjects = self.get_processor_names_from_tasks();
             if let Some(tasks) = self.tasks.as_ref() {
@@ -287,12 +375,52 @@ flowchart TD"#, self.name.as_ref().unwrap())];
                 "Add processors before making the Mermaid Flowchart."
             ));
         }
+
+        // Exclusions
+        let mut subjects_exclude = self.subjects_to_exclude()?;
+
+        // Exclusions from InvokeTaskNetworkBuilder
+        let invoke_task_network = InvokeTaskNetworkBuilder::default();
+        let subjects = if let Some(network_name) = self.name.as_ref() {
+            if network_name != invoke_task_network.network_name {
+                InvokeTaskNetworkBuilder::exlude_subjects()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+        subjects_exclude.extend(subjects);
+
+        // Exclusions from TaskResponseNetworkBuilder
+        let task_response_network = TaskResponseNetworkBuilder::default();
+        let processors = if let Some(network_name) = self.name.as_ref() {
+            if network_name != task_response_network.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
+                    &task_response_network.as_mermaid_flowchart(),
+                    false,
+                )?
+                .processors
+                .unwrap()
+                .into_iter()
+                .map(|t| t.get_name().to_string())
+                .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+        subjects_exclude.extend(processors);
+
         let mut entities_vec = Vec::new();
         // let mut relations_vec = Vec::new(); // DM: todo when relations are explicitly added between subjects based on FK/PK
         let processor_names = self.get_processor_names_from_tasks();
 
         // Extract the subjects
-        let mut sorted_map = self.subjects.as_ref().unwrap().iter().collect::<Vec<_>>();
+        let mut sorted_map = self.subjects.as_ref().unwrap().iter()
+            .filter(|s| !subjects_exclude.contains(s.get_name()))
+            .collect::<Vec<_>>();
         sorted_map.sort_by(|a, b| a.get_name().cmp(b.get_name()));
         for subject in sorted_map {
             for field in subject.subject().get_schema().fields().iter() {

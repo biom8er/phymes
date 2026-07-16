@@ -80,8 +80,7 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
             "select_tasks_processors_subscriptions_publications_aggregated_s", 
             "NetworkTasksSubscribePublish", 
             "call_processor_s", 
-            "call_processor_t", 
-        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()
+        ].into_iter().map(|s| s.to_string()).chain(Self::exlude_processors()).collect::<Vec<_>>()
     }
 
     /// Return the Mermaid.js flowchart representation of the network

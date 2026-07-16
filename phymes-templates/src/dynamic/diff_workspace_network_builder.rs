@@ -357,6 +357,9 @@ pub use todo::Todo"#,
                 "/home/sandbox/src/extras/mod.rs",
                 "/home/sandbox/src/main.rs",
                 "/home/sandbox/src/extras/other.rs",
+                "/home/sandbox/src/extras/mod.rs",
+                "/home/sandbox/src/main.rs",
+                "/home/sandbox/src/extras/other.rs",
             ]
         );
         let column = subject.get_column_as_vec_str("diff");
@@ -366,12 +369,15 @@ pub use todo::Todo"#,
                 "@@ -1,8 +1,23 @@\n+pub mod other;%0A\n mod todo\n",
                 "",
                 "pub struct Other {}",
+                "@@ -1,8 +1,23 @@\n+pub mod other;%0A\n mod todo\n",
+                "",
+                "pub struct Other {}",
             ]
         );
         let column = subject.get_column_as_vec_str("operator");
         assert_eq!(
             column,
-            ["Update", "Delete", "Create"]
+            ["Update", "Delete", "Create", "Update", "Delete", "Create"]
         );
         Ok(())
     }
