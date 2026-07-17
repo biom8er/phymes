@@ -352,7 +352,7 @@ use super::*;
 
         // 1. Make the extraction query
         let role = vec!["user".to_string()];
-        let content =vec!["ExtractTabular with lhs_name UserCsv, lhs_pk filename, lhs_values bytes, format CsvDefault, encoding None, and schema None.".to_string()];
+        let content =vec!["ExtractTabular with lhs_name \"UserCsv\", lhs_pk \"filename\", lhs_values [\"bytes\"], format \"CsvDefault\", encoding \"None\", and schema \"None\".".to_string()];
         let timestamp = vec![create_timestamp_micros()];
         let batch = create_chat_record_batch(role, content, timestamp)?;
         let queries = AvailableInterfaceSubjects::UserMessages
@@ -386,19 +386,6 @@ use super::*;
             // 1. Extract the CSV files
             let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
             let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
-
-            let extended_diagnostic_subjects = extended_diagnostic_subjects();
-            let subject_names = extended_diagnostic_subjects
-                .iter()
-                .map(|s| s.as_str())
-                .chain(["ExtractTabular", "left_hand_side_s", "right_hand_side_s", "out_s", "ToolMessages", "generate_text_inference_s", "AssistantMessages"])
-                .collect::<Vec<_>>();
-            write_diagnostic_subjects_to_csv(
-                &subject_names,
-                network_arc.runtime_env(),
-                network_arc.get_name(),
-            )
-            .await?;
 
             assert_eq!(response.len(), 0);
 
@@ -533,6 +520,19 @@ use super::*;
             // 2. Sort
             let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
             let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
+
+            let extended_diagnostic_subjects = extended_diagnostic_subjects();
+            let subject_names = extended_diagnostic_subjects
+                .iter()
+                .map(|s| s.as_str())
+                .chain(["ExtractTabular", "left_hand_side_s", "right_hand_side_s", "out_s", "ToolMessages", "generate_text_inference_s", "AssistantMessages"])
+                .collect::<Vec<_>>();
+            write_diagnostic_subjects_to_csv(
+                &subject_names,
+                network_arc.runtime_env(),
+                network_arc.get_name(),
+            )
+            .await?;
 
             assert_eq!(response.len(), 0);
 

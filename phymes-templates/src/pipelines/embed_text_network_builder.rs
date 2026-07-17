@@ -28,7 +28,7 @@ impl<'a> Default for EmbedTextNetworkBuilder<'a> {
             api_url,
         ) = if cfg!(feature = "hf_hub") {
             (
-                Some("QwenV2_1p5bEmbed".to_string()),
+                Some("QwenV2_7bEmbed".to_string()),
                 None,
                 None,
                 None,
@@ -48,26 +48,48 @@ impl<'a> Default for EmbedTextNetworkBuilder<'a> {
             )
         } else {
             (
-                Some("QuantizedBertEmbed".to_string()),
+                Some("QwenV2_1p5bEmbed".to_string()),
                 None,
                 Some(format!(
-                    "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",
+                    "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/config.json",
                     std::env::var("HOME").unwrap_or("".to_string())
                 )),
                 Some(format!(
-                    "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/all-minilm-l6-v2-q8_0.gguf",
+                    "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf",
                     std::env::var("HOME").unwrap_or("".to_string())
                 )),
                 Some(format!(
-                    "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer.json",
+                    "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/tokenizer.json",
                     std::env::var("HOME").unwrap_or("".to_string())
                 )),
                 Some(format!(
-                    "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer_config.json",
+                    "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/tokenizer_config.json",
                     std::env::var("HOME").unwrap_or("".to_string())
                 )),
                 None,
             )
+            // DM: Only for toy examples
+            // (
+            //     Some("QuantizedBertEmbed".to_string()),
+            //     None,
+            //     Some(format!(
+            //         "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",
+            //         std::env::var("HOME").unwrap_or("".to_string())
+            //     )),
+            //     Some(format!(
+            //         "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/all-minilm-l6-v2-q8_0.gguf",
+            //         std::env::var("HOME").unwrap_or("".to_string())
+            //     )),
+            //     Some(format!(
+            //         "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer.json",
+            //         std::env::var("HOME").unwrap_or("".to_string())
+            //     )),
+            //     Some(format!(
+            //         "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer_config.json",
+            //         std::env::var("HOME").unwrap_or("".to_string())
+            //     )),
+            //     None,
+            // )
         };
         let generate_text_inference = if cfg!(all(feature = "api", not(feature = "candle"))) {
             "OpenAIEmbedProcessor"
@@ -446,7 +468,7 @@ mod tests {
                 #[cfg(feature = "hf_hub")]
                 assert_eq!(column.first().unwrap().len(), 1536);
                 #[cfg(not(feature = "hf_hub"))]
-                assert_eq!(column.first().unwrap().len(), 384);
+                assert_eq!(column.first().unwrap().len(), 1536);
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableSubjects::DocumentEmbeddings.to_string(),
                 }
@@ -470,7 +492,7 @@ mod tests {
                 #[cfg(feature = "hf_hub")]
                 assert_eq!(column.first().unwrap().len(), 1536);
                 #[cfg(not(feature = "hf_hub"))]
-                assert_eq!(column.first().unwrap().len(), 384);
+                assert_eq!(column.first().unwrap().len(), 1536);
             }
         }
         Ok(())
