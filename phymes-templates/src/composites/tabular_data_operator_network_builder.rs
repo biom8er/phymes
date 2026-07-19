@@ -470,26 +470,25 @@ use super::*;
             .unwrap()
             .try_collect()
             .await?;
-            assert!(batches.is_empty());
-            // let subject = Subject::get_builder()
-            //     .with_name(
-            //         AvailableInterfaceSubjects::AssistantMessages
-            //             .to_string()
-            //             .as_str(),
-            //     )
-            //     .with_record_batches(batches)?
-            //     .build()?;
-            // assert_eq!(subject.count_rows(), 1);
-            // let column = subject.get_column_as_vec_str("role");
-            // assert_eq!(column.first().unwrap(), &"assistant");
-            // assert_eq!(column.last().unwrap(), &"assistant");
-            // let column = subject.get_column_as_vec_str("content");
-            // dbg!(column.first().unwrap());
-            // dbg!(column.last().unwrap());
-            // let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-            // for t in column {
-            //     assert!(t > 0);
-            // }
+            let subject = Subject::get_builder()
+                .with_name(
+                    AvailableInterfaceSubjects::AssistantMessages
+                        .to_string()
+                        .as_str(),
+                )
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 1);
+            let column = subject.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"assistant");
+            assert_eq!(column.last().unwrap(), &"assistant");
+            let column = subject.get_column_as_vec_str("content");
+            dbg!(column.first().unwrap());
+            dbg!(column.last().unwrap());
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for t in column {
+                assert!(t > 0);
+            }
 
             // 2. Make the sort query
             let mut message_map = HashMap::<String, IPCMessage>::new();
