@@ -6,7 +6,7 @@ use phymes_message::{
     NetworkInterfaceMessageBuilderTrait,
 };
 use phymes_schemas::{AvailableInterfaceSubjects, DataFormat};
-use phymes_server::create_network_name;
+use phymes_server::{NetworkBuildResult, create_network_name};
 use phymes_subject::{
     BuildableTrait, BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
@@ -173,7 +173,7 @@ pub fn metrics_interface_view() -> Element {
         }
     });
 
-    let diagram_code: Memo<(String, Option<String>)> = use_memo(move || {
+    let diagram_code: Memo<NetworkBuildResult> = use_resource(move || async move {
         let mut visualizations = get_metric_visualizations_by_metric_name(
             active_metric.read().as_str(),
             &metric_names
@@ -188,7 +188,7 @@ pub fn metrics_interface_view() -> Element {
                 .collect::<Vec<_>>(),
         );
         let visualization = visualizations.pop().unwrap_or("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tWaiting to retrieve network plan metrics...".to_string());
-        (visualization, None)
+        NetworkBuildResult::new(Some(&visualization), None)
     });
 
     // Build errors that may have occured

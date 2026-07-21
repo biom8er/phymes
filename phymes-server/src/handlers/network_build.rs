@@ -13,7 +13,7 @@ use phymes_schemas::{
     AvailableSchemaTrait, AvailableSubjects, CsvFormat, DataFormat,
     JoinUserInboxNetworksMermaidDiagrams,
 };
-use phymes_subject::{BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+use phymes_subject::{BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
 use serde::{Deserialize, Serialize};
 
 use crate::handlers::json_error::{ErrorToResponse, JsonError, serde_json_error_response};
@@ -36,6 +36,31 @@ pub enum NetworkBuildSubjects {
     /// Auto fill er diagram subject parameters
     #[value(name = "AutoFillERDiagram")]
     AutoFillERDiagram,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, PartialOrd)]
+pub struct NetworkBuildResult {
+    // Response consisting of a String and an optional Error message
+    pub diagram: Option<String>,
+    pub error: Option<String>
+}
+
+impl NetworkBuildResult {
+    pub fn new(diagram: Option<&str>, error: Option<&str>) -> Self {
+        Self { diagram: diagram.map(|s| s.to_string()), error: error.map(|s| s.to_string()) }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, PartialOrd)]
+pub struct NetworkBuildResponse {
+    // Response consisting of a String and an optional Error message
+    pub response: Option<Vec<NetworkBuildResult>>
+}
+
+impl NetworkBuildResponse {
+    pub fn new(response: &[NetworkBuildResult]) -> Self {
+        Self { response: Some(response.to_vec()) }
+    }
 }
 
 impl std::fmt::Display for NetworkBuildSubjects {
@@ -158,11 +183,7 @@ pub async fn network_build(
                 .get_column_as_vec_primitive::<i64>("timestamp")
                 .unwrap();
 
-            // Based on the subject
-            // 1. Add new to users
-            // 2. AutoFill ER diagram
-            // 3. Test build
-
+            // Based on the subject: Add new to users, AutoFill ER diagram, Test build(s)
             let network_build_subject = match NetworkBuildSubjects::from_str(payload.get_subject(), false) {
                 Ok(nbs) => nbs,
                 Err(err) => {
@@ -217,7 +238,7 @@ pub async fn network_build(
                         )
                         .await
                         .unwrap();
-                    serde_json::to_string("State updated with new networks.").unwrap()
+                    serde_json::to_string(&NetworkBuildResponse::default()).unwrap()
                 }
                 NetworkBuildSubjects::CheckFlowchartAndERDiagrams => {
                     let combined = network_name
@@ -225,32 +246,21 @@ pub async fn network_build(
                         .zip(flowchart_diagram.into_iter())
                         .zip(er_diagram.into_iter())
                         .zip(timestamp.into_iter())
-                        .map(|(((a, b), c), d)| {
-                            let mut builder = match NetworkBuilder::from_mermaid_flowchart(&b, false) {
-                                Ok(builder) => builder,
-                                Err(err) => format!("{err:?}"),
-                            };
-                            builder = match builder.with_subjects_from_mermaid_erdiagram(&c, false, true) {
-                                Ok(builder) => builder,
-                                Err(err) => {
-                                    build_errors.write().push_str(format!("{err:?}").as_str());
-                                    return;
-                                },
-                            };
-                            let _network = match builder.with_name(&a)
-                                .add_processor_subjects().unwrap()
-                                .add_network_interface(None).unwrap()
-                                .build_with_tables()
-                            {
-                                Ok(network) => network,
-                                Err(err) => {
-                                    build_errors.write().push_str(format!("{err:?}").as_str());
-                                    return;
-                                },
-                            };
+                        .map(|(((a, b), c), _d)| {
+                            match NetworkBuilder::from_mermaid_flowchart(&b, false) {
+                                Ok(builder) => match builder.with_subjects_from_mermaid_erdiagram(&c, false, true) {
+                                    Ok(builder) => match builder.with_name(&a).add_processor_subjects().unwrap().add_network_interface(None).unwrap().build_with_tables() {
+                                        Ok((network, _subjects)) => NetworkBuildResult::new(Some(network.get_name()), None),
+                                        Err(err) => NetworkBuildResult::new(None, Some(&format!("{err:?}"))),
+                                    },
+                                    Err(err) =>  NetworkBuildResult::new(None, Some(&format!("{err:?}"))),
+                                }
+                                Err(err) =>  NetworkBuildResult::new(None, Some(&format!("{err:?}"))),
+                            }
                         })
                         .collect::<Vec<_>>();
-                    serde_json::to_string(&combined).unwrap()
+                    let response = NetworkBuildResponse::new(&combined);
+                    serde_json::to_string(&response).unwrap()
                 }
                 NetworkBuildSubjects::CheckFlowchartDiagram => {
                     let combined = network_name
@@ -258,14 +268,15 @@ pub async fn network_build(
                         .zip(flowchart_diagram.into_iter())
                         .zip(er_diagram.into_iter())
                         .zip(timestamp.into_iter())
-                        .map(|(((a, b), c), d)| {
+                        .map(|(((_a, b), _c), _d)| {
                             match NetworkBuilder::from_mermaid_flowchart(&b, false) {
-                                Ok(_res) => String::new(),
-                                Err(err) => err.to_string(),
+                                Ok(network) => NetworkBuildResult::new(Some(&network.name.unwrap_or_default()), None),
+                                Err(err) => NetworkBuildResult::new(None, Some(&format!("{err:?}"))),
                             }
                         })
                         .collect::<Vec<_>>();
-                    serde_json::to_string(&combined).unwrap()
+                    let response = NetworkBuildResponse::new(&combined);
+                    serde_json::to_string(&response).unwrap()
                 }
                 NetworkBuildSubjects::CheckERDiagram => {
                     let combined = network_name
@@ -273,14 +284,15 @@ pub async fn network_build(
                         .zip(flowchart_diagram.into_iter())
                         .zip(er_diagram.into_iter())
                         .zip(timestamp.into_iter())
-                        .map(|(((a, b), c), d)| {
+                        .map(|(((_a, _b), c), _d)| {
                             match NetworkBuilder::default().with_subjects_from_mermaid_erdiagram(&c, false, true) {
-                                Ok(_res) => String::new(),
-                                Err(err) => err.to_string(),
+                                Ok(network) => NetworkBuildResult::new(Some(&network.name.unwrap_or_default()), None),
+                                Err(err) => NetworkBuildResult::new(None, Some(&format!("{err:?}"))),
                             }
                         })
                         .collect::<Vec<_>>();
-                    serde_json::to_string(&combined).unwrap()
+                    let response = NetworkBuildResponse::new(&combined);
+                    serde_json::to_string(&response).unwrap()
                 }
                 NetworkBuildSubjects::AutoFillERDiagram => {
                     let combined = network_name
@@ -288,7 +300,7 @@ pub async fn network_build(
                         .zip(flowchart_diagram.into_iter())
                         .zip(er_diagram.into_iter())
                         .zip(timestamp.into_iter())
-                        .map(|(((a, b), c), d)| {
+                        .map(|(((a, b), c), _d)| {
                             // Generate defaults if possible
                             match NetworkBuilder::from_mermaid_flowchart(&b, false) {
                                 // Read in what information is available and update the rest
@@ -304,17 +316,18 @@ pub async fn network_build(
                                     match builder.with_name(&a).add_processor_subjects() {
                                         // Include the last row of data during the prototyping stage
                                         Ok(builder) => match builder.to_mermaid_erdiagram(true, true) {
-                                            Ok(diagram) => diagram,
-                                            Err(err) => format!("{err:?}"),
+                                            Ok(network) => NetworkBuildResult::new(Some(&network), None),
+                                            Err(err) => NetworkBuildResult::new(None, Some(&format!("{err:?}"))),
                                         },
-                                        Err(err) => format!("{err:?}"),
+                                        Err(err) => NetworkBuildResult::new(None, Some(&format!("{err:?}"))),
                                     }
                                 },
-                                Err(err) => format!("{err:?}"),
+                                Err(err) => NetworkBuildResult::new(None, Some(&format!("{err:?}"))),
                             }
                         })
                         .collect::<Vec<_>>();
-                    serde_json::to_string(&combined).unwrap()
+                    let response = NetworkBuildResponse::new(&combined);
+                    serde_json::to_string(&response).unwrap()
                 }
             };
 
