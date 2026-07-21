@@ -173,7 +173,7 @@ pub fn metrics_interface_view() -> Element {
         }
     });
 
-    let diagram_code: Memo<NetworkBuildResult> = use_resource(move || async move {
+    let diagram_code: Memo<NetworkBuildResult> = use_memo(move || {
         let mut visualizations = get_metric_visualizations_by_metric_name(
             active_metric.read().as_str(),
             &metric_names

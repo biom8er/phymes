@@ -5,9 +5,8 @@ use phymes_event::Publication;
 use phymes_message::{
     MessageBuilderTrait, NetworkInterfaceMessage, NetworkInterfaceMessageBuilderTrait,
 };
-use phymes_network::{NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait};
 use phymes_schemas::{create_network_mermaid_batch, AvailableSubjects, DataFormat};
-use phymes_server::create_network_name;
+use phymes_server::{NetworkBuildSubjects, NetworkBuildResponse, NetworkBuildResult, create_network_name};
 use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 use phymes_templates::AvailableNetworks;
 
@@ -15,7 +14,7 @@ use crate::state::{
     filter_in_mermaid_diagrams_by_network_name, filter_out_mermaid_diagrams_by_network_name,
     get_non_duplicated_sorted_subjects,
     svg_icons::{
-        b8_save_icon_svg, fa_trash_icon_svg, ms_code_icon_svg, ms_column_arrow_right_icon_svg,
+        ms_checkmark_circle_icon_svg, b8_save_icon_svg, fa_trash_icon_svg, ms_code_icon_svg, ms_column_arrow_right_icon_svg,
         ms_deploy_icon_svg, ms_edit_icon_svg, ms_search_icon_svg, ms_sync_icon_svg,
     },
     sync_network_names_state, SyncNetworkNamesState, EMAIL, JWT, SESSION_NAMES,
@@ -118,6 +117,9 @@ pub fn builds_dropdown_view(
                 button {
                     class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                     onclick: move |_evt| async move {
+                        // Reset any build errors
+                        build_errors.set(String::new());
+                        
                         // Reset the dropdown
                         active_network_name.set(subject_dropdown.try_read().unwrap().to_string());
                         subject_dropdown.set(String::new());
@@ -281,49 +283,24 @@ pub fn builds_dropdown_view(
                             dangerous_inner_html: ms_sync_icon_svg()
                         },
                     },
+                    
                     button {
                         class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         onclick: move |_| async move {
                             // Clear any text
                             build_errors.set(String::new());
 
-                            // Check if the current network can be built
-                            // DM, todo!(): change to server-side
-                            let mut builder = match NetworkBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), false) {
-                                Ok(builder) => builder,
-                                Err(err) => {
-                                    build_errors.write().push_str(format!("{err:?}").as_str());
-                                    return;
-                                },
-                            };
-                            builder = match builder.with_subjects_from_mermaid_erdiagram(&active_er_diagram(), false, true) {
-                                Ok(builder) => builder,
-                                Err(err) => {
-                                    build_errors.write().push_str(format!("{err:?}").as_str());
-                                    return;
-                                },
-                            };
-                            if SESSION_NAMES.read().iter().any(|s| s==&active_network_name()) {
-                                build_errors.write().push_str(format!("Network name '{}' already exists. Please choose a different name.", active_network_name()).as_str());
-                                return;
-                            }
-                            let _network = match builder.with_name(&active_network_name())
-                                .add_processor_subjects().unwrap()
-                                .add_network_interface(None).unwrap()
-                                .build_with_tables()
-                            {
-                                Ok(network) => network,
-                                Err(err) => {
-                                    build_errors.write().push_str(format!("{err:?}").as_str());
-                                    return;
-                                },
+                            // Determine the subject within build to publish on
+                            let subject = if is_flowchart_shown() {
+                                NetworkBuildSubjects::CheckFlowchartDiagram.to_string()
+                            } else {
+                                NetworkBuildSubjects::CheckERDiagram.to_string()
                             };
 
-                            // Update the server with the new network
-                            let route = "/app/v1/build";
+                            // Check for build errors
                             let batch = create_network_mermaid_batch(vec![active_network_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
                             let message = Subject::get_builder()
-                                .with_name(AvailableSubjects::BuilderMermaid.to_string().as_str())
+                                .with_name(subject.as_str())
                                 .with_record_batches(vec![batch])
                                 .unwrap()
                                 .build()
@@ -336,13 +313,246 @@ pub fn builds_dropdown_view(
                                 .with_publisher(&create_network_name(EMAIL().as_str(), active_network_name().as_str()))
                                 .with_update(&Publication::None)
                                 .with_stream(false)
-                                .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
+                                .with_subject(subject.as_str())
                                 .with_message(message)
                                 .make_name()
                                 .unwrap()
                                 .build()
                                 .unwrap()).unwrap();
 
+                            let route = "/app/v1/build";
+                            #[cfg(not(feature = "serverless"))]
+                            let addr = format!("{ADDR_BACKEND}{route}");
+                            #[cfg(not(feature = "serverless"))]
+                            let build_result = match reqwest::Client::new()
+                                .post(addr)
+                                .bearer_auth(JWT.read().to_string())
+                                .header(CONTENT_TYPE, "application/json")
+                                .body(data_serialized)
+                                .send()
+                                .await {
+                                Ok(response) => match response.json::<NetworkBuildResponse>().await {
+                                    Ok(mut response) => {
+                                        if let Some(mut results) = response.response.take() {
+                                            if let Some(result) = results.pop() {
+                                                result                                               
+                                            } else {
+                                                tracing::debug!("No NetworkBuildResponse result found for check diagram.");
+                                                NetworkBuildResult::new(None, None)
+                                            }
+                                        } else {
+                                            tracing::debug!("No NetworkBuildResponse found for check diagram.");
+                                            NetworkBuildResult::new(None, None)
+                                        }
+                                    }
+                                    Err(err) => {
+                                        tracing::error!("{err:?}");
+                                        NetworkBuildResult::new(None, Some(&format!("{err:?}")))
+                                    }
+                                },
+                                Err(err) => {
+                                    tracing::error!("{err:?}");
+                                    NetworkBuildResult::new(None, Some(&format!("{err:?}")))
+                                }
+                            };
+
+                            #[cfg(feature = "serverless")]
+                            let config = ServerlessConfig {
+                                route: route.to_string(),
+                                basic_auth: None,
+                                bearer_auth: Some(JWT.read().to_string()),
+                                data: Some(data_serialized),
+                                object_store_backend: None,
+                                object_store_bucket: None,
+                                object_store_config: None,
+                            };
+                            #[cfg(feature = "serverless")]
+                            let mut serverless = Serverless::new(None, &RUNTIME_ENV).await.unwrap();
+                            #[cfg(feature = "serverless")]
+                            let build_result = match serverless_app(config, &mut serverless).await {
+                                Ok(response) => {
+                                    let bytes: Vec<Bytes> = response
+                                        .into_body()
+                                        .into_data_stream()
+                                        .try_collect()
+                                        .await
+                                        .unwrap();
+                                    let bytes = bytes.into_iter().flatten().collect::<Vec<_>>();
+                                    match serde_json::from_slice::<NetworkBuildResponse>(bytes.as_slice()) { 
+                                        Ok(mut response) => {
+                                            if let Some(mut results) = response.response.take() {
+                                                if let Some(result) = results.pop() {
+                                                    result                                                
+                                                } else {
+                                                    NetworkBuildResult::new(None, None)
+                                                }
+                                            } else {
+                                                NetworkBuildResult::new(None, None)
+                                            }
+                                        }
+                                        Err(err) => {
+                                            tracing::error!("{err:?}");
+                                            NetworkBuildResult::new(None, Some(&format!("{err:?}")))
+                                        }
+                                    }
+                                }
+                                Err(err) => {
+                                    tracing::error!("{err:?}");
+                                    NetworkBuildResult::new(None, Some(&format!("{err:?}")))
+                                }
+                            };
+                            if let Some(err) = build_result.error {
+                                build_errors.write().push_str(&err);
+                                return;
+                            }
+                        },
+                        svg {
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: ms_checkmark_circle_icon_svg()
+                        },
+                    },
+                    button {
+                        class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
+                        onclick: move |_| async move {
+                            // Clear any text
+                            build_errors.set(String::new());
+
+                            // Check the name of the network
+                            if SESSION_NAMES.read().iter().any(|s| s==&active_network_name()) {
+                                build_errors.write().push_str(format!("Network name '{}' already exists. Please choose a different name.", active_network_name()).as_str());
+                                return;
+                            }
+
+                            // Check if the current network can be built
+                            let route = "/app/v1/build";
+                            let batch = create_network_mermaid_batch(vec![active_network_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
+                            let message = Subject::get_builder()
+                                .with_name(NetworkBuildSubjects::CheckFlowchartAndERDiagrams.to_string().as_str())
+                                .with_record_batches(vec![batch])
+                                .unwrap()
+                                .build()
+                                .unwrap()
+                                .to_ipc_stream()
+                                .unwrap();
+                            let data_serialized = serde_json::to_string(&NetworkInterfaceMessage::get_builder()
+                                .with_network_name(&create_network_name(EMAIL().as_str(), active_network_name().as_str()))
+                                .with_format(&DataFormat::Ipc)
+                                .with_publisher(&create_network_name(EMAIL().as_str(), active_network_name().as_str()))
+                                .with_update(&Publication::None)
+                                .with_stream(false)
+                                .with_subject(NetworkBuildSubjects::CheckFlowchartAndERDiagrams.to_string().as_str())
+                                .with_message(message)
+                                .make_name()
+                                .unwrap()
+                                .build()
+                                .unwrap()).unwrap();
+
+                            #[cfg(not(feature = "serverless"))]
+                            let addr = format!("{ADDR_BACKEND}{route}");
+                            #[cfg(not(feature = "serverless"))]
+                            let build_result = match reqwest::Client::new()
+                                .post(addr)
+                                .bearer_auth(JWT.read().to_string())
+                                .header(CONTENT_TYPE, "application/json")
+                                .body(data_serialized)
+                                .send()
+                                .await {
+                                Ok(response) => match response.json::<NetworkBuildResponse>().await {
+                                    Ok(mut response) => {
+                                        if let Some(mut results) = response.response.take() {
+                                            if let Some(result) = results.pop() {
+                                                result
+                                            } else {
+                                                NetworkBuildResult::new(None, Some("Empty NetworkBuildResponse"))
+                                            }
+                                        } else {
+                                            NetworkBuildResult::new(None, None)
+                                        }
+                                    }
+                                    Err(err) => {
+                                        tracing::error!("{err:?}");
+                                        NetworkBuildResult::new(None, Some(&format!("{err:?}")))
+                                    }
+                                },
+                                Err(err) => {
+                                    tracing::error!("{err:?}");
+                                    NetworkBuildResult::new(None, Some(&format!("{err:?}")))
+                                }
+                            };
+
+                            #[cfg(feature = "serverless")]
+                            let config = ServerlessConfig {
+                                route: route.to_string(),
+                                basic_auth: None,
+                                bearer_auth: Some(JWT.read().to_string()),
+                                data: Some(data_serialized),
+                                object_store_backend: None,
+                                object_store_bucket: None,
+                                object_store_config: None,
+                            };
+                            #[cfg(feature = "serverless")]
+                            let mut serverless = Serverless::new(None, &RUNTIME_ENV).await.unwrap();
+                            #[cfg(feature = "serverless")]
+                            let build_result = match serverless_app(config, &mut serverless).await {
+                                Ok(response) => {
+                                    let bytes: Vec<Bytes> = response
+                                        .into_body()
+                                        .into_data_stream()
+                                        .try_collect()
+                                        .await
+                                        .unwrap();
+                                    let bytes = bytes.into_iter().flatten().collect::<Vec<_>>();
+                                    match serde_json::from_slice::<NetworkBuildResponse>(bytes.as_slice()) {                    
+                                        Ok(mut response) => {
+                                            if let Some(mut results) = response.response.take() {
+                                                if let Some(result) = results.pop() {
+                                                    result
+                                                } else {
+                                                    NetworkBuildResult::new(None, Some("Empty NetworkBuildResponse"))
+                                                }
+                                            } else {
+                                                tracing::error!("Missing NetworkBuildResponse");
+                                                NetworkBuildResult::new(None, None)
+                                            }
+                                        }
+                                        Err(err) => {
+                                            tracing::error!("{err:?}");
+                                            NetworkBuildResult::new(None, Some(&format!("{err:?}")))
+                                        }
+                                    }
+                                }
+                                Err(err) => {
+                                    tracing::error!("{err:?}");
+                                    NetworkBuildResult::new(None, Some(&format!("{err:?}")))
+                                }
+                            };
+                            if let Some(err) = build_result.error {
+                                build_errors.write().push_str(&err);
+                                return;
+                            }
+
+                            // Update the server with the new network
+                            let batch = create_network_mermaid_batch(vec![active_network_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
+                            let message = Subject::get_builder()
+                                .with_name(NetworkBuildSubjects::AddNetwork.to_string().as_str())
+                                .with_record_batches(vec![batch])
+                                .unwrap()
+                                .build()
+                                .unwrap()
+                                .to_ipc_stream()
+                                .unwrap();
+                            let data_serialized = serde_json::to_string(&NetworkInterfaceMessage::get_builder()
+                                .with_network_name(&create_network_name(EMAIL().as_str(), active_network_name().as_str()))
+                                .with_format(&DataFormat::Ipc)
+                                .with_publisher(&create_network_name(EMAIL().as_str(), active_network_name().as_str()))
+                                .with_update(&Publication::None)
+                                .with_stream(false)
+                                .with_subject(NetworkBuildSubjects::AddNetwork.to_string().as_str())
+                                .with_message(message)
+                                .make_name()
+                                .unwrap()
+                                .build()
+                                .unwrap()).unwrap();
                             #[cfg(not(feature = "serverless"))]
                             let addr = format!("{ADDR_BACKEND}{route}");
                             #[cfg(not(feature = "serverless"))]
@@ -490,32 +700,118 @@ pub fn builds_dropdown_view(
                         class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         onclick: move |_| async move {
                             // Generate defaults if possible
-                            match NetworkBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), false) {
-                                // Read in what information is available and update the rest
-                                Ok(builder) => {
-                                    let builder = if active_er_diagram().is_empty() {
-                                        builder
-                                    } else if let Ok(builder) = builder.with_subjects_from_mermaid_erdiagram(&active_er_diagram(), false, true) {
-                                        builder
-                                    } else {
-                                        // Revert
-                                        NetworkBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), false).unwrap()
-                                    };
-                                    match builder.with_name(&active_network_name()).add_processor_subjects() {
-                                        // Include the last row of data during the prototyping stage
-                                        Ok(builder) => match builder.to_mermaid_erdiagram(true, true) {
-                                            Ok(diagram) => {
-                                                active_er_diagram.set(diagram);
+                            let route = "/app/v1/build";
+                            let batch = create_network_mermaid_batch(vec![active_network_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
+                            let message = Subject::get_builder()
+                                .with_name(NetworkBuildSubjects::AutoFillERDiagram.to_string().as_str())
+                                .with_record_batches(vec![batch])
+                                .unwrap()
+                                .build()
+                                .unwrap()
+                                .to_ipc_stream()
+                                .unwrap();
+                            let data_serialized = serde_json::to_string(&NetworkInterfaceMessage::get_builder()
+                                .with_network_name(&create_network_name(EMAIL().as_str(), active_network_name().as_str()))
+                                .with_format(&DataFormat::Ipc)
+                                .with_publisher(&create_network_name(EMAIL().as_str(), active_network_name().as_str()))
+                                .with_update(&Publication::None)
+                                .with_stream(false)
+                                .with_subject(NetworkBuildSubjects::AutoFillERDiagram.to_string().as_str())
+                                .with_message(message)
+                                .make_name()
+                                .unwrap()
+                                .build()
+                                .unwrap()).unwrap();
 
-                                                // Change to saved
-                                                is_saved.set(false);
-                                            },
-                                            Err(err) => tracing::error!("{err:?}"),
-                                        },
-                                        Err(err) => tracing::error!("{err:?}"),
+                            #[cfg(not(feature = "serverless"))]
+                            let addr = format!("{ADDR_BACKEND}{route}");
+                            #[cfg(not(feature = "serverless"))]
+                            let build_result = match reqwest::Client::new()
+                                .post(addr)
+                                .bearer_auth(JWT.read().to_string())
+                                .header(CONTENT_TYPE, "application/json")
+                                .body(data_serialized)
+                                .send()
+                                .await {
+                                Ok(response) => match response.json::<NetworkBuildResponse>().await {
+                                    Ok(mut response) => {
+                                        if let Some(mut results) = response.response.take() {
+                                            if let Some(result) = results.pop() {
+                                                result
+                                            } else {
+                                                NetworkBuildResult::new(None, Some("Empty NetworkBuildResponse"))
+                                            }
+                                        } else {
+                                            NetworkBuildResult::new(None, None)
+                                        }
+                                    }
+                                    Err(err) => {
+                                        tracing::error!("{err:?}");
+                                        NetworkBuildResult::new(None, Some(&format!("{err:?}")))
                                     }
                                 },
-                                Err(err) => tracing::error!("{err:?}"),
+                                Err(err) => {
+                                    tracing::error!("{err:?}");
+                                    NetworkBuildResult::new(None, Some(&format!("{err:?}")))
+                                }
+                            };
+
+                            #[cfg(feature = "serverless")]
+                            let config = ServerlessConfig {
+                                route: route.to_string(),
+                                basic_auth: None,
+                                bearer_auth: Some(JWT.read().to_string()),
+                                data: Some(data_serialized),
+                                object_store_backend: None,
+                                object_store_bucket: None,
+                                object_store_config: None,
+                            };
+                            #[cfg(feature = "serverless")]
+                            let mut serverless = Serverless::new(None, &RUNTIME_ENV).await.unwrap();
+                            #[cfg(feature = "serverless")]
+                            let build_result = match serverless_app(config, &mut serverless).await {
+                                Ok(response) => {
+                                    let bytes: Vec<Bytes> = response
+                                        .into_body()
+                                        .into_data_stream()
+                                        .try_collect()
+                                        .await
+                                        .unwrap();
+                                    let bytes = bytes.into_iter().flatten().collect::<Vec<_>>();
+                                    match serde_json::from_slice::<NetworkBuildResponse>(bytes.as_slice()) {                    
+                                        Ok(mut response) => {
+                                            if let Some(mut results) = response.response.take() {
+                                                if let Some(result) = results.pop() {
+                                                    result
+                                                } else {
+                                                    NetworkBuildResult::new(None, Some("Empty NetworkBuildResponse"))
+                                                }
+                                            } else {
+                                                tracing::error!("Missing NetworkBuildResponse");
+                                                NetworkBuildResult::new(None, None)
+                                            }
+                                        }
+                                        Err(err) => {
+                                            tracing::error!("{err:?}");
+                                            NetworkBuildResult::new(None, Some(&format!("{err:?}")))
+                                        }
+                                    }
+                                }
+                                Err(err) => {
+                                    tracing::error!("{err:?}");
+                                    NetworkBuildResult::new(None, Some(&format!("{err:?}")))
+                                }
+                            };
+
+                            if let Some(diagram) = build_result.diagram {
+                                active_er_diagram.set(diagram);
+
+                                // Change to saved
+                                is_saved.set(false);
+                            } else if let Some(err) = build_result.error {
+                                tracing::error!("{err}");
+                            } else {
+                                tracing::error!("Missing NetworkBuildResult for AutoFillERDiagram.");
                             }
                         },
                         svg {
