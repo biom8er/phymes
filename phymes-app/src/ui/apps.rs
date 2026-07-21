@@ -311,6 +311,9 @@ pub fn apps_interface_view() -> Element {
     // Build errors that may have occured
     let build_errors = use_signal(String::new);
 
+    // Panel direction
+    let horizontal = use_signal(|| false);
+
     rsx! {
         if JWT.read().is_empty() {
             div {
@@ -340,7 +343,7 @@ pub fn apps_interface_view() -> Element {
                         }
                     },
                     initial_top_pct: SnapPct::Pct50,
-                    horizontal: false,
+                    horizontal: horizontal,
                 }
             } else {
                 div {
