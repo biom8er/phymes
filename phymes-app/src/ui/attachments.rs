@@ -34,14 +34,10 @@ use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 // mod imports
 use crate::{
     state::{
-        extension_and_file_to_data_href, extension_to_icon_svg, filename_and_extension_to_download,
-        svg_icons::{
-            aws_assistant_icon_svg, aws_user_icon_svg, fa_trash_icon_svg,
-            ms_arrow_download_icon_svg,
+        ACTIVE_SESSION_NAME, EMAIL, JWT, extension_and_file_to_data_href, extension_to_icon_svg, filename_and_extension_to_download, svg_icons::{
+            aws_assistant_icon_svg, aws_user_icon_svg, fa_trash_icon_svg, ms_arrow_download_icon_svg, ms_bot_icon_svg, ms_person_icon_svg,
         },
-        ACTIVE_SESSION_NAME, EMAIL, JWT,
-    },
-    ui::{
+    }, ui::{
         attach_files_input, clear_upload_files_button, main_window::split_panel,
         upload_files_button,
     },
@@ -291,8 +287,8 @@ pub fn attachments_interface_view() -> Element {
                                             class: "flex items-center gap-2",
                                             if role.as_str() == "assistant" {
                                                 svg {
-                                                    class: "max-w-[48px] max-h-[48px]",
-                                                    dangerous_inner_html: aws_assistant_icon_svg()
+                                                    class: "max-w-[24px] max-h-[24px]",
+                                                    dangerous_inner_html: ms_bot_icon_svg()
                                                 }
                                                 h2 {
                                                     class: "font-bold",
@@ -300,8 +296,8 @@ pub fn attachments_interface_view() -> Element {
                                                 }
                                             } else {
                                                 svg {
-                                                    class: "max-w-[48px] max-h-[48px]",
-                                                    dangerous_inner_html: aws_user_icon_svg()
+                                                    class: "max-w-[24px] max-h-[24px]",
+                                                    dangerous_inner_html: ms_person_icon_svg()
                                                 }
                                                 h2 {
                                                     class: "font-bold",
@@ -310,7 +306,7 @@ pub fn attachments_interface_view() -> Element {
                                             }
                                             h3 { "{timestamp}" }
                                             svg {
-                                                class: "max-w-[48px] max-h-[48px]",
+                                                class: "max-w-[24px] max-h-[24px]",
                                                 dangerous_inner_html: extension_to_icon_svg(&extension)
                                             }
                                             if let Some(f) = content.as_ref() {
@@ -325,7 +321,7 @@ pub fn attachments_interface_view() -> Element {
                                                         *attachments_contents.get_mut(i).unwrap() = None;
                                                     },
                                                     svg {
-                                                        class: "max-w-[48px] max-h-[48px]",
+                                                        class: "max-w-[24px] max-h-[24px]",
                                                         dangerous_inner_html: fa_trash_icon_svg()
                                                     }
                                                 }
@@ -334,7 +330,7 @@ pub fn attachments_interface_view() -> Element {
                                                 button {
                                                     class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                                                     svg {
-                                                        class: "max-w-[48px] max-h-[48px]",
+                                                        class: "max-w-[24px] max-h-[24px]",
                                                         dangerous_inner_html: ms_arrow_download_icon_svg()
                                                     }
                                                     // TODO: download the attachment

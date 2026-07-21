@@ -54,7 +54,7 @@ pub fn main_window_view() -> Element {
 
     rsx! {
         main {
-            class: "w-screen h-screen bg-neutral-900 text-white flex flex-col sm:flex-row",
+            class: "w-screen h-screen bg-neutral-900 text-white flex flex-col sm:flex-row font-sans text-sm",
 
             // Responsive sidebar that is horizontal on mobile and vertical on large screens
             aside {
@@ -69,7 +69,7 @@ pub fn main_window_view() -> Element {
                         },
                         class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                         svg {
-                            class: "max-w-[48px] max-h-[48px]",
+                            class: "max-w-[24px] max-h-[24px]",
                             dangerous_inner_html: ms_person_icon_svg()
                         }
                     }
@@ -80,7 +80,7 @@ pub fn main_window_view() -> Element {
                             },
                             class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                             svg {
-                                class: "max-w-[48px] max-h-[48px]",
+                                class: "max-w-[24px] max-h-[24px]",
                                 dangerous_inner_html: ms_tools_icon_svg()
                             }
                         }
@@ -91,7 +91,7 @@ pub fn main_window_view() -> Element {
                             },
                             class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                             svg {
-                                class: "max-w-[48px] max-h-[48px]",
+                                class: "max-w-[24px] max-h-[24px]",
                                 dangerous_inner_html: ms_apps_icon_svg()
                             }
                         }
@@ -101,7 +101,7 @@ pub fn main_window_view() -> Element {
                             },
                             class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                             svg {
-                                class: "max-w-[48px] max-h-[48px]",
+                                class: "max-w-[24px] max-h-[24px]",
                                 dangerous_inner_html: ms_message_icon_svg()
                             }
                         }
@@ -111,7 +111,7 @@ pub fn main_window_view() -> Element {
                             },
                             class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                             svg {
-                                class: "max-w-[48px] max-h-[48px]",
+                                class: "max-w-[24px] max-h-[24px]",
                                 dangerous_inner_html: ms_attachment_icon_svg()
                             }
                         }
@@ -123,7 +123,7 @@ pub fn main_window_view() -> Element {
                             },
                             class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                             svg {
-                                class: "max-w-[48px] max-h-[48px]",
+                                class: "max-w-[24px] max-h-[24px]",
                                 dangerous_inner_html: ms_database_icon_svg()
                             }
                         }
@@ -133,7 +133,7 @@ pub fn main_window_view() -> Element {
                             },
                             class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                             svg {
-                                class: "max-w-[48px] max-h-[48px]",
+                                class: "max-w-[24px] max-h-[24px]",
                                 dangerous_inner_html: ms_top_speed_icon_svg()
                             }
                         }
@@ -147,7 +147,7 @@ pub fn main_window_view() -> Element {
                         },
                         class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                         svg {
-                            class: "max-w-[48px] max-h-[48px]",
+                            class: "max-w-[24px] max-h-[24px]",
                             dangerous_inner_html: aws_help_icon_svg()
                         }
                     }
@@ -157,7 +157,7 @@ pub fn main_window_view() -> Element {
                         rel: "noopener noreferrer",
                         class: "inline-flex p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                         svg {
-                            class: "max-w-[48px] max-h-[48px]",
+                            class: "max-w-[24px] max-h-[24px]",
                             dangerous_inner_html: b8_logo_icon_svg()
                         }
                     }
@@ -419,7 +419,7 @@ pub fn about_text_modal() -> Element {
                                 class: "odd:bg-neutral-800 even:bg-neutral-900",
                                 td { "{item}" }
                                 td { svg {
-                                    class: "max-w-[48px] max-h-[48px]",
+                                    class: "max-w-[24px] max-h-[24px]",
                                     dangerous_inner_html: icon
                                 } }
                                 td { "{description}" }

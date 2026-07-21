@@ -15,7 +15,7 @@ use crate::state::{
     get_non_duplicated_sorted_subjects,
     svg_icons::{
         ms_checkmark_circle_icon_svg, b8_save_icon_svg, fa_trash_icon_svg, ms_code_icon_svg, ms_column_arrow_right_icon_svg,
-        ms_deploy_icon_svg, ms_edit_icon_svg, ms_search_icon_svg, ms_sync_icon_svg,
+        ms_deploy_icon_svg, ms_edit_icon_svg, ms_search_icon_svg, ms_chevron_circle_icon_svg,
     },
     sync_network_names_state, SyncNetworkNamesState, EMAIL, JWT, SESSION_NAMES,
 };
@@ -72,9 +72,9 @@ pub fn builds_dropdown_view(
         div {
             class: "p-2 rounded bg-neutral-800 grid grid-rows-[auto_1fr] grid-cols-[1fr_auto]",
             form {
-                class: "w-full h-full p-2 gap-2 flex row-span-1 col-span-1 row-start-1 col-start-1",
+                class: "w-full h-full flex row-span-1 col-span-1 row-start-1 col-start-1",
                 input {
-                    class: "w-full p-2 rounded bg-neutral-700",
+                    class: "w-full rounded bg-neutral-700",
                     r#type: "text",
                     placeholder: "search network",
                     value: "{subject_dropdown}",
@@ -125,7 +125,7 @@ pub fn builds_dropdown_view(
                         subject_dropdown.set(String::new());
                     },
                     svg {
-                        class: "max-w-[48px] max-h-[48px]",
+                        class: "max-w-[24px] max-h-[24px]",
                         dangerous_inner_html: ms_search_icon_svg()
                     },
                 },
@@ -147,7 +147,7 @@ pub fn builds_dropdown_view(
                             active_network_name.set(active_network.clone());
                         },
                         svg {
-                            class: "max-w-[48px] max-h-[48px]",
+                            class: "max-w-[24px] max-h-[24px]",
                             dangerous_inner_html: ms_column_arrow_right_icon_svg()
                         },
                     },
@@ -268,7 +268,7 @@ pub fn builds_dropdown_view(
                             active_network_name.set(active_network);
                         },
                         svg {
-                            class: "max-w-[48px] max-h-[48px]",
+                            class: "max-w-[24px] max-h-[24px]",
                             dangerous_inner_html: fa_trash_icon_svg()
                         },
                     },
@@ -279,8 +279,8 @@ pub fn builds_dropdown_view(
                             is_flowchart_shown.set(!current);
                         },
                         svg {
-                            class: "max-w-[48px] max-h-[48px]",
-                            dangerous_inner_html: ms_sync_icon_svg()
+                            class: "max-w-[24px] max-h-[24px]",
+                            dangerous_inner_html: ms_chevron_circle_icon_svg()
                         },
                     },
                     
@@ -407,7 +407,7 @@ pub fn builds_dropdown_view(
                             }
                         },
                         svg {
-                            class: "max-w-[48px] max-h-[48px]",
+                            class: "max-w-[24px] max-h-[24px]",
                             dangerous_inner_html: ms_checkmark_circle_icon_svg()
                         },
                     },
@@ -604,7 +604,7 @@ pub fn builds_dropdown_view(
 
                         },
                         svg {
-                            class: "max-w-[48px] max-h-[48px]",
+                            class: "max-w-[24px] max-h-[24px]",
                             dangerous_inner_html: ms_deploy_icon_svg()
                         },
                     },
@@ -688,7 +688,7 @@ pub fn builds_dropdown_view(
                             is_saved.set(true);
                         },
                         svg {
-                            class: "max-w-[48px] max-h-[48px]",
+                            class: "max-w-[24px] max-h-[24px]",
                             dangerous_inner_html: b8_save_icon_svg()
                         }
                     }
@@ -815,7 +815,7 @@ pub fn builds_dropdown_view(
                             }
                         },
                         svg {
-                            class: "max-w-[48px] max-h-[48px]",
+                            class: "max-w-[24px] max-h-[24px]",
                             dangerous_inner_html: ms_code_icon_svg()
                         }
                     }
@@ -924,7 +924,7 @@ pub fn network_name_editor(mut active_network_name: Signal<String>) -> Element {
                             is_editing.set(false)
                         },
                         svg {
-                            class: "max-w-[48px] max-h-[48px]",
+                            class: "max-w-[24px] max-h-[24px]",
                             dangerous_inner_html: b8_save_icon_svg()
                         },
                     }
@@ -934,7 +934,7 @@ pub fn network_name_editor(mut active_network_name: Signal<String>) -> Element {
                             is_editing.set(false)
                         },
                         svg {
-                            class: "max-w-[48px] max-h-[48px]",
+                            class: "max-w-[24px] max-h-[24px]",
                             dangerous_inner_html: fa_trash_icon_svg()
                         },
                     }
@@ -954,7 +954,7 @@ pub fn network_name_editor(mut active_network_name: Signal<String>) -> Element {
                             is_editing.set(true)
                         },
                         svg {
-                            class: "max-w-[48px] max-h-[48px]",
+                            class: "max-w-[24px] max-h-[24px]",
                             dangerous_inner_html: ms_edit_icon_svg()
                         },
                     }

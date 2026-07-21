@@ -204,7 +204,7 @@ pub fn attach_files_input(
             label {
                 r#for: "textread_extend",
                 svg {
-                    class: "max-w-[48px] max-h-[48px]",
+                    class: "max-w-[24px] max-h-[24px]",
                     dangerous_inner_html: ms_cloud_add_icon_svg()
                 }
             }
@@ -221,7 +221,7 @@ pub fn attach_files_input(
             label {
                 r#for: "textread_add",
                 svg {
-                    class: "max-w-[48px] max-h-[48px]",
+                    class: "max-w-[24px] max-h-[24px]",
                     dangerous_inner_html: ms_cloud_arrow_up_icon_svg()
                 }
             }
@@ -261,7 +261,7 @@ pub fn attach_textfiles_input(
         label {
             r#for: "textread",
             svg {
-                class: "max-w-[48px] max-h-[48px]",
+                class: "max-w-[24px] max-h-[24px]",
                 dangerous_inner_html: ms_document_text_icon_svg()
             }
         }
@@ -375,7 +375,7 @@ pub fn upload_files_button(
                 extensions_uploaded.set(Vec::new());
             },
             svg {
-                class: "max-w-[48px] max-h-[48px]",
+                class: "max-w-[24px] max-h-[24px]",
                 dangerous_inner_html: b8_send_icon_svg()
             }
         },
@@ -397,7 +397,7 @@ pub fn clear_upload_files_button(
                 extensions_uploaded.set(Vec::new());
             },
             svg {
-                class: "max-w-[48px] max-h-[48px]",
+                class: "max-w-[24px] max-h-[24px]",
                 dangerous_inner_html: fa_trash_icon_svg()
             }
         },
@@ -487,7 +487,7 @@ pub fn download_files_button(
                 }
             },
             svg {
-                class: "max-w-[48px] max-h-[48px]",
+                class: "max-w-[24px] max-h-[24px]",
                 dangerous_inner_html: ms_cloud_arrow_down_icon_svg()
             },
         },
@@ -512,7 +512,7 @@ pub fn download_files_list(
                         div {
                             class: "flex items-center gap-2",
                             svg {
-                                class: "max-w-[48px] max-h-[48px]",
+                                class: "max-w-[24px] max-h-[24px]",
                                 dangerous_inner_html: extension_to_icon_svg(extensions_downloaded().get(i).unwrap())
                             },
                             a {
@@ -543,7 +543,7 @@ pub fn clear_download_files_button(
                 extensions_downloaded.set(Vec::new());
             },
             svg {
-                class: "max-w-[48px] max-h-[48px]",
+                class: "max-w-[24px] max-h-[24px]",
                 dangerous_inner_html: fa_trash_icon_svg()
             }
         },

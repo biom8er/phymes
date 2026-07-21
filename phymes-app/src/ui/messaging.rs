@@ -34,7 +34,7 @@ use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 use crate::{
     state::{
         svg_icons::{
-            aws_assistant_icon_svg, aws_user_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg,
+            ms_bot_icon_svg, ms_person_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg,
         },
         update_message_content_state, update_message_state, ACTIVE_SESSION_NAME, EMAIL, JWT,
     },
@@ -295,8 +295,8 @@ pub fn messaging_interface_view() -> Element {
                                             div {
                                                 class: "flex items-center gap-2",
                                                 svg {
-                                                    class: "max-w-[48px] max-h-[48px]",
-                                                    dangerous_inner_html: aws_assistant_icon_svg()
+                                                    class: "max-w-[24px] max-h-[24px]",
+                                                    dangerous_inner_html: ms_bot_icon_svg()
                                                 }
                                                 h2 {
                                                     class: "font-bold",
@@ -313,8 +313,8 @@ pub fn messaging_interface_view() -> Element {
                                                     "User"
                                                 }
                                                 svg {
-                                                    class: "max-w-[48px] max-h-[48px]",
-                                                    dangerous_inner_html: aws_user_icon_svg()
+                                                    class: "max-w-[24px] max-h-[24px]",
+                                                    dangerous_inner_html: ms_person_icon_svg()
                                                 }
                                             }
                                         }
@@ -361,7 +361,7 @@ pub fn messaging_interface_footer(
             messaging_roles.read().last(),
             messaging_contents.read().last(),
         ) {
-            role.as_str() == "assistant" && contents.as_str() == "Preparing response..."
+            role.as_str() == "assistant" && contents.contains("Preparing response...")
         } else {
             false
         }
@@ -392,7 +392,7 @@ pub fn messaging_interface_footer(
                     button {
                         class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         svg {
-                            class: "max-w-[48px] max-h-[48px]",
+                            class: "max-w-[24px] max-h-[24px]",
                             dangerous_inner_html: b8_microphone_icon_svg()
                         }
                     }
@@ -415,7 +415,8 @@ pub fn messaging_interface_footer(
                                 messaging_indices,
                                 messaging_timestamps,
                                 "assistant",
-                                "Preparing response...",
+                                r#"Preparing response...
+⚠️ Please stay on the page until the network is finished running ⚠️"#,
                                 create_timestamp_micros());
 
                             // create the message
@@ -612,7 +613,7 @@ pub fn messaging_interface_footer(
                             }
                         },
                         svg {
-                            class: "max-w-[48px] max-h-[48px]",
+                            class: "max-w-[24px] max-h-[24px]",
                             dangerous_inner_html: b8_send_icon_svg()
                         }
                     }

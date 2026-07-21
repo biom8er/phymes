@@ -15,7 +15,7 @@ use phymes_templates::AvailableNetworks;
 use crate::{
     state::{
         filter_in_mermaid_diagrams_by_network_name, get_non_duplicated_sorted_subjects,
-        svg_icons::{ms_search_icon_svg, ms_sync_icon_svg},
+        svg_icons::{ms_search_icon_svg, ms_chevron_circle_icon_svg},
         sync_current_active_network_state, SyncCurrentActiveNetworkState, ACTIVE_SESSION_NAME,
         BUILDER, EMAIL, JWT, SESSION_NAMES,
     },
@@ -441,7 +441,7 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
                         sync_current_active_network_state.send(SyncCurrentActiveNetworkState { name: active_network.clone() });
                     },
                     svg {
-                        class: "max-w-[48px] max-h-[48px]",
+                        class: "max-w-[24px] max-h-[24px]",
                         dangerous_inner_html: ms_search_icon_svg()
                     },
                 },
@@ -454,8 +454,8 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
                             is_flowchart_shown.set(!current);
                         },
                         svg {
-                            class: "max-w-[48px] max-h-[48px]",
-                            dangerous_inner_html: ms_sync_icon_svg()
+                            class: "max-w-[24px] max-h-[24px]",
+                            dangerous_inner_html: ms_chevron_circle_icon_svg()
                         },
                     },
                 }

@@ -299,7 +299,7 @@ pub fn metrics_dropdown(
                         metric_dropdown.set(String::new());
                     },
                     svg {
-                        class: "max-w-[48px] max-h-[48px]",
+                        class: "max-w-[24px] max-h-[24px]",
                         dangerous_inner_html: ms_search_icon_svg()
                     },
                 },
