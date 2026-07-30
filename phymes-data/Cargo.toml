@@ -56,7 +56,7 @@ minijinja = { workspace = true }
 minijinja-contrib = { workspace = true }
 tree-sitter = { version = "0.26.8", default-features = false, optional = true }
 tree-sitter-html = { version = "0.23.2", default-features = false, optional = true }
-tree-sitter-python = { version = "0.23.2", default-features = false, optional = true }
+tree-sitter-python = { version = "0.25.0", default-features = false, optional = true }
 tree-sitter-rust = { version = "0.23.2", default-features = false, optional = true }
 regex = { version = "1.12.3", default-features = false, optional = true }
 
