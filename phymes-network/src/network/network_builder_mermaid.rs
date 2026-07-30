@@ -551,8 +551,7 @@ flowchart TD"#,
             }
         } else if let Some(line) = flowchart_lines.first() {
             return Err(anyhow!(
-                "Parsing Error on line {iter}: {}. Unrecognized mermaid.js flowchart type. Should have found `flowchart`, `flowchart TD`, or `flowchart LR`.",
-                line
+                "Parsing Error on line {iter}: {line}. Unrecognized mermaid.js flowchart type. Should have found `flowchart`, `flowchart TD`, or `flowchart LR`."
             ));
         } else {
             return Err(anyhow!(
@@ -954,8 +953,7 @@ flowchart TD"#,
                             || line.contains("x--"))
                     {
                         return Err(anyhow!(
-                            "Parsing Error on line {iter}: {}. Unsupported arrow type in subgraph {task_name}. Only --> and .-> arrows are supported in PHYMES.",
-                            line
+                            "Parsing Error on line {iter}: {line}. Unsupported arrow type in subgraph {task_name}. Only --> and .-> arrows are supported in PHYMES."
                         ));
 
                     // Unrecognized qualifier
@@ -966,8 +964,7 @@ flowchart TD"#,
                             || !line.contains("publish"))
                     {
                         return Err(anyhow!(
-                            "Parsing Error on line {iter}: {}. Unsupported processor or subject qualifier in subgraph {task_name}. Only -subject, -subscribe, -processor, and -publish qualifiers are supported in PHYMES.",
-                            line
+                            "Parsing Error on line {iter}: {line}. Unsupported processor or subject qualifier in subgraph {task_name}. Only -subject, -subscribe, -processor, and -publish qualifiers are supported in PHYMES."
                         ));
 
                     // Any others

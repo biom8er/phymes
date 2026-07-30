@@ -406,7 +406,6 @@ pub fn builds_dropdown_view(
                             };
                             if let Some(err) = build_result.error {
                                 build_errors.write().push_str(&err);
-                                return;
                             }
                         },
                         svg {

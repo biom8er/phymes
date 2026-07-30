@@ -267,9 +267,11 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_retrieve_text_network() -> Result<()> {
         // Initialize the network
-        let mut retrieve_text_network = RetrieveTextNetworkBuilder::default();
-        retrieve_text_network.threshold = Some(0.15);
-        retrieve_text_network.limit = Some(5);
+        let retrieve_text_network = RetrieveTextNetworkBuilder::<'_> {
+            threshold: Some(0.15),
+            limit: Some(5),
+            ..Default::default()
+        };
         let retrieve_text_builder = NetworkBuilder::from_mermaid_flowchart(
             retrieve_text_network.as_mermaid_flowchart(),
             false,
