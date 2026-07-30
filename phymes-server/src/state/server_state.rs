@@ -496,6 +496,7 @@ mod tests {
         assert_eq!(user_networks.get(3).unwrap().network_name, "RAGTextPDF");
         #[cfg(feature = "api")]
         assert_eq!(user_networks.get(4).unwrap().email, "contact@biom8er.com");
+        #[cfg(feature = "api")]
         assert_eq!(user_networks.get(4).unwrap().network_name, "TabularDataOps");
 
         Ok(())
