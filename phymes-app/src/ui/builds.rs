@@ -6,7 +6,9 @@ use phymes_message::{
     MessageBuilderTrait, NetworkInterfaceMessage, NetworkInterfaceMessageBuilderTrait,
 };
 use phymes_schemas::{create_network_mermaid_batch, AvailableSubjects, DataFormat};
-use phymes_server::{NetworkBuildSubjects, NetworkBuildResponse, NetworkBuildResult, create_network_name};
+use phymes_server::{
+    create_network_name, NetworkBuildResponse, NetworkBuildResult, NetworkBuildSubjects,
+};
 use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 use phymes_templates::AvailableNetworks;
 
@@ -14,8 +16,9 @@ use crate::state::{
     filter_in_mermaid_diagrams_by_network_name, filter_out_mermaid_diagrams_by_network_name,
     get_non_duplicated_sorted_subjects,
     svg_icons::{
-        ms_checkmark_circle_icon_svg, b8_save_icon_svg, fa_trash_icon_svg, ms_code_icon_svg, ms_column_arrow_right_icon_svg,
-        ms_deploy_icon_svg, ms_edit_icon_svg, ms_search_icon_svg, ms_chevron_circle_icon_svg,
+        b8_save_icon_svg, fa_trash_icon_svg, ms_checkmark_circle_icon_svg,
+        ms_chevron_circle_icon_svg, ms_code_icon_svg, ms_column_arrow_right_icon_svg,
+        ms_deploy_icon_svg, ms_edit_icon_svg, ms_search_icon_svg,
     },
     sync_network_names_state, SyncNetworkNamesState, EMAIL, JWT, SESSION_NAMES,
 };
@@ -119,7 +122,7 @@ pub fn builds_dropdown_view(
                     onclick: move |_evt| async move {
                         // Reset any build errors
                         build_errors.set(String::new());
-                        
+
                         // Reset the dropdown
                         active_network_name.set(subject_dropdown.try_read().unwrap().to_string());
                         subject_dropdown.set(String::new());
@@ -283,7 +286,7 @@ pub fn builds_dropdown_view(
                             dangerous_inner_html: ms_chevron_circle_icon_svg()
                         },
                     },
-                    
+
                     button {
                         class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         onclick: move |_| async move {
@@ -335,7 +338,7 @@ pub fn builds_dropdown_view(
                                     Ok(mut response) => {
                                         if let Some(mut results) = response.response.take() {
                                             if let Some(result) = results.pop() {
-                                                result                                               
+                                                result
                                             } else {
                                                 tracing::debug!("No NetworkBuildResponse result found for check diagram.");
                                                 NetworkBuildResult::new(None, None)
@@ -378,11 +381,11 @@ pub fn builds_dropdown_view(
                                         .await
                                         .unwrap();
                                     let bytes = bytes.into_iter().flatten().collect::<Vec<_>>();
-                                    match serde_json::from_slice::<NetworkBuildResponse>(bytes.as_slice()) { 
+                                    match serde_json::from_slice::<NetworkBuildResponse>(bytes.as_slice()) {
                                         Ok(mut response) => {
                                             if let Some(mut results) = response.response.take() {
                                                 if let Some(result) = results.pop() {
-                                                    result                                                
+                                                    result
                                                 } else {
                                                     NetworkBuildResult::new(None, None)
                                                 }
@@ -502,7 +505,7 @@ pub fn builds_dropdown_view(
                                         .await
                                         .unwrap();
                                     let bytes = bytes.into_iter().flatten().collect::<Vec<_>>();
-                                    match serde_json::from_slice::<NetworkBuildResponse>(bytes.as_slice()) {                    
+                                    match serde_json::from_slice::<NetworkBuildResponse>(bytes.as_slice()) {
                                         Ok(mut response) => {
                                             if let Some(mut results) = response.response.take() {
                                                 if let Some(result) = results.pop() {
@@ -778,7 +781,7 @@ pub fn builds_dropdown_view(
                                         .await
                                         .unwrap();
                                     let bytes = bytes.into_iter().flatten().collect::<Vec<_>>();
-                                    match serde_json::from_slice::<NetworkBuildResponse>(bytes.as_slice()) {                    
+                                    match serde_json::from_slice::<NetworkBuildResponse>(bytes.as_slice()) {
                                         Ok(mut response) => {
                                             if let Some(mut results) = response.response.take() {
                                                 if let Some(result) = results.pop() {

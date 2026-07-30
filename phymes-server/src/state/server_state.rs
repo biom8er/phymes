@@ -417,7 +417,15 @@ mod tests {
         assert_eq!(
             subject.get_column_as_vec_str("email"),
             [
-                "contact@biom8er.com", "contact@biom8er.com", "contact@biom8er.com", "contact@biom8er.com", "contact@biom8er.com", "user@biom8er.com", "user@biom8er.com", "user@biom8er.com", "user@biom8er.com"
+                "contact@biom8er.com",
+                "contact@biom8er.com",
+                "contact@biom8er.com",
+                "contact@biom8er.com",
+                "contact@biom8er.com",
+                "user@biom8er.com",
+                "user@biom8er.com",
+                "user@biom8er.com",
+                "user@biom8er.com"
             ]
         );
         #[cfg(not(feature = "api"))]
@@ -437,7 +445,15 @@ mod tests {
         assert_eq!(
             subject.get_column_as_vec_str("network_name"),
             [
-                "GenerateText", "RAGTextPDF", "TabularDataOps", "GenerateCode", "Builder", "GenerateText", "RAGTextPDF", "TabularDataOps", "GenerateCode"
+                "GenerateText",
+                "RAGTextPDF",
+                "TabularDataOps",
+                "GenerateCode",
+                "Builder",
+                "GenerateText",
+                "RAGTextPDF",
+                "TabularDataOps",
+                "GenerateCode"
             ]
         );
         #[cfg(not(feature = "api"))]
@@ -457,7 +473,15 @@ mod tests {
         assert_eq!(
             subject.get_column_as_vec_str("network_name"),
             [
-                "GenerateText", "RAGTextPDF", "TabularDataOps", "GenerateCode", "Builder", "GenerateText", "RAGTextPDF", "TabularDataOps", "GenerateCode"
+                "GenerateText",
+                "RAGTextPDF",
+                "TabularDataOps",
+                "GenerateCode",
+                "Builder",
+                "GenerateText",
+                "RAGTextPDF",
+                "TabularDataOps",
+                "GenerateCode"
             ]
         );
 
@@ -534,7 +558,11 @@ mod tests {
                 .map(|s| s.to_string())
                 .collect::<HashSet<_>>(),
             [
-                "contactbiom8ercomRAGTextPDF", "contactbiom8ercomBuilder", "contactbiom8ercomGenerateCode", "contactbiom8ercomTabularDataOps", "contactbiom8ercomGenerateText"
+                "contactbiom8ercomRAGTextPDF",
+                "contactbiom8ercomBuilder",
+                "contactbiom8ercomGenerateCode",
+                "contactbiom8ercomTabularDataOps",
+                "contactbiom8ercomGenerateText"
             ]
             .iter()
             .map(|s| s.to_string())

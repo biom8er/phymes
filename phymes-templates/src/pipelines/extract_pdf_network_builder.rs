@@ -289,7 +289,7 @@ mod tests {
     };
     use phymes_task::SubscriptionTrait;
 
-use super::*;
+    use super::*;
 
     #[tokio::test]
     async fn test_extract_pdf_network() -> Result<()> {
@@ -528,7 +528,8 @@ use super::*;
         );
         assert_eq!(
             column.last().unwrap(),
-&"WikiBioComponents4PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_7"        );
+            &"WikiBioComponents4PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_7"
+        );
         let column = subject.get_column_as_vec_str("document_id");
         assert_eq!(column.first().unwrap(), &"WikiBioComponents");
         assert_eq!(column.last().unwrap(), &"WikiBioComponents");

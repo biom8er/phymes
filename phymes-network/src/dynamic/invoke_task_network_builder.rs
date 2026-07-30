@@ -44,43 +44,53 @@ impl<'a> InvokeTaskNetworkBuilder<'a> {
     /// Tasks to exclude
     pub fn exlude_tasks() -> Vec<String> {
         [
-            "group_by_processors_subscriptions_t", 
-            "group_by_processors_publications_t", 
-            "join_tasks_processors_subscriptions_publications_aggregated_t", 
-            "call_processor_t", 
-        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()
+            "group_by_processors_subscriptions_t",
+            "group_by_processors_publications_t",
+            "join_tasks_processors_subscriptions_publications_aggregated_t",
+            "call_processor_t",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>()
     }
 
     /// Processors to exclude
     pub fn exlude_processors() -> Vec<String> {
         [
-            "group_by_processors_subscriptions_p", 
-            "select_processors_subscriptions_aggregated_p", 
-            "group_by_processors_publications_p", 
-            "select_processors_publications_aggregated_p", 
-            "join_processors_subscriptions_publications_aggregated_p", 
-            "join_tasks_processors_subscriptions_publications_aggregated_p", 
-            "select_tasks_processors_subscriptions_publications_aggregated_p", 
-            "echo_processor_p", 
+            "group_by_processors_subscriptions_p",
+            "select_processors_subscriptions_aggregated_p",
+            "group_by_processors_publications_p",
+            "select_processors_publications_aggregated_p",
+            "join_processors_subscriptions_publications_aggregated_p",
+            "join_tasks_processors_subscriptions_publications_aggregated_p",
+            "select_tasks_processors_subscriptions_publications_aggregated_p",
+            "echo_processor_p",
             "call_processor_p",
-        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>()
     }
 
     /// Subjects to exclude
     pub fn exlude_subjects() -> Vec<String> {
         [
-            "select_processors_subscriptions_s", 
-            "group_by_processors_subscriptions_s", 
-            "select_processors_subscriptions_aggregated_s", 
-            "select_processors_publications_s", 
-            "group_by_processors_publications_s", 
-            "select_processors_publications_aggregated_s", 
-            "join_processors_subscriptions_publications_aggregated_s", 
-            "join_tasks_processors_subscriptions_publications_aggregated_s", 
-            "select_tasks_processors_subscriptions_publications_aggregated_s", 
-            "NetworkTasksSubscribePublish", 
-            "call_processor_s", 
-        ].into_iter().map(|s| s.to_string()).chain(Self::exlude_processors()).collect::<Vec<_>>()
+            "select_processors_subscriptions_s",
+            "group_by_processors_subscriptions_s",
+            "select_processors_subscriptions_aggregated_s",
+            "select_processors_publications_s",
+            "group_by_processors_publications_s",
+            "select_processors_publications_aggregated_s",
+            "join_processors_subscriptions_publications_aggregated_s",
+            "join_tasks_processors_subscriptions_publications_aggregated_s",
+            "select_tasks_processors_subscriptions_publications_aggregated_s",
+            "NetworkTasksSubscribePublish",
+            "call_processor_s",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .chain(Self::exlude_processors())
+        .collect::<Vec<_>>()
     }
 
     /// Return the Mermaid.js flowchart representation of the network

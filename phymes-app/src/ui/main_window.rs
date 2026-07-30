@@ -319,7 +319,13 @@ pub fn split_panel(
         let height_or_width = if horizontal() { "height" } else { "width" };
         let top_style = format!("{height_or_width}: {}%;", top_pct().as_f32());
         let bottom_style = format!("{height_or_width}: {}%;", 100.0 - top_pct().as_f32());
-        (div_class, top_bottom_class, middle_class, top_style, bottom_style)
+        (
+            div_class,
+            top_bottom_class,
+            middle_class,
+            top_style,
+            bottom_style,
+        )
     });
 
     rsx! {

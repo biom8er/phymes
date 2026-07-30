@@ -34,7 +34,7 @@ use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 use crate::{
     state::{
         svg_icons::{
-            ms_bot_icon_svg, ms_person_icon_svg, b8_microphone_icon_svg, b8_send_icon_svg,
+            b8_microphone_icon_svg, b8_send_icon_svg, ms_bot_icon_svg, ms_person_icon_svg,
         },
         update_message_content_state, update_message_state, ACTIVE_SESSION_NAME, EMAIL, JWT,
     },
@@ -416,7 +416,7 @@ pub fn messaging_interface_footer(
                                 messaging_timestamps,
                                 "assistant",
                                 r#"Preparing response...
-⚠️ Please stay on the page until the network is finished running ⚠️"#,
+    ⚠️ Please stay on the page until the network is finished running ⚠️"#,
                                 create_timestamp_micros());
 
                             // create the message

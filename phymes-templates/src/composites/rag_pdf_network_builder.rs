@@ -64,7 +64,7 @@ mod tests {
 
     use crate::{extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
 
-use super::*;
+    use super::*;
 
     #[tokio::test]
     async fn test_rag_pdf_network() -> Result<()> {
@@ -176,7 +176,13 @@ use super::*;
             let subject_names = extended_diagnostic_subjects
                 .iter()
                 .map(|s| s.as_str())
-                .chain(["AssistantMessages", "ToolMessages", "EmbeddingScores", "Documents", "UserQueries"])
+                .chain([
+                    "AssistantMessages",
+                    "ToolMessages",
+                    "EmbeddingScores",
+                    "Documents",
+                    "UserQueries",
+                ])
                 .collect::<Vec<_>>();
             write_diagnostic_subjects_to_csv(
                 &subject_names,

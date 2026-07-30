@@ -204,7 +204,8 @@ mod tests {
             let column = subject.get_column_as_vec_str("chunk_id");
             assert_eq!(
                 column.first().unwrap(),
-                &"wiki_dna2PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_9");
+                &"wiki_dna2PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_9"
+            );
             let column = subject.get_column_as_vec_str("query_id");
             assert_eq!(column.first().unwrap(), &"0");
             let column = subject.get_column_as_vec_primitive::<f32>("score")?;
@@ -232,12 +233,7 @@ mod tests {
             assert_eq!(column.first().unwrap(), &"tool");
             let column = subject.get_column_as_vec_str("content");
             // dbg!(column.first().unwrap());
-            assert!(
-                column
-                    .first()
-                    .unwrap()
-                    .contains("[{\"text\":\"")
-            );
+            assert!(column.first().unwrap().contains("[{\"text\":\""));
             let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
             for t in column {
                 assert!(t > 0);

@@ -13,7 +13,8 @@ use phymes_message::{
 };
 use phymes_ml::CandleChatConfig;
 use phymes_schemas::{
-    AvailableInterfaceSubjects, AvailableSchemaTrait, AvailableSubjects, DataFormat, ToolCall, create_bytes_record_batch, create_chat_record_batch, create_route_bytes_record_batch,
+    AvailableInterfaceSubjects, AvailableSchemaTrait, AvailableSubjects, DataFormat, ToolCall,
+    create_bytes_record_batch, create_chat_record_batch, create_route_bytes_record_batch,
 };
 use phymes_subject::{
     BuildableTrait, BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
@@ -293,14 +294,17 @@ impl Stream for MessageParserStream {
                                     .to_bytes()?
                                     .to_vec();
                                 values_vec.push(bytes);
-                            }                            
+                            }
 
                             // Add the assistant message
-                            names_vec.push(AvailableInterfaceSubjects::AssistantMessages.to_string());
+                            names_vec
+                                .push(AvailableInterfaceSubjects::AssistantMessages.to_string());
                             publishers_vec.push("message_parser_processor".to_string());
-                            subjects_vec.push(AvailableInterfaceSubjects::AssistantMessages.to_string());
+                            subjects_vec
+                                .push(AvailableInterfaceSubjects::AssistantMessages.to_string());
                             formats_vec.push(DataFormat::Ipc.to_string());
-                            let batch = create_chat_record_batch(role_vec, content_vec, timestamp_vec)?;
+                            let batch =
+                                create_chat_record_batch(role_vec, content_vec, timestamp_vec)?;
                             let bytes = Subject::get_builder()
                                 .with_name("message_parser_processor")
                                 .with_record_batches(vec![batch])?

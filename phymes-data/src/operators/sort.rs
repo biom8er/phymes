@@ -36,7 +36,8 @@ impl MappableTrait for Sort {
 
 impl ToolTrait for Sort {
     fn get_description(&self) -> String {
-        "Sort columns from Apache Arrow `RecordBatch`es in ascending or descending order".to_string()
+        "Sort columns from Apache Arrow `RecordBatch`es in ascending or descending order"
+            .to_string()
     }
     fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();

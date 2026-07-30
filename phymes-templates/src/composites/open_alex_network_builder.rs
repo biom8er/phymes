@@ -8,7 +8,8 @@ use phymes_data::{
 };
 use phymes_event::{Publication, Subscription};
 use phymes_network::{
-    DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes, NetworkBuilder, NetworkBuilderMermaidTrait,
+    DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes, NetworkBuilder,
+    NetworkBuilderMermaidTrait,
 };
 use phymes_processor::AvailableProcessors;
 use phymes_schemas::{

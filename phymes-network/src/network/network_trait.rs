@@ -698,7 +698,7 @@ impl Network {
                         let subject = builder.with_name(subject_name.as_str()).build().unwrap();
                         let num_rows = subject.count_rows(); // DM: not used currently...
 
-                        // Check for a mismatch in the schema and intercept any errors                        
+                        // Check for a mismatch in the schema and intercept any errors
                         if schema.ne(&subject.get_schema())
                             // ignore the `None` schema
                             & schema.ne(&AvailableSubjects::None.to_schema())

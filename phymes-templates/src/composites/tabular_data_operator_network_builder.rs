@@ -287,13 +287,14 @@ mod tests {
         create_chat_record_batch,
     };
     use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait, test_subject,
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
+        SubjectBuilderTrait, SubjectTrait, test_subject,
     };
     use phymes_task::SubscriptionTrait;
 
     use crate::{extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
 
-use super::*;
+    use super::*;
 
     #[tokio::test]
     async fn test_tabular_data_operator_network() -> Result<()> {
@@ -523,7 +524,15 @@ use super::*;
             let subject_names = extended_diagnostic_subjects
                 .iter()
                 .map(|s| s.as_str())
-                .chain(["ExtractTabular", "left_hand_side_s", "right_hand_side_s", "out_s", "ToolMessages", "generate_text_inference_s", "AssistantMessages"])
+                .chain([
+                    "ExtractTabular",
+                    "left_hand_side_s",
+                    "right_hand_side_s",
+                    "out_s",
+                    "ToolMessages",
+                    "generate_text_inference_s",
+                    "AssistantMessages",
+                ])
                 .collect::<Vec<_>>();
             write_diagnostic_subjects_to_csv(
                 &subject_names,
@@ -808,7 +817,7 @@ use super::*;
         let erdiagram = builder.to_mermaid_erdiagram(false, true)?;
 
         // Remake the builder
-        
+
         let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_subjects_from_mermaid_erdiagram(&erdiagram, true, true)?
             .with_name(&network_name)

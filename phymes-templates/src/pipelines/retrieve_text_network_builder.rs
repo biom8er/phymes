@@ -5,7 +5,7 @@ pub struct RetrieveTextNetworkBuilder<'a> {
     /// Network
     pub network_name: &'a str,
     pub threshold: Option<f32>,
-    pub limit: Option<u32>
+    pub limit: Option<u32>,
 }
 
 impl<'a> Default for RetrieveTextNetworkBuilder<'a> {
@@ -119,7 +119,8 @@ impl<'a> RetrieveTextNetworkBuilder<'a> {
     pub fn as_mermaid_erdiagram(&self) -> String {
         let threshold = self.threshold.unwrap_or(0.5);
         let limit = self.limit.unwrap_or(48);
-        format!(r#"erDiagram
+        format!(
+            r#"erDiagram
 	QueryEmbeddings["QueryEmbeddings"] {{
 	    Utf8 query_id
 	    List-Float32 embedding
@@ -234,7 +235,8 @@ impl<'a> RetrieveTextNetworkBuilder<'a> {
 	    Utf8 role
 	    Utf8 content
 	    Int64 timestamp
-	}}"#)
+	}}"#
+        )
     }
 }
 
@@ -248,7 +250,8 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait, NetworkStream,
+        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
+        NetworkStream,
     };
     use phymes_schemas::{
         AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait,
@@ -259,7 +262,7 @@ mod tests {
     };
     use phymes_task::SubscriptionTrait;
 
-use super::*;
+    use super::*;
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_retrieve_text_network() -> Result<()> {

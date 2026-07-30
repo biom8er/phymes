@@ -429,7 +429,10 @@ mod tests {
             ]
         );
         let column = subject.get_column_as_vec_str("network_name");
-        assert_eq!(column, ["Builder", "GenerateText", "RAGTextPDF", "TabularDataOps"]);
+        assert_eq!(
+            column,
+            ["Builder", "GenerateText", "RAGTextPDF", "TabularDataOps"]
+        );
         let column = subject.get_column_as_vec_str("er_diagram");
         for c in column {
             assert!(!c.is_empty());

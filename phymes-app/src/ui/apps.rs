@@ -6,7 +6,7 @@ use phymes_message::{
     NetworkInterfaceMessageBuilderTrait,
 };
 use phymes_schemas::{AvailableSubjects, DataFormat};
-use phymes_server::{NetworkBuildResult, create_network_name};
+use phymes_server::{create_network_name, NetworkBuildResult};
 use phymes_subject::{
     BuildableTrait, BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
@@ -15,7 +15,7 @@ use phymes_templates::AvailableNetworks;
 use crate::{
     state::{
         filter_in_mermaid_diagrams_by_network_name, get_non_duplicated_sorted_subjects,
-        svg_icons::{ms_search_icon_svg, ms_chevron_circle_icon_svg},
+        svg_icons::{ms_chevron_circle_icon_svg, ms_search_icon_svg},
         sync_current_active_network_state, SyncCurrentActiveNetworkState, ACTIVE_SESSION_NAME,
         BUILDER, EMAIL, JWT, SESSION_NAMES,
     },

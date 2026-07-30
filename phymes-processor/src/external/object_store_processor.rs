@@ -994,10 +994,13 @@ mod tests {
             .build()?;
 
         // Make the object store meta batch
-        let location = ["data/jsonl/authors/manifest.json", "data/jsonl/manifest.json"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
+        let location = [
+            "data/jsonl/authors/manifest.json",
+            "data/jsonl/manifest.json",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
         let bucket = [bucket_name, bucket_name]
             .into_iter()
             .map(|s| s.to_string())
@@ -1067,7 +1070,13 @@ mod tests {
             .build()?;
 
         let result = table.get_column_as_vec_str("location");
-        assert_eq!(result, ["data/jsonl/authors/manifest.json", "data/jsonl/manifest.json"]);
+        assert_eq!(
+            result,
+            [
+                "data/jsonl/authors/manifest.json",
+                "data/jsonl/manifest.json"
+            ]
+        );
         let result = table.get_column_as_vec_str("bucket");
         assert_eq!(result, [bucket_name, bucket_name]);
         let result = table.get_column_as_vec_str("metadata");
@@ -1163,7 +1172,13 @@ mod tests {
             .build()?;
 
         let result = table.get_column_as_vec_str("location");
-        assert_eq!(result, ["data/jsonl/authors/manifest.json", "data/jsonl/manifest.json"]);
+        assert_eq!(
+            result,
+            [
+                "data/jsonl/authors/manifest.json",
+                "data/jsonl/manifest.json"
+            ]
+        );
         let result = table.get_column_as_vec_str("bucket");
         assert_eq!(result, [bucket_name, bucket_name]);
         let result = table.get_column_as_vec_str("metadata");

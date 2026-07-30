@@ -1288,7 +1288,13 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
-                    "OnUpdateLastRecordBatch", "AlwaysAllRecordBatches", "OnUpdateAllRecordBatches", "AlwaysAllRecordBatches", "OnUpdateAllRecordBatches", "AlwaysAllRecordBatches", "OnUpdateAllRecordBatches"
+                    "OnUpdateLastRecordBatch",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches"
                 ]
             );
             let column = subject

@@ -12,11 +12,12 @@ use phymes_streams::CommandSandboxEnvironments;
 use phymes_subject::{BuildableTrait, BuilderTrait, RuntimeEnv, RuntimeEnvBuilderTrait};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    GenerateTextNetworkBuilder, MermaidNetworkBuilder, RetrievalAugmentedGenerationPDFNetworkBuilder, TabularDataOperatorNetworkBuilder, UserNetwork,
-};
 #[cfg(feature = "api")]
-use crate::{GenerateCodeNetworkBuilder, ExecuteWorkspaceNetwork};
+use crate::{ExecuteWorkspaceNetwork, GenerateCodeNetworkBuilder};
+use crate::{
+    GenerateTextNetworkBuilder, MermaidNetworkBuilder,
+    RetrievalAugmentedGenerationPDFNetworkBuilder, TabularDataOperatorNetworkBuilder, UserNetwork,
+};
 
 /// The available network plans
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
@@ -53,10 +54,13 @@ impl Display for AvailableNetworks {
 impl AvailableNetworks {
     /// Get all available network plans
     pub fn get_all_network_plan_names() -> Vec<String> {
-        let network_plans = ["GenerateText", "RAGTextPDF", "TabularDataOps", 
+        let network_plans = [
+            "GenerateText",
+            "RAGTextPDF",
+            "TabularDataOps",
             #[cfg(feature = "api")]
-            "GenerateCode", 
-            "Builder"
+            "GenerateCode",
+            "Builder",
         ];
         network_plans
             .iter()
@@ -66,9 +70,12 @@ impl AvailableNetworks {
 
     /// Get all available network plans
     pub fn get_deployable_network_plan_names() -> Vec<String> {
-        let network_plans = ["GenerateText", "RAGTextPDF", "TabularDataOps", 
+        let network_plans = [
+            "GenerateText",
+            "RAGTextPDF",
+            "TabularDataOps",
             #[cfg(feature = "api")]
-            "GenerateCode"
+            "GenerateCode",
         ];
         network_plans
             .iter()
@@ -137,10 +144,8 @@ impl AvailableNetworks {
                 .unwrap(),
             #[cfg(feature = "api")]
             Self::GenerateCode => {
-                let generate_code_network_builder = GenerateCodeNetworkBuilder::default()
-                    .inner
-                    .take()
-                    .unwrap();
+                let generate_code_network_builder =
+                    GenerateCodeNetworkBuilder::default().inner.take().unwrap();
 
                 // Extend with execute_workspace_network
                 let execute_workspace_network = ExecuteWorkspaceNetwork::new(
@@ -162,23 +167,26 @@ impl AvailableNetworks {
                 )
                 .unwrap()
                 .with_name(execute_workspace_network.network_name);
-                let generate_code_network_builder = generate_code_network_builder.extend(network_builder).unwrap();
-                
-                generate_code_network_builder.with_runtime_env(
-                    RuntimeEnv::get_builder()
-                        .with_name(
-                            DynamicTaskNetworkNames::RuntimeEnv(network_name)
-                                .to_string()
-                                .as_str(),
-                        )
-                        .with_max_steps(100)
-                        .build_arc()
-                        .unwrap(),
-                )
-                .with_name(network_name)
-                .add_processor_subjects()
-                .unwrap()
-            },
+                let generate_code_network_builder = generate_code_network_builder
+                    .extend(network_builder)
+                    .unwrap();
+
+                generate_code_network_builder
+                    .with_runtime_env(
+                        RuntimeEnv::get_builder()
+                            .with_name(
+                                DynamicTaskNetworkNames::RuntimeEnv(network_name)
+                                    .to_string()
+                                    .as_str(),
+                            )
+                            .with_max_steps(100)
+                            .build_arc()
+                            .unwrap(),
+                    )
+                    .with_name(network_name)
+                    .add_processor_subjects()
+                    .unwrap()
+            }
             Self::Builder => MermaidNetworkBuilder::new_with_network_name(network_name).build(),
             Self::Users => UserNetwork::new_with_network_name(network_name).build(),
         }

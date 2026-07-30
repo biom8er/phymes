@@ -125,7 +125,7 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
         tokenizer_file: Option<String>,
         tokenizer_config_file: Option<String>,
         api_url: Option<String>,
-        tool_message_required: bool
+        tool_message_required: bool,
     ) -> Self {
         let chat_processor = if cfg!(all(feature = "api", not(feature = "candle"))) {
             "OpenAIChatProcessor"
@@ -142,7 +142,7 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
             tokenizer_config_file,
             api_url,
             chat_processor,
-            tool_message_required
+            tool_message_required,
         }
     }
     fn generate_text_inference_p(&self) -> String {
@@ -646,7 +646,7 @@ mod tests {
             .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
-            .await?;           
+            .await?;
             let subject = Subject::get_builder()
                 .with_name(
                     AvailableInterfaceSubjects::AssistantMessages
@@ -659,7 +659,10 @@ mod tests {
             let column = subject.get_column_as_vec_str("role");
             assert_eq!(column.first().unwrap(), &"assistant");
             let column = subject.get_column_as_vec_str("content");
-            assert_eq!(column.first().unwrap(), &"<tool_call>\n{\"name\": \"Sort\", \"arguments\": {\"asc\": true, \"lhs_name\": \"available_data_1\", \"lhs_pk\": \"lhs_pk\", \"lhs_values\": [\"score\"]}}\n</tool_call>");
+            assert_eq!(
+                column.first().unwrap(),
+                &"<tool_call>\n{\"name\": \"Sort\", \"arguments\": {\"asc\": true, \"lhs_name\": \"available_data_1\", \"lhs_pk\": \"lhs_pk\", \"lhs_values\": [\"score\"]}}\n</tool_call>"
+            );
             let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
             for t in column {
                 assert!(t > 0);
@@ -957,7 +960,7 @@ mod tests {
             .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
-            .await?;            
+            .await?;
             let subject = Subject::get_builder()
                 .with_name(
                     AvailableInterfaceSubjects::AssistantMessages
@@ -970,7 +973,10 @@ mod tests {
             let column = subject.get_column_as_vec_str("role");
             assert_eq!(column.first().unwrap(), &"assistant");
             let column = subject.get_column_as_vec_str("content");
-            assert_eq!(column.first().unwrap(), &"<tool_call>\n{\"name\": \"Sort\", \"arguments\": {\"asc\": true, \"lhs_name\": \"available_data_1\", \"lhs_pk\": \"c\", \"lhs_values\": [\"score\"]}}\n</tool_call>");
+            assert_eq!(
+                column.first().unwrap(),
+                &"<tool_call>\n{\"name\": \"Sort\", \"arguments\": {\"asc\": true, \"lhs_name\": \"available_data_1\", \"lhs_pk\": \"c\", \"lhs_values\": [\"score\"]}}\n</tool_call>"
+            );
             let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
             for t in column {
                 assert!(t > 0);

@@ -1,3 +1,4 @@
+use anyhow::Result;
 use axum::{
     Extension,
     body::Body,
@@ -5,7 +6,6 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use anyhow::Result;
 use clap::ValueEnum;
 use phymes_message::{MessageTrait, NetworkInterfaceMessage, NetworkInterfaceMessageTrait};
 use phymes_network::{NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait};
@@ -13,7 +13,9 @@ use phymes_schemas::{
     AvailableSchemaTrait, AvailableSubjects, CsvFormat, DataFormat,
     JoinUserInboxNetworksMermaidDiagrams,
 };
-use phymes_subject::{BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+use phymes_subject::{
+    BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::handlers::json_error::{ErrorToResponse, JsonError, serde_json_error_response};
@@ -42,24 +44,29 @@ pub enum NetworkBuildSubjects {
 pub struct NetworkBuildResult {
     // Response consisting of a String and an optional Error message
     pub diagram: Option<String>,
-    pub error: Option<String>
+    pub error: Option<String>,
 }
 
 impl NetworkBuildResult {
     pub fn new(diagram: Option<&str>, error: Option<&str>) -> Self {
-        Self { diagram: diagram.map(|s| s.to_string()), error: error.map(|s| s.to_string()) }
+        Self {
+            diagram: diagram.map(|s| s.to_string()),
+            error: error.map(|s| s.to_string()),
+        }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, PartialOrd)]
 pub struct NetworkBuildResponse {
     // Response consisting of a String and an optional Error message
-    pub response: Option<Vec<NetworkBuildResult>>
+    pub response: Option<Vec<NetworkBuildResult>>,
 }
 
 impl NetworkBuildResponse {
     pub fn new(response: &[NetworkBuildResult]) -> Self {
-        Self { response: Some(response.to_vec()) }
+        Self {
+            response: Some(response.to_vec()),
+        }
     }
 }
 
@@ -184,12 +191,14 @@ pub async fn network_build(
                 .unwrap();
 
             // Based on the subject: Add new to users, AutoFill ER diagram, Test build(s)
-            let network_build_subject = match NetworkBuildSubjects::from_str(payload.get_subject(), false) {
-                Ok(nbs) => nbs,
-                Err(err) => {
-                    return JsonError::new(err.to_string()).to_response(StatusCode::BAD_REQUEST);
-                }
-            };
+            let network_build_subject =
+                match NetworkBuildSubjects::from_str(payload.get_subject(), false) {
+                    Ok(nbs) => nbs,
+                    Err(err) => {
+                        return JsonError::new(err.to_string())
+                            .to_response(StatusCode::BAD_REQUEST);
+                    }
+                };
 
             let response = match network_build_subject {
                 NetworkBuildSubjects::AddNetwork => {
@@ -248,14 +257,31 @@ pub async fn network_build(
                         .zip(timestamp.into_iter())
                         .map(|(((a, b), c), _d)| {
                             match NetworkBuilder::from_mermaid_flowchart(&b, false) {
-                                Ok(builder) => match builder.with_subjects_from_mermaid_erdiagram(&c, false, true) {
-                                    Ok(builder) => match builder.with_name(&a).add_processor_subjects().unwrap().add_network_interface(None).unwrap().build_with_tables() {
-                                        Ok((network, _subjects)) => NetworkBuildResult::new(Some(network.get_name()), None),
-                                        Err(err) => NetworkBuildResult::new(None, Some(&format!("{err:?}"))),
+                                Ok(builder) => match builder
+                                    .with_subjects_from_mermaid_erdiagram(&c, false, true)
+                                {
+                                    Ok(builder) => match builder
+                                        .with_name(&a)
+                                        .add_processor_subjects()
+                                        .unwrap()
+                                        .add_network_interface(None)
+                                        .unwrap()
+                                        .build_with_tables()
+                                    {
+                                        Ok((network, _subjects)) => {
+                                            NetworkBuildResult::new(Some(network.get_name()), None)
+                                        }
+                                        Err(err) => {
+                                            NetworkBuildResult::new(None, Some(&format!("{err:?}")))
+                                        }
                                     },
-                                    Err(err) =>  NetworkBuildResult::new(None, Some(&format!("{err:?}"))),
+                                    Err(err) => {
+                                        NetworkBuildResult::new(None, Some(&format!("{err:?}")))
+                                    }
+                                },
+                                Err(err) => {
+                                    NetworkBuildResult::new(None, Some(&format!("{err:?}")))
                                 }
-                                Err(err) =>  NetworkBuildResult::new(None, Some(&format!("{err:?}"))),
                             }
                         })
                         .collect::<Vec<_>>();
@@ -270,8 +296,13 @@ pub async fn network_build(
                         .zip(timestamp.into_iter())
                         .map(|(((_a, b), _c), _d)| {
                             match NetworkBuilder::from_mermaid_flowchart(&b, false) {
-                                Ok(network) => NetworkBuildResult::new(Some(&network.name.unwrap_or_default()), None),
-                                Err(err) => NetworkBuildResult::new(None, Some(&format!("{err:?}"))),
+                                Ok(network) => NetworkBuildResult::new(
+                                    Some(&network.name.unwrap_or_default()),
+                                    None,
+                                ),
+                                Err(err) => {
+                                    NetworkBuildResult::new(None, Some(&format!("{err:?}")))
+                                }
                             }
                         })
                         .collect::<Vec<_>>();
@@ -285,9 +316,16 @@ pub async fn network_build(
                         .zip(er_diagram.into_iter())
                         .zip(timestamp.into_iter())
                         .map(|(((_a, _b), c), _d)| {
-                            match NetworkBuilder::default().with_subjects_from_mermaid_erdiagram(&c, false, true) {
-                                Ok(network) => NetworkBuildResult::new(Some(&network.name.unwrap_or_default()), None),
-                                Err(err) => NetworkBuildResult::new(None, Some(&format!("{err:?}"))),
+                            match NetworkBuilder::default()
+                                .with_subjects_from_mermaid_erdiagram(&c, false, true)
+                            {
+                                Ok(network) => NetworkBuildResult::new(
+                                    Some(&network.name.unwrap_or_default()),
+                                    None,
+                                ),
+                                Err(err) => {
+                                    NetworkBuildResult::new(None, Some(&format!("{err:?}")))
+                                }
                             }
                         })
                         .collect::<Vec<_>>();
@@ -307,7 +345,9 @@ pub async fn network_build(
                                 Ok(builder) => {
                                     let builder = if c.is_empty() {
                                         builder
-                                    } else if let Ok(builder) = builder.with_subjects_from_mermaid_erdiagram(&c, false, true) {
+                                    } else if let Ok(builder) = builder
+                                        .with_subjects_from_mermaid_erdiagram(&c, false, true)
+                                    {
                                         builder
                                     } else {
                                         // Revert
@@ -315,14 +355,25 @@ pub async fn network_build(
                                     };
                                     match builder.with_name(&a).add_processor_subjects() {
                                         // Include the last row of data during the prototyping stage
-                                        Ok(builder) => match builder.to_mermaid_erdiagram(true, true) {
-                                            Ok(network) => NetworkBuildResult::new(Some(&network), None),
-                                            Err(err) => NetworkBuildResult::new(None, Some(&format!("{err:?}"))),
-                                        },
-                                        Err(err) => NetworkBuildResult::new(None, Some(&format!("{err:?}"))),
+                                        Ok(builder) => {
+                                            match builder.to_mermaid_erdiagram(true, true) {
+                                                Ok(network) => {
+                                                    NetworkBuildResult::new(Some(&network), None)
+                                                }
+                                                Err(err) => NetworkBuildResult::new(
+                                                    None,
+                                                    Some(&format!("{err:?}")),
+                                                ),
+                                            }
+                                        }
+                                        Err(err) => {
+                                            NetworkBuildResult::new(None, Some(&format!("{err:?}")))
+                                        }
                                     }
-                                },
-                                Err(err) => NetworkBuildResult::new(None, Some(&format!("{err:?}"))),
+                                }
+                                Err(err) => {
+                                    NetworkBuildResult::new(None, Some(&format!("{err:?}")))
+                                }
                             }
                         })
                         .collect::<Vec<_>>();

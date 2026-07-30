@@ -1,5 +1,8 @@
 use crate::{
-    AvailableSchemaTrait, AvailableSubjectsTrait, PdfDocumentSubject, PdfGraphicsSubject, PdfPageSubject, PdfTextSubject, chat::{create_route_bytes_fields, create_tools_fields, create_values_fields}, core::{
+    AvailableSchemaTrait, AvailableSubjectsTrait, PdfDocumentSubject, PdfGraphicsSubject,
+    PdfPageSubject, PdfTextSubject,
+    chat::{create_route_bytes_fields, create_tools_fields, create_values_fields},
+    core::{
         create_events_fields, create_join_user_inbox_networks_fields,
         create_join_user_inbox_networks_mermaid_diagrams_fields,
         create_mermaid_content_template_fields, create_mermaid_er_diagram_entities_template_fields,
@@ -22,11 +25,15 @@ use crate::{
         create_subjects_num_rows_fields, create_subjects_object_store_meta_fields,
         create_traces_fields, create_user_fields, create_user_inbox_fields,
         create_user_networks_fields,
-    }, create_bytes_fields, create_chat_fields, create_repository_fields, create_repository_patch_fields, create_workspace_fields, create_workspace_patch_fields, embed::{
+    },
+    create_bytes_fields, create_chat_fields, create_repository_fields,
+    create_repository_patch_fields, create_workspace_fields, create_workspace_patch_fields,
+    embed::{
         create_document_embeddings_fields, create_documents_fields,
         create_embeddings_scores_fields, create_join_chunks_scores_fields, create_queries_fields,
         create_query_embeddings_fields,
-    }, storage::{
+    },
+    storage::{
         create_attachments_fields, create_n_quads_fields, create_n_triples_fields,
         create_object_store_fields, create_object_store_meta_fields, create_parse_owl_fields,
         create_parse_xml_fields,

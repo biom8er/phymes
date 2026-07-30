@@ -313,7 +313,7 @@ mod tests {
     };
     use phymes_task::SubscriptionTrait;
 
-use super::*;
+    use super::*;
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_patch_workspace_network_dynamic_w_subjects() -> Result<()> {

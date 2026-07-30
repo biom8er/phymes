@@ -334,7 +334,10 @@ mod tests {
             .with_record_batches(batches)?
             .build()?;
         let column = subject.get_column_as_vec_str("location");
-        assert_eq!(column, ["data/jsonl/works/updated_date=2026-03-10/part_0005.gz"]);
+        assert_eq!(
+            column,
+            ["data/jsonl/works/updated_date=2026-03-10/part_0005.gz"]
+        );
         let column = subject.get_column_as_vec_str("bucket");
         assert_eq!(column, ["openalex"]);
         let column = subject.get_column_as_vec_str("metadata");
@@ -438,7 +441,10 @@ mod tests {
             .with_record_batches(batches)?
             .build()?;
         let column = subject.get_column_as_vec_str("location");
-        assert_eq!(column, ["data/jsonl/works/updated_date=2026-03-10/part_0005.gz"]);
+        assert_eq!(
+            column,
+            ["data/jsonl/works/updated_date=2026-03-10/part_0005.gz"]
+        );
         let column = subject.get_column_as_vec_str("bucket");
         assert_eq!(column, ["openalex"]);
         let column = subject.get_column_as_vec_str("metadata");
@@ -581,7 +587,10 @@ mod tests {
             .with_record_batches(batches)?
             .build()?;
         let column = subject.get_column_as_vec_str("location");
-        assert_eq!(column, ["data/jsonl/works/updated_date=2026-03-10/part_0005.gz"]);
+        assert_eq!(
+            column,
+            ["data/jsonl/works/updated_date=2026-03-10/part_0005.gz"]
+        );
         let column = subject.get_column_as_vec_str("bucket");
         assert_eq!(column, ["openalex"]);
         let column = subject.get_column_as_vec_str("metadata");

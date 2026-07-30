@@ -6,7 +6,7 @@ use phymes_message::{
     NetworkInterfaceMessageBuilderTrait,
 };
 use phymes_schemas::{AvailableInterfaceSubjects, DataFormat};
-use phymes_server::{NetworkBuildResult, create_network_name};
+use phymes_server::{create_network_name, NetworkBuildResult};
 use phymes_subject::{
     BuildableTrait, BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
