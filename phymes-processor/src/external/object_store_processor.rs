@@ -46,7 +46,6 @@ impl ProcessorTrait for ObjectStoreProcessor {
         diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<RuntimeEnv>,
     ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
-        println!("Starting processor {}", self.get_name());
         // Extract out the config
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),

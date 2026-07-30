@@ -380,7 +380,6 @@ use super::*;
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
             all(not(feature = "candle"), feature = "wsl"),
-            all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
             // 1. Extract the CSV files
@@ -806,6 +805,7 @@ use super::*;
         let erdiagram = builder.to_mermaid_erdiagram(false, true)?;
 
         // Remake the builder
+        
         let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_subjects_from_mermaid_erdiagram(&erdiagram, true, true)?
             .with_name(&network_name)

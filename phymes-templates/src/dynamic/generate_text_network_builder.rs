@@ -427,7 +427,6 @@ mod tests {
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
             all(not(feature = "candle"), feature = "wsl"),
-            all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
             // Run the network
@@ -632,7 +631,6 @@ mod tests {
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
             all(not(feature = "candle"), feature = "wsl"),
-            all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
             // Run the network
@@ -881,7 +879,6 @@ mod tests {
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
             all(not(feature = "candle"), feature = "wsl"),
-            all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
             // Run the network
@@ -1113,7 +1110,6 @@ mod tests {
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
             all(not(feature = "candle"), feature = "wsl"),
-            all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
             // Run the network

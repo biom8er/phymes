@@ -139,7 +139,6 @@ use super::*;
         // DM: Skip actually running the tests as they take too long on the CPU
         if cfg!(any(
             all(not(feature = "candle"), feature = "wsl"),
-            all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
             let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;

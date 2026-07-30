@@ -35,7 +35,7 @@ use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 use crate::{
     state::{
         ACTIVE_SESSION_NAME, EMAIL, JWT, extension_and_file_to_data_href, extension_to_icon_svg, filename_and_extension_to_download, svg_icons::{
-            aws_assistant_icon_svg, aws_user_icon_svg, fa_trash_icon_svg, ms_arrow_download_icon_svg, ms_bot_icon_svg, ms_person_icon_svg,
+            fa_trash_icon_svg, ms_arrow_download_icon_svg, ms_bot_icon_svg, ms_person_icon_svg,
         },
     }, ui::{
         attach_files_input, clear_upload_files_button, main_window::split_panel,

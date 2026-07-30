@@ -408,6 +408,17 @@ mod tests {
             .with_record_batches(batches)?
             .build()?;
         let column = subject.get_column_as_vec_str("email");
+        #[cfg(not(feature = "api"))]
+        assert_eq!(
+            column,
+            [
+                "contact@biom8er.com",
+                "contact@biom8er.com",
+                "contact@biom8er.com",
+                "contact@biom8er.com"
+            ]
+        );
+        #[cfg(feature = "api")]
         assert_eq!(
             column,
             [

@@ -400,6 +400,7 @@ mod tests {
             .with_name("UserNetworks")
             .with_record_batches(batches)?
             .build()?;
+        #[cfg(not(feature = "api"))]
         assert_eq!(
             subject.get_column_as_vec_str("email"),
             [
@@ -412,6 +413,14 @@ mod tests {
                 "user@biom8er.com"
             ]
         );
+        #[cfg(feature = "api")]
+        assert_eq!(
+            subject.get_column_as_vec_str("email"),
+            [
+                "contact@biom8er.com", "contact@biom8er.com", "contact@biom8er.com", "contact@biom8er.com", "contact@biom8er.com", "user@biom8er.com", "user@biom8er.com", "user@biom8er.com", "user@biom8er.com"
+            ]
+        );
+        #[cfg(not(feature = "api"))]
         assert_eq!(
             subject.get_column_as_vec_str("network_name"),
             [
@@ -424,6 +433,14 @@ mod tests {
                 "TabularDataOps"
             ]
         );
+        #[cfg(feature = "api")]
+        assert_eq!(
+            subject.get_column_as_vec_str("network_name"),
+            [
+                "GenerateText", "RAGTextPDF", "TabularDataOps", "GenerateCode", "Builder", "GenerateText", "RAGTextPDF", "TabularDataOps", "GenerateCode"
+            ]
+        );
+        #[cfg(not(feature = "api"))]
         assert_eq!(
             subject.get_column_as_vec_str("network_name"),
             [
@@ -434,6 +451,13 @@ mod tests {
                 "GenerateText",
                 "RAGTextPDF",
                 "TabularDataOps"
+            ]
+        );
+        #[cfg(feature = "api")]
+        assert_eq!(
+            subject.get_column_as_vec_str("network_name"),
+            [
+                "GenerateText", "RAGTextPDF", "TabularDataOps", "GenerateCode", "Builder", "GenerateText", "RAGTextPDF", "TabularDataOps", "GenerateCode"
             ]
         );
 
@@ -446,18 +470,33 @@ mod tests {
         let user = UserState::new(None, &runtime_env).await?;
         let (user_info, user_networks) = user.get_user_by_email("contact@biom8er.com").await?;
         assert_eq!(user_info.len(), 1);
+        #[cfg(not(feature = "api"))]
         assert_eq!(user_networks.len(), 4);
+        #[cfg(feature = "api")]
+        assert_eq!(user_networks.len(), 5);
         assert_eq!(user_info.first().unwrap().email, "contact@biom8er.com");
         assert_eq!(user_info.first().unwrap().first_name, "con");
         assert_eq!(user_info.first().unwrap().last_name, "tact");
         assert_eq!(user_networks.first().unwrap().email, "contact@biom8er.com");
         assert_eq!(user_networks.first().unwrap().network_name, "Builder");
         assert_eq!(user_networks.get(1).unwrap().email, "contact@biom8er.com");
+        #[cfg(not(feature = "api"))]
         assert_eq!(user_networks.get(1).unwrap().network_name, "GenerateText");
+        #[cfg(feature = "api")]
+        assert_eq!(user_networks.get(1).unwrap().network_name, "GenerateCode");
         assert_eq!(user_networks.get(2).unwrap().email, "contact@biom8er.com");
+        #[cfg(not(feature = "api"))]
         assert_eq!(user_networks.get(2).unwrap().network_name, "RAGTextPDF");
+        #[cfg(feature = "api")]
+        assert_eq!(user_networks.get(2).unwrap().network_name, "GenerateText");
         assert_eq!(user_networks.get(3).unwrap().email, "contact@biom8er.com");
+        #[cfg(not(feature = "api"))]
         assert_eq!(user_networks.get(3).unwrap().network_name, "TabularDataOps");
+        #[cfg(feature = "api")]
+        assert_eq!(user_networks.get(3).unwrap().network_name, "RAGTextPDF");
+        #[cfg(feature = "api")]
+        assert_eq!(user_networks.get(4).unwrap().email, "contact@biom8er.com");
+        assert_eq!(user_networks.get(4).unwrap().network_name, "TabularDataOps");
 
         Ok(())
     }
@@ -471,6 +510,7 @@ mod tests {
         let network_names = state
             .make_networks(&user_networks, true, &runtime_env)
             .await?;
+        #[cfg(not(feature = "api"))]
         assert_eq!(
             network_names
                 .iter()
@@ -481,6 +521,19 @@ mod tests {
                 "contactbiom8ercomTabularDataOps",
                 "contactbiom8ercomGenerateText",
                 "contactbiom8ercomBuilder"
+            ]
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<HashSet<_>>()
+        );
+        #[cfg(feature = "api")]
+        assert_eq!(
+            network_names
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<HashSet<_>>(),
+            [
+                "contactbiom8ercomRAGTextPDF", "contactbiom8ercomBuilder", "contactbiom8ercomGenerateCode", "contactbiom8ercomTabularDataOps", "contactbiom8ercomGenerateText"
             ]
             .iter()
             .map(|s| s.to_string())

@@ -154,7 +154,6 @@ mod tests {
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
             all(not(feature = "candle"), feature = "wsl"),
-            all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
             let _response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;

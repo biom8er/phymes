@@ -238,6 +238,8 @@ mod tests {
     };
     use phymes_task::SubscriptionTrait;
 
+    use crate::{extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
+
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
@@ -303,6 +305,19 @@ mod tests {
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
+
+        let extended_diagnostic_subjects = extended_diagnostic_subjects();
+        let subject_names = extended_diagnostic_subjects
+            .iter()
+            .map(|s| s.as_str())
+            .chain(["UserObject"])
+            .collect::<Vec<_>>();
+        write_diagnostic_subjects_to_csv(
+            &subject_names,
+            network_arc.runtime_env(),
+            network_arc.get_name(),
+        )
+        .await?;
 
         assert_eq!(response.len(), 0);
 
