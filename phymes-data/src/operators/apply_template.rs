@@ -41,7 +41,7 @@ impl MappableTrait for ApplyTemplate {
 
 impl ToolTrait for ApplyTemplate {
     fn get_description(&self) -> String {
-        "Inject a table into a string template.".to_string()
+        "Inject a message into a string template.".to_string()
     }
     fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
@@ -49,17 +49,85 @@ impl ToolTrait for ApplyTemplate {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
+                description: Some(
+                    "The name of the left hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
+                ),
                 ..Default::default()
             }),
         );
         properties.insert(
-            "op_kwargs".to_string(),
+            "rhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some(
-                    "template, table_expression, and input_template in the form of a JSON object"
-                        .to_string(),
+                description: Some("The optional name of the right hand side message (Apache Arrow `RecordBatch`es) used to generate the template".to_string()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "doc_template".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some(r#"The Jinja2 string template.
+Available mermaid diagram templates are `MermaidERDiagramEntitiesTemplate`, `MermaidERDiagramRelationsTemplate`, `MermaidERDiagramTemplate`, `MermaidERDiagramHTML`, `MermaidFlowchartNodesTemplate`, `MermaidFlowchartLinksTemplate`, `MermaidFlowchartTemplate`, `MermaidFlowchartHTML`, `MermaidGanttTemplate`, `MermaidGanttHTML`, `MermaidKanbanTemplate`, `MermaidKanbanHTML`, `MermaidSequenceDiagramParticipantsTemplate`, `MermaidSequenceDiagramMessagesTemplate`, `MermaidSequenceDiagramTemplate`, `MermaidSequenceDiagramHTML`, `MermaidXYChartTemplate`, and `MermaidXYChartHTML`.
+Available HTML templates are `MinimalHTMLBodyTemplate`, `MinimalHTMLBodyHTML`, `MinimalHTMLTableTemplate`, `MinimalHTMLTableHTML`, `MinimalHTMLListTemplate`, `MinimalHTMLListHTML`, `MinimalHTMLFiguresTemplate`, `MinimalHTMLFiguresHTML`, `MinimalHTMLCodeTemplate`, and `MinimalHTMLCodeHTML`."#.to_string()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "doc_name".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The name of the resulting document".to_string()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "doc_input".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("A JSON Value representing additional named input for the template. Use `null` when there is no doc_input specified.".to_string()),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "encoding".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The resulting document encoding".to_string()),
+                enum_values: Some(
+                    ["Deflate", "Zlib", "Gz", "None"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "format".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The resulting document format".to_string()),
+                enum_values: Some(
+                    ["CsvDefault", "JsonDefault", "Html", "Txt", "None"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "schema".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The resulting document schema".to_string()),
+                enum_values: Some(
+                    ["Messages", "Attachments", "ObjectStore"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
                 ),
                 ..Default::default()
             }),
@@ -70,7 +138,14 @@ impl ToolTrait for ApplyTemplate {
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
-                required: Some(vec!["lhs_name".to_string(), "op_kwargs".to_string()]),
+                required: Some(vec![
+                    "lhs_name".to_string(),
+                    "doc_template".to_string(),
+                    "doc_name".to_string(),
+                    "encoding".to_string(),
+                    "format".to_string(),
+                    "schema".to_string(),
+                ]),
             },
         };
         let tool = Tool {
@@ -114,10 +189,7 @@ impl DataOperatorTrait for ApplyTemplate {
         let doc_input = if let Some(doc_input) = config.doc_input.as_ref() {
             serde_json::from_str::<Value>(doc_input)?
         } else {
-            return Err(anyhow!(
-                "Missing `doc_input` for `{}`.",
-                Self::get_static_name()
-            ));
+            serde_json::Value::Null
         };
         let encoding = config.encoding.clone().ok_or(anyhow!(
             "Missing `encoding` for `{}`.",
@@ -368,7 +440,7 @@ mod tests {
         assert_eq!(
             lhs_text,
             [
-                "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n        <script src=\"https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4\"></script>\n        <script type=\"module\">\n            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';\n            mermaid.initialize({theme: \"dark\", startOnLoad: true });\n        </script>\n    </head>\n    <body>\n<h1>Title 1</h1>\n<p>Version 1</p>\n<p>Description 1</p>\n<h2> Background</h2>\n<h1>Title 2</h1>\n<p>Version 2</p>\n<p>Description 2</p>\n<h2> Background</h2>\n<h1>Title 3</h1>\n<p>Version 3</p>\n<p>Description 3</p>\n<h2> Background</h2>\n    </body>\n</html>"
+                "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n        <script src=\"https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4\"></script>\n        <script type=\"module\">\n            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';\n            import elkLayouts from 'https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0/dist/mermaid-layout-elk.esm.min.mjs';\n            mermaid.registerLayoutLoaders(elkLayouts);\n            mermaid.initialize({theme: \"dark\", startOnLoad: true });\n        </script>\n    </head>\n    <body>\n<h1>Title 1</h1>\n<p>Version 1</p>\n<p>Description 1</p>\n<h2> Background</h2>\n<h1>Title 2</h1>\n<p>Version 2</p>\n<p>Description 2</p>\n<h2> Background</h2>\n<h1>Title 3</h1>\n<p>Version 3</p>\n<p>Description 3</p>\n<h2> Background</h2>\n    </body>\n</html>"
             ]
         );
 

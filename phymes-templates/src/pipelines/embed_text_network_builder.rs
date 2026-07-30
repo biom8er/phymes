@@ -1,8 +1,8 @@
-/// A session for embedding text querries and documents
+/// A network for embedding text querries and documents
 ///
 /// # Notes
 pub struct EmbedTextNetworkBuilder<'a> {
-    /// Session
+    /// Network
     pub network_name: &'a str,
     /// The Asset to use for Text Generation and related parameters
     pub candle_asset: Option<String>,
@@ -28,7 +28,7 @@ impl<'a> Default for EmbedTextNetworkBuilder<'a> {
             api_url,
         ) = if cfg!(feature = "hf_hub") {
             (
-                Some("QwenV2_1p5bEmbed".to_string()),
+                Some("QwenV2_7bEmbed".to_string()),
                 None,
                 None,
                 None,
@@ -48,26 +48,48 @@ impl<'a> Default for EmbedTextNetworkBuilder<'a> {
             )
         } else {
             (
-                Some("QuantizedBertEmbed".to_string()),
+                Some("QwenV2_1p5bEmbed".to_string()),
                 None,
                 Some(format!(
-                    "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",
+                    "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/config.json",
                     std::env::var("HOME").unwrap_or("".to_string())
                 )),
                 Some(format!(
-                    "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/all-minilm-l6-v2-q8_0.gguf",
+                    "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/gte-Qwen2-1.5B-instruct-Q4_K_M.gguf",
                     std::env::var("HOME").unwrap_or("".to_string())
                 )),
                 Some(format!(
-                    "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer.json",
+                    "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/tokenizer.json",
                     std::env::var("HOME").unwrap_or("".to_string())
                 )),
                 Some(format!(
-                    "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer_config.json",
+                    "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/tokenizer_config.json",
                     std::env::var("HOME").unwrap_or("".to_string())
                 )),
                 None,
             )
+            // DM: Only for toy examples
+            // (
+            //     Some("QuantizedBertEmbed".to_string()),
+            //     None,
+            //     Some(format!(
+            //         "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",
+            //         std::env::var("HOME").unwrap_or("".to_string())
+            //     )),
+            //     Some(format!(
+            //         "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/all-minilm-l6-v2-q8_0.gguf",
+            //         std::env::var("HOME").unwrap_or("".to_string())
+            //     )),
+            //     Some(format!(
+            //         "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer.json",
+            //         std::env::var("HOME").unwrap_or("".to_string())
+            //     )),
+            //     Some(format!(
+            //         "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer_config.json",
+            //         std::env::var("HOME").unwrap_or("".to_string())
+            //     )),
+            //     None,
+            // )
         };
         let generate_text_inference = if cfg!(all(feature = "api", not(feature = "candle"))) {
             "OpenAIEmbedProcessor"
@@ -121,7 +143,7 @@ impl<'a> EmbedTextNetworkBuilder<'a> {
         }
         lines.join("\n\t\t")
     }
-    /// Return the Mermaid.js flowchart representation of the session
+    /// Return the Mermaid.js flowchart representation of the network
     pub fn as_mermaid_flowchart(&self) -> String {
         let embed_processor = self.embed_processor;
         format!(
@@ -190,7 +212,7 @@ impl<'a> EmbedTextNetworkBuilder<'a> {
 	%% ------------------------------------------------------------------------------"#
         )
     }
-    /// Return the Mermaid.js ER diagram representation of the session
+    /// Return the Mermaid.js ER diagram representation of the network
     ///
     /// # Note
     /// * for QWEN, the following cast template should be used
@@ -290,9 +312,9 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_embed_text_network() -> Result<()> {
-        // Initialize the session
+        // Initialize the network
         let embed_text_network = EmbedTextNetworkBuilder::default();
-        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
+        let (network, network_messages) = NetworkBuilder::from_mermaid_flowchart(
             &embed_text_network.as_mermaid_flowchart(),
             false,
         )?
@@ -376,13 +398,12 @@ mod tests {
             .build()?;
         let message_map = create_message_map(vec![chat_message, document_message]);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
             all(not(feature = "candle"), feature = "wsl"),
-            all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
             // Run the first superstep
@@ -446,7 +467,7 @@ mod tests {
                 #[cfg(feature = "hf_hub")]
                 assert_eq!(column.first().unwrap().len(), 1536);
                 #[cfg(not(feature = "hf_hub"))]
-                assert_eq!(column.first().unwrap().len(), 384);
+                assert_eq!(column.first().unwrap().len(), 1536);
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                     subject_name: AvailableSubjects::DocumentEmbeddings.to_string(),
                 }
@@ -470,7 +491,7 @@ mod tests {
                 #[cfg(feature = "hf_hub")]
                 assert_eq!(column.first().unwrap().len(), 1536);
                 #[cfg(not(feature = "hf_hub"))]
-                assert_eq!(column.first().unwrap().len(), 384);
+                assert_eq!(column.first().unwrap().len(), 1536);
             }
         }
         Ok(())

@@ -93,7 +93,7 @@ pub fn create_repository_batch(
 }
 
 fn create_patch_fields_vec() -> Vec<Field> {
-    let field_names = ["filename", "diff", "operator"];
+    let field_names = ["path", "diff", "operator"];
     field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -112,24 +112,21 @@ pub fn create_workspace_patch_fields() -> Fields {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct WorkspacePatchSubject {
-    pub filename: String,
+    pub path: String,
     pub diff: String,
     pub operator: String,
 }
 
 pub fn create_workspace_patch_batch(
-    filename: Vec<String>,
+    path: Vec<String>,
     diff: Vec<String>,
     operator: Vec<String>,
 ) -> Result<RecordBatch> {
-    let path: ArrayRef = Arc::new(StringArray::from(filename));
+    let path: ArrayRef = Arc::new(StringArray::from(path));
     let diff: ArrayRef = Arc::new(StringArray::from(diff));
     let operator: ArrayRef = Arc::new(StringArray::from(operator));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("filename", path),
-        ("diff", diff),
-        ("operator", operator),
-    ])?;
+    let batch =
+        RecordBatch::try_from_iter(vec![("path", path), ("diff", diff), ("operator", operator)])?;
     Ok(batch)
 }
 
@@ -142,7 +139,7 @@ pub fn create_repository_patch_fields() -> Fields {
 
 #[allow(clippy::too_many_arguments)]
 pub fn create_repository_patch_batch(
-    filename: Vec<String>,
+    path: Vec<String>,
     diff: Vec<String>,
     operator: Vec<String>,
     repository: Vec<String>,
@@ -151,7 +148,7 @@ pub fn create_repository_patch_batch(
     metadata: Vec<String>,
     timestamp: Vec<i64>,
 ) -> Result<RecordBatch> {
-    let filename: ArrayRef = Arc::new(StringArray::from(filename));
+    let path: ArrayRef = Arc::new(StringArray::from(path));
     let diff: ArrayRef = Arc::new(StringArray::from(diff));
     let operator: ArrayRef = Arc::new(StringArray::from(operator));
     let repository: ArrayRef = Arc::new(StringArray::from(repository));
@@ -160,7 +157,7 @@ pub fn create_repository_patch_batch(
     let metadata: ArrayRef = Arc::new(StringArray::from(metadata));
     let timestamp: ArrayRef = Arc::new(Int64Array::from(timestamp));
     let batch = RecordBatch::try_from_iter(vec![
-        ("filename", filename),
+        ("path", path),
         ("diff", diff),
         ("operator", operator),
         ("repository", repository),

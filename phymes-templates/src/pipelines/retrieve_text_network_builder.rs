@@ -1,21 +1,25 @@
-/// A session for retrieving text via vector search
+/// A network for retrieving text via vector search
 ///
 /// # Notes
 pub struct RetrieveTextNetworkBuilder<'a> {
-    /// Session
+    /// Network
     pub network_name: &'a str,
+    pub threshold: Option<f32>,
+    pub limit: Option<u32>,
 }
 
 impl<'a> Default for RetrieveTextNetworkBuilder<'a> {
     fn default() -> Self {
         Self {
             network_name: "retrieve_text_network",
+            threshold: None,
+            limit: None,
         }
     }
 }
 
 impl<'a> RetrieveTextNetworkBuilder<'a> {
-    /// Return the Mermaid.js flowchart representation of the session
+    /// Return the Mermaid.js flowchart representation of the network
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
 	%% ------------------------------------------------------------------------------
@@ -111,19 +115,22 @@ impl<'a> RetrieveTextNetworkBuilder<'a> {
 	%% ------------------------------------------------------------------------------"#
     }
 
-    /// Return the Mermaid.js ER diagram representation of the session
-    pub fn as_mermaid_erdiagram(&self) -> &str {
-        r#"erDiagram
-	QueryEmbeddings["QueryEmbeddings"] {
+    /// Return the Mermaid.js ER diagram representation of the network
+    pub fn as_mermaid_erdiagram(&self) -> String {
+        let threshold = self.threshold.unwrap_or(0.5);
+        let limit = self.limit.unwrap_or(48);
+        format!(
+            r#"erDiagram
+	QueryEmbeddings["QueryEmbeddings"] {{
 	    Utf8 query_id
 	    List-Float32 embedding
-	}
-	DocumentEmbeddings["DocumentEmbeddings"] {
+	}}
+	DocumentEmbeddings["DocumentEmbeddings"] {{
 	    Utf8 chunk_id
 	    Utf8 document_id
 	    List-Float32 embedding
-	}
-	vector_distance_p["vector_distance_p"] {
+	}}
+	vector_distance_p["vector_distance_p"] {{
 	    Boolean cpu "false"
 	    Utf8 dist_operator "NormalizedDotProduct"
 	    Utf8 lhs_fk "query_id"
@@ -137,11 +144,11 @@ impl<'a> RetrieveTextNetworkBuilder<'a> {
 	    List-Utf8 rhs_values "['embedding']"
 	    Utf8 lhs_stream "Accumulate"
 	    Utf8 rhs_stream "Accumulate"
-	}
-	threshold_scores_p["threshold_scores_p"] {
+	}}
+	threshold_scores_p["threshold_scores_p"] {{
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Float32','Float32']"
 	    List-Utf8 cast_operators "['None','None','None','None']"
-	    List-Utf8 cast_templates "['','','','0.15']"
+	    List-Utf8 cast_templates "['','','','{threshold}']"
 	    List-Utf8 column_operators "['None','None','None','Value']"
 	    List-Utf8 lhs_values "['query_id','chunk_id','score','threshold']"
 	    Boolean cpu "false"
@@ -149,8 +156,8 @@ impl<'a> RetrieveTextNetworkBuilder<'a> {
 	    Utf8 operator "Select"
 	    Utf8 lhs_stream "Accumulate"
 	    Utf8 rhs_stream "Accumulate"
-	}
-	filter_scores_p["filter_scores_p"] {    
+	}}
+	filter_scores_p["filter_scores_p"] {{    
 	    List-Utf8 cmp_columns "['threshold']"
 	    List-Utf8 cmp_operators "['GreaterThan']"
 	    Utf8 cmp_predicate "All"
@@ -160,16 +167,16 @@ impl<'a> RetrieveTextNetworkBuilder<'a> {
 	    Utf8 operator "Filter"
 	    Utf8 lhs_stream "Accumulate"
 	    Utf8 rhs_stream "Accumulate"
-	}
-	select_scores_p["select_scores_p"] {
+	}}
+	select_scores_p["select_scores_p"] {{
 	    List-Utf8 lhs_values "['chunk_id','query_id','score']"
 	    Boolean cpu "false"
 	    Utf8 lhs_name "filter_scores_s"
 	    Utf8 operator "Select"
 	    Utf8 lhs_stream "Accumulate"
 	    Utf8 rhs_stream "Accumulate"
-	}
-	sort_scores_p["sort_scores_p"] {
+	}}
+	sort_scores_p["sort_scores_p"] {{
 	    Boolean cpu "true"
 	    Utf8 lhs_name "select_scores_s"
 	    List-Utf8 lhs_values "['score']"
@@ -177,23 +184,22 @@ impl<'a> RetrieveTextNetworkBuilder<'a> {
 	    Utf8 operator "Sort"
 	    Utf8 lhs_stream "Accumulate"
 	    Utf8 rhs_stream "Accumulate"
-	}
-	limit_scores_p["limit_scores_p"] {
-	    Int64 fetch "48"
+	}}
+	limit_scores_p["limit_scores_p"] {{
+	    Int64 fetch "{limit}"
 	    Int64 skip "0"
-	    Utf8 summary_format "None"
-	}
-	EmbeddingScores["EmbeddingScores"] {
+	}}
+	EmbeddingScores["EmbeddingScores"] {{
 	    Utf8 chunk_id
 	    Utf8 query_id
 	    Float32 score
-	}
-	Documents["Documents"] {
+	}}
+	Documents["Documents"] {{
 	    Utf8 chunk_id
 	    Utf8 document_id
 	    Utf8 text
-	}
-	join_documents_scores_p["join_documents_scores_p"] {
+	}}
+	join_documents_scores_p["join_documents_scores_p"] {{
 	    Boolean cpu "false"
 	    Utf8 lhs_fk "chunk_id"
 	    Utf8 lhs_name "EmbeddingScores"
@@ -205,16 +211,16 @@ impl<'a> RetrieveTextNetworkBuilder<'a> {
 	    Utf8 lhs_stream "Accumulate"
         Utf8 rhs_stream "Accumulate"
         Utf8 join_operators "Inner"
-	}
-	select_documents_scores_p["select_documents_scores_p"] {
+	}}
+	select_documents_scores_p["select_documents_scores_p"] {{
 	    List-Utf8 lhs_values "['text']"
 	    Boolean cpu "false"
 	    Utf8 lhs_name "join_documents_scores_s"
 	    Utf8 operator "Select"
 	    Utf8 lhs_stream "Accumulate"
 	    Utf8 rhs_stream "Accumulate"
-	}
-	summarize_documents_scores_p["summarize_documents_scores_p"] {
+	}}
+	summarize_documents_scores_p["summarize_documents_scores_p"] {{
 	    Utf8 lhs_name "select_documents_scores_s"
 	    Utf8 doc_name "select_documents_scores"
 	    Boolean cpu "false"
@@ -224,12 +230,13 @@ impl<'a> RetrieveTextNetworkBuilder<'a> {
 	    Utf8 encoding "None"
 	    Utf8 format "None"
 	    Utf8 schema "Messages"
-	}
-	ToolMessages["ToolMessages"] {
+	}}
+	ToolMessages["ToolMessages"] {{
 	    Utf8 role
 	    Utf8 content
 	    Int64 timestamp
-	}"#
+	}}"#
+        )
     }
 }
 
@@ -259,14 +266,18 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_retrieve_text_network() -> Result<()> {
-        // Initialize the session
-        let retrieve_text_network = RetrieveTextNetworkBuilder::default();
+        // Initialize the network
+        let retrieve_text_network = RetrieveTextNetworkBuilder::<'_> {
+            threshold: Some(0.15),
+            limit: Some(5),
+            ..Default::default()
+        };
         let retrieve_text_builder = NetworkBuilder::from_mermaid_flowchart(
             retrieve_text_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            retrieve_text_network.as_mermaid_erdiagram(),
+            &retrieve_text_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
@@ -275,7 +286,7 @@ mod tests {
         .with_diagnostics(true)
         .add_next_tasks()?
         .add_next_supersteps()?;
-        let (network, session_messages) = retrieve_text_builder.build_with_tables()?;
+        let (network, network_messages) = retrieve_text_builder.build_with_tables()?;
         let network_arc = Arc::new(network);
 
         // Document text
@@ -3867,12 +3878,25 @@ mod tests {
             document_message,
         ]);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
-        // Run the session
+        // Run the network
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
+
+        // let extended_diagnostic_subjects = extended_diagnostic_subjects();
+        // let subject_names = extended_diagnostic_subjects
+        //     .iter()
+        //     .map(|s| s.as_str())
+        //     .chain(["EmbeddingScores", "ToolMessages"])
+        //     .collect::<Vec<_>>();
+        // write_diagnostic_subjects_to_csv(
+        //     &subject_names,
+        //     network_arc.runtime_env(),
+        //     network_arc.get_name(),
+        // )
+        // .await?;
 
         assert_eq!(response.len(), 0);
 

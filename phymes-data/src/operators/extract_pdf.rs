@@ -41,7 +41,7 @@ impl MappableTrait for ExtractPDF {
 
 impl ToolTrait for ExtractPDF {
     fn get_description(&self) -> String {
-        "Extract text from PDF documents".to_string()
+        "Extract text and graphics from PDF documents".to_string()
     }
     fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
@@ -49,7 +49,10 @@ impl ToolTrait for ExtractPDF {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
+                description: Some(
+                    "The name of the left hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -58,7 +61,7 @@ impl ToolTrait for ExtractPDF {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some(
-                    "The primary key column identifier for the left hand side table".to_string(),
+                    "The primary key column name for the left hand side message".to_string(),
                 ),
                 ..Default::default()
             }),
@@ -68,7 +71,47 @@ impl ToolTrait for ExtractPDF {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "A list of value column identifiers for the left hand side table".to_string(),
+                    "The name of the column containing the PDF as an array of bytes for the left hand side message".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "doc_filter".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some(
+                    "The document filtering method to apply to the PDF during extraction"
+                        .to_string(),
+                ),
+                enum_values: Some(
+                    ["None", "Text", "Graphics", "Default"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "doc_extraction".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some(
+                    "The document extraction method to apply to the PDF during extraction"
+                        .to_string(),
+                ),
+                enum_values: Some(
+                    [
+                        "Text",
+                        "TextEmbeddings",
+                        "Graphics",
+                        "ImageEmbeddings",
+                        "Default",
+                    ]
+                    .into_iter()
+                    .map(|s| s.to_string())
+                    .collect::<Vec<_>>(),
                 ),
                 ..Default::default()
             }),
@@ -83,6 +126,8 @@ impl ToolTrait for ExtractPDF {
                     "lhs_name".to_string(),
                     "lhs_pk".to_string(),
                     "lhs_values".to_string(),
+                    "doc_filter".to_string(),
+                    "doc_extraction".to_string(),
                 ]),
             },
         };
@@ -515,7 +560,7 @@ fn extract_pdf_docs(
 ///
 /// # Notes
 /// * use [prepare_pdf_documents] after calling [load_pdf_document] but before calling [extract_pdf]
-/// * The output schema of the RecordBatch matches that used in the document RAG session plans i.e.,
+/// * The output schema of the RecordBatch matches that used in the document RAG network plans i.e.,
 ///   `document_id`: The ID of the document, `chunk_id`: The page number, `text`: The text content of the page.
 ///
 /// # Errors

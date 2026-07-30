@@ -9,8 +9,8 @@ use phymes_message::{
 };
 use phymes_processor::{ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap};
 use phymes_schemas::{
-    AvailableSubjects, AvailableSubjectsTrait, create_chat_record_batch,
-    create_session_supersteps_batch, create_session_tasks_subscribe_batch,
+    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, create_chat_record_batch,
+    create_network_supersteps_batch, create_network_tasks_subscribe_batch,
     create_subjects_change_log_batch, create_subjects_object_store_meta_batch,
     from_diagnostics_to_tables,
 };
@@ -31,9 +31,9 @@ use crate::NetworkBuilder;
 /// [Message]: phymes_message::MessageTrait
 #[derive(Debug, Clone, Default)]
 pub struct Network {
-    /// A unique UUID that identifies the session
+    /// A unique UUID that identifies the network
     pub(crate) name: String,
-    /// The list of available tasks that can be run during the session
+    /// The list of available tasks that can be run during the network
     pub(crate) tasks: TaskMap,
     /// Cache of subjects and their schemas
     pub(crate) subjects: HashMap<String, SchemaRef>,
@@ -83,17 +83,17 @@ impl Network {
     /// Compute the next tasks to subscribe
     pub async fn tasks_subscribe(&self) -> Result<()> {
         // Get the subject
-        let batches: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string() }
+        let batches: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::NetworkTasksSubscribeAggregate.to_string() }
             .subscribe_to_subject(self.runtime_env(), self.get_name())?
-            .ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` during tasks_subscribe.", 
-                AvailableSubjects::SessionTasksSubscribeAggregate,
+            .ok_or(anyhow!("Unable to get the subject `{}` from object storage for network `{}` during tasks_subscribe.", 
+                AvailableSubjects::NetworkTasksSubscribeAggregate,
                 self.get_name()
             ))?
             .try_collect()
             .await?;
         let subject = SubjectBuilder::default()
             .with_name(
-                AvailableSubjects::SessionTasksSubscribeAggregate
+                AvailableSubjects::NetworkTasksSubscribeAggregate
                     .to_string()
                     .as_str(),
             )
@@ -104,14 +104,14 @@ impl Network {
         let _locations: Vec<RecordBatch> = clear_subject(
             self.runtime_env(),
             self.get_name(),
-            &AvailableSubjects::SessionTasksSubscribeAggregate.to_string(),
+            &AvailableSubjects::NetworkTasksSubscribeAggregate.to_string(),
             false,
         )?
         .try_collect()
         .await?;
 
         // Extract out the columns
-        let session_names = subject.get_column_as_vec_str("session_name");
+        let network_names = subject.get_column_as_vec_str("network_name");
         let task_names = subject.get_column_as_vec_str("task_name");
         let processor_names = subject.get_column_as_vec_str("processor_name");
         let processor_types = subject.get_column_as_vec_str("processor_type");
@@ -126,7 +126,7 @@ impl Network {
             subject.get_column_as_vec_nested_primitive::<i64>("superstep-Max-List")?;
 
         // Determine the processor subscriptions
-        let processors_subscribe = session_names
+        let processors_subscribe = network_names
             .into_iter()
             .zip(task_names)
             .zip(processor_names)
@@ -145,7 +145,7 @@ impl Network {
                                 (
                                     (
                                         (
-                                            ((session_name, task_name), processor_name),
+                                            ((network_name, task_name), processor_name),
                                             processor_type,
                                         ),
                                         subscription_names,
@@ -189,7 +189,7 @@ impl Network {
                         &HashMap::<String, SchemaRef>::new(),
                     );
                     (
-                        session_name,
+                        network_name,
                         task_name,
                         processor_name,
                         processor_type,
@@ -208,7 +208,7 @@ impl Network {
         // Determine the task subscriptions
         let mut tasks_subscribe = HashMap::<(String, String), bool>::new();
         for (
-            session_name,
+            network_name,
             task_name,
             _processor_name,
             _processor_type,
@@ -222,30 +222,30 @@ impl Network {
         ) in processors_subscribe.iter()
         {
             if let Some(subscribe_t) =
-                tasks_subscribe.get_mut(&(session_name.to_string(), task_name.to_string()))
+                tasks_subscribe.get_mut(&(network_name.to_string(), task_name.to_string()))
             {
                 *subscribe_t &= subscribe;
             } else {
                 let _ = tasks_subscribe.insert(
-                    (session_name.to_string(), task_name.to_string()),
+                    (network_name.to_string(), task_name.to_string()),
                     *subscribe,
                 );
             }
         }
-        let (session_names_subscribe, task_names_subscribe): (String, String) = tasks_subscribe
+        let (network_names_subscribe, task_names_subscribe): (String, String) = tasks_subscribe
             .into_iter()
             .filter_map(|(k, v)| if v { Some(k) } else { None })
             .unzip();
 
         // Determine the subjects to subscribe to
         let (
-            ((((session_names, task_names), processor_names), processor_types), subscription_names),
+            ((((network_names, task_names), processor_names), processor_types), subscription_names),
             subscription_table_names,
         ) = processors_subscribe
             .into_iter()
             .filter_map(
                 |(
-                    session_name,
+                    network_name,
                     task_name,
                     processor_name,
                     processor_type,
@@ -257,7 +257,7 @@ impl Network {
                     supersteps_lasts,
                     _subscribe,
                 )| {
-                    if session_names_subscribe.contains(session_name)
+                    if network_names_subscribe.contains(network_name)
                         && task_names_subscribe.contains(task_name)
                     {
                         let subscribe = subscription_names
@@ -295,7 +295,7 @@ impl Network {
                                             (
                                                 (
                                                     (
-                                                        session_name.to_string(),
+                                                        network_name.to_string(),
                                                         task_name.to_string(),
                                                     ),
                                                     processor_name.to_string(),
@@ -321,8 +321,8 @@ impl Network {
             .unzip();
 
         // Create the table
-        let batch = create_session_tasks_subscribe_batch(
-            session_names,
+        let batch = create_network_tasks_subscribe_batch(
+            network_names,
             task_names,
             processor_names,
             processor_types,
@@ -331,7 +331,7 @@ impl Network {
         )?;
         let table = SubjectBuilder::default()
             .with_name(
-                AvailableSubjects::SessionTasksSubscribe
+                AvailableSubjects::NetworkTasksSubscribe
                     .to_string()
                     .as_str(),
             )
@@ -361,7 +361,7 @@ impl Network {
     /// Take the task subscriptions and publications that are ready to subscribe and publish
     ///
     /// # Notes
-    /// * See schema at [AvailableSubjects::SessionTasksSubscribePublish]
+    /// * See schema at [AvailableSubjects::NetworkTasksSubscribePublish]
     /// * The columns are taken to prevent infinite loops of the same tasks
     ///
     /// # Todo
@@ -370,10 +370,10 @@ impl Network {
         &self,
     ) -> Result<HashMap<(String, String), ProcessorSubjectsMap>> {
         // Get the subject
-        let batches: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string() }
+        let batches: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::NetworkTasksSubscribePublish.to_string() }
             .subscribe_to_subject(self.runtime_env(), self.get_name())?
-            .ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` during tasks_subscribe.", 
-                AvailableSubjects::SessionTasksSubscribePublish,
+            .ok_or(anyhow!("Unable to get the subject `{}` from object storage for network `{}` during tasks_subscribe.", 
+                AvailableSubjects::NetworkTasksSubscribePublish,
                 self.get_name()
             ))?
             .try_collect()
@@ -386,7 +386,7 @@ impl Network {
 
         let subject = SubjectBuilder::default()
             .with_name(
-                AvailableSubjects::SessionTasksSubscribePublish
+                AvailableSubjects::NetworkTasksSubscribePublish
                     .to_string()
                     .as_str(),
             )
@@ -397,7 +397,7 @@ impl Network {
         let _locations: Vec<RecordBatch> = clear_subject(
             self.runtime_env(),
             self.get_name(),
-            &AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+            &AvailableSubjects::NetworkTasksSubscribePublish.to_string(),
             false,
         )?
         .try_collect()
@@ -415,7 +415,7 @@ impl Network {
             subject.get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
         let publication_table_names =
             subject.get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
-        let session_names = subject.get_column_as_vec_nonprimitive::<String>("session_name")?;
+        let network_names = subject.get_column_as_vec_nonprimitive::<String>("network_name")?;
 
         // Map to objects
         let combined = task_names
@@ -426,7 +426,7 @@ impl Network {
             .zip(publication_table_names)
             .zip(processor_names)
             .zip(processor_types)
-            .zip(session_names)
+            .zip(network_names)
             .map(
                 |(
                     (
@@ -442,7 +442,7 @@ impl Network {
                         ),
                         processor_type,
                     ),
-                    session_name,
+                    network_name,
                 )| {
                     let subscriptions = subscription_names
                         .iter()
@@ -471,7 +471,7 @@ impl Network {
                         processor_subjects,
                         processor_name,
                         processor_type,
-                        session_name,
+                        network_name,
                     )
                 },
             )
@@ -480,15 +480,15 @@ impl Network {
         // Aggregate processors
         // DM: not possible to have two-levels of nesting with Arrow RecordBatches
         let mut tasks = HashMap::<(String, String), ProcessorSubjectsMap>::new();
-        for (task_name, processor_subjects, processor_name, _processor_type, session_name) in
+        for (task_name, processor_subjects, processor_name, _processor_type, network_name) in
             combined
         {
-            if let Some(task) = tasks.get_mut(&(task_name.to_string(), session_name.to_string())) {
+            if let Some(task) = tasks.get_mut(&(task_name.to_string(), network_name.to_string())) {
                 let _ = task.insert(processor_name, processor_subjects);
             } else {
                 let mut processor = HashMap::<String, ProcessorSubjects>::new();
                 let _ = processor.insert(processor_name, processor_subjects);
-                let _ = tasks.insert((task_name.to_string(), session_name.to_string()), processor);
+                let _ = tasks.insert((task_name.to_string(), network_name.to_string()), processor);
             }
         }
 
@@ -507,10 +507,10 @@ impl Network {
 
         // update the state with the metrics
         if let Some(metrics_subject) = metrics_subject {
-            let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionMetrics.to_string() }
+            let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::NetworkMetrics.to_string() }
                 .publish_to_subject(self.runtime_env(), metrics_subject.get_record_batches_own(), step, self.get_name(), self.get_name())?
-                .ok_or(anyhow!("Unable to put the subject `{}` into object storage for session `{}` while updating the metrics tables.",
-                    AvailableSubjects::SessionMetrics,
+                .ok_or(anyhow!("Unable to put the subject `{}` into object storage for network `{}` while updating the metrics tables.",
+                    AvailableSubjects::NetworkMetrics,
                     self.get_name()))?
                 .try_collect()
                 .await?;
@@ -518,10 +518,10 @@ impl Network {
 
         // update the state with the traces
         if let Some(traces_subject) = traces_subject {
-            let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTraces.to_string() }
+            let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::NetworkTraces.to_string() }
                 .publish_to_subject(self.runtime_env(), traces_subject.get_record_batches_own(), step, self.get_name(), self.get_name())?
-                .ok_or(anyhow!("Unable to put the subject `{}` into object storage for session `{}` while updating the metrics tables.",
-                    AvailableSubjects::SessionTraces,
+                .ok_or(anyhow!("Unable to put the subject `{}` into object storage for network `{}` while updating the metrics tables.",
+                    AvailableSubjects::NetworkTraces,
                     self.get_name()))?
                 .try_collect()
                 .await?;
@@ -529,10 +529,10 @@ impl Network {
 
         // update the state with the events
         if let Some(events_subject) = events_subject {
-            let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionEvents.to_string() }
+            let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::NetworkEvents.to_string() }
                 .publish_to_subject(self.runtime_env(), events_subject.get_record_batches_own(), step, self.get_name(), self.get_name())?
-                .ok_or(anyhow!("Unable to put the subject `{}` into object storage for session `{}` while updating the metrics tables.",
-                    AvailableSubjects::SessionEvents,
+                .ok_or(anyhow!("Unable to put the subject `{}` into object storage for network `{}` while updating the metrics tables.",
+                    AvailableSubjects::NetworkEvents,
                     self.get_name()))?
                 .try_collect()
                 .await?;
@@ -541,27 +541,27 @@ impl Network {
         Ok(())
     }
 
-    /// Increment the session superstep
+    /// Increment the network superstep
     pub async fn increment_superstep(&self) -> Result<u32> {
         // Increment the superstep
         let next_superstep = self.current_superstep().await.unwrap_or_default() + 1;
-        let session_names = [self.get_name()]
+        let network_names = [self.get_name()]
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
         let supersteps = vec![next_superstep];
-        let batch = create_session_supersteps_batch(session_names, supersteps)?;
+        let batch = create_network_supersteps_batch(network_names, supersteps)?;
         let table = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionSupersteps.to_string().as_str())
+            .with_name(AvailableSubjects::NetworkSupersteps.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
 
         // If this is the first increment then replace the empty batch
         let superstep_message = IPCMessageBuilder::default()
             .with_message(table.to_ipc_stream()?)
-            .with_subject(AvailableSubjects::SessionSupersteps.to_string().as_str())
+            .with_subject(AvailableSubjects::NetworkSupersteps.to_string().as_str())
             .with_update(&Publication::Extend {
-                subject_name: AvailableSubjects::SessionSupersteps.to_string(),
+                subject_name: AvailableSubjects::NetworkSupersteps.to_string(),
             })
             .with_publisher(self.get_name())
             .make_name()?
@@ -578,26 +578,26 @@ impl Network {
         Ok(next_superstep)
     }
 
-    /// Get the current session superstep
+    /// Get the current network superstep
     pub async fn current_superstep(&self) -> Result<u32> {
-        let batches: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSuperstepMax.to_string() }
+        let batches: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::NetworkSuperstepMax.to_string() }
             .subscribe_to_subject(self.runtime_env(), self.get_name())?
-            .ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` while getting the current superstep.", 
-                AvailableSubjects::SessionSuperstepMax,
+            .ok_or(anyhow!("Unable to get the subject `{}` from object storage for network `{}` while getting the current superstep.", 
+                AvailableSubjects::NetworkSuperstepMax,
                 self.get_name()
             ))?
             .try_collect()
             .await?;
         let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionSuperstepMax.to_string().as_str())
+            .with_name(AvailableSubjects::NetworkSuperstepMax.to_string().as_str())
             .with_record_batches(batches)?
             .build()?;
         let current_superstep = subject
             .get_column_as_vec_primitive::<u32>("superstep-Max")?
             .last()
             .ok_or(anyhow!(
-                "Missing rows for `{}` in session `{}`.",
-                AvailableSubjects::SessionSuperstepMax,
+                "Missing rows for `{}` in network `{}`.",
+                AvailableSubjects::NetworkSuperstepMax,
                 self.get_name()
             ))?
             .to_owned();
@@ -633,8 +633,8 @@ impl Network {
         // let step = self.current_superstep().await?;
         // let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
         //     .publish_to_subject(self.runtime_env(), subject_num_rows.get_record_batches_own(), step)?
-        //     .ok_or(anyhow!("Unable to put the subject `{}` into object storage for session `{}` while updating the subject number rows.",
-        //         AvailableSubjects::SessionMetrics,
+        //     .ok_or(anyhow!("Unable to put the subject `{}` into object storage for network `{}` while updating the subject number rows.",
+        //         AvailableSubjects::NetworkMetrics,
         //         self.get_name()))?
         //     .try_collect()
         //     .await?;
@@ -662,12 +662,12 @@ impl Network {
     ) -> (Option<Subject>, Option<Subject>, Option<Subject>) {
         let mut change_log_subject_names = Vec::new();
         let mut change_log_task_names = Vec::new();
-        let mut change_log_session_names = Vec::new();
+        let mut change_log_network_names = Vec::new();
         let mut change_log_num_rows = Vec::new();
         let mut change_log_supersteps = Vec::new();
         let mut store_meta_subject_names = Vec::new();
         let mut store_meta_task_names = Vec::new();
-        let mut store_meta_session_names = Vec::new();
+        let mut store_meta_network_names = Vec::new();
         let mut store_meta_num_rows = Vec::new();
         let mut store_meta_supersteps = Vec::new();
         let mut store_meta_location = Vec::new();
@@ -699,7 +699,12 @@ impl Network {
                         let num_rows = subject.count_rows(); // DM: not used currently...
 
                         // Check for a mismatch in the schema and intercept any errors
-                        if schema.ne(&subject.get_schema()) {
+                        if schema.ne(&subject.get_schema())
+                            // ignore the `None` schema
+                            & schema.ne(&AvailableSubjects::None.to_schema())
+                            // ignore subjects with the `Bytes` schema used for internal routing of messages
+                            & subject.get_schema().ne(&AvailableSubjects::Bytes.to_schema())
+                        {
                             let error = format!(
                                 "Schema `{}` for Subject `{subject_name}` from publisher `{publisher}` does match the cached Subject Schema `{}`",
                                 subject.get_schema(),
@@ -767,7 +772,7 @@ impl Network {
                             );
                             store_meta_task_names
                                 .extend((0..n_rows).map(|_| publisher.clone()).collect::<Vec<_>>());
-                            store_meta_session_names.extend(
+                            store_meta_network_names.extend(
                                 (0..n_rows)
                                     .map(|_| self.get_name().to_string())
                                     .collect::<Vec<_>>(),
@@ -810,7 +815,7 @@ impl Network {
                             // Record the subject change log information
                             change_log_subject_names.push(subject_name);
                             change_log_task_names.push(publisher);
-                            change_log_session_names.push(self.get_name().to_string());
+                            change_log_network_names.push(self.get_name().to_string());
                             change_log_num_rows.push(num_rows as i64);
                             change_log_supersteps.push(step as i64);
                         }
@@ -825,7 +830,7 @@ impl Network {
             } else {
                 // Mismatch in subject names of the update and cache
                 let error = format!(
-                    "Subject `{subject_name}` with update `{update:?}` is not in the session subject schema cache! Cached subjects are {:?}",
+                    "Subject `{subject_name}` with update `{update:?}` is not in the network subject schema cache! Cached subjects are {:?}",
                     self.subjects().keys()
                 );
                 errors.push(error);
@@ -837,7 +842,7 @@ impl Network {
             let batch = create_subjects_change_log_batch(
                 change_log_subject_names,
                 change_log_task_names,
-                change_log_session_names,
+                change_log_network_names,
                 change_log_num_rows,
                 change_log_supersteps,
             )
@@ -856,7 +861,7 @@ impl Network {
             let batch = create_subjects_object_store_meta_batch(
                 store_meta_subject_names,
                 store_meta_task_names,
-                store_meta_session_names,
+                store_meta_network_names,
                 store_meta_num_rows,
                 store_meta_supersteps,
                 store_meta_location,
@@ -888,7 +893,7 @@ impl Network {
                 .collect::<Vec<_>>();
             let batch = create_chat_record_batch(tools, errors, timestamps).unwrap();
             Some(
-                AvailableSubjects::SessionErrors
+                AvailableSubjects::NetworkErrors
                     .to_subject(None, Some(vec![batch]))
                     .unwrap(),
             )
@@ -921,8 +926,8 @@ mod tests {
     use arrow::array::Int64Array;
     use phymes_message::IPCMessage;
     use phymes_schemas::{
-        AvailableSchemaTrait, create_session_tasks_subscribe_aggregate_batch,
-        create_session_tasks_subscribe_publish_batch,
+        AvailableSchemaTrait, create_network_tasks_subscribe_aggregate_batch,
+        create_network_tasks_subscribe_publish_batch,
     };
     use phymes_subject::test_subject;
     use phymes_task::{Task, test_task};
@@ -931,9 +936,9 @@ mod tests {
     use crate::test_network_builder;
 
     #[test]
-    fn test_session_get_subject_name_by_schema() -> Result<()> {
+    fn test_network_get_subject_name_by_schema() -> Result<()> {
         let (network, _messages) =
-            test_network_builder::make_test_network_builder_parallel("session_1", 25)?.build()?;
+            test_network_builder::make_test_network_builder_parallel("network_1", 25)?.build()?;
 
         // table should be found
         let schema = test_subject::make_test_subject_schema(8)?;
@@ -949,14 +954,14 @@ mod tests {
 
     #[ignore = "refactoring `update_subject_num_rows` to work with object store."]
     #[tokio::test]
-    async fn test_session_update_subject_num_rows_subject() -> Result<()> {
+    async fn test_network_update_subject_num_rows_subject() -> Result<()> {
         let (network, _messages) =
-            test_network_builder::make_test_network_builder_parallel("session_1", 25)?.build()?;
+            test_network_builder::make_test_network_builder_parallel("network_1", 25)?.build()?;
         network.update_subject_num_rows().await?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
         }
-        .subscribe_to_subject(network.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -999,13 +1004,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_session_update_subjects_from_messages() -> Result<()> {
+    async fn test_network_update_subjects_from_messages() -> Result<()> {
         // Case 1: no state update
         let (network, _messages) =
-            test_network_builder::make_test_network_builder_parallel("session_1", 25)?.build()?;
+            test_network_builder::make_test_network_builder_parallel("network_1", 25)?.build()?;
         let input = test_task::make_test_input_message(
             "task_1",
-            "session_1",
+            "network_1",
             "state_1",
             "state_1",
             &Publication::None,
@@ -1018,11 +1023,11 @@ mod tests {
         assert!(meta.is_none());
         assert!(errors.is_none());
 
-        // check the session
+        // check the network
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_1".to_string(),
         }
-        .subscribe_to_subject(network.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1030,7 +1035,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_2".to_string(),
         }
-        .subscribe_to_subject(network.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1038,7 +1043,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_3".to_string(),
         }
-        .subscribe_to_subject(network.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1047,7 +1052,7 @@ mod tests {
         // Case 2: update state
         let input = test_task::make_test_input_message(
             "task_1",
-            "session_1",
+            "network_1",
             "state_1",
             "state_1",
             &Publication::Extend {
@@ -1069,12 +1074,12 @@ mod tests {
             .as_ref()
             .unwrap()
             .get_column_as_vec_str("task_name");
-        assert_eq!(col, ["session_1"]);
+        assert_eq!(col, ["network_1"]);
         let col = changelog
             .as_ref()
             .unwrap()
-            .get_column_as_vec_str("session_name");
-        assert_eq!(col, ["session_1"]);
+            .get_column_as_vec_str("network_name");
+        assert_eq!(col, ["network_1"]);
         let col = changelog
             .as_ref()
             .unwrap()
@@ -1086,9 +1091,9 @@ mod tests {
         let col = meta.as_ref().unwrap().get_column_as_vec_str("subject_name");
         assert_eq!(col, ["state_1", "state_1", "state_1"]);
         let col = meta.as_ref().unwrap().get_column_as_vec_str("task_name");
-        assert_eq!(col, ["session_1", "session_1", "session_1"]);
-        let col = meta.as_ref().unwrap().get_column_as_vec_str("session_name");
-        assert_eq!(col, ["session_1", "session_1", "session_1"]);
+        assert_eq!(col, ["network_1", "network_1", "network_1"]);
+        let col = meta.as_ref().unwrap().get_column_as_vec_str("network_name");
+        assert_eq!(col, ["network_1", "network_1", "network_1"]);
         let col = meta
             .as_ref()
             .unwrap()
@@ -1107,9 +1112,9 @@ mod tests {
         assert_eq!(
             col,
             [
-                "network=session_1/subject=state_1/superstep=0/publisher=session_1/partition=0/state_1.ipc",
-                "network=session_1/subject=state_1/superstep=0/publisher=session_1/partition=1/state_1.ipc",
-                "network=session_1/subject=state_1/superstep=0/publisher=session_1/partition=2/state_1.ipc"
+                "network=network_1/subject=state_1/superstep=0/publisher=network_1/partition=0/state_1.ipc",
+                "network=network_1/subject=state_1/superstep=0/publisher=network_1/partition=1/state_1.ipc",
+                "network=network_1/subject=state_1/superstep=0/publisher=network_1/partition=2/state_1.ipc"
             ]
         );
         let col = meta.as_ref().unwrap().get_column_as_vec_str("bucket");
@@ -1131,11 +1136,11 @@ mod tests {
             assert!(timestamp > 0);
         }
 
-        // check the session context
+        // check the network context
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_1".to_string(),
         }
-        .subscribe_to_subject(network.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1144,7 +1149,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_2".to_string(),
         }
-        .subscribe_to_subject(network.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1152,7 +1157,7 @@ mod tests {
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "state_3".to_string(),
         }
-        .subscribe_to_subject(network.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1161,7 +1166,7 @@ mod tests {
         // Case 3: Error due to mismatching schemas
         let input = test_task::make_test_input_message(
             "task_1",
-            "session_1",
+            "network_1",
             "state_1",
             "state_1",
             &Publication::Extend {
@@ -1179,7 +1184,7 @@ mod tests {
         let message = IPCMessage::new(
             "task_1",
             "state_1",
-            "session_1",
+            "network_1",
             Some(test_subject::make_test_subject("state_1", 4, 8, 3)?.to_ipc_stream()?),
             Some(Publication::Extend {
                 subject_name: "NotFound".to_string(),
@@ -1197,17 +1202,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_session_tasks_subscribe_all_subscribe() -> Result<()> {
+    async fn test_network_tasks_subscribe_all_subscribe() -> Result<()> {
         // Make the test data
-        let session_names = ["session_1", "session_1", "session_1", "session_1"]
+        let network_names = ["network_1", "network_1", "network_1", "network_1"]
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let task_names = ["session_1", "task_1", "task_1", "task_1"]
+        let task_names = ["network_1", "task_1", "task_1", "task_1"]
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let processor_names = ["session_1", "processor_1", "processor_2", "processor_3"]
+        let processor_names = ["network_1", "processor_1", "processor_2", "processor_3"]
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
@@ -1280,8 +1285,8 @@ mod tests {
         //     vec![1768954478776344,1768954478786822],
         //     vec![1768954478776354,1768954478786822]];
 
-        let batch = create_session_tasks_subscribe_aggregate_batch(
-            session_names,
+        let batch = create_network_tasks_subscribe_aggregate_batch(
+            network_names,
             task_names,
             processor_names,
             processor_types,
@@ -1296,27 +1301,27 @@ mod tests {
         // Make the schemas
         let mut schemas = HashMap::<String, SchemaRef>::new();
         let _ = schemas.insert(
-            AvailableSubjects::SessionTasksSubscribeAggregate.to_string(),
-            AvailableSubjects::SessionTasksSubscribeAggregate.to_schema(),
+            AvailableSubjects::NetworkTasksSubscribeAggregate.to_string(),
+            AvailableSubjects::NetworkTasksSubscribeAggregate.to_schema(),
         );
         let _ = schemas.insert(
-            AvailableSubjects::SessionTasksSubscribe.to_string(),
-            AvailableSubjects::SessionTasksSubscribe.to_schema(),
+            AvailableSubjects::NetworkTasksSubscribe.to_string(),
+            AvailableSubjects::NetworkTasksSubscribe.to_schema(),
         );
 
         // Write the data to the object store
         let runtime_env = test_task::make_runtime_env("rt")?;
         let _publication: Vec<RecordBatch> = Publication::Extend {
-            subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string(),
+            subject_name: AvailableSubjects::NetworkTasksSubscribeAggregate.to_string(),
         }
-        .publish_to_subject(&runtime_env, vec![batch], 0, "", "session_1")?
+        .publish_to_subject(&runtime_env, vec![batch], 0, "", "network_1")?
         .unwrap()
         .try_collect()
         .await?;
 
-        // Make the session context
+        // Make the network context
         let network = Network::new(
-            "session_1".to_string(),
+            "network_1".to_string(),
             HashMap::<String, Arc<Task>>::new(),
             schemas,
             runtime_env,
@@ -1326,36 +1331,36 @@ mod tests {
         // Run and check the updated state
         network.tasks_subscribe().await?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: "SessionTasksSubscribe".to_string(),
+            subject_name: "NetworkTasksSubscribe".to_string(),
         }
-        .subscribe_to_subject(network.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         let subject = Subject::get_builder()
-            .with_name("SessionTasksSubscribe")
+            .with_name("NetworkTasksSubscribe")
             .with_record_batches(batches)
             .unwrap()
             .build()
             .unwrap();
-        let column = subject.get_column_as_vec_str("session_name");
+        let column = subject.get_column_as_vec_str("network_name");
         assert_eq!(
             column,
             [
-                "session_1",
-                "session_1",
-                "session_1",
-                "session_1",
-                "session_1",
-                "session_1",
-                "session_1"
+                "network_1",
+                "network_1",
+                "network_1",
+                "network_1",
+                "network_1",
+                "network_1",
+                "network_1"
             ]
         );
         let column = subject.get_column_as_vec_str("task_name");
         assert_eq!(
             column,
             [
-                "session_1",
+                "network_1",
                 "task_1",
                 "task_1",
                 "task_1",
@@ -1368,7 +1373,7 @@ mod tests {
         assert_eq!(
             column,
             [
-                "session_1",
+                "network_1",
                 "processor_1",
                 "processor_1",
                 "processor_2",
@@ -1420,17 +1425,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_session_tasks_subscribe_none_subscribe() -> Result<()> {
+    async fn test_network_tasks_subscribe_none_subscribe() -> Result<()> {
         // Make the test data
-        let session_names = ["session_1", "session_1", "session_1", "session_1"]
+        let network_names = ["network_1", "network_1", "network_1", "network_1"]
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let task_names = ["session_1", "task_1", "task_1", "task_1"]
+        let task_names = ["network_1", "task_1", "task_1", "task_1"]
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let processor_names = ["session_1", "processor_1", "processor_2", "processor_3"]
+        let processor_names = ["network_1", "processor_1", "processor_2", "processor_3"]
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
@@ -1499,8 +1504,8 @@ mod tests {
         //     vec![1768954478778609,1768954478778609]];
         let superstep_lasts = vec![vec![0], vec![0, 0], vec![0, 0], vec![0, 0]];
 
-        let batch = create_session_tasks_subscribe_aggregate_batch(
-            session_names,
+        let batch = create_network_tasks_subscribe_aggregate_batch(
+            network_names,
             task_names,
             processor_names,
             processor_types,
@@ -1515,27 +1520,27 @@ mod tests {
         // Make the schemas
         let mut schemas = HashMap::<String, SchemaRef>::new();
         let _ = schemas.insert(
-            AvailableSubjects::SessionTasksSubscribeAggregate.to_string(),
-            AvailableSubjects::SessionTasksSubscribeAggregate.to_schema(),
+            AvailableSubjects::NetworkTasksSubscribeAggregate.to_string(),
+            AvailableSubjects::NetworkTasksSubscribeAggregate.to_schema(),
         );
         let _ = schemas.insert(
-            AvailableSubjects::SessionTasksSubscribe.to_string(),
-            AvailableSubjects::SessionTasksSubscribe.to_schema(),
+            AvailableSubjects::NetworkTasksSubscribe.to_string(),
+            AvailableSubjects::NetworkTasksSubscribe.to_schema(),
         );
 
         // Write the data to the object store
         let runtime_env = test_task::make_runtime_env("rt")?;
         let _publication: Vec<RecordBatch> = Publication::Extend {
-            subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string(),
+            subject_name: AvailableSubjects::NetworkTasksSubscribeAggregate.to_string(),
         }
-        .publish_to_subject(&runtime_env, vec![batch], 0, "", "session_1")?
+        .publish_to_subject(&runtime_env, vec![batch], 0, "", "network_1")?
         .unwrap()
         .try_collect()
         .await?;
 
-        // Make the session context
+        // Make the network context
         let network = Network::new(
-            "session_1".to_string(),
+            "network_1".to_string(),
             HashMap::<String, Arc<Task>>::new(),
             schemas,
             runtime_env,
@@ -1545,9 +1550,9 @@ mod tests {
         // Run and check the updated state
         network.tasks_subscribe().await?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: "SessionTasksSubscribe".to_string(),
+            subject_name: "NetworkTasksSubscribe".to_string(),
         }
-        .subscribe_to_subject(network.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
@@ -1556,17 +1561,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_session_tasks_subscribe_some_subscribe() -> Result<()> {
+    async fn test_network_tasks_subscribe_some_subscribe() -> Result<()> {
         // Make the test data
-        let session_names = ["session_1", "session_1", "session_1", "session_1"]
+        let network_names = ["network_1", "network_1", "network_1", "network_1"]
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let task_names = ["session_1", "task_1", "task_1", "task_1"]
+        let task_names = ["network_1", "task_1", "task_1", "task_1"]
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let processor_names = ["session_1", "processor_1", "processor_2", "processor_3"]
+        let processor_names = ["network_1", "processor_1", "processor_2", "processor_3"]
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
@@ -1639,8 +1644,8 @@ mod tests {
         //     vec![1768954478776344,1768954478786822],
         //     vec![1768954478776354,1768954478786822]];
 
-        let batch = create_session_tasks_subscribe_aggregate_batch(
-            session_names,
+        let batch = create_network_tasks_subscribe_aggregate_batch(
+            network_names,
             task_names,
             processor_names,
             processor_types,
@@ -1655,27 +1660,27 @@ mod tests {
         // Make the schemas
         let mut schemas = HashMap::<String, SchemaRef>::new();
         let _ = schemas.insert(
-            AvailableSubjects::SessionTasksSubscribeAggregate.to_string(),
-            AvailableSubjects::SessionTasksSubscribeAggregate.to_schema(),
+            AvailableSubjects::NetworkTasksSubscribeAggregate.to_string(),
+            AvailableSubjects::NetworkTasksSubscribeAggregate.to_schema(),
         );
         let _ = schemas.insert(
-            AvailableSubjects::SessionTasksSubscribe.to_string(),
-            AvailableSubjects::SessionTasksSubscribe.to_schema(),
+            AvailableSubjects::NetworkTasksSubscribe.to_string(),
+            AvailableSubjects::NetworkTasksSubscribe.to_schema(),
         );
 
         // Write the data to the object store
         let runtime_env = test_task::make_runtime_env("rt")?;
         let _publication: Vec<RecordBatch> = Publication::Extend {
-            subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string(),
+            subject_name: AvailableSubjects::NetworkTasksSubscribeAggregate.to_string(),
         }
-        .publish_to_subject(&runtime_env, vec![batch], 0, "", "session_1")?
+        .publish_to_subject(&runtime_env, vec![batch], 0, "", "network_1")?
         .unwrap()
         .try_collect()
         .await?;
 
-        // Make the session context
+        // Make the network context
         let network = Network::new(
-            "session_1".to_string(),
+            "network_1".to_string(),
             HashMap::<String, Arc<Task>>::new(),
             schemas,
             runtime_env,
@@ -1685,24 +1690,24 @@ mod tests {
         // Run and check the updated state
         network.tasks_subscribe().await?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: "SessionTasksSubscribe".to_string(),
+            subject_name: "NetworkTasksSubscribe".to_string(),
         }
-        .subscribe_to_subject(network.runtime_env(), "session_1")?
+        .subscribe_to_subject(network.runtime_env(), "network_1")?
         .unwrap()
         .try_collect()
         .await?;
         let subject = Subject::get_builder()
-            .with_name("SessionTasksSubscribe")
+            .with_name("NetworkTasksSubscribe")
             .with_record_batches(batches)
             .unwrap()
             .build()
             .unwrap();
-        let column = subject.get_column_as_vec_str("session_name");
-        assert_eq!(column, ["session_1"]);
+        let column = subject.get_column_as_vec_str("network_name");
+        assert_eq!(column, ["network_1"]);
         let column = subject.get_column_as_vec_str("task_name");
-        assert_eq!(column, ["session_1"]);
+        assert_eq!(column, ["network_1"]);
         let column = subject.get_column_as_vec_str("processor_name");
-        assert_eq!(column, ["session_1"]);
+        assert_eq!(column, ["network_1"]);
         let column = subject.get_column_as_vec_str("processor_type");
         assert_eq!(column, ["ProcessorEcho"]);
         let column = subject.get_column_as_vec_str("subscription_name");
@@ -1713,17 +1718,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_session_tasks_subscribe_publish() -> Result<()> {
+    async fn test_network_tasks_subscribe_publish() -> Result<()> {
         // Make the test data
-        let session_names = ["session_1", "session_1", "session_1", "session_1"]
+        let network_names = ["network_1", "network_1", "network_1", "network_1"]
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let task_names = ["task_1", "task_1", "task_1", "session_1"]
+        let task_names = ["task_1", "task_1", "task_1", "network_1"]
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let processor_names = ["processor_1", "processor_2", "processor_3", "session_1"]
+        let processor_names = ["processor_1", "processor_2", "processor_3", "network_1"]
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
@@ -1809,8 +1814,8 @@ mod tests {
                 .collect::<Vec<_>>(),
         ];
 
-        let batch = create_session_tasks_subscribe_publish_batch(
-            session_names,
+        let batch = create_network_tasks_subscribe_publish_batch(
+            network_names,
             task_names,
             processor_names,
             processor_types,
@@ -1823,23 +1828,23 @@ mod tests {
         // Make the schemas
         let mut schemas = HashMap::<String, SchemaRef>::new();
         let _ = schemas.insert(
-            AvailableSubjects::SessionTasksSubscribePublish.to_string(),
-            AvailableSubjects::SessionTasksSubscribePublish.to_schema(),
+            AvailableSubjects::NetworkTasksSubscribePublish.to_string(),
+            AvailableSubjects::NetworkTasksSubscribePublish.to_schema(),
         );
 
         // Write the data to the object store
         let runtime_env = test_task::make_runtime_env("rt")?;
         let _publication: Vec<RecordBatch> = Publication::Extend {
-            subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+            subject_name: AvailableSubjects::NetworkTasksSubscribePublish.to_string(),
         }
-        .publish_to_subject(&runtime_env, vec![batch], 0, "", "session_1")?
+        .publish_to_subject(&runtime_env, vec![batch], 0, "", "network_1")?
         .unwrap()
         .try_collect()
         .await?;
 
-        // Make the session context
+        // Make the network context
         let network = Network::new(
-            "session_1".to_string(),
+            "network_1".to_string(),
             HashMap::<String, Arc<Task>>::new(),
             schemas,
             runtime_env,
@@ -1852,7 +1857,7 @@ mod tests {
             HashMap::<(String, String), HashMap<String, ProcessorSubjects>>::new();
         let mut processor_subjects_map = HashMap::<String, ProcessorSubjects>::new();
         let processor_subjects = ProcessorSubjectsBuilder::default()
-            .with_name("session_1")
+            .with_name("network_1")
             .with_subscriptions(&[Subscription::OnUpdateLastRecordBatch {
                 subject_name: "state_1".to_string(),
             }])
@@ -1860,9 +1865,9 @@ mod tests {
                 subject_name: "state_1".to_string(),
             }])
             .build()?;
-        let _ = processor_subjects_map.insert("session_1".to_string(), processor_subjects);
+        let _ = processor_subjects_map.insert("network_1".to_string(), processor_subjects);
         let _ = expected_tasks.insert(
-            ("session_1".to_string(), "session_1".to_string()),
+            ("network_1".to_string(), "network_1".to_string()),
             processor_subjects_map,
         );
         let mut processor_subjects_map = HashMap::<String, ProcessorSubjects>::new();
@@ -1912,7 +1917,7 @@ mod tests {
             .build()?;
         let _ = processor_subjects_map.insert("processor_3".to_string(), processor_subjects);
         let _ = expected_tasks.insert(
-            ("task_1".to_string(), "session_1".to_string()),
+            ("task_1".to_string(), "network_1".to_string()),
             processor_subjects_map,
         );
 

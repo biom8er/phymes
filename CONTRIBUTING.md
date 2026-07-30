@@ -414,7 +414,7 @@ cargo test -p phymes-subject --all-features
 
 # run a specific test for the phymes-subject crate with the wsl feature enabled
 # and printing to the console
-cargo test test_session_update_state -p phymes-subject --features wsl -- --no-capture
+cargo test test_network_update_state -p phymes-subject --features wsl -- --no-capture
 
 # run the doc tests
 cargo test --doc
@@ -728,15 +728,15 @@ Second, iteratively query the phymes-server using `wasmtime`.
 ```bash
 # Sign-in and get our JWT token
 wastime --dir=$HOME/.cache phymes-server.wasm --route app/v1/sign_in --basic_auth EMAIL:PASSWORD
-# mock response {"email":"EMAIL","jwt":"JWTTOKEN","session_plans":["Chat","DocChat","ToolChat"]}
+# mock response {"email":"EMAIL","jwt":"JWTTOKEN","network_plans":["GenerateText", ...]}
 
 # Get information about the different subjects
-wastime --dir=$HOME/.cache phymes-server.wasm curl --route app/v1/subjects_schema --bearer_auth JWTTOKEN --data '{"session_name":"EMAILChat","subject_name":"","format":"Bytes","publish":"None","content":"","metadata":"","stream":false}'
+wastime --dir=$HOME/.cache phymes-server.wasm curl --route app/v1/subjects_schema --bearer_auth JWTTOKEN --data '{"network_name":"EMAILChat","subject_name":"","format":"Bytes","publish":"None","content":"","metadata":"","stream":false}'
 
 # Chat request
 # Be sure to replace EMAIL and JWTTOKEN with your actual email and JWT token!
-# Note that the session_name = email + session_plan
-wastime --dir=$HOME/.cache phymes-server.wasm curl --route app/v1/chat --bearer_auth JWTTOKEN --data '{"content":"Write a python function to count prime numbers","session_name":"EMAILChat","subject_name":"messages","format":"Bytes","publish":"None","metadata":"","stream":true}'
+# Note that the network_name = email + network_plan
+wastime --dir=$HOME/.cache phymes-server.wasm curl --route app/v1/chat --bearer_auth JWTTOKEN --data '{"content":"Write a python function to count prime numbers","network_name":"EMAILChat","subject_name":"messages","format":"Bytes","publish":"None","metadata":"","stream":true}'
 ```
 
 #### no_std

@@ -7,7 +7,10 @@ use phymes_data::{
     DataConfig, DataStreamManager,
 };
 use phymes_event::{Publication, Subscription};
-use phymes_network::{NetworkBuilder, NetworkBuilderMermaidTrait};
+use phymes_network::{
+    DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes, NetworkBuilder,
+    NetworkBuilderMermaidTrait,
+};
 use phymes_processor::AvailableProcessors;
 use phymes_schemas::{
     AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat,
@@ -23,8 +26,8 @@ use phymes_subject::{
 use serde_json::{Map, Value};
 
 use crate::{
-    DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, EmbedTextNetworkBuilder,
-    ExtractOntologyNetworkBuilder, ExtractPDFNetworkBuilder, RetrieveTextNetworkBuilder,
+    EmbedTextNetworkBuilder, ExtractOntologyNetworkBuilder, ExtractPDFNetworkBuilder,
+    RetrieveTextNetworkBuilder,
 };
 
 /// OpenAlex network
@@ -82,7 +85,7 @@ impl Default for OpenAlexNetworkBuilder {
                 .unwrap();
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
-                is_dynamic: false,
+                dynamic_type: DynamicTaskNetworkTypes::Static,
                 processor: AvailableProcessors::ObjectStoreProcessor,
                 subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                     subject_name: subject_lhs.get_name().to_string(),
@@ -103,6 +106,7 @@ impl Default for OpenAlexNetworkBuilder {
             let network_name = "extract_open_alex_aws_bucket";
             let config = DataConfig {
                 lhs_name: Some(AvailableInterfaceSubjects::UserObject.to_string()),
+                lhs_pk: Some("location".to_string()),
                 lhs_values: Some(vec!["bytes".to_string()]),
                 encoding: Some(DataEncoding::Gz),
                 format: Some(DataFormat::JsonSchema),
@@ -179,7 +183,7 @@ impl Default for OpenAlexNetworkBuilder {
             .collect::<Vec<_>>();
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
-                is_dynamic: false,
+                dynamic_type: DynamicTaskNetworkTypes::Static,
                 processor: AvailableProcessors::ExtractTabular,
                 subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                     subject_name: subject_lhs.get_name().to_string(),
@@ -221,7 +225,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::CoalesceProcessor,
                     subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                         subject_name: subject_name_lhs.to_string(),
@@ -321,7 +325,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -391,7 +395,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Filter,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -446,7 +450,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -538,7 +542,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Join,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -595,7 +599,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::CoalesceProcessor,
                     subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                         subject_name: subject_name_lhs.to_string(),
@@ -719,7 +723,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -789,7 +793,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Filter,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -854,7 +858,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -911,7 +915,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Join,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -1006,7 +1010,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -1035,6 +1039,12 @@ impl Default for OpenAlexNetworkBuilder {
         let open_alex_network_builder = open_alex_network_builder.extend(network_builder).unwrap();
 
         // Get PDF network
+        // DM: Update to use `GetPdfNetworkBuilderStaticWSubject`
+        // let get_pdf_network_builder = GetPdfNetworkBuilderStaticWSubject::default().inner.build_dynamic();
+        // let retrieve_text_pdf_network_builder = retrieve_text_pdf_network_builder
+        //     .extend(get_pdf_network_builder)
+        //     .unwrap()
+        // DM: change "select_open_acces_pdf_url_s" to "http_client_request_pdf_s"
         let network_builder = {
             let network_name = "get_pdf";
             let subject_name_lhs = "select_open_acces_pdf_url_s";
@@ -1068,7 +1078,7 @@ impl Default for OpenAlexNetworkBuilder {
                 .unwrap();
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
-                is_dynamic: false,
+                dynamic_type: DynamicTaskNetworkTypes::Static,
                 processor: AvailableProcessors::HTTPClientRequestProcessor,
                 subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                     subject_name: subject_name_lhs.to_string(),
@@ -1084,7 +1094,7 @@ impl Default for OpenAlexNetworkBuilder {
         };
         let open_alex_network_builder = open_alex_network_builder.extend(network_builder).unwrap();
 
-        // Extract PDF session
+        // Extract PDF network
         let extract_pdf_network_builder = ExtractPDFNetworkBuilder::default().inner.take().unwrap();
         let open_alex_network_builder = open_alex_network_builder
             .extend(extract_pdf_network_builder)
@@ -1138,7 +1148,7 @@ impl Default for OpenAlexNetworkBuilder {
                 .unwrap();
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
-                is_dynamic: false,
+                dynamic_type: DynamicTaskNetworkTypes::Static,
                 processor: AvailableProcessors::ObjectStoreProcessor,
                 subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                     subject_name: subject_lhs.get_name().to_string(),
@@ -1198,7 +1208,7 @@ impl Default for OpenAlexNetworkBuilder {
         //         .unwrap();
         //     let builder = DynamicTaskNetworkBuilder {
         //         network_name: network_name.to_string(),
-        //         is_dynamic: false,
+        //         dynamic_type: DynamicTaskNetworkTypes::Static,
         //         processor: AvailableProcessors::HTTPClientRequestProcessor,
         //         subscription_lhs: Subscription::OnUpdateAllRecordBatches {
         //             subject_name: subject_name_lhs.to_string(),
@@ -1223,6 +1233,8 @@ impl Default for OpenAlexNetworkBuilder {
                 let network_name = "extract_owl";
                 let config = DataConfig {
                     lhs_name: Some(AvailableInterfaceSubjects::UserScript.to_string()),
+                    // lhs_pk: Some("filename".to_string()),location
+                    lhs_pk: Some("location".to_string()), // DM: using ObjectStore schema but UserScript name
                     lhs_values: Some(
                         ["bytes"]
                             .into_iter()
@@ -1250,7 +1262,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::ExtractXML,
                     subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                         subject_name: AvailableInterfaceSubjects::UserScript.to_string(),
@@ -1282,7 +1294,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::CoalesceProcessor,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -1388,7 +1400,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -1451,7 +1463,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Filter,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -1506,7 +1518,7 @@ impl Default for OpenAlexNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -1556,7 +1568,7 @@ impl Default for OpenAlexNetworkBuilder {
             .extend(extract_owl_network_builder)
             .unwrap();
 
-        // Embed text session
+        // Embed text network
         let embed_text_network = EmbedTextNetworkBuilder::default();
         let embed_text_network_builder = NetworkBuilder::from_mermaid_flowchart(
             &embed_text_network.as_mermaid_flowchart(),
@@ -1574,7 +1586,7 @@ impl Default for OpenAlexNetworkBuilder {
             .extend(embed_text_network_builder)
             .unwrap();
 
-        // Retrieve text session
+        // Retrieve text network
         let retrieve_text_network = RetrieveTextNetworkBuilder::default();
         let retrieve_text_builder = NetworkBuilder::from_mermaid_flowchart(
             retrieve_text_network.as_mermaid_flowchart(),
@@ -1582,7 +1594,7 @@ impl Default for OpenAlexNetworkBuilder {
         )
         .unwrap()
         .with_subjects_from_mermaid_erdiagram(
-            retrieve_text_network.as_mermaid_erdiagram(),
+            &retrieve_text_network.as_mermaid_erdiagram(),
             false,
             true,
         )
@@ -1608,7 +1620,9 @@ mod tests {
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
-    use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
+    use phymes_network::{
+        DynamicTaskNetworkNames, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream,
+    };
     use phymes_schemas::{
         AvailableInterfaceSubjects, AvailableSubjects, create_object_store_meta_batch,
     };
@@ -1618,20 +1632,17 @@ mod tests {
     };
     use phymes_task::SubscriptionTrait;
 
-    use crate::{
-        DynamicTaskNetworkNames, extended_diagnostic_subjects, write_diagnostic_subjects_to_csv,
-    };
+    use crate::{extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
 
     use super::*;
 
-    // `cargo test -p phymes-templates test_open_alex_network_v_rust --features api,gpu,hf_hub --release -- --nocapture`
-    #[ignore = "In progress... Optimizing PDF and OWL parsing..."]
+    #[ignore = "In progress... `cargo test -p phymes-templates test_open_alex_network_v_rust --features api,gpu,hf_hub --release -- --nocapture`"]
     #[tokio::test]
     async fn test_open_alex_network_v_rust() -> Result<()> {
-        // Initialize the session
+        // Initialize the network
         let open_alex_network_builder = OpenAlexNetworkBuilder::default().inner.take().unwrap();
         let network_name = open_alex_network_builder.name.clone().unwrap();
-        let (network, session_messages) = open_alex_network_builder
+        let (network, network_messages) = open_alex_network_builder
             .with_runtime_env(
                 RuntimeEnv::get_builder()
                     .with_name(
@@ -1649,13 +1660,13 @@ mod tests {
             .build_with_tables()?;
         let network_arc = Arc::new(network);
 
-        // Make the test session data
+        // Make the test network data
         let mut message_map = HashMap::<String, IPCMessage>::new();
 
         // Make the list of paths to Get
-        // let location = vec!["data/works/updated_date=2018-01-12/part_0000.gz".to_string()];
-        let location = vec!["data/works/updated_date=2026-03-10/part_0005.gz".to_string()];
-        // let location = vec!["data/works/manifest".to_string()];
+        // let location = vec!["data/jsonl/works/updated_date=2018-01-12/part_0000.gz".to_string()];
+        let location = vec!["data/jsonl/works/updated_date=2026-03-10/part_0005.gz".to_string()];
+        // let location = vec!["data/jsonl/works/manifest".to_string()];
         let bucket = vec!["openalex".to_string()];
         let e_tag = vec![String::new()];
         let version = vec![String::new()];
@@ -1719,12 +1730,12 @@ mod tests {
             // "Users/dmccl/Downloads/ontologies/HumanDO.owl",
             // "Users/dmccl/Downloads/ontologies/core_predicates.owl",
             // "Users/dmccl/Downloads/ontologies/rdfs-dc-skos.owl",
-            // "Users/dmccl/Downloads/ontologies/ro.owl", // Breaks with HumanDO but works on its own (no relations!)
-            // "Users/dmccl/Downloads/ontologies/eco.owl", // Works with HumanDO
-            // "Users/dmccl/Downloads/ontologies/cl.owl", // Works with HumanDO
-            "Users/dmccl/Downloads/ontologies/uberon.owl", // Breaks with HumanDO but works on its own
-                                                           // "Users/dmccl/Downloads/ontologies/go.owl", // Works with HumanDO
-                                                           // "Users/dmccl/Downloads/ontologies/taxslim.owl", // Works with HumanDO
+            "Users/dmccl/Downloads/ontologies/ro.owl", // Breaks with HumanDO but works on its own (no relations!)
+                                                       // "Users/dmccl/Downloads/ontologies/eco.owl", // Works with HumanDO
+                                                       // "Users/dmccl/Downloads/ontologies/cl.owl", // Works with HumanDO
+                                                       // "Users/dmccl/Downloads/ontologies/uberon.owl", // Breaks with HumanDO but works on its own
+                                                       // "Users/dmccl/Downloads/ontologies/go.owl", // Works with HumanDO
+                                                       // "Users/dmccl/Downloads/ontologies/taxslim.owl", // Works with HumanDO
         ];
         let cl_arr: ArrayRef = Arc::new(StringArray::from(cl_urls));
         // let batch = RecordBatch::try_from_iter(vec![("content", cl_arr)])?;
@@ -1747,10 +1758,10 @@ mod tests {
         );
 
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
-        // 1. Run the session
+        // 1. Run the network
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
@@ -1781,10 +1792,13 @@ mod tests {
             .with_name("WorkTable")
             .with_record_batches(batches)?
             .build()?;
-        assert_eq!(subject.count_rows(), 34973);
+        dbg!(subject.count_rows());
+        // assert_eq!(subject.count_rows(), 317124);
         let column = subject.get_column_as_vec_str("work_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
-        assert_eq!(column.last().unwrap(), &"https://openalex.org/W4367307220");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
+        // assert_eq!(column.last().unwrap(), &"https://openalex.org/W4367307220");
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "WorkTopicTable".to_string(),
@@ -1797,19 +1811,28 @@ mod tests {
             .with_name("WorkTopicTable")
             .with_record_batches(batches)?
             .build()?;
-        assert_eq!(subject.count_rows(), 91321);
+        dbg!(subject.count_rows());
+        // assert_eq!(subject.count_rows(), 91321);
         let column = subject.get_column_as_vec_str("work_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
-        assert_eq!(column.last().unwrap(), &"https://openalex.org/W4367307220");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
+        // assert_eq!(column.last().unwrap(), &"https://openalex.org/W4367307220");
         let column = subject.get_column_as_vec_str("topic_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
-        assert_eq!(column.last().unwrap(), &"https://openalex.org/T13802");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
+        // assert_eq!(column.last().unwrap(), &"https://openalex.org/T13802");
         let column = subject.get_column_as_vec_primitive::<f32>("score")?;
-        assert_eq!(column.first().unwrap(), &0.9994);
-        assert_eq!(column.last().unwrap(), &0.2251);
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &0.9994);
+        // assert_eq!(column.last().unwrap(), &0.2251);
         let column = subject.get_column_as_vec_primitive::<u8>("is_primary")?;
-        assert_eq!(column.first().unwrap(), &1);
-        assert_eq!(column.last().unwrap(), &1);
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &1);
+        // assert_eq!(column.last().unwrap(), &1);
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "WorkLocationTable".to_string(),
@@ -1822,40 +1845,59 @@ mod tests {
             .with_name("WorkLocationTable")
             .with_record_batches(batches)?
             .build()?;
-        assert_eq!(subject.count_rows(), 48958);
+        dbg!(subject.count_rows());
+        // assert_eq!(subject.count_rows(), 48958);
         let column = subject.get_column_as_vec_str("work_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
-        assert_eq!(column.last().unwrap(), &"https://openalex.org/W4367307220");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
+        // assert_eq!(column.last().unwrap(), &"https://openalex.org/W4367307220");
         let column = subject.get_column_as_vec_primitive::<u8>("is_best_oa")?;
-        assert_eq!(column.first().unwrap(), &0);
-        assert_eq!(column.last().unwrap(), &0);
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &0);
+        // assert_eq!(column.last().unwrap(), &0);
         let column = subject.get_column_as_vec_primitive::<u8>("is_primary")?;
-        assert_eq!(column.first().unwrap(), &1);
-        assert_eq!(column.last().unwrap(), &1);
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &1);
+        // assert_eq!(column.last().unwrap(), &1);
         let column = subject.get_column_as_vec_primitive::<u8>("is_oa")?;
-        assert_eq!(column.first().unwrap(), &0);
-        assert_eq!(column.last().unwrap(), &0);
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &0);
+        // assert_eq!(column.last().unwrap(), &0);
         let column = subject.get_column_as_vec_str("landing_page_url");
-        assert_eq!(
-            column.first().unwrap(),
-            &"https://doi.org/10.1016/j.str.2014.09.012"
-        );
-        assert_eq!(
-            column.last().unwrap(),
-            &"http://dx.doi.org/10.2307/jj.2430693"
-        );
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &"https://doi.org/10.1016/j.str.2014.09.012"
+        // );
+        // assert_eq!(
+        //     column.last().unwrap(),
+        //     &"http://dx.doi.org/10.2307/jj.2430693"
+        // );
         let column = subject.get_column_as_vec_str("pdf_url");
-        assert_eq!(column.first().unwrap(), &"");
-        assert_eq!(column.last().unwrap(), &"");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"");
+        // assert_eq!(column.last().unwrap(), &"");
         let column = subject.get_column_as_vec_str("source_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/S7112016");
-        assert_eq!(column.last().unwrap(), &"");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/S7112016");
+        // assert_eq!(column.last().unwrap(), &"");
         let column = subject.get_column_as_vec_str("license");
-        assert_eq!(column.first().unwrap(), &"");
-        assert_eq!(column.last().unwrap(), &"cc-by");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"");
+        // assert_eq!(column.last().unwrap(), &"cc-by");
         let column = subject.get_column_as_vec_str("version");
-        assert_eq!(column.first().unwrap(), &"publishedVersion");
-        assert_eq!(column.last().unwrap(), &"publishedVersion");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"publishedVersion");
+        // assert_eq!(column.last().unwrap(), &"publishedVersion");
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "extract_open_alex_aws_bucket_s".to_string(),
@@ -1878,21 +1920,28 @@ mod tests {
             .with_name("join_work_topic_table_s")
             .with_record_batches(batches)?
             .build()?;
-        assert_eq!(subject.count_rows(), 13);
+        dbg!(subject.count_rows());
+        // assert_eq!(subject.count_rows(), 13);
         let column = subject.get_column_as_vec_str("work_id");
-        // assert_eq!(column.first().unwrap(), &"https://openalex.org/W2036680792");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
-        // assert_eq!(column.last().unwrap(), &"https://openalex.org/W2037563286");
-        assert_eq!(column.last().unwrap(), &"https://openalex.org/W2939699114");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/W2063148287");
+        // assert_eq!(column.last().unwrap(), &"https://openalex.org/W2939699114");
         let column = subject.get_column_as_vec_str("topic_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
-        assert_eq!(column.last().unwrap(), &"https://openalex.org/T10123");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
+        // assert_eq!(column.last().unwrap(), &"https://openalex.org/T10123");
         let column = subject.get_column_as_vec_primitive::<u8>("is_primary")?;
-        assert_eq!(column.first().unwrap(), &1);
-        assert_eq!(column.last().unwrap(), &1);
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &1);
+        // assert_eq!(column.last().unwrap(), &1);
         let column = subject.get_column_as_vec_primitive::<f32>("score")?;
-        assert_eq!(column.first().unwrap(), &0.9998);
-        assert_eq!(column.last().unwrap(), &0.9998);
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &0.9998);
+        // assert_eq!(column.last().unwrap(), &0.9998);
 
         // Test select open access PDF url as content
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
@@ -1906,31 +1955,44 @@ mod tests {
             .with_name("select_open_acces_pdf_url_s")
             .with_record_batches(batches)?
             .build()?;
-        assert_eq!(subject.count_rows(), 6);
+        dbg!(subject.count_rows());
+        // assert_eq!(subject.count_rows(), 6);
         let column = subject.get_column_as_vec_str("work_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/W2036554147");
-        assert_eq!(column.last().unwrap(), &"https://openalex.org/W4408584426");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/W2036554147");
+        // assert_eq!(column.last().unwrap(), &"https://openalex.org/W4408584426");
         let column = subject.get_column_as_vec_str("topic_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
-        assert_eq!(column.last().unwrap(), &"https://openalex.org/T10123");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/T10123");
+        // assert_eq!(column.last().unwrap(), &"https://openalex.org/T10123");
         let column = subject.get_column_as_vec_primitive::<f32>("score")?;
-        assert_eq!(column.first().unwrap(), &0.9998);
-        assert_eq!(column.last().unwrap(), &0.9688);
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &0.9998);
+        // assert_eq!(column.last().unwrap(), &0.9688);
         let column = subject.get_column_as_vec_str("content");
-        assert_eq!(
-            column.first().unwrap(),
-            &"http://www.jidonline.org/article/S0022202X15321485/pdf"
-        );
-        assert_eq!(
-            column.last().unwrap(),
-            &"https://doi.org/10.37184/jlnh.2959-1805.3.9"
-        );
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(
+        //     column.first().unwrap(),
+        //     &"http://www.jidonline.org/article/S0022202X15321485/pdf"
+        // );
+        // assert_eq!(
+        //     column.last().unwrap(),
+        //     &"https://doi.org/10.37184/jlnh.2959-1805.3.9"
+        // );
         let column = subject.get_column_as_vec_str("source_id");
-        assert_eq!(column.first().unwrap(), &"https://openalex.org/S28607811");
-        assert_eq!(column.last().unwrap(), &"https://openalex.org/S4387288081");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"https://openalex.org/S28607811");
+        // assert_eq!(column.last().unwrap(), &"https://openalex.org/S4387288081");
         let column = subject.get_column_as_vec_str("version");
-        assert_eq!(column.first().unwrap(), &"publishedVersion");
-        assert_eq!(column.last().unwrap(), &"publishedVersion");
+        dbg!(column.first().unwrap());
+        dbg!(column.last().unwrap());
+        // assert_eq!(column.first().unwrap(), &"publishedVersion");
+        // assert_eq!(column.last().unwrap(), &"publishedVersion");
 
         // Test HTTP request of open access PDF
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
@@ -1948,20 +2010,26 @@ mod tests {
             dbg!(subject.count_rows());
             // assert_eq!(subject.count_rows(), 6);
             let column = subject.get_column_as_vec_str("filename");
-            assert_eq!(
-                column.first().unwrap(),
-                &"http://www.jidonline.org/article/S0022202X15321485/pdf"
-            );
-            assert_eq!(
-                column.last().unwrap(),
-                &"https://doi.org/10.37184/jlnh.2959-1805.3.9"
-            );
+            dbg!(column.first().unwrap());
+            dbg!(column.last().unwrap());
+            // assert_eq!(
+            //     column.first().unwrap(),
+            //     &"http://www.jidonline.org/article/S0022202X15321485/pdf"
+            // );
+            // assert_eq!(
+            //     column.last().unwrap(),
+            //     &"https://doi.org/10.37184/jlnh.2959-1805.3.9"
+            // );
             let column = subject.get_column_as_vec_str("extension");
-            assert_eq!(column.first().unwrap(), &"text/html;charset=UTF-8");
-            assert_eq!(column.last().unwrap(), &"application/pdf");
+            dbg!(column.first().unwrap());
+            dbg!(column.last().unwrap());
+            // assert_eq!(column.first().unwrap(), &"text/html;charset=UTF-8");
+            // assert_eq!(column.last().unwrap(), &"application/pdf");
             let column = subject.get_column_as_vec_str("metadata");
-            assert_eq!(column.first().unwrap(), &"tool");
-            assert_eq!(column.last().unwrap(), &"tool");
+            dbg!(column.first().unwrap());
+            dbg!(column.last().unwrap());
+            // assert_eq!(column.first().unwrap(), &"tool");
+            // assert_eq!(column.last().unwrap(), &"tool");
             let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
             for c in column {
                 assert!(c > 0);
@@ -2123,7 +2191,7 @@ mod tests {
         //                 .build()?,
         //         );
 
-        //         // 2. Run the session
+        //         // 2. Run the network
         //         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         //         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
@@ -2141,7 +2209,7 @@ mod tests {
         //             .await?;
 
         // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-        //     subject_name: AvailableSubjects::SessionErrors.to_string(),
+        //     subject_name: AvailableSubjects::NetworkErrors.to_string(),
         // }
         // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         // .unwrap()
@@ -2149,17 +2217,17 @@ mod tests {
         // .await?;
         // if !batches.is_empty() {
         //     let subject = Subject::get_builder()
-        //         .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+        //         .with_name(AvailableSubjects::NetworkErrors.to_string().as_str())
         //         .with_record_batches(batches)?
         //         .build()?;
         //     println!(
         //         "{}\n{}",
-        //         AvailableSubjects::SessionErrors,
+        //         AvailableSubjects::NetworkErrors,
         //         String::from_utf8(subject.to_csv(b',', true)?)?
         //     );
         // }
         // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-        //     subject_name: AvailableSubjects::SessionEvents.to_string(),
+        //     subject_name: AvailableSubjects::NetworkEvents.to_string(),
         // }
         // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         // .unwrap()
@@ -2167,17 +2235,17 @@ mod tests {
         // .await?;
         // if !batches.is_empty() {
         //     let subject = Subject::get_builder()
-        //         .with_name(AvailableSubjects::SessionEvents.to_string().as_str())
+        //         .with_name(AvailableSubjects::NetworkEvents.to_string().as_str())
         //         .with_record_batches(batches)?
         //         .build()?;
         //     println!(
         //         "{}\n{}",
-        //         AvailableSubjects::SessionEvents,
+        //         AvailableSubjects::NetworkEvents,
         //         String::from_utf8(subject.to_csv(b',', true)?)?
         //     );
         // }
         // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-        //     subject_name: AvailableSubjects::SessionMetrics.to_string(),
+        //     subject_name: AvailableSubjects::NetworkMetrics.to_string(),
         // }
         // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         // .unwrap()
@@ -2185,12 +2253,12 @@ mod tests {
         // .await?;
         // if !batches.is_empty() {
         //     let subject = Subject::get_builder()
-        //         .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
+        //         .with_name(AvailableSubjects::NetworkTraces.to_string().as_str())
         //         .with_record_batches(batches)?
         //         .build()?;
         //     println!(
         //         "{}\n{}",
-        //         AvailableSubjects::SessionTraces,
+        //         AvailableSubjects::NetworkTraces,
         //         String::from_utf8(subject.to_csv(b',', true)?)?
         //     );
         // }

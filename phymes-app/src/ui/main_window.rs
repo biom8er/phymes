@@ -54,7 +54,7 @@ pub fn main_window_view() -> Element {
 
     rsx! {
         main {
-            class: "w-screen h-screen bg-neutral-900 text-white flex flex-col sm:flex-row",
+            class: "w-screen h-screen bg-neutral-900 text-white flex flex-col sm:flex-row font-sans text-sm",
 
             // Responsive sidebar that is horizontal on mobile and vertical on large screens
             aside {
@@ -69,7 +69,7 @@ pub fn main_window_view() -> Element {
                         },
                         class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                         svg {
-                            class: "max-w-[48px] max-h-[48px]",
+                            class: "max-w-[24px] max-h-[24px]",
                             dangerous_inner_html: ms_person_icon_svg()
                         }
                     }
@@ -80,7 +80,7 @@ pub fn main_window_view() -> Element {
                             },
                             class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                             svg {
-                                class: "max-w-[48px] max-h-[48px]",
+                                class: "max-w-[24px] max-h-[24px]",
                                 dangerous_inner_html: ms_tools_icon_svg()
                             }
                         }
@@ -91,7 +91,7 @@ pub fn main_window_view() -> Element {
                             },
                             class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                             svg {
-                                class: "max-w-[48px] max-h-[48px]",
+                                class: "max-w-[24px] max-h-[24px]",
                                 dangerous_inner_html: ms_apps_icon_svg()
                             }
                         }
@@ -101,7 +101,7 @@ pub fn main_window_view() -> Element {
                             },
                             class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                             svg {
-                                class: "max-w-[48px] max-h-[48px]",
+                                class: "max-w-[24px] max-h-[24px]",
                                 dangerous_inner_html: ms_message_icon_svg()
                             }
                         }
@@ -111,7 +111,7 @@ pub fn main_window_view() -> Element {
                             },
                             class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                             svg {
-                                class: "max-w-[48px] max-h-[48px]",
+                                class: "max-w-[24px] max-h-[24px]",
                                 dangerous_inner_html: ms_attachment_icon_svg()
                             }
                         }
@@ -123,7 +123,7 @@ pub fn main_window_view() -> Element {
                             },
                             class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                             svg {
-                                class: "max-w-[48px] max-h-[48px]",
+                                class: "max-w-[24px] max-h-[24px]",
                                 dangerous_inner_html: ms_database_icon_svg()
                             }
                         }
@@ -133,7 +133,7 @@ pub fn main_window_view() -> Element {
                             },
                             class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                             svg {
-                                class: "max-w-[48px] max-h-[48px]",
+                                class: "max-w-[24px] max-h-[24px]",
                                 dangerous_inner_html: ms_top_speed_icon_svg()
                             }
                         }
@@ -147,7 +147,7 @@ pub fn main_window_view() -> Element {
                         },
                         class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                         svg {
-                            class: "max-w-[48px] max-h-[48px]",
+                            class: "max-w-[24px] max-h-[24px]",
                             dangerous_inner_html: aws_help_icon_svg()
                         }
                     }
@@ -157,7 +157,7 @@ pub fn main_window_view() -> Element {
                         rel: "noopener noreferrer",
                         class: "inline-flex p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                         svg {
-                            class: "max-w-[48px] max-h-[48px]",
+                            class: "max-w-[24px] max-h-[24px]",
                             dangerous_inner_html: b8_logo_icon_svg()
                         }
                     }
@@ -239,7 +239,7 @@ pub fn split_panel(
     top: Element,
     bottom: Element,
     #[props(default = SnapPct::Pct80)] initial_top_pct: SnapPct,
-    #[props(default = true)] horizontal: bool,
+    #[props(default = use_signal(|| true))] mut horizontal: Signal<bool>,
 ) -> Element {
     let mut top_pct = use_signal(|| initial_top_pct);
     let mut is_dragging = use_signal(|| false);
@@ -252,7 +252,7 @@ pub fn split_panel(
                 return;
             }
 
-            let dxy = if horizontal {
+            let dxy = if horizontal() {
                 evt.page_coordinates().y as f32 - start_y()
             } else {
                 evt.page_coordinates().x as f32 - start_y()
@@ -288,7 +288,7 @@ pub fn split_panel(
     let on_divider_mouse_down = {
         move |evt: MouseEvent| {
             is_dragging.set(true);
-            if horizontal {
+            if horizontal() {
                 start_y.set(evt.page_coordinates().y as f32);
             } else {
                 start_y.set(evt.page_coordinates().x as f32);
@@ -298,37 +298,58 @@ pub fn split_panel(
         }
     };
 
-    let (div_class, top_bottom_class, middle_class) = if horizontal {
-        ("flex flex-col h-full w-full", "w-full", "w-full h-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-row-resize")
-    } else {
-        ("flex flex-row h-full w-full", "h-full", "h-full w-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-col-resize")
+    let on_click = {
+        move |evt: MouseEvent| {
+            if horizontal() {
+                horizontal.set(false);
+            } else {
+                horizontal.set(true);
+            }
+            evt.prevent_default();
+        }
     };
 
-    let height_or_width = if horizontal { "height" } else { "width" };
-    let top_style = format!("{height_or_width}: {}%;", top_pct().as_f32());
-    let bottom_style = format!("{height_or_width}: {}%;", 100.0 - top_pct().as_f32());
+    let class_style = use_memo(move || {
+        let (div_class, top_bottom_class, middle_class) = if horizontal() {
+            ("flex flex-col h-full w-full", "w-full", "w-full h-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-row-resize")
+        } else {
+            ("flex flex-row h-full w-full", "h-full", "h-full w-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 active:bg-neutral-400 cursor-col-resize")
+        };
+
+        let height_or_width = if horizontal() { "height" } else { "width" };
+        let top_style = format!("{height_or_width}: {}%;", top_pct().as_f32());
+        let bottom_style = format!("{height_or_width}: {}%;", 100.0 - top_pct().as_f32());
+        (
+            div_class,
+            top_bottom_class,
+            middle_class,
+            top_style,
+            bottom_style,
+        )
+    });
 
     rsx! {
         div {
-            class: div_class,
+            class: class_style().0,
             // Attach global listeners via onmousemove/onmouseup on parent
             onmousemove: on_mouse_move,
             onmouseup: on_mouse_up,
 
             div {
-                class: top_bottom_class,
-                style: "{top_style}",
+                class: class_style().1,
+                style: class_style().3,
                 {top}
             }
 
             div {
-                class: middle_class,
+                class: class_style().2,
                 onmousedown: on_divider_mouse_down,
+                onclick: on_click,
             }
 
             div {
-                class: top_bottom_class,
-                style: "{bottom_style}",
+                class: class_style().1,
+                style: class_style().4,
                 {bottom}
             }
         }
@@ -361,12 +382,12 @@ pub fn about_text_modal() -> Element {
     ];
     let descriptions = [
         "(Hopefully 🤞) useful information for using PHYMES 😇. Please create an issue on GitHub https://github.com/biom8er/phymes/issues if you run into problems.",
-        "A list of undeployed session plans in the building phase. Each session is like a different app with different functionality and state. A schematic of the session plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new session plans.",
-        "A list of session plans available to the account. Each session is like a different app with different functionality and state. Only one session can be activated at a time.",
-        "The message history for the active session plan. A chat interface is provided for users to publish messages to the messages subject and to receive subscriptions from the messages subject when the messages subject is updated.",
-        "The attachment history for the active session plan. A file upload and download interface is provided for users to publish attachments to the attachments subject and to receive subscriptions from the attachments subjects when the attachments subjects are updated.",
-        "A list of subject associated with the active session plan. A table shows the schema of the subject tables along with the number if rows. The subject tables can be extended or replaced by uploading tables in comma deliminated CSV format with headers that match the subject. The subject tables can also be downloaded in comma deliminated CSV format. Note that all of the parameters for describing how processors process streaming messages are subject tables. Extending the subject tables for a processors parameters will update the processors parameters on the next run. Note that the message history is also a subject table. Extending the messages table is the equivalent of human in the loop.",
-        "The diagnostics for debugging and optimizing the active session plan. The diagnostic tools include logs, traces, and metrics. Traces track the flow of subject messages through tasks and processors. Events add context to enable building a comprehensive timeline of what happened, when it happened, and why it happened. Metrics focus on aggregating numerical data over time from events to provide an overview of system performance and resource utilization. Metrics are tracked per processor. Baseline metrics for row count, and processor start, stop, and total time in nanoseconds are provided. The baseline metrics are visually represented using mermaid.js gantt charts. Note each row is approximately one token for text generation inference processors. Please submit a feature request issue if additional metrics are of interest."
+        "A list of undeployed network plans in the building phase. Each network is like a different app with different functionality and state. A schematic of the network plan with all main components is rendered using mermaid.js. The mermaid.js script is provided in the footer, and can be modified to create new network plans.",
+        "A list of network plans available to the account. Each network is like a different app with different functionality and state. Only one network can be activated at a time.",
+        "The message history for the active network plan. A chat interface is provided for users to publish messages to the messages subject and to receive subscriptions from the messages subject when the messages subject is updated.",
+        "The attachment history for the active network plan. A file upload and download interface is provided for users to publish attachments to the attachments subject and to receive subscriptions from the attachments subjects when the attachments subjects are updated.",
+        "A list of subject associated with the active network plan. A table shows the schema of the subject tables along with the number if rows. The subject tables can be extended or replaced by uploading tables in comma deliminated CSV format with headers that match the subject. The subject tables can also be downloaded in comma deliminated CSV format. Note that all of the parameters for describing how processors process streaming messages are subject tables. Extending the subject tables for a processors parameters will update the processors parameters on the next run. Note that the message history is also a subject table. Extending the messages table is the equivalent of human in the loop.",
+        "The diagnostics for debugging and optimizing the active network plan. The diagnostic tools include logs, traces, and metrics. Traces track the flow of subject messages through tasks and processors. Events add context to enable building a comprehensive timeline of what happened, when it happened, and why it happened. Metrics focus on aggregating numerical data over time from events to provide an overview of system performance and resource utilization. Metrics are tracked per processor. Baseline metrics for row count, and processor start, stop, and total time in nanoseconds are provided. The baseline metrics are visually represented using mermaid.js gantt charts. Note each row is approximately one token for text generation inference processors. Please submit a feature request issue if additional metrics are of interest."
     ];
     let rows = items
         .into_iter()
@@ -404,7 +425,7 @@ pub fn about_text_modal() -> Element {
                                 class: "odd:bg-neutral-800 even:bg-neutral-900",
                                 td { "{item}" }
                                 td { svg {
-                                    class: "max-w-[48px] max-h-[48px]",
+                                    class: "max-w-[24px] max-h-[24px]",
                                     dangerous_inner_html: icon
                                 } }
                                 td { "{description}" }

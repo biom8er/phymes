@@ -691,7 +691,7 @@ mod tests {
             .into_iter()
             .flatten()
             .collect::<Vec<u8>>();
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
 
         // Check the extracted PDF contents
         let pdf_batch = extract_pdf(

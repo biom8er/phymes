@@ -27,7 +27,7 @@ use crate::SubscriptionTrait;
 ///   and the value is whether the table has been updated or not
 /// * `publications`
 /// * `runtime_env`
-/// * `session_name`
+/// * `network_name`
 /// * `messages`
 ///
 /// # Returns
@@ -36,7 +36,7 @@ pub fn subscribe_to_subject(
     subscriptions: &[Subscription],
     publications: &[Publication],
     runtime_env: &Arc<RuntimeEnv>,
-    session_name: &str,
+    network_name: &str,
     messages: &mut SendableRecordBatchStreamMessageMap,
 ) -> Result<SendableRecordBatchStreamMessageMap> {
     let mut map = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -60,7 +60,7 @@ pub fn subscribe_to_subject(
 
             // C. Get the subject
             let stream = subscription
-                .subscribe_to_subject(runtime_env, session_name)?
+                .subscribe_to_subject(runtime_env, network_name)?
                 .unwrap();
             let message = SendableRecordBatchStreamMessage::get_builder()
                 .with_publisher("Subjects")
@@ -177,7 +177,7 @@ mod tests {
                 subject.subject_own().get_record_batches_own(),
                 0,
                 "",
-                "test_session",
+                "test_network",
             )?
             .unwrap()
             .try_collect()
@@ -192,7 +192,7 @@ mod tests {
             &subscriptions,
             &publications,
             &runtime_env,
-            "test_session",
+            "test_network",
             &mut stream,
         )?;
         assert_eq!(messages.len(), 2);
@@ -242,7 +242,7 @@ mod tests {
             &subscriptions,
             &publications,
             &runtime_env,
-            "test_session",
+            "test_network",
             &mut stream,
         )?;
         assert_eq!(messages.len(), 3);
@@ -294,7 +294,7 @@ mod tests {
             &subscriptions,
             &publications,
             &runtime_env,
-            "test_session",
+            "test_network",
             &mut stream,
         )?;
         assert_eq!(messages.len(), 2);

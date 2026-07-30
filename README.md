@@ -79,10 +79,10 @@ Alternatively, you can make REST API requests against the server using e.g., `cu
 ```bash
 # Sign-in and get our JWT token
 curl -X POST -u EMAIL:PASSWORD http://localhost:4000/app/v1/sign_in
-# mock response {"email":"EMAIL","jwt":"JWTTOKEN","session_plans":["Chat","DocChat","ToolChat"]}
+# mock response {"email":"EMAIL","jwt":"JWTTOKEN","network_plans":["GenerateText","RAGTextPDF","TabularDataOps"]}
 
-# View a subject table from the session state
-curl -H "Content-Type: application/json" -H "Authorization: Bearer JWTTOKEN" -d '{"name":"","subject":"chat_processor_1","publisher":"EMAILChat","message":[],"update":"None","session_name":"EMAILChat","format":"Bytes","stream":false}' http://localhost:4000/app/v1/get_state
+# View a subject table from the network state
+curl -H "Content-Type: application/json" -H "Authorization: Bearer JWTTOKEN" -d '{"name":"","subject":"chat_processor_1","publisher":"EMAILChat","message":[],"update":"None","network_name":"EMAILChat","format":"Bytes","stream":false}' http://localhost:4000/app/v1/get_state
 
 # Chat request
 # Make the user query and encode into bytes
@@ -92,8 +92,8 @@ query_array=$(echo "$query_bytes" | xargs | tr ' ' ',')
 
 # Make the message to send to the server
 # Be sure to replace EMAIL with your actual email!
-# Note that the session_name = email + session_plan (which we also use for the publisher)
-message=$(printf '{"name":"query","subject":"UserMessages","publisher":"EMAILChat","message":[%s],"update":{"Extend":{"subject_name":"UserMessages"}},"session_name":"EMAILChat","format":"Bytes","stream":false}' "$query_array")
+# Note that the network_name = email + network_plan (which we also use for the publisher)
+message=$(printf '{"name":"query","subject":"UserMessages","publisher":"EMAILChat","message":[%s],"update":{"Extend":{"subject_name":"UserMessages"}},"network_name":"EMAILChat","format":"Bytes","stream":false}' "$query_array")
 
 # Make the chat request to the server
 # Be sure to replace JWTTOKEN with your actual JWT token!
@@ -129,10 +129,10 @@ WASM builds of `phymes-server` can be ran as stateless functions for embedded ap
 ```bash
 # Sign-in and get our JWT token
 wasmtime target/wasm32-wasip2/release/phymes-server.wasm --route app/v1/sign_in --basic-auth EMAIL:PASSWORD
-# mock response {"email":"EMAIL","jwt":"JWTTOKEN","session_plans":["Chat","DocChat","ToolChat"]}
+# mock response {"email":"EMAIL","jwt":"JWTTOKEN","network_plans":["GenerateText","RAGTextPDF","TabularDataOps"]}
 
-# View a subject table from the session state
-wasmtime --dir=$HOME/.cache target/wasm32-wasip2/release/phymes-server.wasm --route app/v1/get_state --bearer-auth JWTTOKEN --data '{"name":"","subject":"chat_processor_1","publisher":"EMAILChat","message":[],"update":"None","session_name":"EMAILChat","format":"Bytes","stream":false}'
+# View a subject table from the network state
+wasmtime --dir=$HOME/.cache target/wasm32-wasip2/release/phymes-server.wasm --route app/v1/get_state --bearer-auth JWTTOKEN --data '{"name":"","subject":"chat_processor_1","publisher":"EMAILChat","message":[],"update":"None","network_name":"EMAILChat","format":"Bytes","stream":false}'
 
 # Chat request
 # Be sure to replace JWTTOKEN with your actual JWT token!

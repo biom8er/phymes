@@ -51,8 +51,7 @@ impl MappableTrait for Filter {
 
 impl ToolTrait for Filter {
     fn get_description(&self) -> String {
-        "Filter by specified columns using a specified comparator operator over specified columns."
-            .to_string()
+        "Filter Apache Arrow `RecordBatch` columns.".to_string()
     }
     fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
@@ -60,16 +59,9 @@ impl ToolTrait for Filter {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
-                ..Default::default()
-            }),
-        );
-        properties.insert(
-            "lhs_pk".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
                 description: Some(
-                    "The primary key column identifier for the left hand side table".to_string(),
+                    "The name of the left hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
                 ),
                 ..Default::default()
             }),
@@ -79,7 +71,45 @@ impl ToolTrait for Filter {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "A list of value column identifiers for the left hand side table".to_string(),
+                    "The column names to filter on for the left hand side message".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "cmp_columns".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    "The comparator column names for the left hand side message".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "cmp_operators".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    r#"The comparator operator to apply to each cmp_column for the left hand side message.
+Available comparator operators for primitive types include `Equals`, `NotEquals`, `LessThanOrEqualTo`, `GreaterThanOrEqualTo`, `LessThan`, and `GreaterThan`.
+Available comparator operators for Nested and non-primitive types include `Contains`, `EndsWith`, `CaseInsensitiveLike`, `Like`, `CaseInsensitiveNotLike`, `NotLike`, `InList`, `InListUtf8`, `NotInList`, `NotInListUtf8`, `RegExpIsMatch`, and `StartsWith`."#.to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "cmp_predicate".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some(
+                    "Data Comparison predicates to evaluate parenthetic groups".to_string(),
+                ),
+                enum_values: Some(
+                    ["All", "Any"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
                 ),
                 ..Default::default()
             }),
@@ -92,8 +122,10 @@ impl ToolTrait for Filter {
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
-                    "lhs_pk".to_string(),
                     "lhs_values".to_string(),
+                    "cmp_columns".to_string(),
+                    "cmp_operators".to_string(),
+                    "cmp_predicate".to_string(),
                 ]),
             },
         };

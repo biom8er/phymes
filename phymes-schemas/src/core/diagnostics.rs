@@ -211,7 +211,7 @@ pub(crate) fn create_events_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-/// Get the metrics for a single session as a table
+/// Get the metrics for a single network as a table
 pub fn from_diagnostics_to_tables(
     diagnostics_vec: &[Diagnostics],
 ) -> Result<(Option<Subject>, Option<Subject>, Option<Subject>)> {
@@ -249,8 +249,8 @@ pub fn from_diagnostics_to_tables(
             .map(serde_json::Value::from)
             .collect::<Vec<_>>();
         let table = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionMetrics.to_string().as_str())
-            .with_schema(AvailableSubjects::SessionMetrics.to_schema())
+            .with_name(AvailableSubjects::NetworkMetrics.to_string().as_str())
+            .with_schema(AvailableSubjects::NetworkMetrics.to_schema())
             .with_json_values(&values)?
             .build()?;
         Some(table)
@@ -263,8 +263,8 @@ pub fn from_diagnostics_to_tables(
             .map(serde_json::Value::from)
             .collect::<Vec<_>>();
         let table = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
-            .with_schema(AvailableSubjects::SessionTraces.to_schema())
+            .with_name(AvailableSubjects::NetworkTraces.to_string().as_str())
+            .with_schema(AvailableSubjects::NetworkTraces.to_schema())
             .with_json_values(&values)?
             .build()?;
         Some(table)
@@ -277,8 +277,8 @@ pub fn from_diagnostics_to_tables(
             .map(serde_json::Value::from)
             .collect::<Vec<_>>();
         let table = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionEvents.to_string().as_str())
-            .with_schema(AvailableSubjects::SessionEvents.to_schema())
+            .with_name(AvailableSubjects::NetworkEvents.to_string().as_str())
+            .with_schema(AvailableSubjects::NetworkEvents.to_schema())
             .with_json_values(&values)?
             .build()?;
         Some(table)

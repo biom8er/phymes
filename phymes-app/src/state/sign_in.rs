@@ -7,7 +7,7 @@ pub struct SignInState {
     #[serde(flatten)]
     pub jwt: SyncJWTState,
     #[serde(flatten)]
-    pub session_names: SyncSessionNamesState,
+    pub network_names: SyncNetworkNamesState,
 }
 
 pub static JWT: GlobalSignal<String> = Signal::global(String::new);
@@ -41,22 +41,22 @@ pub async fn clear_jwt_state(mut rx: UnboundedReceiver<ClearJWTState>) {
 pub static SESSION_NAMES: GlobalSignal<Vec<String>> = Signal::global(Vec::new);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SyncSessionNamesState {
-    pub session_plans: Vec<String>,
+pub struct SyncNetworkNamesState {
+    pub network_plans: Vec<String>,
 }
 
-pub async fn sync_session_names_state(mut rx: UnboundedReceiver<SyncSessionNamesState>) {
+pub async fn sync_network_names_state(mut rx: UnboundedReceiver<SyncNetworkNamesState>) {
     while let Some(updated_state) = rx.next().await {
         (*SESSION_NAMES.write()).clear();
-        (*SESSION_NAMES.write()).extend(updated_state.session_plans);
+        (*SESSION_NAMES.write()).extend(updated_state.network_plans);
     }
     (*SESSION_NAMES.write()).sort();
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
-pub struct ClearSessionNamesState {}
+pub struct ClearNetworkNamesState {}
 
-pub async fn clear_session_names_state(mut rx: UnboundedReceiver<ClearSessionNamesState>) {
+pub async fn clear_network_names_state(mut rx: UnboundedReceiver<ClearNetworkNamesState>) {
     while let Some(_updated_state) = rx.next().await {
         (*SESSION_NAMES.write()).clear();
     }

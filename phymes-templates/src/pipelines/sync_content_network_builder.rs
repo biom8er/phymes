@@ -1,14 +1,14 @@
 use phymes_subject::ObjectStorageBackend;
 use serde_json::{Map, Value};
 
-/// A session to sync local object storage with remote object storage
+/// A network to sync local object storage with remote object storage
 ///
 /// # Notes
 /// - The syncing direction is unidirectional from remote to local
 /// - Add a second `SyncContentNetwork` and invert local and remote names
 ///   to sync remote with local to achieve bidirectional syncing
 pub struct SyncContentNetworkBuilder<'a> {
-    /// Session
+    /// Network
     pub network_name: &'a str,
     /// Local object store
     pub local_object_store_name: &'a str,
@@ -39,7 +39,7 @@ impl<'a> Default for SyncContentNetworkBuilder<'a> {
 }
 
 impl<'a> SyncContentNetworkBuilder<'a> {
-    /// Return the Mermaid.js flowchart representation of the session
+    /// Return the Mermaid.js flowchart representation of the network
     pub fn as_mermaid_flowchart(&self) -> String {
         let network_name = self.network_name;
         let local_object_store_name = self.local_object_store_name;
@@ -203,7 +203,7 @@ impl<'a> SyncContentNetworkBuilder<'a> {
 	%% ------------------------------------------------------------------------------"#
         )
     }
-    /// Return the Mermaid.js ER diagram representation of the session
+    /// Return the Mermaid.js ER diagram representation of the network
     pub fn as_mermaid_erdiagram(&self) -> String {
         let local_object_store_name = self.local_object_store_name;
         let local_object_store_backend = self.local_object_store_backend.to_string();
@@ -398,8 +398,8 @@ mod tests {
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
     use phymes_network::{
-        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
-        NetworkStream,
+        InvokeTaskNetworkBuilder, NetworkBuilder, NetworkBuilderAppsTrait,
+        NetworkBuilderMermaidTrait, NetworkBuilderTrait, NetworkStream,
     };
     use phymes_schemas::{create_bytes_record_batch, create_object_store_meta_batch};
     use phymes_streams::{ObjectStoreConfig, ObjectStoreOptsType};
@@ -409,8 +409,6 @@ mod tests {
     };
     use phymes_task::{PublicationTrait, SubscriptionTrait};
     use tempfile::TempDir;
-
-    use crate::InvokeTaskNetworkBuilder;
 
     use super::*;
 
@@ -428,7 +426,7 @@ mod tests {
         let remote_object_store_bucket = remote_tmp_dir.path().join("RemoteBucketWSubject");
         let _ = std::fs::create_dir(&remote_object_store_bucket);
 
-        // Initialize the session
+        // Initialize the network
         let sync_content_network = SyncContentNetworkBuilder {
             network_name: "sync_content_network",
             local_object_store_name,
@@ -439,7 +437,7 @@ mod tests {
             remote_object_store_bucket: Some(remote_object_store_bucket.to_str().unwrap()),
             ..Default::default()
         };
-        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
+        let (network, network_messages) = NetworkBuilder::from_mermaid_flowchart(
             &sync_content_network.as_mermaid_flowchart(),
             false,
         )?
@@ -462,7 +460,7 @@ mod tests {
 
         // Local data
         // DM: create mock data for deletion
-        // DM, todo!(): currently, there needs to be some entries in the local metadata subject for the session to run...
+        // DM, todo!(): currently, there needs to be some entries in the local metadata subject for the network to run...
         let store = make_store(
             &local_object_store_backend,
             Some(&local_object_store_bucket.to_str().unwrap().to_string()),
@@ -601,9 +599,9 @@ mod tests {
             );
         }
 
-        // Run the session
+        // Run the network
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
@@ -841,7 +839,7 @@ mod tests {
         let remote_object_store_bucket = remote_tmp_dir.path().join("RemoteBucketWOSubject");
         let _ = std::fs::create_dir(&remote_object_store_bucket);
 
-        // View task session
+        // View task network
         let tool_call_subject = format!("list_{remote_object_store_name}_p");
         let tool_call_subjects = [tool_call_subject.as_str()];
         let invoke_task_network =
@@ -857,7 +855,7 @@ mod tests {
         )?
         .with_name(invoke_task_network.network_name);
 
-        // Initialize the session
+        // Initialize the network
         let sync_content_network = SyncContentNetworkBuilder {
             network_name: "sync_content_network",
             local_object_store_name,
@@ -868,7 +866,7 @@ mod tests {
             remote_object_store_bucket: Some(remote_object_store_bucket.to_str().unwrap()),
             ..Default::default()
         };
-        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
+        let (network, network_messages) = NetworkBuilder::from_mermaid_flowchart(
             &sync_content_network.as_mermaid_flowchart(),
             false,
         )?
@@ -892,7 +890,7 @@ mod tests {
 
         // Local data
         // DM: create mock data for deletion
-        // DM, todo!(): currently, there needs to be some entries in the local metadata subject for the session to run...
+        // DM, todo!(): currently, there needs to be some entries in the local metadata subject for the network to run...
         let store = make_store(
             &local_object_store_backend,
             Some(&local_object_store_bucket.to_str().unwrap().to_string()),
@@ -1000,9 +998,9 @@ mod tests {
             );
         }
 
-        // Run the session
+        // Run the network
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;

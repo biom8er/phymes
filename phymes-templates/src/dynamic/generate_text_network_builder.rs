@@ -1,9 +1,9 @@
-/// A session for generating text in a structured format from a prompt
+/// A network for generating text in a structured format from a prompt
 ///   with support for tools
 ///
 /// # Notes
 pub struct GenerateTextNetworkBuilder<'a> {
-    /// Session
+    /// Network
     pub network_name: &'a str,
     /// The Asset to use for Text Generation and related parameters
     pub candle_asset: Option<String>,
@@ -15,6 +15,8 @@ pub struct GenerateTextNetworkBuilder<'a> {
     pub api_url: Option<String>,
     /// The processor to use for text generation
     pub chat_processor: &'a str,
+    /// Whether a tool message is required before text generation can run
+    pub tool_message_required: bool,
 }
 
 impl<'a> Default for GenerateTextNetworkBuilder<'a> {
@@ -29,7 +31,7 @@ impl<'a> Default for GenerateTextNetworkBuilder<'a> {
             api_url,
         ) = if cfg!(feature = "hf_hub") {
             (
-                Some("QwenV2p5_1p5bChat".to_string()),
+                Some("QwenV2p5_7bChat".to_string()),
                 None,
                 None,
                 None,
@@ -49,26 +51,48 @@ impl<'a> Default for GenerateTextNetworkBuilder<'a> {
             )
         } else {
             (
-                Some("SmolLM2_135MChat".to_string()),
+                Some("QwenV2p5_1p5bChat".to_string()),
                 None,
                 Some(format!(
-                    "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json",
+                    "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/config.json",
                     std::env::var("HOME").unwrap_or("".to_string())
                 )),
                 Some(format!(
-                    "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf",
+                    "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-1.5b-instruct-q4_k_m.gguf",
                     std::env::var("HOME").unwrap_or("".to_string())
                 )),
                 Some(format!(
-                    "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json",
+                    "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer.json",
                     std::env::var("HOME").unwrap_or("".to_string())
                 )),
                 Some(format!(
-                    "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
+                    "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer_config.json",
                     std::env::var("HOME").unwrap_or("".to_string())
                 )),
                 None,
             )
+            // DM: only usable for toy examples
+            // (
+            //     Some("SmolLM2_135MChat".to_string()),
+            //     None,
+            //     Some(format!(
+            //         "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json",
+            //         std::env::var("HOME").unwrap_or("".to_string())
+            //     )),
+            //     Some(format!(
+            //         "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf",
+            //         std::env::var("HOME").unwrap_or("".to_string())
+            //     )),
+            //     Some(format!(
+            //         "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json",
+            //         std::env::var("HOME").unwrap_or("".to_string())
+            //     )),
+            //     Some(format!(
+            //         "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
+            //         std::env::var("HOME").unwrap_or("".to_string())
+            //     )),
+            //     None,
+            // )
         };
         let chat_processor = if cfg!(all(feature = "api", not(feature = "candle"))) {
             "OpenAIChatProcessor"
@@ -85,6 +109,7 @@ impl<'a> Default for GenerateTextNetworkBuilder<'a> {
             tokenizer_file,
             api_url,
             chat_processor,
+            tool_message_required: false,
         }
     }
 }
@@ -100,6 +125,7 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
         tokenizer_file: Option<String>,
         tokenizer_config_file: Option<String>,
         api_url: Option<String>,
+        tool_message_required: bool,
     ) -> Self {
         let chat_processor = if cfg!(all(feature = "api", not(feature = "candle"))) {
             "OpenAIChatProcessor"
@@ -116,6 +142,7 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
             tokenizer_config_file,
             api_url,
             chat_processor,
+            tool_message_required,
         }
     }
     fn generate_text_inference_p(&self) -> String {
@@ -162,20 +189,23 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
         }
         lines.join("\n\t\t")
     }
-    /// Return the Mermaid.js flowchart representation of the session
+    /// Return the Mermaid.js flowchart representation of the network
     pub fn as_mermaid_flowchart(&self) -> String {
         let chat_processor = self.chat_processor;
+        let subscribe_policy = if self.tool_message_required {
+            "Any"
+        } else {
+            "ChatContentSubscribe"
+        };
         format!(
             r#"flowchart TD
 	%% ------------------------------------------------------------------------------
 	%% Message aggregation for text generation
-	%% 	ToolMessages-subject-.->|LastRecordBatch|aggregate_messages_generate_text_p-subscribe
-	%% 	SessionErrors-subject-.->|LastRecordBatch|aggregate_messages_generate_text_p-subscribe
 	%% ------------------------------------------------------------------------------
 	subgraph aggregate_messages_generate_text_t
 		UserMessages-subject-->|AllRecordBatches|aggregate_messages_generate_text_p-subscribe
 		ToolMessages-subject-.->|AllRecordBatches|aggregate_messages_generate_text_p-subscribe
-		SessionErrors-subject-.->|AllRecordBatches|aggregate_messages_generate_text_p-subscribe
+		NetworkErrors-subject-.->|AllRecordBatches|aggregate_messages_generate_text_p-subscribe
 		AssistantMessages-subject-->|AllRecordBatches|aggregate_messages_generate_text_p-subscribe
 		aggregate_messages_generate_text_p-subscribe-->aggregate_messages_generate_text_p-processor
 		aggregate_messages_generate_text_p-processor-->aggregate_messages_generate_text_p-publish
@@ -185,11 +215,11 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
 	generate_text_r-rt-->aggregate_messages_generate_text_t
 	UserMessages-subject@{{shape: doc, label: UserMessages}}
 	ToolMessages-subject@{{shape: doc, label: ToolMessages}}
-	SessionErrors-subject@{{shape: doc, label: SessionErrors}}
+	NetworkErrors-subject@{{shape: doc, label: NetworkErrors}}
 	AssistantMessages-subject@{{shape: doc, label: AssistantMessages}}
 	aggregate_messages_generate_text_p-processor@{{shape: rect, label: AggregatorProcessor}}
 	aggregate_messages_generate_text_p-publish@{{shape: fork}}
-	aggregate_messages_generate_text_p-subscribe@{{shape: diamond, label: ChatContentSubscribe}}
+	aggregate_messages_generate_text_p-subscribe@{{shape: diamond, label: {subscribe_policy}}}
 	aggregate_messages_generate_text_s-subject@{{shape: doc, label: aggregate_messages_generate_text_s}}
 	%% ------------------------------------------------------------------------------
 	%% Message aggregation for the UI
@@ -239,7 +269,7 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
         )
     }
 
-    /// Return the Mermaid.js ER diagram representation of the session
+    /// Return the Mermaid.js ER diagram representation of the network
     pub fn as_mermaid_erdiagram(&self) -> String {
         let generate_text_inference_p = self.generate_text_inference_p();
         let parse_generated_text_p = self.parse_generated_text_p();
@@ -255,7 +285,7 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
 	    Utf8 content
 	    Int64 timestamp
 	}}
-    SessionErrors["SessionErrors"] {{
+    NetworkErrors["NetworkErrors"] {{
         Utf8 role
         Utf8 content
         Int64 timestamp
@@ -348,7 +378,7 @@ mod tests {
     use phymes_streams::ChatBuilderTraitExt;
     use phymes_subject::{
         BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
-        SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait,
+        SubjectPlan, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait,
     };
     use phymes_task::SubscriptionTrait;
 
@@ -356,9 +386,9 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_generate_text_network_no_tools() -> Result<()> {
-        // Initialize the session
+        // Initialize the network
         let generate_text_network = GenerateTextNetworkBuilder::default();
-        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
+        let (network, network_messages) = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_network.as_mermaid_flowchart(),
             false,
         )?
@@ -391,16 +421,15 @@ mod tests {
 
         let message_map = create_message_map(vec![chat_message]);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
             all(not(feature = "candle"), feature = "wsl"),
-            all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
-            // Run the session
+            // Run the network
             let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
             let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
@@ -518,29 +547,8 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_generate_text_network_tool_call() -> Result<()> {
-        // Initialize the session
-        let generate_text_network = GenerateTextNetworkBuilder::new(
-            "generate_text_network",
-            Some("QwenV2p5_1p5bChat".to_string()),
-            None,
-            Some(format!(
-                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/config.json",
-                std::env::var("HOME").unwrap_or("".to_string())
-            )),
-            Some(format!(
-                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-1.5b-instruct-q4_k_m.gguf",
-                std::env::var("HOME").unwrap_or("".to_string())
-            )),
-            Some(format!(
-                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer.json",
-                std::env::var("HOME").unwrap_or("".to_string())
-            )),
-            Some(format!(
-                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer_config.json",
-                std::env::var("HOME").unwrap_or("".to_string())
-            )),
-            None,
-        );
+        // Initialize the network
+        let generate_text_network = GenerateTextNetworkBuilder::default();
         let mut network_builder = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_network.as_mermaid_flowchart(),
             false,
@@ -556,7 +564,7 @@ mod tests {
         .add_next_tasks()?
         .add_next_supersteps()?;
 
-        // Add the target tool subjects to the session for testing
+        // Add the target tool subjects to the network for testing
         let mut subjects = network_builder.subjects.take().unwrap();
         let tool = AvailableSubjects::Bytes
             .to_subject(Some(AvailableOperators::Sort.to_string().as_str()), None)?;
@@ -567,9 +575,9 @@ mod tests {
         )?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
 
-        let (network, session_messages) = network_builder
+        let (network, network_messages) = network_builder
             .with_subjects(subjects)
-            // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
+            // DM: needed for the network to build, the target tool subjects need to be called by at least 1 task
             .add_network_interface(Some(&[
                 AvailableOperators::Sort.to_string().as_str(),
                 AvailableOperators::HumanInTheLoop.to_string().as_str(),
@@ -617,138 +625,159 @@ mod tests {
 
         let message_map = create_message_map(vec![tool_message, chat_message]);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
             all(not(feature = "candle"), feature = "wsl"),
-            all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
-            // Run the session
+            // Run the network
             let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
             let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
-            assert_eq!(response.len(), 1); // Due to session interface
+            assert_eq!(response.len(), 1); // Due to network interface
 
-            {
-                // Test supsersteps
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                }
-                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
-                assert_eq!(batches.len(), 0);
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
-                }
-                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
-                assert_eq!(batches.len(), 0);
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
-                }
-                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
-                let subject = Subject::get_builder()
-                    .with_name(
-                        AvailableInterfaceSubjects::AggregatedMessages
-                            .to_string()
-                            .as_str(),
-                    )
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert_eq!(subject.count_rows(), 1);
-                let column = subject.get_column_as_vec_str("role");
-                assert_eq!(column.first().unwrap(), &"user");
-                let column = subject.get_column_as_vec_str("content");
-                assert_eq!(
-                    column.first().unwrap(),
-                    &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
-                );
-                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-                for t in column {
-                    assert!(t > 0);
-                }
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: "aggregate_messages_generate_text_s".to_string(),
-                }
-                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
-                let subject = Subject::get_builder()
-                    .with_name("aggregate_messages_generate_text_s")
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert_eq!(subject.count_rows(), 1);
-                let column = subject.get_column_as_vec_str("role");
-                assert_eq!(column.first().unwrap(), &"user");
-                let column = subject.get_column_as_vec_str("content");
-                assert_eq!(
-                    column.first().unwrap(),
-                    &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
-                );
-                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-                for t in column {
-                    assert!(t > 0);
-                }
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: "generate_text_inference_s".to_string(),
-                }
-                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
-                let subject = Subject::get_builder()
-                    .with_name("generate_text_inference_s")
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert!(subject.count_rows() > 1);
-                let column = subject.get_column_as_vec_str("role");
-                assert_eq!(column.first().unwrap(), &"assistant");
-                assert_eq!(column.last().unwrap(), &"assistant");
-                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-                for t in column {
-                    assert!(t > 0);
-                }
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableOperators::HumanInTheLoop.to_string(),
-                }
-                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
-                assert_eq!(batches.len(), 0);
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableOperators::Sort.to_string(),
-                }
-                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
-                let subject = Subject::get_builder()
-                    .with_name(AvailableOperators::Sort.to_string().as_str())
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert_eq!(subject.count_rows(), 1);
-                let column = subject
-                    .get_column_as_vec_nested_primitive::<u8>("bytes")?
-                    .into_iter()
-                    .map(|b| String::from_utf8(b).unwrap())
-                    .collect::<Vec<_>>();
-                assert_eq!(
-                    column.first().unwrap(),
-                    &"{\"lhs_name\":\"available_data_1\",\"lhs_pk\":\"lhs_pk\",\"lhs_values\":[\"score\"],\"operator\":\"Sort\"}"
-                );
+            // Test supsersteps
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
             }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(
+                    AvailableInterfaceSubjects::AssistantMessages
+                        .to_string()
+                        .as_str(),
+                )
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 1);
+            let column = subject.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"assistant");
+            let column = subject.get_column_as_vec_str("content");
+            assert_eq!(
+                column.first().unwrap(),
+                &"<tool_call>\n{\"name\": \"Sort\", \"arguments\": {\"asc\": true, \"lhs_name\": \"available_data_1\", \"lhs_pk\": \"lhs_pk\", \"lhs_values\": [\"score\"]}}\n</tool_call>"
+            );
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for t in column {
+                assert!(t > 0);
+            }
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            assert_eq!(batches.len(), 0);
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(
+                    AvailableInterfaceSubjects::AggregatedMessages
+                        .to_string()
+                        .as_str(),
+                )
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 2);
+            let column = subject.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"user");
+            assert_eq!(column.last().unwrap(), &"assistant");
+            let column = subject.get_column_as_vec_str("content");
+            assert_eq!(
+                column.first().unwrap(),
+                &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
+            );
+            assert_eq!(
+                column.last().unwrap(),
+                &"<tool_call>\n{\"name\": \"Sort\", \"arguments\": {\"asc\": true, \"lhs_name\": \"available_data_1\", \"lhs_pk\": \"lhs_pk\", \"lhs_values\": [\"score\"]}}\n</tool_call>"
+            );
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for t in column {
+                assert!(t > 0);
+            }
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "aggregate_messages_generate_text_s".to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("aggregate_messages_generate_text_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 1);
+            let column = subject.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"user");
+            let column = subject.get_column_as_vec_str("content");
+            assert_eq!(
+                column.first().unwrap(),
+                &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
+            );
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for t in column {
+                assert!(t > 0);
+            }
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "generate_text_inference_s".to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("generate_text_inference_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert!(subject.count_rows() > 1);
+            let column = subject.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"assistant");
+            assert_eq!(column.last().unwrap(), &"assistant");
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for t in column {
+                assert!(t > 0);
+            }
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableOperators::HumanInTheLoop.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            assert_eq!(batches.len(), 0);
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableOperators::Sort.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableOperators::Sort.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 1);
+            let column = subject
+                .get_column_as_vec_nested_primitive::<u8>("bytes")?
+                .into_iter()
+                .map(|b| String::from_utf8(b).unwrap())
+                .collect::<Vec<_>>();
+            assert_eq!(
+                column.first().unwrap(),
+                &"{\"asc\":true,\"lhs_name\":\"available_data_1\",\"lhs_pk\":\"lhs_pk\",\"lhs_values\":[\"score\"],\"operator\":\"Sort\"}"
+            );
         }
         Ok(())
     }
@@ -756,7 +785,7 @@ mod tests {
     // #[ignore = "Failing on WASM for unknown reason..."]
     #[tokio::test(flavor = "current_thread")]
     async fn test_generate_text_network_tool_response() -> Result<()> {
-        // Initialize the session
+        // Initialize the network
         let generate_text_network = GenerateTextNetworkBuilder::default();
         let mut network_builder = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_network.as_mermaid_flowchart(),
@@ -773,7 +802,7 @@ mod tests {
         .add_next_tasks()?
         .add_next_supersteps()?;
 
-        // Add the target tool subjects to the session for testing
+        // Add the target tool subjects to the network for testing
         let mut subjects = network_builder.subjects.take().unwrap();
         let tool = AvailableSubjects::Bytes
             .to_subject(Some(AvailableOperators::Sort.to_string().as_str()), None)?;
@@ -783,9 +812,9 @@ mod tests {
             None,
         )?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
-        let (network, session_messages) = network_builder
+        let (network, network_messages) = network_builder
             .with_subjects(subjects)
-            // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
+            // DM: needed for the network to build, the target tool subjects need to be called by at least 1 task
             .add_network_interface(Some(&[
                 AvailableOperators::Sort.to_string().as_str(),
                 AvailableOperators::HumanInTheLoop.to_string().as_str(),
@@ -847,139 +876,142 @@ mod tests {
 
         let message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
             all(not(feature = "candle"), feature = "wsl"),
-            all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
-            // Run the session
+            // Run the network
             let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
             let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
             assert_eq!(response.len(), 2);
 
-            {
-                // Test supsersteps
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                }
-                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
-                let subject = Subject::get_builder()
-                    .with_name(
-                        AvailableInterfaceSubjects::AssistantMessages
-                            .to_string()
-                            .as_str(),
-                    )
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert_eq!(subject.count_rows(), 1);
-                let column = subject.get_column_as_vec_str("role");
-                assert_eq!(column.first().unwrap(), &"assistant");
-                let column = subject.get_column_as_vec_str("content");
-                let assistant_content = column.first().unwrap();
-                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-                for t in column {
-                    assert!(t > 0);
-                }
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
-                }
-                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
-                let subject = Subject::get_builder()
-                    .with_name(
-                        AvailableInterfaceSubjects::AggregatedMessages
-                            .to_string()
-                            .as_str(),
-                    )
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert_eq!(subject.count_rows(), 2);
-                let column = subject.get_column_as_vec_str("role");
-                assert_eq!(column.first().unwrap(), &"user");
-                assert_eq!(column.last().unwrap(), &"assistant");
-                let column = subject.get_column_as_vec_str("content");
-                assert_eq!(
-                    column.first().unwrap(),
-                    &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
-                );
-                assert_eq!(column.last().unwrap(), assistant_content);
-                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-                for t in column {
-                    assert!(t > 0);
-                }
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: "aggregate_messages_generate_text_s".to_string(),
-                }
-                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
-                let subject = Subject::get_builder()
-                    .with_name("aggregate_messages_generate_text_s")
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert_eq!(subject.count_rows(), 2);
-                let column = subject.get_column_as_vec_str("role");
-                assert_eq!(column.first().unwrap(), &"user");
-                assert_eq!(column.last().unwrap(), &"tool");
-                let column = subject.get_column_as_vec_str("content");
-                assert_eq!(
-                    column.first().unwrap(),
-                    &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
-                );
-                assert_eq!(
-                    column.last().unwrap(),
-                    &"[{\"lhs_pk\":\"c\",\"score\":1.0}, {\"lhs_pk\":\"b\",\"score\":2.0}, {\"lhs_pk\":\"a\",\"score\":3.0}]"
-                );
-                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-                for t in column {
-                    assert!(t > 0);
-                }
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: "generate_text_inference_s".to_string(),
-                }
-                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
-                let subject = Subject::get_builder()
-                    .with_name("generate_text_inference_s")
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert!(subject.count_rows() > 1);
-                let column = subject.get_column_as_vec_str("role");
-                assert_eq!(column.first().unwrap(), &"assistant");
-                assert_eq!(column.last().unwrap(), &"assistant");
-                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-                for t in column {
-                    assert!(t > 0);
-                }
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableOperators::Sort.to_string(),
-                }
-                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
-                assert_eq!(batches.len(), 0);
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableOperators::HumanInTheLoop.to_string(),
-                }
-                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
-                assert_eq!(batches.len(), 0);
+            // Test supsersteps
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "aggregate_messages_generate_text_s".to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("aggregate_messages_generate_text_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 2);
+            let column = subject.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"user");
+            assert_eq!(column.last().unwrap(), &"tool");
+            let column = subject.get_column_as_vec_str("content");
+            assert_eq!(
+                column.first().unwrap(),
+                &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
+            );
+            assert_eq!(
+                column.last().unwrap(),
+                &"[{\"lhs_pk\":\"c\",\"score\":1.0}, {\"lhs_pk\":\"b\",\"score\":2.0}, {\"lhs_pk\":\"a\",\"score\":3.0}]"
+            );
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for t in column {
+                assert!(t > 0);
+            }
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "generate_text_inference_s".to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("generate_text_inference_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert!(subject.count_rows() > 1);
+            let column = subject.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"assistant");
+            assert_eq!(column.last().unwrap(), &"assistant");
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for t in column {
+                assert!(t > 0);
+            }
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableOperators::Sort.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            assert_eq!(batches.len(), 1);
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableOperators::HumanInTheLoop.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            assert_eq!(batches.len(), 0);
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(
+                    AvailableInterfaceSubjects::AssistantMessages
+                        .to_string()
+                        .as_str(),
+                )
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 1);
+            let column = subject.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"assistant");
+            let column = subject.get_column_as_vec_str("content");
+            assert_eq!(
+                column.first().unwrap(),
+                &"<tool_call>\n{\"name\": \"Sort\", \"arguments\": {\"asc\": true, \"lhs_name\": \"available_data_1\", \"lhs_pk\": \"c\", \"lhs_values\": [\"score\"]}}\n</tool_call>"
+            );
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for t in column {
+                assert!(t > 0);
+            }
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(
+                    AvailableInterfaceSubjects::AggregatedMessages
+                        .to_string()
+                        .as_str(),
+                )
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 2);
+            let column = subject.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"user");
+            assert_eq!(column.last().unwrap(), &"assistant");
+            let column = subject.get_column_as_vec_str("content");
+            assert_eq!(
+                column.first().unwrap(),
+                &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
+            );
+            assert_eq!(
+                column.last().unwrap(),
+                &"<tool_call>\n{\"name\": \"Sort\", \"arguments\": {\"asc\": true, \"lhs_name\": \"available_data_1\", \"lhs_pk\": \"c\", \"lhs_values\": [\"score\"]}}\n</tool_call>"
+            );
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for t in column {
+                assert!(t > 0);
             }
         }
         Ok(())
@@ -987,29 +1019,8 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_generate_text_network_error_response() -> Result<()> {
-        // Initialize the session
-        let generate_text_network = GenerateTextNetworkBuilder::new(
-            "generate_text_network",
-            Some("QwenV2p5_1p5bChat".to_string()),
-            None,
-            Some(format!(
-                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/config.json",
-                std::env::var("HOME").unwrap_or("".to_string())
-            )),
-            Some(format!(
-                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-1.5b-instruct-q4_k_m.gguf",
-                std::env::var("HOME").unwrap_or("".to_string())
-            )),
-            Some(format!(
-                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer.json",
-                std::env::var("HOME").unwrap_or("".to_string())
-            )),
-            Some(format!(
-                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer_config.json",
-                std::env::var("HOME").unwrap_or("".to_string())
-            )),
-            None,
-        );
+        // Initialize the network
+        let generate_text_network = GenerateTextNetworkBuilder::default();
         let mut network_builder = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_network.as_mermaid_flowchart(),
             false,
@@ -1025,7 +1036,7 @@ mod tests {
         .add_next_tasks()?
         .add_next_supersteps()?;
 
-        // Add the target tool subjects to the session for testing
+        // Add the target tool subjects to the network for testing
         let mut subjects = network_builder.subjects.take().unwrap();
         let tool = AvailableSubjects::Bytes
             .to_subject(Some(AvailableOperators::Sort.to_string().as_str()), None)?;
@@ -1035,9 +1046,9 @@ mod tests {
             None,
         )?;
         subjects.push(SubjectPlan::get_builder().with_subject(tool).build()?);
-        let (network, session_messages) = network_builder
+        let (network, network_messages) = network_builder
             .with_subjects(subjects)
-            // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
+            // DM: needed for the network to build, the target tool subjects need to be called by at least 1 task
             .add_network_interface(Some(&[
                 AvailableOperators::Sort.to_string().as_str(),
                 AvailableOperators::HumanInTheLoop.to_string().as_str(),
@@ -1084,7 +1095,7 @@ mod tests {
             .build()?;
 
         // Error response
-        let tool = AvailableSubjects::SessionErrors.to_subject_builder(None)
+        let tool = AvailableSubjects::NetworkErrors.to_subject_builder(None)
             .append_new_user_query_str("lhs_name `available_data_1` was not found. Available options are [`available_data_0`, `available_data_2`, `available_data_3`].", "tool")?
             .build()?;
         let tool_response = IPCMessage::get_builder()
@@ -1099,16 +1110,15 @@ mod tests {
 
         let message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
             all(not(feature = "candle"), feature = "wsl"),
-            all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
-            // Run the session
+            // Run the network
             let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
             let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
@@ -1137,10 +1147,10 @@ mod tests {
                 assert_eq!(column.first().unwrap(), &"assistant");
                 let column = subject.get_column_as_vec_str("content");
                 let assistant_content = column.first().unwrap();
-                // assert!(assistant_content.contains("available_data_0")); //DM : response does not always contain the available subjects
-                assert!(assistant_content.contains("available_data_1"));
-                // assert!(assistant_content.contains("available_data_2"));
-                // assert!(assistant_content.contains("available_data_3"));
+                assert!(assistant_content.contains("available_data_0")); //DM : response does not always contain the available subjects
+                // assert!(assistant_content.contains("available_data_1")); //DM : response does not always contain the subject that could not be found
+                assert!(assistant_content.contains("available_data_2"));
+                assert!(assistant_content.contains("available_data_3"));
                 let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
@@ -1239,6 +1249,239 @@ mod tests {
                 assert_eq!(batches.len(), 0);
             }
         }
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_mermaid_generate_text_network_with_configs_and_network() -> Result<()> {
+        // initialize the network
+        let generate_text_network = GenerateTextNetworkBuilder::default();
+        let builder = NetworkBuilder::from_mermaid_flowchart(
+            &generate_text_network.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_subjects_from_mermaid_erdiagram(
+            &generate_text_network.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
+        .with_name(generate_text_network.network_name)
+        .add_processor_subjects()?
+        .add_network_interface(None)?;
+
+        // Make the flowchart and erdiagram
+        let flowchart = builder.to_mermaid_flowchart(true, true)?;
+        let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
+
+        // Remake the builder
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?;
+
+        // Test that the names match
+        assert_eq!(builder_test.tasks, builder.tasks);
+        let mut test = builder_test
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+
+        // Test the order of the processors
+        let test = builder_test
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        let expected = builder
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        assert_eq!(test, expected);
+
+        // Test that we can build the network
+        let _ = builder_test.with_name("network_1").build()?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_mermaid_generate_text_network_without_configs_and_network() -> Result<()> {
+        // initialize the network
+        let generate_text_network = GenerateTextNetworkBuilder::default();
+        let builder = NetworkBuilder::from_mermaid_flowchart(
+            &generate_text_network.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_subjects_from_mermaid_erdiagram(
+            &generate_text_network.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
+        .with_name(generate_text_network.network_name)
+        .add_processor_subjects()?
+        .add_network_interface(None)?;
+
+        // Make the flowchart and erdiagram
+        let flowchart = builder.to_mermaid_flowchart(false, false)?;
+        let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
+
+        // Remake the builder
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?
+            .with_name(generate_text_network.network_name)
+            .add_processor_subjects()?
+            .add_network_interface(None)?;
+
+        // Test that the names match
+        assert_eq!(builder_test.tasks, builder.tasks);
+        let mut test = builder_test
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+
+        // Test the order of the processors
+        let test = builder_test
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        let expected = builder
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        assert_eq!(test, expected);
+
+        // Test that we can build the network
+        let _ = builder_test.build()?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_mermaid_generate_text_network_with_data() -> Result<()> {
+        // initialize the network
+        let generate_text_network = GenerateTextNetworkBuilder::default();
+        let builder = NetworkBuilder::from_mermaid_flowchart(
+            &generate_text_network.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_subjects_from_mermaid_erdiagram(
+            &generate_text_network.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
+        .with_name(generate_text_network.network_name)
+        .add_processor_subjects()?
+        .add_network_interface(None)?;
+
+        // Make the flowchart and erdiagram
+        let flowchart = builder.to_mermaid_flowchart(false, false)?;
+        let erdiagram = builder.to_mermaid_erdiagram(false, true)?;
+
+        // Remake the builder
+        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, true)?
+            .with_name(generate_text_network.network_name)
+            .add_processor_subjects()?
+            .add_network_interface(None)?;
+
+        // Test that the names match
+        assert_eq!(builder_test.tasks, builder.tasks);
+        let mut test = builder_test
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        test.sort();
+        let mut expected = builder
+            .get_subject_names_from_processors()
+            .into_iter()
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(test, expected);
+
+        // Test the order of the processors
+        let test = builder_test
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        let expected = builder
+            .processors
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|p| p.get_name())
+            .collect::<Vec<_>>();
+        assert_eq!(test, expected);
+
+        // Test that the schemas match
+        {
+            let test = builder_test
+                .subjects
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|p| (p.get_name(), p.subject().get_schema()))
+                .collect::<HashMap<_, _>>();
+            let expected = builder
+                .subjects
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|p| (p.get_name(), p.subject().get_schema()))
+                .collect::<HashMap<_, _>>();
+            for key in expected.keys() {
+                assert!(expected.get(key).eq(&test.get(key)));
+            }
+        }
+
+        // Test that the first row was captured
+        for table in builder_test.subjects.as_ref().unwrap().iter() {
+            if builder_test
+                .get_processor_names_from_tasks()
+                .contains(table.get_name())
+                && !builder_test
+                    .tasks
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .map(|t| t.task_name.as_str())
+                    .collect::<Vec<_>>()
+                    .contains(&table.get_name())
+            {
+                assert_eq!(table.subject().count_rows(), 1)
+            } else {
+                assert_eq!(table.subject().count_rows(), 0)
+            }
+        }
+
+        // Test that we can build the network
+        let _ = builder_test.build()?;
+
         Ok(())
     }
 }

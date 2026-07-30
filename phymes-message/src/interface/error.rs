@@ -19,7 +19,7 @@ pub fn create_error_message_map_stream(
         .with_subject(table.get_name())
         .with_publisher(publisher)
         .with_update(&Publication::Extend {
-            subject_name: AvailableSubjects::SessionErrors.to_string(),
+            subject_name: AvailableSubjects::NetworkErrors.to_string(),
         })
         .with_message(table.to_record_batch_stream())
         .make_name()?
@@ -39,7 +39,7 @@ pub fn create_error_message_map(
         .with_subject(table.get_name())
         .with_publisher(publisher)
         .with_update(&Publication::Extend {
-            subject_name: AvailableSubjects::SessionErrors.to_string(),
+            subject_name: AvailableSubjects::NetworkErrors.to_string(),
         })
         .with_message(table.to_ipc_stream()?)
         .make_random_name()?

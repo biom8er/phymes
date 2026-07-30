@@ -4,7 +4,7 @@
 ///
 /// * Does not consider pre-filtering by ontology before vector search
 pub struct ExtractOntologyNetworkBuilder<'a> {
-    /// Session
+    /// Network
     pub network_name: &'a str,
     /// Is the output Documents or Queries?
     pub as_documents: bool,
@@ -23,7 +23,7 @@ impl<'a> Default for ExtractOntologyNetworkBuilder<'a> {
 }
 
 impl<'a> ExtractOntologyNetworkBuilder<'a> {
-    /// Return the Mermaid.js flowchart representation of the session
+    /// Return the Mermaid.js flowchart representation of the network
     pub fn as_mermaid_flowchart(&self) -> String {
         let subject_o = if self.as_documents {
             "Documents"
@@ -957,6 +957,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
         Utf8 doc_filter "Default"
         Utf8 doc_extraction "Default"
         Utf8 lhs_name "UserScript"
+        Utf8 lhs_pk "filename",
         List-Utf8 lhs_values "['bytes']"
         Utf8 operator "ExtractXML"
         Utf8 lhs_stream "Stream"
@@ -1265,7 +1266,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 agg_columns "['object']"
 	    List-Utf8 agg_operators "['First']"
 	    Boolean cpu "true"
-	    List-Utf8 default_values "['']"
+	    List-Utf8 cast_templates "['']"
 	    Utf8 lhs_name "select_predicate_annotation_property_entity_s"
 	    List-Utf8 lhs_values "['subject']"
 	    Utf8 operator "Pivot"
@@ -1346,7 +1347,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 agg_columns "['object']"
 	    List-Utf8 agg_operators "['First']"
 	    Boolean cpu "true"
-	    List-Utf8 default_values "['']"
+	    List-Utf8 cast_templates "['']"
 	    Utf8 lhs_name "select_predicate_class_entity_s"
 	    List-Utf8 lhs_values "['subject']"
 	    Utf8 operator "Pivot"
@@ -1426,7 +1427,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 agg_columns "['object']"
 	    List-Utf8 agg_operators "['First']"
 	    Boolean cpu "true"
-	    List-Utf8 default_values "['']"
+	    List-Utf8 cast_templates "['']"
 	    Utf8 lhs_name "select_predicate_object_property_entity_s"
 	    List-Utf8 lhs_values "['subject']"
 	    Utf8 operator "Pivot"
@@ -1506,7 +1507,7 @@ impl<'a> ExtractOntologyNetworkBuilder<'a> {
 	    List-Utf8 agg_columns "['object']"
 	    List-Utf8 agg_operators "['First']"
 	    Boolean cpu "true"
-	    List-Utf8 default_values "['']"
+	    List-Utf8 cast_templates "['']"
 	    Utf8 lhs_name "select_predicate_named_individual_entity_s"
 	    List-Utf8 lhs_values "['subject']"
 	    Utf8 operator "Pivot"
@@ -1931,18 +1932,18 @@ mod tests {
 
     #[tokio::test]
     async fn test_extract_ontology_network() -> Result<()> {
-        // Initialize the session
-        let extract_onto_session = ExtractOntologyNetworkBuilder::default();
-        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
-            &extract_onto_session.as_mermaid_flowchart(),
+        // Initialize the network
+        let extract_onto_network = ExtractOntologyNetworkBuilder::default();
+        let (network, network_messages) = NetworkBuilder::from_mermaid_flowchart(
+            &extract_onto_network.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            &extract_onto_session.as_mermaid_erdiagram(),
+            &extract_onto_network.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(extract_onto_session.network_name)
+        .with_name(extract_onto_network.network_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
@@ -2049,12 +2050,12 @@ mod tests {
             .with_update(&Publication::Replace {
                 subject_name: AvailableInterfaceSubjects::UserScript.to_string(),
             })
-            .with_publisher(extract_onto_session.network_name)
+            .with_publisher(extract_onto_network.network_name)
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![owl_message]);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
         // Run the first superstep
@@ -2118,8 +2119,8 @@ mod tests {
                 &"http://purl.obolibrary.org/obo/ro.owl-http://purl.org/dc/terms/title-OBO Relations Ontology"
             );
             let column = subject.get_column_as_vec_str("dataset");
-            assert_eq!(column.first().unwrap(), &"UserScript");
-            assert_eq!(column.last().unwrap(), &"UserScript");
+            assert_eq!(column.first().unwrap(), &"attachment");
+            assert_eq!(column.last().unwrap(), &"attachment");
         }
 
         // Run the second superstep
@@ -2186,8 +2187,8 @@ mod tests {
                 &"http://purl.obolibrary.org/obo/ro.owl-http://purl.org/dc/terms/title-OBO Relations Ontology"
             );
             let column = subject.get_column_as_vec_str("dataset");
-            assert_eq!(column.first().unwrap(), &"UserScript");
-            assert_eq!(column.last().unwrap(), &"UserScript");
+            assert_eq!(column.first().unwrap(), &"attachment");
+            assert_eq!(column.last().unwrap(), &"attachment");
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_annotation_property_entity_s".to_string(),
             }
@@ -2243,8 +2244,8 @@ mod tests {
                 &"http://www.w3.org/2000/01/rdf-schema#subPropertyOf-http://www.w3.org/2000/01/rdf-schema#label-subPropertyOf"
             );
             let column = subject.get_column_as_vec_str("dataset");
-            assert_eq!(column.first().unwrap(), &"UserScript");
-            assert_eq!(column.last().unwrap(), &"UserScript");
+            assert_eq!(column.first().unwrap(), &"attachment");
+            assert_eq!(column.last().unwrap(), &"attachment");
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_datatype_property_entity_s".to_string(),
             }
@@ -2308,8 +2309,8 @@ mod tests {
                 &"http://purl.obolibrary.org/obo/BFO_0000003-http://www.w3.org/2000/01/rdf-schema#label-occurrent"
             );
             let column = subject.get_column_as_vec_str("dataset");
-            assert_eq!(column.first().unwrap(), &"UserScript");
-            assert_eq!(column.last().unwrap(), &"UserScript");
+            assert_eq!(column.first().unwrap(), &"attachment");
+            assert_eq!(column.last().unwrap(), &"attachment");
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_object_property_entity_s".to_string(),
             }
@@ -2365,8 +2366,8 @@ mod tests {
                 &"http://purl.obolibrary.org/obo/RO_0002131-http://www.w3.org/2000/01/rdf-schema#label-overlaps"
             );
             let column = subject.get_column_as_vec_str("dataset");
-            assert_eq!(column.first().unwrap(), &"UserScript");
-            assert_eq!(column.last().unwrap(), &"UserScript");
+            assert_eq!(column.first().unwrap(), &"attachment");
+            assert_eq!(column.last().unwrap(), &"attachment");
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_named_individual_entity_s".to_string(),
             }
@@ -2405,7 +2406,7 @@ mod tests {
                 &"http://purl.obolibrary.org/obo/ENVO_01001569-http://www.w3.org/2000/01/rdf-schema#label-Western Australian Mulga Shrublands Ecoregion"
             );
             let column = subject.get_column_as_vec_str("dataset");
-            assert_eq!(column.first().unwrap(), &"UserScript");
+            assert_eq!(column.first().unwrap(), &"attachment");
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_axiom_entity_s".to_string(),
             }
@@ -2879,8 +2880,8 @@ mod tests {
             );
             let mut column = subject.get_column_as_vec_str("document_id");
             column.sort();
-            assert_eq!(column.first().unwrap(), &"UserScript");
-            assert_eq!(column.last().unwrap(), &"UserScript");
+            assert_eq!(column.first().unwrap(), &"attachment");
+            assert_eq!(column.last().unwrap(), &"attachment");
             let mut column = subject.get_column_as_vec_str("text");
             column.sort();
             assert_eq!(

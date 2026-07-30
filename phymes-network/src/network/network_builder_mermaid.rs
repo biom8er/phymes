@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    Network, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderTrait,
-    core::{NextSuperstepNetwork, NextTaskNetwork},
+    InvokeTaskNetworkBuilder, Network, NetworkBuilder, NetworkBuilderAppsTrait,
+    NetworkBuilderTabularTrait, NetworkBuilderTrait, TaskResponseNetworkBuilder,
 };
 use anyhow::{Result, anyhow};
 use arrow::{
@@ -31,11 +31,11 @@ use serde_json::Map;
 
 /// Trait extension for [NetworkBuilderTrait] to enable exporting to and importing from mermaid.js
 pub trait NetworkBuilderMermaidTrait {
-    /// Make a mermaid.js flowchart of the session
+    /// Make a mermaid.js flowchart of the network
     ///
     /// # Arguments
     /// * `with_processor_configs` - whether to add the processor config subjects to the diagram
-    /// * `with_session_interface` - whether to add the session interface tasks, processors, and runtime environments to the diagram
+    /// * `with_network_interface` - whether to add the network interface tasks, processors, and runtime environments to the diagram
     /// * `with_next_tasks` - whether to add the tasks subscribe and publish tasks, processors, and runtime environments to the diagram
     ///
     /// # Notes
@@ -44,10 +44,10 @@ pub trait NetworkBuilderMermaidTrait {
     fn to_mermaid_flowchart(
         &self,
         with_processor_configs: bool,
-        with_session_interface: bool,
+        with_network_interface: bool,
     ) -> Result<String>;
 
-    /// Make a mermaid.js erDiagram of the session
+    /// Make a mermaid.js erDiagram of the network
     ///
     /// # Arguments
     /// * `with_example_data` - whether to add last row of data as an example to the diagram
@@ -58,7 +58,7 @@ pub trait NetworkBuilderMermaidTrait {
         with_processor_config_data: bool,
     ) -> Result<String>;
 
-    /// Create a session builder from a mermaid flowchart
+    /// Create a network builder from a mermaid flowchart
     ///
     /// # Arguments
     /// * `flowchart`: the flowchart diagram String
@@ -91,7 +91,7 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
     fn to_mermaid_flowchart(
         &self,
         with_configs: bool,
-        with_session_interface: bool,
+        with_network_interface: bool,
     ) -> Result<String> {
         // Check if there are members
         if self.tasks.is_none() {
@@ -116,69 +116,103 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
         }
         if self.name.is_none() {
             return Err(anyhow!(
-                "Add a session name before making the Mermaid Flowchart."
+                "Add a network name before making the Mermaid Flowchart."
             ));
         }
-        let session_name = self.name.as_ref().unwrap().to_string();
+        let network_name = self.name.as_ref().unwrap().to_string();
 
-        // Tasks, Processors, and Runtime_envs to exclude
-        let mut tasks_exclude = HashSet::new();
-        let mut processors_exclude = HashSet::new();
-        let mut subjects_exclude = HashSet::new();
-        {
-            // Exclusions from `NextTaskNetwork`
-            let next_task_network = NextTaskNetwork::default();
-            let tasks_publish_subscribe = NetworkBuilder::from_mermaid_flowchart(
-                next_task_network.as_mermaid_flowchart(),
-                false,
-            )?
-            .with_subjects_from_mermaid_erdiagram(
-                next_task_network.as_mermaid_erdiagram(),
-                false,
-                false,
-            )?
-            .with_name(next_task_network.network_name)
-            .add_processor_subjects()?;
-            if let Some(tasks) = tasks_publish_subscribe.tasks {
-                for task in tasks {
-                    tasks_exclude.insert(task.task_name);
-                    let processors = task.processor_names.into_iter().collect::<HashSet<_>>();
-                    processors_exclude.extend(processors);
-                }
+        // Exclusions
+        let mut tasks_exclude = self.tasks_to_exclude()?;
+        let mut processors_exclude = self.processors_to_exclude()?;
+        let mut subjects_exclude = self.subjects_to_exclude()?;
+
+        let invoke_task_network = InvokeTaskNetworkBuilder::default();
+        let tasks = if let Some(network_name) = self.name.as_ref() {
+            if network_name != invoke_task_network.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
+                    &invoke_task_network.as_mermaid_flowchart(),
+                    false,
+                )?
+                .tasks
+                .unwrap()
+                .into_iter()
+                .map(|t| t.task_name)
+                .collect::<Vec<_>>()
+            } else {
+                Vec::new()
             }
-            if let Some(subjects) = tasks_publish_subscribe.subjects {
-                for table in subjects {
-                    subjects_exclude.insert(table.get_name().to_string());
-                }
+        } else {
+            Vec::new()
+        };
+        tasks_exclude.extend(tasks);
+        let processors = if let Some(network_name) = self.name.as_ref() {
+            if network_name != invoke_task_network.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
+                    &invoke_task_network.as_mermaid_flowchart(),
+                    false,
+                )?
+                .processors
+                .unwrap()
+                .into_iter()
+                .map(|t| t.get_name().to_string())
+                .collect::<Vec<_>>()
+            } else {
+                Vec::new()
             }
-        }
-        {
-            // Exclusions from `NextSuperstepNetwork`
-            let next_superstep_network = NextSuperstepNetwork::default();
-            let tasks_next_superstep = NetworkBuilder::from_mermaid_flowchart(
-                next_superstep_network.as_mermaid_flowchart(),
-                false,
-            )?
-            .with_subjects_from_mermaid_erdiagram(
-                next_superstep_network.as_mermaid_erdiagram(),
-                false,
-                false,
-            )?
-            .with_name(next_superstep_network.network_name)
-            .add_processor_subjects()?;
-            if let Some(tasks) = tasks_next_superstep.tasks {
-                for task in tasks {
-                    tasks_exclude.insert(task.task_name);
-                    let processors = task.processor_names.into_iter().collect::<HashSet<_>>();
-                    processors_exclude.extend(processors);
-                }
+        } else {
+            Vec::new()
+        };
+        processors_exclude.extend(processors);
+        let subjects = if let Some(network_name) = self.name.as_ref() {
+            if network_name != invoke_task_network.network_name {
+                InvokeTaskNetworkBuilder::exlude_subjects()
+            } else {
+                Vec::new()
             }
-            if let Some(subjects) = tasks_next_superstep.subjects {
-                for table in subjects {
-                    subjects_exclude.insert(table.get_name().to_string());
-                }
+        } else {
+            Vec::new()
+        };
+        subjects_exclude.extend(subjects);
+
+        let task_response_network = TaskResponseNetworkBuilder::default();
+        let tasks = if let Some(network_name) = self.name.as_ref() {
+            if network_name != task_response_network.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
+                    &task_response_network.as_mermaid_flowchart(),
+                    false,
+                )?
+                .tasks
+                .unwrap()
+                .into_iter()
+                .map(|t| t.task_name)
+                .collect::<Vec<_>>()
+            } else {
+                Vec::new()
             }
-        }
+        } else {
+            Vec::new()
+        };
+        tasks_exclude.extend(tasks);
+        let processors = if let Some(network_name) = self.name.as_ref() {
+            if network_name != task_response_network.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
+                    &task_response_network.as_mermaid_flowchart(),
+                    false,
+                )?
+                .processors
+                .unwrap()
+                .into_iter()
+                .map(|t| t.get_name().to_string())
+                .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+        processors_exclude.extend(processors.clone());
+        subjects_exclude.extend(processors);
+
         if !with_configs {
             let mut subjects = self.get_processor_names_from_tasks();
             if let Some(tasks) = self.tasks.as_ref() {
@@ -188,9 +222,9 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
             }
             subjects_exclude.extend(subjects);
         }
-        if !with_session_interface {
-            tasks_exclude.insert(session_name.to_owned());
-            processors_exclude.insert(session_name.to_owned());
+        if !with_network_interface {
+            tasks_exclude.insert(network_name.to_owned());
+            processors_exclude.insert(network_name.to_owned());
         }
 
         // Entities with expanded shape/label attributes that will be appended to flowchart
@@ -314,7 +348,16 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
         publications_vec.sort();
 
         // Create the final mermaid.js flowchart script
-        let mut mermaid_js = vec!["flowchart TD".to_string()];
+        let mut mermaid_js = vec![format!(
+            r#"---
+title: {}
+config:
+    flowchart:
+        defaultRenderer: "elk"
+---
+flowchart TD"#,
+            self.name.as_ref().unwrap()
+        )];
         mermaid_js.extend(tasks_vec);
         mermaid_js.extend(runtime_envs_to_tasks_vec);
         mermaid_js.extend(processors_vec);
@@ -336,12 +379,56 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
                 "Add processors before making the Mermaid Flowchart."
             ));
         }
+
+        // Exclusions
+        let mut subjects_exclude = self.subjects_to_exclude()?;
+
+        // Exclusions from InvokeTaskNetworkBuilder
+        let invoke_task_network = InvokeTaskNetworkBuilder::default();
+        let subjects = if let Some(network_name) = self.name.as_ref() {
+            if network_name != invoke_task_network.network_name {
+                InvokeTaskNetworkBuilder::exlude_subjects()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+        subjects_exclude.extend(subjects);
+
+        // Exclusions from TaskResponseNetworkBuilder
+        let task_response_network = TaskResponseNetworkBuilder::default();
+        let processors = if let Some(network_name) = self.name.as_ref() {
+            if network_name != task_response_network.network_name {
+                NetworkBuilder::from_mermaid_flowchart(
+                    &task_response_network.as_mermaid_flowchart(),
+                    false,
+                )?
+                .processors
+                .unwrap()
+                .into_iter()
+                .map(|t| t.get_name().to_string())
+                .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+        subjects_exclude.extend(processors);
+
         let mut entities_vec = Vec::new();
         // let mut relations_vec = Vec::new(); // DM: todo when relations are explicitly added between subjects based on FK/PK
         let processor_names = self.get_processor_names_from_tasks();
 
         // Extract the subjects
-        let mut sorted_map = self.subjects.as_ref().unwrap().iter().collect::<Vec<_>>();
+        let mut sorted_map = self
+            .subjects
+            .as_ref()
+            .unwrap()
+            .iter()
+            .filter(|s| !subjects_exclude.contains(s.get_name()))
+            .collect::<Vec<_>>();
         sorted_map.sort_by(|a, b| a.get_name().cmp(b.get_name()));
         for subject in sorted_map {
             for field in subject.subject().get_schema().fields().iter() {
@@ -415,42 +502,76 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
         let mut runtime_env_names_vec = Vec::new();
         let mut task_names_vec = Vec::new();
 
-        let is_first_line = |line: &str| -> bool {
+        // Lambda for start of flowchart
+        let is_flowchart = |line: &str| -> bool {
             match line.split_whitespace().next() {
                 Some(line) => line == "flowchart",
                 None => false,
             }
         };
 
-        // Parse the mermaid.js flowchart string
-        let flowchart_lines = flowchart.split("\n").collect::<Vec<_>>();
+        // Lambda for config section
+        let is_config = |line: &str| -> bool {
+            match line.split_whitespace().next() {
+                Some(line) => line == "---",
+                None => false,
+            }
+        };
+
+        // Parse the mermaid.js configuration section
+        let flowchart_lines = flowchart.lines().collect::<Vec<_>>();
         let mut iter = 0;
-        if !is_first_line(flowchart_lines.first().unwrap()) {
+        if let Some(line) = flowchart_lines.first()
+            && is_flowchart(line)
+        {
+            iter += 1;
+        } else if let Some(line) = flowchart_lines.first()
+            && is_config(line)
+        {
+            iter += 1;
+            while iter < flowchart_lines.len() {
+                if let Some(line) = flowchart_lines.get(iter)
+                    && is_config(line)
+                {
+                    iter += 1;
+                    if let Some(line) = flowchart_lines.get(iter)
+                        && is_flowchart(line)
+                    {
+                        iter += 1;
+                        break;
+                    } else {
+                        return Err(anyhow!(
+                            "Parsing Error on line {iter}: {}. Unrecognized mermaid.js flowchart type after configuration section. Should have found `flowchart`, `flowchart TD`, or `flowchart LR`.",
+                            flowchart_lines.get(iter).unwrap()
+                        ));
+                    }
+                } else {
+                    iter += 1;
+                }
+            }
+        } else if let Some(line) = flowchart_lines.first() {
             return Err(anyhow!(
-                "Parsing Error on line {iter}: {}. Unrecognized mermaid.js flowchart type",
-                flowchart_lines.get(iter).unwrap()
+                "Parsing Error on line {iter}: {line}. Unrecognized mermaid.js flowchart type. Should have found `flowchart`, `flowchart TD`, or `flowchart LR`."
+            ));
+        } else {
+            return Err(anyhow!(
+                "Parsing Error on line {iter}. Unrecognized mermaid.js flowchart type. Should have found `flowchart`, `flowchart TD`, or `flowchart LR`.",
             ));
         }
-        while iter < flowchart_lines.len() {
-            // Check the chart type
-            if is_first_line(flowchart_lines.get(iter).unwrap()) {
 
-                // Ignore blank lines and comments
-            } else if flowchart_lines.get(iter).unwrap().trim().is_empty()
-                || flowchart_lines.get(iter).unwrap().trim().starts_with("%%")
+        // Parse the mermaid.js flowchart
+        while iter < flowchart_lines.len() {
+            // Ignore blank lines and comments
+            if let Some(line) = flowchart_lines.get(iter)
+                && (line.trim().is_empty() || line.trim().starts_with("%%"))
             {
 
                 // Task section
-            } else if flowchart_lines.get(iter).unwrap().contains("subgraph") {
+            } else if let Some(line) = flowchart_lines.get(iter)
+                && line.contains("subgraph")
+            {
                 // Start building the task plan
-                let task_name = flowchart_lines
-                    .get(iter)
-                    .unwrap()
-                    .split("subgraph")
-                    .last()
-                    .unwrap()
-                    .trim()
-                    .to_string();
+                let task_name = line.split("subgraph").last().unwrap().trim().to_string();
                 if !task_plan_builders.contains_key(&task_name) {
                     let mut builder = TaskPlanBuilder::default();
                     builder.name.replace(task_name.to_owned());
@@ -460,22 +581,21 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
 
                 iter += 1;
                 while iter < flowchart_lines.len() {
-                    if flowchart_lines.get(iter).unwrap().trim() == "end" {
+                    if let Some(line) = flowchart_lines.get(iter)
+                        && line.trim() == "end"
+                    {
                         break;
 
                     // Subject, Subscription, Subscribe triple
                     // e.g., state_1-subject-.->|AllRecordBatches|processor_1-subscribe
-                    } else if flowchart_lines.get(iter).unwrap().contains("-subject")
-                        & flowchart_lines.get(iter).unwrap().contains("->")
-                        & flowchart_lines.get(iter).unwrap().contains("|")
-                        & flowchart_lines.get(iter).unwrap().contains("-subscribe")
+                    } else if let Some(line) = flowchart_lines.get(iter)
+                        && line.contains("-subject")
+                        && line.contains("->")
+                        && line.contains("|")
+                        && line.contains("-subscribe")
                     {
                         // Extract out the subscription
-                        let split_line = flowchart_lines
-                            .get(iter)
-                            .unwrap()
-                            .split("-subject")
-                            .collect::<Vec<_>>();
+                        let split_line = line.split("-subject").collect::<Vec<_>>();
                         if split_line.len() > 2 {
                             return Err(anyhow!(
                                 "Parsing Error on line {iter}: {}. There are two subjects in task {task_name}",
@@ -572,16 +692,13 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
 
                     // Subscribe, Processor triple
                     // e.g., processor_1-subscribe-->processor_1-processor
-                    } else if flowchart_lines.get(iter).unwrap().contains("-subscribe")
-                        & flowchart_lines.get(iter).unwrap().contains("-->")
-                        & flowchart_lines.get(iter).unwrap().contains("-processor")
+                    } else if let Some(line) = flowchart_lines.get(iter)
+                        && line.contains("-subscribe")
+                        && line.contains("-->")
+                        && line.contains("-processor")
                     {
                         // Check the processor name
-                        let split_line = flowchart_lines
-                            .get(iter)
-                            .unwrap()
-                            .split("-subscribe")
-                            .collect::<Vec<_>>();
+                        let split_line = line.split("-subscribe").collect::<Vec<_>>();
                         if split_line.len() > 2 {
                             return Err(anyhow!(
                                 "Parsing Error on line {iter}: {}. There are two subscribes in task {task_name}",
@@ -648,16 +765,13 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
 
                     // Processor, Publish triple
                     // e.g., processor_1-processor-->processor_1-publish
-                    } else if flowchart_lines.get(iter).unwrap().contains("-processor")
-                        & flowchart_lines.get(iter).unwrap().contains("-->")
-                        & flowchart_lines.get(iter).unwrap().contains("-publish")
+                    } else if let Some(line) = flowchart_lines.get(iter)
+                        && line.contains("-processor")
+                        && line.contains("-->")
+                        && line.contains("-publish")
                     {
                         // Check the processor name
-                        let split_line = flowchart_lines
-                            .get(iter)
-                            .unwrap()
-                            .split("-processor")
-                            .collect::<Vec<_>>();
+                        let split_line = line.split("-processor").collect::<Vec<_>>();
                         if split_line.len() > 2 {
                             return Err(anyhow!(
                                 "Parsing Error on line {iter}: {}. There are two subscribes in task {task_name}",
@@ -724,17 +838,14 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
 
                     // Publish, Publication, Subject triple
                     // e.g., processor_1-publish-->|Extend|state_1-subject
-                    } else if flowchart_lines.get(iter).unwrap().contains("-publish")
-                        & flowchart_lines.get(iter).unwrap().contains("-->")
-                        & flowchart_lines.get(iter).unwrap().contains("|")
-                        & flowchart_lines.get(iter).unwrap().contains("-subject")
+                    } else if let Some(line) = flowchart_lines.get(iter)
+                        && line.contains("-publish")
+                        && line.contains("-->")
+                        && line.contains("|")
+                        && line.contains("-subject")
                     {
                         // Check the processor name
-                        let split_line = flowchart_lines
-                            .get(iter)
-                            .unwrap()
-                            .split("-publish")
-                            .collect::<Vec<_>>();
+                        let split_line = line.split("-publish").collect::<Vec<_>>();
                         if split_line.len() > 2 {
                             return Err(anyhow!(
                                 "Parsing Error on line {iter}: {}. There are two subscribes in task {task_name}",
@@ -830,30 +941,30 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
                         subject_names.insert(subject);
 
                     // Unrecognized arrows
-                    } else if flowchart_lines.get(iter).unwrap().contains("---")
-                        | flowchart_lines.get(iter).unwrap().contains("-.-")
-                        | flowchart_lines.get(iter).unwrap().contains("==")
-                        | flowchart_lines.get(iter).unwrap().contains("~~")
-                        | flowchart_lines.get(iter).unwrap().contains("--o")
-                        | flowchart_lines.get(iter).unwrap().contains("--x")
-                        | flowchart_lines.get(iter).unwrap().contains("<--")
-                        | flowchart_lines.get(iter).unwrap().contains("o--")
-                        | flowchart_lines.get(iter).unwrap().contains("x--")
+                    } else if let Some(line) = flowchart_lines.get(iter)
+                        && (line.contains("---")
+                            || line.contains("-.-")
+                            || line.contains("==")
+                            || line.contains("~~")
+                            || line.contains("--o")
+                            || line.contains("--x")
+                            || line.contains("<--")
+                            || line.contains("o--")
+                            || line.contains("x--"))
                     {
                         return Err(anyhow!(
-                            "Parsing Error on line {iter}: {}. Unsupported arrow type in subgraph {task_name}. Only --> and .-> arrows are supported in PHYMES.",
-                            flowchart_lines.get(iter).unwrap()
+                            "Parsing Error on line {iter}: {line}. Unsupported arrow type in subgraph {task_name}. Only --> and .-> arrows are supported in PHYMES."
                         ));
 
                     // Unrecognized qualifier
-                    } else if !flowchart_lines.get(iter).unwrap().contains("subject")
-                        | !flowchart_lines.get(iter).unwrap().contains("subscribe")
-                        | !flowchart_lines.get(iter).unwrap().contains("processor")
-                        | !flowchart_lines.get(iter).unwrap().contains("publish")
+                    } else if let Some(line) = flowchart_lines.get(iter)
+                        && (!line.contains("subject")
+                            || !line.contains("subscribe")
+                            || !line.contains("processor")
+                            || !line.contains("publish"))
                     {
                         return Err(anyhow!(
-                            "Parsing Error on line {iter}: {}. Unsupported processor or subject qualifier in subgraph {task_name}. Only -subject, -subscribe, -processor, and -publish qualifiers are supported in PHYMES.",
-                            flowchart_lines.get(iter).unwrap()
+                            "Parsing Error on line {iter}: {line}. Unsupported processor or subject qualifier in subgraph {task_name}. Only -subject, -subscribe, -processor, and -publish qualifiers are supported in PHYMES."
                         ));
 
                     // Any others
@@ -867,13 +978,11 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
                 }
 
             // Extract out the task runtime environments
-            } else if flowchart_lines.get(iter).unwrap().contains("-rt-->") {
+            } else if let Some(line) = flowchart_lines.get(iter)
+                && line.contains("-rt-->")
+            {
                 // Extract the runtime and task names
-                let split_line = flowchart_lines
-                    .get(iter)
-                    .unwrap()
-                    .split("-rt-->")
-                    .collect::<Vec<_>>();
+                let split_line = line.split("-rt-->").collect::<Vec<_>>();
                 if split_line.len() > 2 {
                     return Err(anyhow!(
                         "Parsing Error on line {iter}: {}. There are two runtime environments",
@@ -893,34 +1002,22 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
                 runtime_envs_names.insert(runtime_env_name);
 
             // Extract out the runtime environments
-            } else if flowchart_lines
-                .get(iter)
-                .unwrap()
-                .contains("-rt@{shape: subproc,")
+            } else if let Some(line) = flowchart_lines.get(iter)
+                && line.contains("-rt@{shape: subproc,")
             {
                 // Extract the runtime and task names
-                let split_line = flowchart_lines
-                    .get(iter)
-                    .unwrap()
-                    .split("-rt@{shape: subproc,")
-                    .collect::<Vec<_>>();
+                let split_line = line.split("-rt@{shape: subproc,").collect::<Vec<_>>();
                 let runtime_env_name = split_line.first().unwrap().trim().to_string();
 
                 // Update
                 runtime_env_names_vec.push(runtime_env_name.to_owned());
 
             // Extract out the processors
-            } else if flowchart_lines
-                .get(iter)
-                .unwrap()
-                .contains("-processor@{shape: rect,")
+            } else if let Some(line) = flowchart_lines.get(iter)
+                && line.contains("-processor@{shape: rect,")
             {
                 // Extract the processor name
-                let split_line = flowchart_lines
-                    .get(iter)
-                    .unwrap()
-                    .split("-processor@{shape: rect,")
-                    .collect::<Vec<_>>();
+                let split_line = line.split("-processor@{shape: rect,").collect::<Vec<_>>();
                 let processor_name = split_line.first().unwrap().trim().to_string();
                 let processor_type = match AvailableProcessors::from_str_fuzzy(
                     split_line.last().unwrap(),
@@ -959,32 +1056,22 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
                 processor_names_vec.push(processor_name.to_owned());
 
             // Extract out the subjects
-            } else if flowchart_lines
-                .get(iter)
-                .unwrap()
-                .contains("-subject@{shape: doc")
+            } else if let Some(line) = flowchart_lines.get(iter)
+                && line.contains("-subject@{shape: doc")
             {
                 // Extract the subject name
-                let split_line = flowchart_lines
-                    .get(iter)
-                    .unwrap()
-                    .split("-subject@{shape: doc")
-                    .collect::<Vec<_>>();
+                let split_line = line.split("-subject@{shape: doc").collect::<Vec<_>>();
                 let subject_name = split_line.first().unwrap().trim().to_string();
 
                 // Update
                 subject_names_vec.push(subject_name.to_owned());
 
             // Extract out the subscribe
-            } else if flowchart_lines
-                .get(iter)
-                .unwrap()
-                .contains("-subscribe@{shape: diamond, label:")
+            } else if let Some(line) = flowchart_lines.get(iter)
+                && line.contains("-subscribe@{shape: diamond, label:")
             {
                 // Extract the processor name
-                let split_line = flowchart_lines
-                    .get(iter)
-                    .unwrap()
+                let split_line = line
                     .split("-subscribe@{shape: diamond, label:")
                     .collect::<Vec<_>>();
                 let processor_name = split_line.first().unwrap().trim().to_string();
@@ -1052,17 +1139,11 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
                 processor_names.insert(processor_name);
 
             // Extract out the publish
-            } else if flowchart_lines
-                .get(iter)
-                .unwrap()
-                .contains("-publish@{shape: fork}")
+            } else if let Some(line) = flowchart_lines.get(iter)
+                && line.contains("-publish@{shape: fork}")
             {
                 // Extract the processor name
-                let split_line = flowchart_lines
-                    .get(iter)
-                    .unwrap()
-                    .split("-publish@{shape: fork}")
-                    .collect::<Vec<_>>();
+                let split_line = line.split("-publish@{shape: fork}").collect::<Vec<_>>();
                 let processor_name = split_line.first().unwrap().trim().to_string();
                 if !processor_builders.contains_key(&processor_name) {
                     let builder = ProcessorBuilder::default().with_name(&processor_name);
@@ -1449,15 +1530,12 @@ impl BuilderTrait for NetworkBuilderMermaid {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        ChatAgentNetwork, DocumentRAGNetwork, NetworkBuilderAppsTrait, NetworkBuilderCustomTrait,
-        ToolAgentNetwork, test_network_builder_apps,
-    };
+    use crate::{NetworkBuilderAppsTrait, test_network_builder_apps};
 
     use super::*;
     #[test]
     fn test_to_mermaid_flowchart() -> Result<()> {
-        let builder = test_network_builder_apps::make_test_network_builder_apps("session_1")?
+        let builder = test_network_builder_apps::make_test_network_builder_apps("network_1")?
             .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?
             .add_next_tasks()?;
 
@@ -1465,12 +1543,12 @@ mod tests {
         let mermaid_js = builder.to_mermaid_flowchart(false, false)?;
         assert_eq!(
             mermaid_js,
-            "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|AllRecordBatches|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|AllRecordBatches|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tstate_2-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}"
+            "---\ntitle: network_1\nconfig:\n    flowchart:\n        defaultRenderer: \"elk\"\n---\nflowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|AllRecordBatches|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|AllRecordBatches|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tstate_2-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}"
         );
         let mermaid_js = builder.to_mermaid_flowchart(false, true)?;
         assert_eq!(
             mermaid_js,
-            "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|AllRecordBatches|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|AllRecordBatches|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tstate_2-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_2-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_3-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish-->|Extend|state_1-subject\n\t\tsession_1-publish-->|Extend|state_2-subject\n\t\tsession_1-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\trt_1-rt-->session_1\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\tsession_1-processor@{shape: rect, label: ProcessorEcho}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tsession_1-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tsession_1-subscribe@{shape: diamond, label: Any}"
+            "---\ntitle: network_1\nconfig:\n    flowchart:\n        defaultRenderer: \"elk\"\n---\nflowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|AllRecordBatches|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|AllRecordBatches|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tstate_2-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\tsubgraph network_1\n\t\tstate_1-subject-.->|LastRecordBatch|network_1-subscribe\n\t\tstate_2-subject-.->|LastRecordBatch|network_1-subscribe\n\t\tstate_3-subject-.->|LastRecordBatch|network_1-subscribe\n\t\tnetwork_1-subscribe-->network_1-processor\n\t\tnetwork_1-processor-->network_1-publish\n\t\tnetwork_1-publish-->|Extend|state_1-subject\n\t\tnetwork_1-publish-->|Extend|state_2-subject\n\t\tnetwork_1-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\trt_1-rt-->network_1\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\tnetwork_1-processor@{shape: rect, label: ProcessorEcho}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tnetwork_1-publish@{shape: fork}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tnetwork_1-subscribe@{shape: diamond, label: Any}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}"
         );
 
         Ok(())
@@ -1478,7 +1556,7 @@ mod tests {
 
     #[test]
     fn test_to_mermaid_erdiagram() -> Result<()> {
-        let builder = test_network_builder_apps::make_test_network_builder_apps("session_1")?;
+        let builder = test_network_builder_apps::make_test_network_builder_apps("network_1")?;
 
         // Make the ER Diagram
         let mermaid_js = builder.to_mermaid_erdiagram(false, false)?;
@@ -1501,8 +1579,8 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_parallel_with_config_and_session_no_data() -> Result<()> {
-        let builder = test_network_builder_apps::make_test_network_builder_apps("session_1")?
+    fn test_from_mermaid_parallel_with_config_and_network_no_data() -> Result<()> {
+        let builder = test_network_builder_apps::make_test_network_builder_apps("network_1")?
             .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
@@ -1565,15 +1643,15 @@ mod tests {
             }
         }
 
-        // Test that we can build the session
-        let _ = builder_test.with_name("session_1").build()?;
+        // Test that we can build the network
+        let _ = builder_test.with_name("network_1").build()?;
 
         Ok(())
     }
 
     #[test]
-    fn test_from_mermaid_parallel_with_config_and_session_with_data() -> Result<()> {
-        let builder = test_network_builder_apps::make_test_network_builder_apps("session_1")?
+    fn test_from_mermaid_parallel_with_config_and_network_with_data() -> Result<()> {
+        let builder = test_network_builder_apps::make_test_network_builder_apps("network_1")?
             .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
@@ -1641,15 +1719,15 @@ mod tests {
             assert_eq!(table.subject().count_rows(), 1)
         }
 
-        // Test that we can build the session
-        let _ = builder_test.with_name("session_1").build()?;
+        // Test that we can build the network
+        let _ = builder_test.with_name("network_1").build()?;
 
         Ok(())
     }
 
     #[test]
-    fn test_from_mermaid_parallel_no_config_with_session_and_data() -> Result<()> {
-        let builder = test_network_builder_apps::make_test_network_builder_apps("session_1")?
+    fn test_from_mermaid_parallel_no_config_with_network_and_data() -> Result<()> {
+        let builder = test_network_builder_apps::make_test_network_builder_apps("network_1")?
             .add_network_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
@@ -1708,7 +1786,7 @@ mod tests {
 
         // Test that the processor configs were added to the subscriptions
         let builder_test = builder_test
-            .with_name("session_1")
+            .with_name("network_1")
             .add_processor_subjects()?;
         let mut test = builder_test
             .get_subject_names_from_processors()
@@ -1722,528 +1800,7 @@ mod tests {
         expected.sort();
         assert_eq!(test, expected);
 
-        // Test that we can build the session
-        let _ = builder_test.build()?;
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_from_mermaid_chat_agent_network_with_configs_and_session() -> Result<()> {
-        // initialize the session
-        let builder = ChatAgentNetwork::new_with_network_name("session_1")
-            .build()
-            .with_name("session_1")
-            .add_network_interface(None)?;
-
-        // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(true, true)?;
-        let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
-
-        // Remake the builder
-        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?;
-
-        // Test that the names match
-        assert_eq!(builder_test.tasks, builder.tasks);
-        let mut test = builder_test
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-
-        // Test the order of the processors
-        let test = builder_test
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        let expected = builder
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        assert_eq!(test, expected);
-
-        // Test that we can build the session
-        let _ = builder_test.with_name("session_1").build()?;
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_from_mermaid_doc_rag_network_with_configs_and_session() -> Result<()> {
-        // initialize the session
-        let builder = DocumentRAGNetwork::new_with_network_name("session_1")
-            .build()
-            .with_name("session_1")
-            .add_network_interface(None)?;
-
-        // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(true, true)?;
-        let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
-
-        // Remake the builder
-        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?;
-
-        // Test that the names match
-        assert_eq!(builder_test.tasks, builder.tasks);
-        let mut test = builder_test
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-
-        // Test the order of the processors
-        let test = builder_test
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        let expected = builder
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        assert_eq!(test, expected);
-
-        // Test that we can build the session
-        let _ = builder_test.with_name("session_1").build()?;
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_from_mermaid_tool_agent_network_with_configs_and_session() -> Result<()> {
-        // initialize the session
-        let builder = ToolAgentNetwork::new_with_network_name("session_1")
-            .build()
-            .with_name("session_1")
-            .add_network_interface(None)?;
-
-        // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(true, true)?;
-        let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
-
-        // Remake the builder
-        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?;
-
-        // Test that the names match
-        assert_eq!(builder_test.tasks, builder.tasks);
-        let mut test = builder_test
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-
-        // Test the order of the processors
-        let test = builder_test
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        let expected = builder
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        assert_eq!(test, expected);
-
-        // Test that we can build the session
-        let _ = builder_test.with_name("session_1").build()?;
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_from_mermaid_chat_agent_network_without_configs_and_session() -> Result<()> {
-        // initialize the session
-        let builder = ChatAgentNetwork::new_with_network_name("session_1")
-            .build()
-            .with_name("session_1")
-            .add_network_interface(None)?;
-
-        // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(false, false)?;
-        let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
-
-        // Remake the builder
-        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?
-            .with_name("session_1")
-            .add_processor_subjects()?
-            .add_network_interface(None)?;
-
-        // Test that the names match
-        assert_eq!(builder_test.tasks, builder.tasks);
-        let mut test = builder_test
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-
-        // Test the order of the processors
-        let test = builder_test
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        let expected = builder
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        assert_eq!(test, expected);
-
-        // Test that we can build the session
-        let _ = builder_test.build()?;
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_from_mermaid_doc_rag_network_without_configs_and_session() -> Result<()> {
-        // initialize the session
-        let builder = DocumentRAGNetwork::new_with_network_name("session_1")
-            .build()
-            .with_name("session_1")
-            .add_network_interface(None)?;
-
-        // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(false, false)?;
-        let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
-
-        // Remake the builder
-        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?
-            .with_name("session_1")
-            .add_processor_subjects()?
-            .add_network_interface(None)?;
-
-        // Test that the names match
-        assert_eq!(builder_test.tasks, builder.tasks);
-        let mut test = builder_test
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-
-        // Test the order of the processors
-        let test = builder_test
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        let expected = builder
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        assert_eq!(test, expected);
-
-        // Test that we can build the session
-        let _ = builder_test.build()?;
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_from_mermaid_tool_agent_network_without_configs_and_session() -> Result<()> {
-        // initialize the session
-        let builder = ToolAgentNetwork::new_with_network_name("session_1")
-            .build()
-            .with_name("session_1")
-            .add_network_interface(None)?;
-
-        // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(false, false)?;
-        let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
-
-        // Remake the builder
-        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?
-            .with_name("session_1")
-            .add_processor_subjects()?
-            .add_network_interface(None)?;
-
-        // Test that the names match
-        assert_eq!(builder_test.tasks, builder.tasks);
-        let mut test = builder_test
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-
-        // Test the order of the processors
-        let test = builder_test
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        let expected = builder
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        assert_eq!(test, expected);
-
-        // Test that we can build the session
-        let _ = builder_test.build()?;
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_from_mermaid_doc_rag_network_with_data() -> Result<()> {
-        // initialize the session
-        let builder = DocumentRAGNetwork::new_with_network_name("session_1")
-            .build()
-            .with_name("session_1")
-            .add_network_interface(None)?;
-
-        // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(false, false)?;
-        let erdiagram = builder.to_mermaid_erdiagram(false, true)?;
-
-        // Remake the builder
-        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, true)?
-            .with_name("session_1")
-            .add_processor_subjects()?
-            .add_network_interface(None)?;
-
-        // Test that the names match
-        assert_eq!(builder_test.tasks, builder.tasks);
-        let mut test = builder_test
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-
-        // Test the order of the processors
-        let test = builder_test
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        let expected = builder
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        assert_eq!(test, expected);
-
-        // Test that the schemas match
-        {
-            let test = builder_test
-                .subjects
-                .as_ref()
-                .unwrap()
-                .iter()
-                .map(|p| (p.get_name(), p.subject().get_schema()))
-                .collect::<HashMap<_, _>>();
-            let expected = builder
-                .subjects
-                .as_ref()
-                .unwrap()
-                .iter()
-                .map(|p| (p.get_name(), p.subject().get_schema()))
-                .collect::<HashMap<_, _>>();
-            for key in expected.keys() {
-                assert!(expected.get(key).eq(&test.get(key)));
-            }
-        }
-
-        // Test that the first row was captured
-        for table in builder_test.subjects.as_ref().unwrap().iter() {
-            if builder_test
-                .get_processor_names_from_tasks()
-                .contains(table.get_name())
-                && !builder_test
-                    .tasks
-                    .as_ref()
-                    .unwrap()
-                    .iter()
-                    .map(|t| t.task_name.as_str())
-                    .collect::<Vec<_>>()
-                    .contains(&table.get_name())
-            {
-                assert_eq!(table.subject().count_rows(), 1)
-            } else {
-                assert_eq!(table.subject().count_rows(), 0)
-            }
-        }
-
-        // Test that we can build the session
-        let _ = builder_test.build()?;
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_from_mermaid_tool_agent_network_with_data() -> Result<()> {
-        // initialize the session
-        let builder = ToolAgentNetwork::new_with_network_name("session_1")
-            .build()
-            .with_name("session_1")
-            .add_network_interface(None)?;
-
-        // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(false, false)?;
-        let erdiagram = builder.to_mermaid_erdiagram(false, true)?;
-
-        // Remake the builder
-        let builder_test = NetworkBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, true)?
-            .with_name("session_1")
-            .add_processor_subjects()?
-            .add_network_interface(None)?;
-
-        // Test that the names match
-        assert_eq!(builder_test.tasks, builder.tasks);
-        let mut test = builder_test
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_subject_names_from_processors()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-
-        // Test the order of the processors
-        let test = builder_test
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        let expected = builder
-            .processors
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|p| p.get_name())
-            .collect::<Vec<_>>();
-        assert_eq!(test, expected);
-
-        // Test that the schemas match
-        {
-            let test = builder_test
-                .subjects
-                .as_ref()
-                .unwrap()
-                .iter()
-                .map(|p| (p.get_name(), p.subject().get_schema()))
-                .collect::<HashMap<_, _>>();
-            let expected = builder
-                .subjects
-                .as_ref()
-                .unwrap()
-                .iter()
-                .map(|p| (p.get_name(), p.subject().get_schema()))
-                .collect::<HashMap<_, _>>();
-            for key in expected.keys() {
-                assert!(expected.get(key).eq(&test.get(key)));
-            }
-        }
-
-        // Test that the first row was captured
-        for table in builder_test.subjects.as_ref().unwrap().iter() {
-            if builder_test
-                .get_processor_names_from_tasks()
-                .contains(table.get_name())
-                && !builder_test
-                    .tasks
-                    .as_ref()
-                    .unwrap()
-                    .iter()
-                    .map(|t| t.task_name.as_str())
-                    .collect::<Vec<_>>()
-                    .contains(&table.get_name())
-            {
-                assert_eq!(table.subject().count_rows(), 1)
-            } else {
-                assert_eq!(table.subject().count_rows(), 0)
-            }
-        }
-
-        // Test that we can build the session
+        // Test that we can build the network
         let _ = builder_test.build()?;
 
         Ok(())

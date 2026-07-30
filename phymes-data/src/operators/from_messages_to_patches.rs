@@ -72,7 +72,7 @@ pub fn from_messages_to_patches(
         .ok_or(anyhow!("Missing code completion content."))?;
 
     // Parse the content
-    let (filenames, diffs, operators) = match code_completion {
+    let (paths, diffs, operators) = match code_completion {
         CodeCompletionType::FIM => {
             let diffs = parse_fill_in_the_middle_output(content_str);
             let filename = vec![
@@ -100,7 +100,7 @@ pub fn from_messages_to_patches(
     };
 
     // Create the patch batch
-    create_workspace_patch_batch(filenames, diffs, operators)
+    create_workspace_patch_batch(paths, diffs, operators)
 }
 
 #[cfg(test)]
@@ -218,7 +218,7 @@ if __name__ == "__main__":
             .with_name("")
             .build()?;
 
-        let cols = result_table.get_column_as_vec_str("filename");
+        let cols = result_table.get_column_as_vec_str("path");
         assert_eq!(cols, ["/src/main.py"]);
         let cols = result_table.get_column_as_vec_str("diff");
         assert_eq!(
@@ -340,7 +340,7 @@ if __name__ == "__main__":
             .with_name("")
             .build()?;
 
-        let cols = result_table.get_column_as_vec_str("filename");
+        let cols = result_table.get_column_as_vec_str("path");
         assert_eq!(cols, ["/src/main.py", "/src/main.py"]);
         let cols = result_table.get_column_as_vec_str("diff");
         assert_eq!(

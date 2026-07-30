@@ -1,7 +1,7 @@
-# Session Plan: Tool Agent
+# Network Plan: Tool Agent
 ## Synopsis
 
-This tutorial describes how the [Tool Agent Session Plan](https://github.com/biom8er/phymes/blob/main/phymes-network/src/session_plans/tool_agent_network.rs) uses the [phymes-agent](https://github.com/biom8er/phymes/blob/main/phymes-network/README.md) and [phymes-subject](https://github.com/biom8er/phymes/blob/main/phymes-subject/README.md) crates to build a tool calling agent.
+This tutorial describes how the [Tool Agent Network Plan](https://github.com/biom8er/phymes/blob/main/phymes-network/src/network_plans/tool_agent_network.rs) uses the [phymes-agent](https://github.com/biom8er/phymes/blob/main/phymes-network/README.md) and [phymes-subject](https://github.com/biom8er/phymes/blob/main/phymes-subject/README.md) crates to build a tool calling agent.
 
 ## Tutorial
 
@@ -16,9 +16,9 @@ sequenceDiagram
     TGI ->> user: assistant_messages
 ```
 
-The session is composed of 4 tasks: 1. the user, 2. Text embedding inference (TEI), 3. Retrieval, and 4. Text generation inference (TGI). 
+The network is composed of 4 tasks: 1. the user, 2. Text embedding inference (TEI), 3. Retrieval, and 4. Text generation inference (TGI). 
 
-The session starts when the user publishes a query (1) to the session. The TGI task either generates one or more structured tool_call response (2) or an unstructured response for the user (4) based on the query and available tools. The tool task executes all tool_call messages and publishes their results in parallel (3). The TGI and tool tasks (2 and 3) are repeated until the TGI task decides to respond to the user. The session ends when there are no further updates to the subjects. If the user publishes a follow-up message, the session will pick-up where it left off.
+The network starts when the user publishes a query (1) to the network. The TGI task either generates one or more structured tool_call response (2) or an unstructured response for the user (4) based on the query and available tools. The tool task executes all tool_call messages and publishes their results in parallel (3). The TGI and tool tasks (2 and 3) are repeated until the TGI task decides to respond to the user. The network ends when there are no further updates to the subjects. If the user publishes a follow-up message, the network will pick-up where it left off.
 
 ```mermaid
 flowchart TD
@@ -144,12 +144,12 @@ flowchart TD
 
 Under the hood, the states of the application are determined by the subjects that are subscribed to and published on by the User, Tool, and TGI tasks. Each task is composed of one or more processes that are chained together to execute the task. Each processor listens for changes on their subscribed subjects and publishes their results to subjects. Each task runs once the subscription criteria for all of its child processors are satisfied.
 
-At each superstep of the session, subscribed subjects are allocated to tasks, tasks are ran in parallel, and the subjects for which tasks publish on are updated sequentially.
+At each superstep of the network, subscribed subjects are allocated to tasks, tasks are ran in parallel, and the subjects for which tasks publish on are updated sequentially.
 
-While not shown in the flowchart above, each processor subscribes to a special subject usually called the config which specifies all of the parameters for the processor. And like any other subject, the config can also be updated dynamically during the execution of the session.
+While not shown in the flowchart above, each processor subscribes to a special subject usually called the config which specifies all of the parameters for the processor. And like any other subject, the config can also be updated dynamically during the execution of the network.
 
 The decision to chain multiple processors into a single task or to allocated each processor to its own task is up to the needs of the user. Chaining multple processors can be more performant and efficient because fewer subscription and publishing copies and updates, respectively are needed. However, allocating each processor to its own task is easier to debug since the output of each task can be easily verified. Also, any processor that requires an external API call has to be allocated to its own task as chaining of streams breaks the poll on the external API call.
 
 ## Next steps
 
-The [Tool Agent Session Plan](https://github.com/biom8er/phymes/blob/main/phymes-network/src/session_plans/tool_agent_network.rs) comes with a number of default configurations including the model, number of tokens to sample, temperature of sampling, etc. that can be modified by the user. A trivial use case is provided for sorting an array in a table that can be used as a starting point for creating more complex realistic use cases involving tools that manipulate (large) tabular data.
+The [Tool Agent Network Plan](https://github.com/biom8er/phymes/blob/main/phymes-network/src/network_plans/tool_agent_network.rs) comes with a number of default configurations including the model, number of tokens to sample, temperature of sampling, etc. that can be modified by the user. A trivial use case is provided for sorting an array in a table that can be used as a starting point for creating more complex realistic use cases involving tools that manipulate (large) tabular data.

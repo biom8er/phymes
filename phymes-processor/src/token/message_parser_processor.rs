@@ -179,33 +179,43 @@ mod tests {
         .await?
         .with_name("")
         .build()?;
-        assert_eq!(partitions.count_rows(), 2);
+        assert_eq!(partitions.count_rows(), 3);
         assert_eq!(
             partitions.get_column_as_vec_str("name"),
-            ["get_current_weather", "get_weather"]
+            ["get_current_weather", "get_weather", "AssistantMessages"]
         );
         assert_eq!(
             partitions.get_column_as_vec_str("publisher"),
-            ["message_parser_processor", "message_parser_processor"]
+            [
+                "message_parser_processor",
+                "message_parser_processor",
+                "message_parser_processor"
+            ]
         );
         assert_eq!(
             partitions.get_column_as_vec_str("subject"),
-            ["get_current_weather", "get_weather"]
+            ["get_current_weather", "get_weather", "AssistantMessages"]
         );
         assert_eq!(
             partitions.get_column_as_vec_str("format"),
-            [DataFormat::Bytes.to_string(), DataFormat::Bytes.to_string()]
+            [
+                DataFormat::Bytes.to_string(),
+                DataFormat::Bytes.to_string(),
+                DataFormat::Ipc.to_string()
+            ]
         );
         let test: Vec<String> = partitions
             .get_column_as_vec_nested_primitive::<u8>("bytes")?
             .into_iter()
-            .flat_map(|b| {
+            .filter_map(|b| {
                 Subject::get_builder()
                     .with_name("test_message_parser")
                     .with_schema(AvailableSubjects::Bytes.to_schema())
                     .with_bytes(&b)
-                    .unwrap()
-                    .build()
+                    .ok()
+            })
+            .flat_map(|s| {
+                s.build()
                     .unwrap()
                     .get_column_as_vec_nested_primitive::<u8>("bytes")
                     .unwrap()
@@ -218,7 +228,24 @@ mod tests {
             test,
             [
                 "{\"format\":\"celsius\",\"location\":\"San Francisco, CA\",\"operator\":\"get_current_weather\"}",
-                "{\"location\":\"Santa Ana, CA\",\"operator\":\"get_weather\",\"time\":\"08:00\"}"
+                "{\"location\":\"Santa Ana, CA\",\"operator\":\"get_weather\",\"time\":\"08:00\"}",
+            ]
+        );
+        let test: Vec<Subject> = partitions
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .filter_map(|b| SubjectBuilder::new_from_ipc_stream(&b).ok())
+            .map(|s| s.with_name("test_message_parser").build().unwrap())
+            .collect();
+        assert_eq!(test.len(), 1);
+        assert_eq!(
+            test.first().unwrap().get_column_as_vec_str("role"),
+            ["assistant"]
+        );
+        assert_eq!(
+            test.first().unwrap().get_column_as_vec_str("content"),
+            [
+                "\n<tool_call>\n{\"name\": \"get_current_weather\", \"arguments\": {\"location\": \"San Francisco, CA\", \"format\": \"celsius\"}}, {\"name\":\"get_weather\", \"arguments\": {\"location\": \"Santa Ana, CA\", \"time\": \"08:00\"}}\n</tool_call><|im_end|>\n"
             ]
         );
 
@@ -301,33 +328,35 @@ mod tests {
         .await?
         .with_name("")
         .build()?;
-        assert_eq!(partitions.count_rows(), 1);
+        assert_eq!(partitions.count_rows(), 2);
         assert_eq!(
             partitions.get_column_as_vec_str("name"),
-            ["get_current_weather"]
+            ["get_current_weather", "AssistantMessages"]
         );
         assert_eq!(
             partitions.get_column_as_vec_str("publisher"),
-            ["message_parser_processor"]
+            ["message_parser_processor", "message_parser_processor"]
         );
         assert_eq!(
             partitions.get_column_as_vec_str("subject"),
-            ["get_current_weather"]
+            ["get_current_weather", "AssistantMessages"]
         );
         assert_eq!(
             partitions.get_column_as_vec_str("format"),
-            [DataFormat::Bytes.to_string()]
+            [DataFormat::Bytes.to_string(), DataFormat::Ipc.to_string()]
         );
         let test: Vec<String> = partitions
             .get_column_as_vec_nested_primitive::<u8>("bytes")?
             .into_iter()
-            .flat_map(|b| {
+            .filter_map(|b| {
                 Subject::get_builder()
                     .with_name("test_message_parser")
                     .with_schema(AvailableSubjects::Bytes.to_schema())
                     .with_bytes(&b)
-                    .unwrap()
-                    .build()
+                    .ok()
+            })
+            .flat_map(|s| {
+                s.build()
                     .unwrap()
                     .get_column_as_vec_nested_primitive::<u8>("bytes")
                     .unwrap()
@@ -339,7 +368,24 @@ mod tests {
         assert_eq!(
             test,
             [
-                "{\"format\":\"celsius\",\"location\":\"San Francisco, CA\",\"operator\":\"get_current_weather\"}"
+                "{\"format\":\"celsius\",\"location\":\"San Francisco, CA\",\"operator\":\"get_current_weather\"}",
+            ]
+        );
+        let test: Vec<Subject> = partitions
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .filter_map(|b| SubjectBuilder::new_from_ipc_stream(&b).ok())
+            .map(|s| s.with_name("test_message_parser").build().unwrap())
+            .collect();
+        assert_eq!(test.len(), 1);
+        assert_eq!(
+            test.first().unwrap().get_column_as_vec_str("role"),
+            ["assistant"]
+        );
+        assert_eq!(
+            test.first().unwrap().get_column_as_vec_str("content"),
+            [
+                "[{\"id\":\"fc_12345xyz\",\"type\":\"function\",\"function\":{\"name\":\"get_current_weather\",\"arguments\":\"{\\\"location\\\":\\\"San Francisco, CA\\\",\\\"format\\\":\\\"celsius\\\"}\"}}]"
             ]
         );
 

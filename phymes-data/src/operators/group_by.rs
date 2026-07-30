@@ -46,7 +46,7 @@ impl MappableTrait for GroupBy {
 
 impl ToolTrait for GroupBy {
     fn get_description(&self) -> String {
-        "Group by user specified columns and aggregate user specified aggregation columns using the user specified aggregation operators.".to_string()
+        "Group Apache Arrow `RecordBatch`es by specified columns and aggregate specified aggregation columns.".to_string()
     }
     fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
@@ -54,16 +54,9 @@ impl ToolTrait for GroupBy {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
-                ..Default::default()
-            }),
-        );
-        properties.insert(
-            "lhs_pk".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
                 description: Some(
-                    "The primary key column identifier for the left hand side table".to_string(),
+                    "The name of the left hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
                 ),
                 ..Default::default()
             }),
@@ -73,7 +66,28 @@ impl ToolTrait for GroupBy {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "A list of value column identifiers for the left hand side table".to_string(),
+                    "The column names to group by for the left hand side message".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "agg_columns".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    "The column names to aggregate for the left hand side message".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "agg_operators".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    r#"The aggregation operators to apply to each agg_columns for the left hand side message.
+Available aggregation operators include `Max`, `Min`, `Sum`, `Mean`, `Var`, `Count`, `Concat`, `ConcatSemicolonSeperator`, `List`, `Set`, `First`, and `Last`."#.to_string(),
                 ),
                 ..Default::default()
             }),
@@ -86,8 +100,9 @@ impl ToolTrait for GroupBy {
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
-                    "lhs_pk".to_string(),
                     "lhs_values".to_string(),
+                    "agg_columns".to_string(),
+                    "agg_operators".to_string(),
                 ]),
             },
         };

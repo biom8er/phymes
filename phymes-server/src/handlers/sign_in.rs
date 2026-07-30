@@ -108,12 +108,12 @@ fn remove_nonalphanumeric(email: &str) -> String {
     input
 }
 
-/// Create the session name by combining the user ID
-/// with the session plan
-pub fn create_session_name(email: &str, session_plan: &str) -> String {
+/// Create the network name by combining the user ID
+/// with the network plan
+pub fn create_network_name(email: &str, network_plan: &str) -> String {
     let sanitized_email = remove_nonalphanumeric(email);
-    let session_name = format!("{sanitized_email}{session_plan}");
-    session_name
+    let network_name = format!("{sanitized_email}{network_plan}");
+    network_name
 }
 
 /// authorization middleware
@@ -148,7 +148,7 @@ pub async fn authorize(
     }
     if user_networks.is_empty() {
         return Err(JsonError::new(
-            "Failed to find session plans for user {token_data.claims.email}".to_string(),
+            "Failed to find network plans for user {token_data.claims.email}".to_string(),
         )
         .to_response(StatusCode::UNAUTHORIZED));
     }
@@ -175,7 +175,7 @@ pub async fn sign_in(
         }
     };
 
-    // Check that the user exists and has session plans
+    // Check that the user exists and has network plans
     if user_info.is_empty() {
         return (
             StatusCode::UNAUTHORIZED,
@@ -185,7 +185,7 @@ pub async fn sign_in(
     if user_networks.is_empty() {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": "Failed to find session plans for user {creds.username()}"})),
+            Json(json!({"error": "Failed to find network plans for user {creds.username()}"})),
         );
     }
 
@@ -216,14 +216,14 @@ pub async fn sign_in(
     };
 
     // Return the sign-in confirmation
-    let session_plans = user_networks
+    let network_plans = user_networks
         .iter()
         .map(|ctx| ctx.network_name.to_string())
         .collect::<Vec<_>>();
     (
         StatusCode::OK,
         Json(
-            json!({"jwt": jwt, "email": creds.username().to_string(), "session_plans": session_plans}),
+            json!({"jwt": jwt, "email": creds.username().to_string(), "network_plans": network_plans}),
         ),
     )
 }

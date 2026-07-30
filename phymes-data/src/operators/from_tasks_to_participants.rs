@@ -34,11 +34,11 @@ impl DataOperatorTrait for FromTasksToParticipants {
     }
 }
 
-/// Custom function to convert `SessionTasks` to Sequence Diagram Participants
+/// Custom function to convert `NetworkTasks` to Sequence Diagram Participants
 ///
 /// # Notes
 ///
-/// * LHS is SessionTasks
+/// * LHS is NetworkTasks
 /// * RHS is MermaidSequenceDiagramMessagesTemplate
 /// * Output schema is MermaidSequenceDiagramParticipantsTemplate
 ///
@@ -88,7 +88,7 @@ pub fn from_tasks_to_participants(
         .zip(object_name_vec.iter())
         .enumerate()
     {
-        // The first entry should be User -> Session
+        // The first entry should be User -> Network
         if i == 0 {
             participant_name_vec.push(subject);
             participant_type_vec.push("actor");

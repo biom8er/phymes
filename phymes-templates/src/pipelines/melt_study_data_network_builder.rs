@@ -26,7 +26,7 @@ impl Display for SampleType {
     }
 }
 
-/// A session for melting a `Study Dataset` from a single workflow step
+/// A network for melting a `Study Dataset` from a single workflow step
 ///
 /// # Notes
 ///
@@ -43,7 +43,7 @@ impl Display for SampleType {
 /// * Support for melting a `Study Dataset` from `StudySamplesMelt` and `StudyVariableMelt` input tables
 ///   instead of as struct parameters
 pub struct MeltStudyDataNetworkBuilder<'a> {
-    /// Session
+    /// Network
     pub network_name: &'a str,
     /// `sample_name` column name
     /// the `sample_id` column will be automatically generated from a Hash of the `sample_name`
@@ -130,7 +130,7 @@ impl<'a> MeltStudyDataNetworkBuilder<'a> {
         items_to_list(&items.iter().map(|s| s.as_str()).collect::<Vec<_>>())
     }
 
-    /// Return the Mermaid.js flowchart representation of the session
+    /// Return the Mermaid.js flowchart representation of the network
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD	
 	%% ---------------------------------
@@ -223,7 +223,7 @@ impl<'a> MeltStudyDataNetworkBuilder<'a> {
 	%% ---------------------------------"#
     }
 
-    /// Return the Mermaid.js ER Diagram representation of the session
+    /// Return the Mermaid.js ER Diagram representation of the network
     pub fn as_mermaid_erdiagram(&self) -> Result<String> {
         let erdiagram = format!(
             r#"erDiagram
@@ -319,6 +319,7 @@ impl<'a> MeltStudyDataNetworkBuilder<'a> {
 	    Utf8 format "CsvDefault"
         Utf8 schema "Attachments"
 	    Utf8 lhs_name "UserCsv"
+	    Utf8 lhs_pk "filename"
 	    List-Utf8 lhs_values "['bytes']"
 	    Utf8 operator "ExtractTabular"
         Utf8 encoding "None"
@@ -378,11 +379,11 @@ mod tests {
             DataType::Int64,
         ];
 
-        // Initialize the session
+        // Initialize the network
         let melt_study_data_network =
             MeltStudyDataNetworkBuilder::new(None, "Casenr", None, variable_names, data_types)?;
         // dbg!(&melt_study_data_network.as_mermaid_erdiagram()?);
-        let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
+        let (network, network_messages) = NetworkBuilder::from_mermaid_flowchart(
             melt_study_data_network.as_mermaid_flowchart(),
             false,
         )?
@@ -461,17 +462,17 @@ mod tests {
             .build()?;
         let message_map = create_message_map(vec![blob_message]);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
-        // Run the session
+        // Run the network
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
 
         {
-            // Test session context
+            // Test network context
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "StudySamplesMelt".to_string(),
             }

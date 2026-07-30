@@ -36,7 +36,8 @@ impl MappableTrait for Sort {
 
 impl ToolTrait for Sort {
     fn get_description(&self) -> String {
-        "Sort the the list of computed scores in ascending order".to_string()
+        "Sort columns from Apache Arrow `RecordBatch`es in ascending or descending order"
+            .to_string()
     }
     fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
@@ -68,6 +69,16 @@ impl ToolTrait for Sort {
                 ..Default::default()
             }),
         );
+        properties.insert(
+            "asc".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Boolean),
+                description: Some(
+                    "true for sort order Ascending and false for sort order Descending".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
         let function = Function {
             name: Self::get_static_name().to_string(),
             description: Some(self.get_description()),
@@ -78,6 +89,7 @@ impl ToolTrait for Sort {
                     "lhs_name".to_string(),
                     "lhs_pk".to_string(),
                     "lhs_values".to_string(),
+                    "asc".to_string(),
                 ]),
             },
         };

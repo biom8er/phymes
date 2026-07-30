@@ -1,19 +1,8 @@
-// Dioxus imports
 use dioxus::prelude::*;
 
-// UI components
 mod state;
 mod ui;
 use ui::main_window_view;
-
-// CSS
-// static MAIN_CSS: Asset = asset!("/assets/main.css");
-static TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
-#[cfg(feature = "mermaid_js_embed")]
-static MERMAID_JS: Asset = asset!("/assets/mermaid.min.js");
-// static MERMAID_MJS: Asset = asset!("/assets/mermaid.esm.min.mjs");
-#[cfg(feature = "mermaid_js_embed")]
-static PANZOOM_JS: Asset = asset!("/assets/panzoom.min.js");
 
 fn main() {
     // DM: Uncomment for full stack
@@ -42,8 +31,7 @@ fn main() {
 fn app() -> Element {
     // render the UI
     rsx! {
-        // document::Link { rel: "stylesheet", href: MAIN_CSS },
-        document::Link { rel: "stylesheet", href: TAILWIND_CSS },
+        document::Link { rel: "stylesheet", href: asset!("/assets/tailwind.css") },
         mermaid_js {},
         main_window_view {}
     }
@@ -52,28 +40,16 @@ fn app() -> Element {
 fn mermaid_js() -> Element {
     #[cfg(feature = "mermaid_js_cdn")]
     rsx! {
-        script { src: "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs", onload: move |_| {
-            document::eval(r#"
-                import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs").then(({ default: mermaid }) => {
-                    window.mermaid = mermaid;
-                    mermaid.initialize({
-                        theme: "dark",
-                        startOnLoad: false,
-                        maxTextSize: 50000,
-                        maxEdges: 500,
-                        securityLevel: "loose",
-                        suppressErrorRendering: true
-                    });
-                });
-                "#
-            );
-        }}
         script { src: "https://unpkg.com/@panzoom/panzoom@4.6.0/dist/panzoom.min.js" }
+        script { r#type: "module", src: asset!("/assets/mermaid.cdn.js")}
     }
 
     #[cfg(feature = "mermaid_js_embed")]
     rsx! {
-        script { src: MERMAID_JS, crossorigin: true, onload: move |_| {
+        script { src: asset!("/assets/panzoom.min.js"), crossorigin: true }
+        // DM: loading from file does not work...
+        // script { r#type: "module", src: asset!("/assets/mermaid.embed.js"), crossorigin: true}
+        script { src: asset!("/assets/mermaid.min.js"), crossorigin: true, onload: move |_| {
             document::eval(r#"
                 mermaid.initialize({
                     theme: "dark",
@@ -86,23 +62,5 @@ fn mermaid_js() -> Element {
                 "#
             );
         } }
-        // // DM: This code does not yet work for loading the mjs file
-        // script { src: MERMAID_MJS, crossorigin: true, onload: move |_| {
-        //     let path = MERMAID_MJS.bundled().bundled_path();
-        //     document::eval(format!(r#"
-        //         import("{path}").then(({{ default: mermaid }}) => {{
-        //             window.mermaid = mermaid;
-        //             mermaid.initialize({{
-        //                 theme: "dark",
-        //                 startOnLoad: false,
-        //                 maxTextSize: 500000,
-        //                 securityLevel: "loose",
-        //                 suppressErrorRendering: true
-        //             }});
-        //         }});
-        //         "#).as_str()
-        //     );
-        // } }
-        script { src: PANZOOM_JS, crossorigin: true }
     }
 }

@@ -50,7 +50,7 @@ impl MappableTrait for Join {
 
 impl ToolTrait for Join {
     fn get_description(&self) -> String {
-        "Join two tables on their foreign keys".to_string()
+        "Join left and right Apache Arrow `RecordBatch`es on their foreign key".to_string()
     }
     fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
@@ -58,7 +58,10 @@ impl ToolTrait for Join {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
+                description: Some(
+                    "The name of the left hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -66,7 +69,10 @@ impl ToolTrait for Join {
             "rhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the right hand side table".to_string()),
+                description: Some(
+                    "The name of the right hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -75,7 +81,7 @@ impl ToolTrait for Join {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some(
-                    "The primary key column identifier for the left hand side table".to_string(),
+                    "The primary key column for the left hand side message".to_string(),
                 ),
                 ..Default::default()
             }),
@@ -85,7 +91,7 @@ impl ToolTrait for Join {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some(
-                    "The primary key column identifier for the right hand side table".to_string(),
+                    "The primary key column for the right hand side message".to_string(),
                 ),
                 ..Default::default()
             }),
@@ -95,7 +101,7 @@ impl ToolTrait for Join {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some(
-                    "The foriegn key column identifier for the left hand side table".to_string(),
+                    "The foriegn key column for the left hand side message".to_string(),
                 ),
                 ..Default::default()
             }),
@@ -105,7 +111,21 @@ impl ToolTrait for Join {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some(
-                    "The foriegn key column identifier for the right hand side table".to_string(),
+                    "The foriegn key column for the right hand side message".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "join_operator".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The operator type to join left and right messages".to_string()),
+                enum_values: Some(
+                    ["Inner", "LeftOuter", "RightOuter", "FullOuter"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
                 ),
                 ..Default::default()
             }),
@@ -121,6 +141,7 @@ impl ToolTrait for Join {
                     "rhs_name".to_string(),
                     "lhs_fk".to_string(),
                     "rhs_fk".to_string(),
+                    "join_operator".to_string(),
                 ]),
             },
         };

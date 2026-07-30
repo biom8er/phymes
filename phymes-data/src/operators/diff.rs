@@ -39,7 +39,7 @@ impl MappableTrait for Diff {
 
 impl ToolTrait for Diff {
     fn get_description(&self) -> String {
-        "Compute the diff between two RecordBatches".to_string()
+        "Compute the diff between left and right Apache Arrow `RecordBatch`es".to_string()
     }
     fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
@@ -47,18 +47,70 @@ impl ToolTrait for Diff {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
+                description: Some(
+                    "The name of the left hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
+                ),
                 ..Default::default()
             }),
         );
         properties.insert(
-            "op_kwargs".to_string(),
+            "rhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some(
-                    "template, table_expression, and input_template in the form of a JSON object"
+                    "The name of the right hand side message (Apache Arrow `RecordBatch`es)"
                         .to_string(),
                 ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "lhs_pk".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some(
+                    "The primary key column name for the left hand side message".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "rhs_pk".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some(
+                    "The primary key column name for the right hand side message".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "lhs_values".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    "The name of the columns to consider when computing the diff for the left hand side message".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "rhs_values".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    "The name of the columns to consider when computing the diff for the right hand side message".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "diff".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The algorithm to use when computing the diff. Options include Universal Diff Format `Dmp`, V4A based on markers instead of line number `V4A`, Search and Replace `SR`, and HashMap merging `Map`.".to_string()),
+                enum_values: Some(["Dmp", "V4A", "SR", "Map"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()),
                 ..Default::default()
             }),
         );
@@ -68,7 +120,15 @@ impl ToolTrait for Diff {
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
-                required: Some(vec!["lhs_name".to_string(), "op_kwargs".to_string()]),
+                required: Some(vec![
+                    "lhs_name".to_string(),
+                    "rhs_name".to_string(),
+                    "lhs_pk".to_string(),
+                    "rhs_pk".to_string(),
+                    "lhs_values".to_string(),
+                    "rhs_values".to_string(),
+                    "diff".to_string(),
+                ]),
             },
         };
         let tool = Tool {

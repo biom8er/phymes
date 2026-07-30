@@ -2,11 +2,11 @@ use dioxus::prelude::*;
 
 use phymes_event::Publication;
 use phymes_message::{
-    MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
-    SessionInterfaceMessageBuilderTrait,
+    MessageBuilderTrait, NetworkInterfaceMessage, NetworkInterfaceMessageBuilder,
+    NetworkInterfaceMessageBuilderTrait,
 };
 use phymes_schemas::{AvailableSubjects, DataFormat};
-use phymes_server::create_session_name;
+use phymes_server::create_network_name;
 use phymes_subject::{
     BuildableTrait, BuilderTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
@@ -39,7 +39,7 @@ use crate::{
     },
 };
 
-/// View to display the subject tables for the session
+/// View to display the subject tables for the network
 /// and to allow for easier upload by the user
 #[component]
 pub fn subjects_interface_view() -> Element {
@@ -54,15 +54,15 @@ pub fn subjects_interface_view() -> Element {
     let filenames_downloaded = use_signal(Vec::<String>::new);
     let extensions_downloaded = use_signal(Vec::<String>::new);
 
-    // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
-    let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || {
-        SessionInterfaceMessage::get_builder()
-            .with_session_name(&create_session_name(
+    // `get_network_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
+    let get_network_state: Memo<NetworkInterfaceMessageBuilder> = use_memo(move || {
+        NetworkInterfaceMessage::get_builder()
+            .with_network_name(&create_network_name(
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
             .with_format(&DataFormat::Ipc)
-            .with_publisher(&create_session_name(
+            .with_publisher(&create_network_name(
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
@@ -70,19 +70,19 @@ pub fn subjects_interface_view() -> Element {
             .with_stream(false)
     });
 
-    // Get the active session schema for the subject view and
-    // Get the active session row counts for the subject view
+    // Get the active network schema for the subject view and
+    // Get the active network row counts for the subject view
     // DM: these are combined into a single async block to prevent concurrent mutable borrows of the same user state
     use_resource(move || async move {
-        // Get the active session schema for the subject view
+        // Get the active network schema for the subject view
         subject_schema_names.set(Vec::new());
         subject_schema_columns.set(Vec::new());
         subject_schema_types.set(Vec::new());
         let route = "/app/v1/get_state";
         let data_serialized = serde_json::to_string(
-            &get_session_state()
+            &get_network_state()
                 .with_subject(
-                    AvailableSubjects::SessionSubjectSchemas
+                    AvailableSubjects::NetworkSubjectSchemas
                         .to_string()
                         .as_str(),
                 )
@@ -186,12 +186,12 @@ pub fn subjects_interface_view() -> Element {
             Err(err) => tracing::error!("{err:?}"),
         }
 
-        // Get the active session row counts for the subject view
+        // Get the active network row counts for the subject view
         subject_names.set(Vec::new());
         subject_num_rows.set(Vec::new());
         let route = "/app/v1/get_state";
         let data_serialized = serde_json::to_string(
-            &get_session_state()
+            &get_network_state()
                 .with_subject(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .make_name()
                 .unwrap()
@@ -299,12 +299,12 @@ pub fn subjects_interface_view() -> Element {
         } else if ACTIVE_SESSION_NAME.read().is_empty() {
             div {
                 class: "messaging_list",
-                p { "Please activate a session before searching subjects." },
+                p { "Please activate a network before searching subjects." },
             }
         } else if subject_schema_names.read().is_empty() {
             div {
                 class: "p-2 flex flex-col items-center",
-                p { "Waiting to retrieve session plan subject schemas..." },
+                p { "Waiting to retrieve network plan subject schemas..." },
             }
         } else {
             split_panel {
@@ -404,7 +404,7 @@ pub fn subjects_dropdown_menu(
                         subject_dropdown.set(String::new());
                     },
                     svg {
-                        class: "max-w-[48px] max-h-[48px]",
+                        class: "max-w-[24px] max-h-[24px]",
                         dangerous_inner_html: ms_search_icon_svg()
                     },
                 },

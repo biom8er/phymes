@@ -1,18 +1,26 @@
+mod app;
 mod composites;
 mod diagnostics;
 mod dynamic;
 mod pipelines;
 
+pub use app::{
+    AvailableNetworks, DiagnosticNetworkBuilder, MermaidNetworkBuilder, UserNetwork,
+    make_example_mermaid_table,
+};
 #[cfg(feature = "api")]
 pub use composites::{GenerateCodeNetworkBuilder, OpenAlexNetworkBuilder};
+pub use composites::{
+    RetrievalAugmentedGenerationPDFNetworkBuilder, RetrieveTextPDFNetworkBuilder,
+    TabularDataOperatorNetworkBuilder,
+};
 pub use diagnostics::{
     default_diagnostic_subjects, extended_diagnostic_subjects, write_diagnostic_subjects_to_csv,
 };
 pub use dynamic::{
-    DynamicNetworkBuilderTrait, DynamicTaskNetworkBuilder, DynamicTaskNetworkNames,
-    GenerateTextNetworkBuilder, InvokeTaskNetworkBuilder,
-    PatchWorkspaceNetworkBuilderDynamicWOSubject, PatchWorkspaceNetworkBuilderDynamicWSubject,
-    PatchWorkspaceNetworkBuilderStaticWSubject, TaskResponseNetworkBuilder,
+    DiffWorkspaceNetworkBuilderDynamicWOSubject, DiffWorkspaceNetworkBuilderStaticWSubject,
+    GenerateTextNetworkBuilder, PatchWorkspaceNetworkBuilderDynamicWOSubject,
+    PatchWorkspaceNetworkBuilderDynamicWSubject, PatchWorkspaceNetworkBuilderStaticWSubject,
 };
 #[cfg(feature = "api")]
 pub use dynamic::{
@@ -22,8 +30,8 @@ pub use dynamic::{
     GetObjectNetworkBuilderStaticWSubject, GetPdfNetworkBuilderDynamicWOSubject,
     GetPdfNetworkBuilderDynamicWSubject, GetPdfNetworkBuilderStaticWSubject,
 };
-
 pub use pipelines::{
-    EmbedTextNetworkBuilder, ExtractOntologyNetworkBuilder, ExtractPDFNetworkBuilder,
-    MeltStudyDataNetworkBuilder, RetrieveTextNetworkBuilder, SyncContentNetworkBuilder,
+    AttachmentsNetworkBuilder, EmbedTextNetworkBuilder, ExtractOntologyNetworkBuilder,
+    ExtractPDFNetworkBuilder, MeltStudyDataNetworkBuilder, RetrieveTextNetworkBuilder,
+    SyncContentNetworkBuilder,
 };

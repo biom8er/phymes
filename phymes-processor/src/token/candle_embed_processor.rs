@@ -179,7 +179,6 @@ mod tests {
         // DM: Skip actually running the tests as they take too long on the CPU
         if cfg!(any(
             all(not(feature = "candle"), feature = "wsl"),
-            all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
             let embeddings = embed_stream.try_collect::<Vec<_>>().await?;
@@ -308,7 +307,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test(flavor = "current_thread")]
+    #[tokio::test]
     async fn test_candle_embed_stream_wasm() -> Result<()> {
         // Case 1: streaming query
         // Make the query input stream
@@ -386,7 +385,6 @@ mod tests {
         // DM: Skip actually running the tests as they take too long on the CPU
         if cfg!(any(
             all(not(feature = "candle"), feature = "wsl"),
-            all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
             let embeddings = embed_stream.try_collect::<Vec<_>>().await?;

@@ -3,10 +3,10 @@ use dioxus::{html::FileData, prelude::*};
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_event::Publication;
 use phymes_message::{
-    MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait,
+    MessageBuilderTrait, NetworkInterfaceMessage, NetworkInterfaceMessageBuilderTrait,
 };
 use phymes_schemas::{create_attachments_batch, DataFormat};
-use phymes_server::create_session_name;
+use phymes_server::create_network_name;
 use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 
 #[cfg(not(feature = "serverless"))]
@@ -53,7 +53,7 @@ pub fn attach_files_input(
     except_files: Signal<String>,
     active_subject_name: Option<Signal<String>>,
     subject_names: Option<Signal<Vec<String>>>,
-    mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>,
+    mut files_uploaded: Signal<Vec<NetworkInterfaceMessage>>,
     mut filenames_uploaded: Signal<Vec<String>>,
     mut extensions_uploaded: Signal<Vec<String>>,
 ) -> Element {
@@ -150,13 +150,13 @@ pub fn attach_files_input(
                             };
 
                             // Create the message to upload
-                            let data = SessionInterfaceMessage::get_builder()
-                                .with_session_name(&create_session_name(
+                            let data = NetworkInterfaceMessage::get_builder()
+                                .with_network_name(&create_network_name(
                                     EMAIL().as_str(),
                                     ACTIVE_SESSION_NAME().as_str(),
                                 ))
                                 .with_format(&format)
-                                .with_publisher(&create_session_name(
+                                .with_publisher(&create_network_name(
                                     EMAIL().as_str(),
                                     ACTIVE_SESSION_NAME().as_str(),
                                 ))
@@ -204,7 +204,7 @@ pub fn attach_files_input(
             label {
                 r#for: "textread_extend",
                 svg {
-                    class: "max-w-[48px] max-h-[48px]",
+                    class: "max-w-[24px] max-h-[24px]",
                     dangerous_inner_html: ms_cloud_add_icon_svg()
                 }
             }
@@ -221,7 +221,7 @@ pub fn attach_files_input(
             label {
                 r#for: "textread_add",
                 svg {
-                    class: "max-w-[48px] max-h-[48px]",
+                    class: "max-w-[24px] max-h-[24px]",
                     dangerous_inner_html: ms_cloud_arrow_up_icon_svg()
                 }
             }
@@ -261,7 +261,7 @@ pub fn attach_textfiles_input(
         label {
             r#for: "textread",
             svg {
-                class: "max-w-[48px] max-h-[48px]",
+                class: "max-w-[24px] max-h-[24px]",
                 dangerous_inner_html: ms_document_text_icon_svg()
             }
         }
@@ -279,7 +279,7 @@ pub fn attach_textfiles_input(
 
 #[component]
 pub fn upload_files_list(
-    mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>,
+    mut files_uploaded: Signal<Vec<NetworkInterfaceMessage>>,
     mut filenames_uploaded: Signal<Vec<String>>,
     mut extensions_uploaded: Signal<Vec<String>>,
 ) -> Element {
@@ -311,7 +311,7 @@ pub fn upload_files_list(
 
 #[component]
 pub fn upload_files_button(
-    mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>,
+    mut files_uploaded: Signal<Vec<NetworkInterfaceMessage>>,
     mut filenames_uploaded: Signal<Vec<String>>,
     mut extensions_uploaded: Signal<Vec<String>>,
 ) -> Element {
@@ -375,7 +375,7 @@ pub fn upload_files_button(
                 extensions_uploaded.set(Vec::new());
             },
             svg {
-                class: "max-w-[48px] max-h-[48px]",
+                class: "max-w-[24px] max-h-[24px]",
                 dangerous_inner_html: b8_send_icon_svg()
             }
         },
@@ -384,7 +384,7 @@ pub fn upload_files_button(
 
 #[component]
 pub fn clear_upload_files_button(
-    mut files_uploaded: Signal<Vec<SessionInterfaceMessage>>,
+    mut files_uploaded: Signal<Vec<NetworkInterfaceMessage>>,
     mut filenames_uploaded: Signal<Vec<String>>,
     mut extensions_uploaded: Signal<Vec<String>>,
 ) -> Element {
@@ -397,7 +397,7 @@ pub fn clear_upload_files_button(
                 extensions_uploaded.set(Vec::new());
             },
             svg {
-                class: "max-w-[48px] max-h-[48px]",
+                class: "max-w-[24px] max-h-[24px]",
                 dangerous_inner_html: fa_trash_icon_svg()
             }
         },
@@ -420,10 +420,10 @@ pub fn download_files_button(
                 filenames_downloaded.set(Vec::new());
                 extensions_downloaded.set(Vec::new());
 
-                let data = SessionInterfaceMessage::get_builder()
-                    .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                let data = NetworkInterfaceMessage::get_builder()
+                    .with_network_name(&create_network_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                     .with_format(&data_format())
-                    .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
+                    .with_publisher(&create_network_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                     .with_update(&Publication::None)
                     .with_stream(false)
                     .with_subject(&active_subject_name.read())
@@ -487,7 +487,7 @@ pub fn download_files_button(
                 }
             },
             svg {
-                class: "max-w-[48px] max-h-[48px]",
+                class: "max-w-[24px] max-h-[24px]",
                 dangerous_inner_html: ms_cloud_arrow_down_icon_svg()
             },
         },
@@ -512,7 +512,7 @@ pub fn download_files_list(
                         div {
                             class: "flex items-center gap-2",
                             svg {
-                                class: "max-w-[48px] max-h-[48px]",
+                                class: "max-w-[24px] max-h-[24px]",
                                 dangerous_inner_html: extension_to_icon_svg(extensions_downloaded().get(i).unwrap())
                             },
                             a {
@@ -543,7 +543,7 @@ pub fn clear_download_files_button(
                 extensions_downloaded.set(Vec::new());
             },
             svg {
-                class: "max-w-[48px] max-h-[48px]",
+                class: "max-w-[24px] max-h-[24px]",
                 dangerous_inner_html: fa_trash_icon_svg()
             }
         },

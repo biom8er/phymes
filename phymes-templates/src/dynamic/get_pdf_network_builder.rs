@@ -1,4 +1,5 @@
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
+use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes};
 use phymes_processor::AvailableProcessors;
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
 use phymes_streams::{
@@ -8,8 +9,6 @@ use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
     SubjectPlanBuilderTrait,
 };
-
-use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
 
 pub struct GetPdfNetworkBuilderStaticWSubject {
     pub inner: DynamicTaskNetworkBuilder,
@@ -63,7 +62,7 @@ impl Default for GetPdfNetworkBuilderStaticWSubject {
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
-            is_dynamic: false,
+            dynamic_type: DynamicTaskNetworkTypes::Static,
             processor: AvailableProcessors::HTTPClientRequestProcessor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),
@@ -127,7 +126,7 @@ impl Default for GetPdfNetworkBuilderDynamicWSubject {
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
-            is_dynamic: true,
+            dynamic_type: DynamicTaskNetworkTypes::Dynamic,
             processor: AvailableProcessors::HTTPClientRequestProcessor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),
@@ -187,7 +186,7 @@ impl Default for GetPdfNetworkBuilderDynamicWOSubject {
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
-            is_dynamic: true,
+            dynamic_type: DynamicTaskNetworkTypes::Dynamic,
             processor: AvailableProcessors::HTTPClientRequestProcessor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),
@@ -231,7 +230,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_pdf_network_static_w_subject() -> Result<()> {
         let get_content_network = GetPdfNetworkBuilderStaticWSubject::default();
-        let (network, session_messages) = get_content_network
+        let (network, network_messages) = get_content_network
             .inner
             .build_dynamic()
             .with_runtime_env(
@@ -279,9 +278,9 @@ mod tests {
                 .build()?,
         );
 
-        // Run the session
+        // Run the network
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
@@ -322,7 +321,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_pdf_network_dynamic_w_subject() -> Result<()> {
         let get_content_network = GetPdfNetworkBuilderDynamicWSubject::default();
-        let (network, session_messages) = get_content_network
+        let (network, network_messages) = get_content_network
             .inner
             .build_dynamic()
             .with_runtime_env(
@@ -382,9 +381,9 @@ mod tests {
                 .build()?,
         );
 
-        // Run the session
+        // Run the network
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
@@ -425,7 +424,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_pdf_network_dynamic_wo_subject() -> Result<()> {
         let get_content_network = GetPdfNetworkBuilderDynamicWSubject::default();
-        let (network, session_messages) = get_content_network
+        let (network, network_messages) = get_content_network
             .inner
             .build_dynamic()
             .with_runtime_env(
@@ -479,9 +478,9 @@ mod tests {
                 .build()?,
         );
 
-        // Run the session
+        // Run the network
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;

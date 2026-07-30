@@ -21,12 +21,12 @@ use crate::clear_subject;
 /// List all partitions of a subject (with optional restriction to the last one)
 pub fn list_subject(
     runtime_env: &Arc<RuntimeEnv>,
-    session_name: &str,
+    network_name: &str,
     sn: &str,
     last: bool,
 ) -> Result<SendableRecordBatchStream> {
     // 1. List the partitions (RecordBatches)
-    let location = format!("network={session_name}/subject={sn}");
+    let location = format!("network={network_name}/subject={sn}");
     let config = ObjectStoreConfig {
         timeout: 5,
         ops_type: ObjectStoreOptsType::List,
@@ -176,6 +176,7 @@ pub fn get_subject(
     // 5. Extract the tabular subject
     let config = DataConfig {
         lhs_name: Some(sn.to_string()),
+        lhs_pk: Some("location".to_string()),
         lhs_values: Some(vec!["bytes".to_string()]),
         encoding: Some(DataEncoding::default()),
         format: Some(DataFormat::Ipc),
@@ -224,7 +225,7 @@ pub trait SubscriptionTrait {
     fn subscribe_to_subject(
         &self,
         runtime_env: &Arc<RuntimeEnv>,
-        session_name: &str,
+        network_name: &str,
     ) -> Result<Option<SendableRecordBatchStream>>;
 }
 
@@ -232,13 +233,13 @@ impl SubscriptionTrait for Subscription {
     fn subscribe_to_subject(
         &self,
         runtime_env: &Arc<RuntimeEnv>,
-        session_name: &str,
+        network_name: &str,
     ) -> Result<Option<SendableRecordBatchStream>> {
         match self {
             Self::AlwaysAllRecordBatches { subject_name: sn }
             | Self::OnUpdateAllRecordBatches { subject_name: sn } => {
                 // List the partitions (RecordBatches)
-                let stream = list_subject(runtime_env, session_name, sn, false)?;
+                let stream = list_subject(runtime_env, network_name, sn, false)?;
 
                 // Get all partitions (RecordBatches)
                 let stream = get_subject(runtime_env, sn, stream)?;
@@ -246,14 +247,14 @@ impl SubscriptionTrait for Subscription {
             }
             Self::OnUpdateDrainRecordBatches { subject_name: sn } => {
                 // List the partitions (RecordBatches)
-                let stream = list_subject(runtime_env, session_name, sn, false)?;
+                let stream = list_subject(runtime_env, network_name, sn, false)?;
 
                 // Get all partitions (RecordBatches)
                 let stream = get_subject(runtime_env, sn, stream)?;
                 let schema = stream.schema(); // DM: an empty schema!
 
                 // Clear all partitions (RecordBatches)
-                let clear = clear_subject(runtime_env, session_name, sn, false)?;
+                let clear = clear_subject(runtime_env, network_name, sn, false)?;
                 let chain = stream.chain(clear).try_filter(move |b| {
                     futures::future::ready(
                         !b.schema()
@@ -266,7 +267,7 @@ impl SubscriptionTrait for Subscription {
             Self::AlwaysLastRecordBatch { subject_name: sn }
             | Self::OnUpdateLastRecordBatch { subject_name: sn } => {
                 // List the last partition (RecordBatch)
-                let stream = list_subject(runtime_env, session_name, sn, true)?;
+                let stream = list_subject(runtime_env, network_name, sn, true)?;
 
                 // Get all partitions (RecordBatches)
                 let stream = get_subject(runtime_env, sn, stream)?;

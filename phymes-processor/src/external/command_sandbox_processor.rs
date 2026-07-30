@@ -16,7 +16,7 @@ use crate::ProcessorTrait;
 ///
 /// # Notes
 /// * Current sandboxed environments include docker and wasmtime
-/// * Stderr messages are routed to `SessionError`s
+/// * Stderr messages are routed to `NetworkError`s
 #[derive(Debug)]
 pub struct CommandSandboxProcessor {
     name: String,

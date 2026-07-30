@@ -1,3 +1,4 @@
+mod attachments_network_builder;
 mod embed_text_network_builder;
 mod extract_ontology_network_builder;
 mod extract_pdf_network_builder;
@@ -5,6 +6,7 @@ mod melt_study_data_network_builder;
 mod retrieve_text_network_builder;
 mod sync_content_network_builder;
 
+pub use attachments_network_builder::AttachmentsNetworkBuilder;
 pub use embed_text_network_builder::EmbedTextNetworkBuilder;
 pub use extract_ontology_network_builder::ExtractOntologyNetworkBuilder;
 pub use extract_pdf_network_builder::ExtractPDFNetworkBuilder;

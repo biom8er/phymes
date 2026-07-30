@@ -1,15 +1,15 @@
-use crate::DynamicNetworkBuilderTrait;
 use anyhow::{Result, anyhow};
+use phymes_network::DynamicNetworkBuilderTrait;
 use phymes_schemas::AvailableInterfaceSubjects;
 use phymes_streams::CommandSandboxEnvironments;
 
-/// A session for executing code workspaces
+/// A network for executing code workspaces
 ///
 /// # Notes
 ///
 /// - Specifying the schema for data_i and data_o subject is not needed because
-///   `extend`ing with this session will skip duplicate subjects
-///   that are already defined in the source session
+///   `extend`ing with this network will skip duplicate subjects
+///   that are already defined in the source network
 ///
 /// # TODO
 ///
@@ -18,7 +18,7 @@ use phymes_streams::CommandSandboxEnvironments;
 ///   2. StdIo -> `subject_name` and no `cli_args`
 ///   3. TempFile -> `subject_name` and no `cli_args`
 pub struct ExecuteWorkspaceNetwork<'a> {
-    /// Session
+    /// Network
     pub network_name: &'a str,
     /// The Temp directory for reading/writing workspace files
     pub workspace_dir: Option<String>,
@@ -158,7 +158,7 @@ impl<'a> ExecuteWorkspaceNetwork<'a> {
         Ok(lines.join(""))
     }
 
-    /// Return the Mermaid.js flowchart representation of the session
+    /// Return the Mermaid.js flowchart representation of the network
     pub fn as_mermaid_flowchart(&self) -> String {
         let mut flowchart_vec = vec![
             r#"flowchart TD
@@ -238,7 +238,7 @@ impl<'a> ExecuteWorkspaceNetwork<'a> {
         flowchart_vec.join("")
     }
 
-    /// Return the Mermaid.js ER diagram representation of the session
+    /// Return the Mermaid.js ER diagram representation of the network
     pub fn as_mermaid_erdiagram(&self) -> Result<String> {
         let erdiagram_subject_subscriptions = self.erdiagram_subject_subscriptions(
             &self
@@ -292,7 +292,7 @@ mod tests {
         let subject_name_o = "subject_name_o";
         let workspace_name = "apply_patch_s";
 
-        // Initialize the session
+        // Initialize the network
         let execute_workspace_network = ExecuteWorkspaceNetwork::new(
             "execute_workspace_network_rs",
             None,
@@ -371,15 +371,15 @@ mod tests {
             .build()?;
         subjects.push(SubjectPlan::get_builder().with_subject(subject).build()?);
 
-        let (network, session_messages) = network_builder
+        let (network, network_messages) = network_builder
             .with_subjects(subjects)
             .build_with_tables()?;
         let network_arc = Arc::new(network);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
-        // Run the session
+        // Run the network
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
@@ -412,7 +412,7 @@ mod tests {
         let subject_name_o = "subject_name_o";
         let workspace_name = "apply_patch_s";
 
-        // Initialize the session
+        // Initialize the network
         let execute_workspace_network = ExecuteWorkspaceNetwork::new(
             "execute_workspace_network_py",
             None,
@@ -491,15 +491,15 @@ mod tests {
             .build()?;
         subjects.push(SubjectPlan::get_builder().with_subject(subject).build()?);
 
-        let (network, session_messages) = network_builder
+        let (network, network_messages) = network_builder
             .with_subjects(subjects)
             .build_with_tables()?;
         let network_arc = Arc::new(network);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
-        // Run the session
+        // Run the network
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 

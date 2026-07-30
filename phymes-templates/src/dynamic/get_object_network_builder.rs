@@ -1,5 +1,6 @@
 use object_store::aws::AmazonS3ConfigKey;
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
+use phymes_network::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes};
 use phymes_processor::AvailableProcessors;
 use phymes_schemas::{
     AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait,
@@ -11,8 +12,6 @@ use phymes_subject::{
     SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait,
 };
 use serde_json::{Map, Value};
-
-use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
 
 pub struct GetObjectNetworkBuilderStaticWSubject {
     pub inner: DynamicTaskNetworkBuilder,
@@ -73,7 +72,7 @@ impl Default for GetObjectNetworkBuilderStaticWSubject {
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
-            is_dynamic: false,
+            dynamic_type: DynamicTaskNetworkTypes::Static,
             processor: AvailableProcessors::ObjectStoreProcessor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),
@@ -113,9 +112,9 @@ impl Default for GetObjectNetworkBuilderDynamicWSubject {
             .unwrap();
 
         // Subscriptions and publications
-        // let location = vec!["data/works/updated_date=2018-01-12/part_0000.gz".to_string()];
-        let location = vec!["data/works/updated_date=2026-03-10/part_0005.gz".to_string()];
-        // let location = vec!["data/works/manifest".to_string()];
+        // let location = vec!["data/jsonl/works/updated_date=2018-01-12/part_0000.gz".to_string()];
+        let location = vec!["data/jsonl/works/updated_date=2026-03-10/part_0005.gz".to_string()];
+        // let location = vec!["data/jsonl/works/manifest".to_string()];
         let bucket = vec!["openalex".to_string()];
         let e_tag = vec![String::new()];
         let version = vec![String::new()];
@@ -142,7 +141,7 @@ impl Default for GetObjectNetworkBuilderDynamicWSubject {
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
-            is_dynamic: true,
+            dynamic_type: DynamicTaskNetworkTypes::Dynamic,
             processor: AvailableProcessors::ObjectStoreProcessor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),
@@ -201,7 +200,7 @@ impl Default for GetObjectNetworkBuilderDynamicWOSubject {
         // Initialize the network
         let builder = DynamicTaskNetworkBuilder {
             network_name: network_name.to_string(),
-            is_dynamic: true,
+            dynamic_type: DynamicTaskNetworkTypes::Dynamic,
             processor: AvailableProcessors::ObjectStoreProcessor,
             subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_lhs.get_name().to_string(),
@@ -239,12 +238,14 @@ mod tests {
     };
     use phymes_task::SubscriptionTrait;
 
+    use crate::{extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
+
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_object_network_static_w_subject() -> Result<()> {
         let get_content_network = GetObjectNetworkBuilderStaticWSubject::default();
-        let (network, session_messages) = get_content_network
+        let (network, network_messages) = get_content_network
             .inner
             .build_dynamic()
             .with_runtime_env(
@@ -264,9 +265,9 @@ mod tests {
 
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
-        // let location = vec!["data/works/updated_date=2018-01-12/part_0000.gz".to_string()];
-        let location = vec!["data/works/updated_date=2026-03-10/part_0005.gz".to_string()];
-        // let location = vec!["data/works/manifest".to_string()];
+        // let location = vec!["data/jsonl/works/updated_date=2018-01-12/part_0000.gz".to_string()];
+        let location = vec!["data/jsonl/works/updated_date=2026-03-10/part_0005.gz".to_string()];
+        // let location = vec!["data/jsonl/works/manifest".to_string()];
         let bucket = vec!["openalex".to_string()];
         let e_tag = vec![String::new()];
         let version = vec![String::new()];
@@ -298,12 +299,25 @@ mod tests {
                 .build()?,
         );
 
-        // Run the session
+        // Run the network
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
+
+        let extended_diagnostic_subjects = extended_diagnostic_subjects();
+        let subject_names = extended_diagnostic_subjects
+            .iter()
+            .map(|s| s.as_str())
+            .chain(["UserObject"])
+            .collect::<Vec<_>>();
+        write_diagnostic_subjects_to_csv(
+            &subject_names,
+            network_arc.runtime_env(),
+            network_arc.get_name(),
+        )
+        .await?;
 
         assert_eq!(response.len(), 0);
 
@@ -320,7 +334,10 @@ mod tests {
             .with_record_batches(batches)?
             .build()?;
         let column = subject.get_column_as_vec_str("location");
-        assert_eq!(column, ["data/works/updated_date=2026-03-10/part_0005.gz"]);
+        assert_eq!(
+            column,
+            ["data/jsonl/works/updated_date=2026-03-10/part_0005.gz"]
+        );
         let column = subject.get_column_as_vec_str("bucket");
         assert_eq!(column, ["openalex"]);
         let column = subject.get_column_as_vec_str("metadata");
@@ -341,7 +358,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_object_network_dynamic_w_subject() -> Result<()> {
         let get_content_network = GetObjectNetworkBuilderDynamicWSubject::default();
-        let (network, session_messages) = get_content_network
+        let (network, network_messages) = get_content_network
             .inner
             .build_dynamic()
             .with_runtime_env(
@@ -402,9 +419,9 @@ mod tests {
                 .build()?,
         );
 
-        // Run the session
+        // Run the network
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
@@ -424,7 +441,10 @@ mod tests {
             .with_record_batches(batches)?
             .build()?;
         let column = subject.get_column_as_vec_str("location");
-        assert_eq!(column, ["data/works/updated_date=2026-03-10/part_0005.gz"]);
+        assert_eq!(
+            column,
+            ["data/jsonl/works/updated_date=2026-03-10/part_0005.gz"]
+        );
         let column = subject.get_column_as_vec_str("bucket");
         assert_eq!(column, ["openalex"]);
         let column = subject.get_column_as_vec_str("metadata");
@@ -445,7 +465,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_get_object_network_dynamic_wo_subject() -> Result<()> {
         let get_content_network = GetObjectNetworkBuilderDynamicWSubject::default();
-        let (network, session_messages) = get_content_network
+        let (network, network_messages) = get_content_network
             .inner
             .build_dynamic()
             .with_runtime_env(
@@ -474,7 +494,7 @@ mod tests {
             AmazonS3ConfigKey::Endpoint.as_ref().to_string(),
             Value::String("https://s3.amazonaws.com".to_string()),
         );
-        let location = vec!["data/works/updated_date=2026-03-10/part_0005.gz".to_string()];
+        let location = vec!["data/jsonl/works/updated_date=2026-03-10/part_0005.gz".to_string()];
         let config = ObjectStoreConfig {
             timeout: 5,
             ops_type: ObjectStoreOptsType::Get,
@@ -508,15 +528,15 @@ mod tests {
                 .build()?,
         );
 
-        // Run the session
+        // Run the network
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionErrors.to_string(),
+            subject_name: AvailableSubjects::NetworkErrors.to_string(),
         }
         .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
@@ -524,17 +544,17 @@ mod tests {
         .await?;
         if !batches.is_empty() {
             let subject = Subject::get_builder()
-                .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+                .with_name(AvailableSubjects::NetworkErrors.to_string().as_str())
                 .with_record_batches(batches)?
                 .build()?;
             println!(
                 "{}\n{}",
-                AvailableSubjects::SessionErrors,
+                AvailableSubjects::NetworkErrors,
                 String::from_utf8(subject.to_csv(b',', true)?)?
             );
         }
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SessionTraces.to_string(),
+            subject_name: AvailableSubjects::NetworkTraces.to_string(),
         }
         .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
@@ -542,12 +562,12 @@ mod tests {
         .await?;
         if !batches.is_empty() {
             let subject = Subject::get_builder()
-                .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
+                .with_name(AvailableSubjects::NetworkTraces.to_string().as_str())
                 .with_record_batches(batches)?
                 .build()?;
             println!(
                 "{}\n{}",
-                AvailableSubjects::SessionTraces,
+                AvailableSubjects::NetworkTraces,
                 String::from_utf8(subject.to_csv(b',', true)?)?
             );
         }
@@ -567,7 +587,10 @@ mod tests {
             .with_record_batches(batches)?
             .build()?;
         let column = subject.get_column_as_vec_str("location");
-        assert_eq!(column, ["data/works/updated_date=2026-03-10/part_0005.gz"]);
+        assert_eq!(
+            column,
+            ["data/jsonl/works/updated_date=2026-03-10/part_0005.gz"]
+        );
         let column = subject.get_column_as_vec_str("bucket");
         assert_eq!(column, ["openalex"]);
         let column = subject.get_column_as_vec_str("metadata");

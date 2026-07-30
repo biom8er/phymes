@@ -1,7 +1,7 @@
 mod diagnostics;
 mod error;
 mod mermaid;
-mod session;
+mod network;
 mod subjects;
 mod user;
 
@@ -14,8 +14,8 @@ pub(crate) use diagnostics::{
 };
 pub use error::create_error_subject;
 pub use mermaid::{
-    SessionMermaidSubject, create_mermaid_content_template_batch,
-    create_mermaid_sequence_diagram_participants_template_batch, create_session_mermaid_batch,
+    NetworkMermaidSubject, create_mermaid_content_template_batch,
+    create_mermaid_sequence_diagram_participants_template_batch, create_network_mermaid_batch,
 };
 pub(crate) use mermaid::{
     create_mermaid_content_template_fields, create_mermaid_er_diagram_entities_template_fields,
@@ -25,24 +25,24 @@ pub(crate) use mermaid::{
     create_mermaid_sequence_diagram_messages_template_fields,
     create_mermaid_sequence_diagram_participants_template_fields,
     create_mermaid_visualization_fields, create_mermaid_xychart_template_fields,
-    create_session_mermaid_fields,
+    create_network_mermaid_fields,
 };
-pub use session::{
-    create_session_processors_batch, create_session_runtime_envs_batch,
-    create_session_subject_schemas_batch, create_session_supersteps_batch,
-    create_session_tasks_batch, create_session_tasks_check_batch,
-    create_session_tasks_publish_batch, create_session_tasks_run_log_batch,
-    create_session_tasks_subscribe_aggregate_batch, create_session_tasks_subscribe_batch,
-    create_session_tasks_subscribe_publish_batch,
+pub use network::{
+    create_network_processors_batch, create_network_runtime_envs_batch,
+    create_network_subject_schemas_batch, create_network_supersteps_batch,
+    create_network_tasks_batch, create_network_tasks_check_batch,
+    create_network_tasks_publish_batch, create_network_tasks_run_log_batch,
+    create_network_tasks_subscribe_aggregate_batch, create_network_tasks_subscribe_batch,
+    create_network_tasks_subscribe_publish_batch,
 };
-pub(crate) use session::{
-    create_session_processors_fields, create_session_runtime_envs_fields,
-    create_session_subject_schemas_fields, create_session_superstep_max_fields,
-    create_session_supersteps_fields, create_session_tasks_check_fields,
-    create_session_tasks_fields, create_session_tasks_publish_aggregate_fields,
-    create_session_tasks_publish_fields, create_session_tasks_run_log_fields,
-    create_session_tasks_subscribe_aggregate_fields, create_session_tasks_subscribe_fields,
-    create_session_tasks_subscribe_publish_fields,
+pub(crate) use network::{
+    create_network_processors_fields, create_network_runtime_envs_fields,
+    create_network_subject_schemas_fields, create_network_superstep_max_fields,
+    create_network_supersteps_fields, create_network_tasks_check_fields,
+    create_network_tasks_fields, create_network_tasks_publish_aggregate_fields,
+    create_network_tasks_publish_fields, create_network_tasks_run_log_fields,
+    create_network_tasks_subscribe_aggregate_fields, create_network_tasks_subscribe_fields,
+    create_network_tasks_subscribe_publish_fields,
 };
 pub use subjects::{
     create_subjects_change_log_batch, create_subjects_num_rows_batch,

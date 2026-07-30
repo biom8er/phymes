@@ -1,6 +1,9 @@
 use phymes_data::{AvailableOperators, DataConfig, DataStreamManager};
 use phymes_event::{Publication, Subscription};
-use phymes_network::{NetworkBuilder, NetworkBuilderMermaidTrait};
+use phymes_network::{
+    DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes, NetworkBuilder,
+    NetworkBuilderMermaidTrait,
+};
 use phymes_processor::{AvailableProcessors, test_command_sandbox_processor};
 use phymes_schemas::{
     AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait, DataEncoding, DataFormat,
@@ -10,10 +13,7 @@ use phymes_subject::{
     SubjectPlanBuilderTrait,
 };
 
-use crate::{
-    DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, GenerateTextNetworkBuilder,
-    PatchWorkspaceNetworkBuilderStaticWSubject,
-};
+use crate::{GenerateTextNetworkBuilder, PatchWorkspaceNetworkBuilderStaticWSubject};
 
 /// OpenAlex network
 pub struct GenerateCodeNetworkBuilder {
@@ -47,7 +47,7 @@ impl Default for GenerateCodeNetworkBuilder {
             // Workspace and UserMessages are instantiated in patch_workspace_network_builder and generate_text_network_builder, respectively
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
-                is_dynamic: false,
+                dynamic_type: DynamicTaskNetworkTypes::Static,
                 processor: AvailableProcessors::CandleDataProcessor,
                 subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                     subject_name: AvailableSubjects::Workspace.to_string(),
@@ -86,7 +86,7 @@ impl Default for GenerateCodeNetworkBuilder {
             // WorkspacePatch and AssistantMessages are instantiated in patch_workspace_network_builder and generate_text_network_builder, respectively
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
-                is_dynamic: false,
+                dynamic_type: DynamicTaskNetworkTypes::Static,
                 processor: AvailableProcessors::CandleDataProcessor,
                 subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                     subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
@@ -114,6 +114,7 @@ impl Default for GenerateCodeNetworkBuilder {
             None,
             None,
             None,
+            false,
         );
         let network_builder = NetworkBuilder::from_mermaid_flowchart(
             &generate_text_network.as_mermaid_flowchart(),
@@ -147,6 +148,7 @@ impl Default for GenerateCodeNetworkBuilder {
             let network_name = "extract_csv";
             let config = DataConfig {
                 lhs_name: Some(AvailableInterfaceSubjects::UserCsv.to_string()),
+                lhs_pk: Some("filename".to_string()),
                 lhs_values: Some(
                     ["bytes"]
                         .into_iter()
@@ -192,7 +194,7 @@ impl Default for GenerateCodeNetworkBuilder {
                 .unwrap();
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
-                is_dynamic: false,
+                dynamic_type: DynamicTaskNetworkTypes::Static,
                 processor: AvailableProcessors::ExtractTabular,
                 subscription_lhs: Subscription::OnUpdateDrainRecordBatches {
                     subject_name: AvailableInterfaceSubjects::UserCsv.to_string(),
@@ -257,7 +259,7 @@ impl Default for GenerateCodeNetworkBuilder {
                 .unwrap();
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
-                is_dynamic: false,
+                dynamic_type: DynamicTaskNetworkTypes::Static,
                 processor: AvailableProcessors::PackTabular,
                 subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                     subject_name: subject_name_o.to_string(),
@@ -291,7 +293,9 @@ mod tests {
     use phymes_diagnostics::HashMap;
     use phymes_event::{Publication, Subscription};
     use phymes_message::{IPCMessage, MessageBuilderTrait};
-    use phymes_network::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream};
+    use phymes_network::{
+        DynamicTaskNetworkNames, NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream,
+    };
     use phymes_schemas::{
         AttachmentBuilderTraitExt, AvailableInterfaceSubjects, AvailableSubjects,
         AvailableSubjectsTrait, CsvFormat, create_workspace_batch,
@@ -303,18 +307,16 @@ mod tests {
     };
     use phymes_task::SubscriptionTrait;
 
-    use crate::{
-        DynamicTaskNetworkNames, ExecuteWorkspaceNetwork, extended_diagnostic_subjects,
-        write_diagnostic_subjects_to_csv,
-    };
+    use crate::ExecuteWorkspaceNetwork;
 
     use super::*;
 
-    /// `cargo test -p phymes-templates test_generate_code_network_py --features gpu,hf_hub --release -- --nocapture`
+    /// `cargo test -p phymes-templates test_generate_code_network_py --features api,gpu,hf_hub --release -- --nocapture`
     /// # Notes
     /// * should require two iterations to complete the code:
     ///   1. Fill in the middle
     ///   2. Correct the error message
+    /// `cargo test -p phymes-templates test_generate_code_network_py --features api,gpu,hf_hub --release -- --nocapture`
     #[tokio::test]
     async fn test_generate_code_network_py() -> Result<()> {
         // Constants
@@ -322,7 +324,7 @@ mod tests {
         let subject_name_o = "subject_name_o";
         let workspace_name = "apply_patch_s";
 
-        // Initialize the session
+        // Initialize the network
         let generate_code_network_builder =
             GenerateCodeNetworkBuilder::default().inner.take().unwrap();
 
@@ -350,7 +352,7 @@ mod tests {
             generate_code_network_builder.extend(network_builder)?;
 
         let network_name = generate_code_network_builder.name.clone().unwrap();
-        let (network, session_messages) = generate_code_network_builder
+        let (network, network_messages) = generate_code_network_builder
             .with_runtime_env(
                 RuntimeEnv::get_builder()
                     .with_name(
@@ -472,123 +474,106 @@ pip install --no-cache-dir -r requirements.txt"#,
         );
 
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
-        // 1. Run the session
+        // 1. Run the network
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
-        let extended_diagnostic_subjects = extended_diagnostic_subjects();
-        let subject_names = extended_diagnostic_subjects
-            .iter()
-            .map(|s| s.as_str())
-            .chain([
-                "UserMessages",
-                "AssistantMessages",
-                "WorkspacePatch",
-                "aggregate_messages_generate_text_s",
-                subject_name_i,
-                subject_name_o,
-                workspace_name,
-            ])
-            .collect::<Vec<_>>();
-        write_diagnostic_subjects_to_csv(
-            &subject_names,
-            network_arc.runtime_env(),
-            network_arc.get_name(),
-        )
-        .await?;
+        // DM: Requires HuggingFaceHub
+        if cfg!(feature = "hf_hub") {
+            let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
-        assert_eq!(response.len(), 0);
+            assert_eq!(response.len(), 0);
 
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(
+                    AvailableInterfaceSubjects::AssistantMessages
+                        .to_string()
+                        .as_str(),
+                )
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 2);
+            let column = subject.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"assistant");
+            assert_eq!(column.get(1).unwrap(), &"assistant");
+            let column = subject.get_column_as_vec_str("content");
+            assert!(column.first().unwrap().contains("src/main.py"));
+            assert!(
+                column
+                    .first()
+                    .unwrap()
+                    .contains("table_out = pa.Table.from_pandas(df)")
+            );
+            assert!(column.get(1).unwrap().contains("src/main.py"));
+            assert!(column.get(1).unwrap().contains("new_schema = pa.schema([pa.field(f.name, f.type, nullable=False) for f in table_out.schema])"));
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for t in column {
+                assert!(t > 0);
+            }
+
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: workspace_name.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(workspace_name)
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 6);
+            let column = subject.get_column_as_vec_str("path");
+            assert_eq!(column.get(4).unwrap(), &"src/main.py");
+            let column = subject.get_column_as_vec_str("content");
+            assert!(
+                !column
+                    .get(4)
+                    .unwrap()
+                    .contains("/* MIDDLE CODE TO COMPLETE */")
+            );
+            assert!(
+                column
+                    .get(4)
+                    .unwrap()
+                    .contains("table_out = pa.Table.from_pandas(df)")
+            );
+            assert!(column.get(4).unwrap().contains("new_schema = pa.schema([pa.field(f.name, f.type, nullable=False) for f in table_out.schema])"));
+
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: subject_name_o.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(subject_name_o)
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("name");
+            assert_eq!(column, ["Alice", "Bob"]);
+            let column = subject.get_column_as_vec_primitive::<i64>("age")?;
+            assert_eq!(column, [40, 35]);
         }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name(
-                AvailableInterfaceSubjects::AssistantMessages
-                    .to_string()
-                    .as_str(),
-            )
-            .with_record_batches(batches)?
-            .build()?;
-        assert_eq!(subject.count_rows(), 2);
-        let column = subject.get_column_as_vec_str("role");
-        assert_eq!(column.first().unwrap(), &"assistant");
-        assert_eq!(column.get(1).unwrap(), &"assistant");
-        let column = subject.get_column_as_vec_str("content");
-        assert!(column.first().unwrap().contains("src/main.py"));
-        assert!(
-            column
-                .first()
-                .unwrap()
-                .contains("table_out = pa.Table.from_pandas(df)")
-        );
-        assert!(column.get(1).unwrap().contains("src/main.py"));
-        assert!(column.get(1).unwrap().contains("new_schema = pa.schema([pa.field(f.name, f.type, nullable=False) for f in table_out.schema])"));
-        let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-        for t in column {
-            assert!(t > 0);
-        }
-
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: workspace_name.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name(workspace_name)
-            .with_record_batches(batches)?
-            .build()?;
-        assert_eq!(subject.count_rows(), 6);
-        let column = subject.get_column_as_vec_str("path");
-        assert_eq!(column.get(4).unwrap(), &"src/main.py");
-        let column = subject.get_column_as_vec_str("content");
-        assert!(
-            !column
-                .get(4)
-                .unwrap()
-                .contains("/* MIDDLE CODE TO COMPLETE */")
-        );
-        assert!(
-            column
-                .get(4)
-                .unwrap()
-                .contains("table_out = pa.Table.from_pandas(df)")
-        );
-        assert!(column.get(4).unwrap().contains("new_schema = pa.schema([pa.field(f.name, f.type, nullable=False) for f in table_out.schema])"));
-
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: subject_name_o.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name(subject_name_o)
-            .with_record_batches(batches)?
-            .build()?;
-        let column = subject.get_column_as_vec_str("name");
-        assert_eq!(column, ["Alice", "Bob"]);
-        let column = subject.get_column_as_vec_primitive::<i64>("age")?;
-        assert_eq!(column, [40, 35]);
 
         Ok(())
     }
 
-    /// `cargo test -p phymes-templates test_generate_code_network_rs --features gpu,hf_hub --release -- --nocapture`
     /// # Notes
     /// * should require two iterations to complete the code:
     ///   1. Fill in the middle
     ///   2. Correct the error message
+    /// `cargo test -p phymes-templates test_generate_code_network_rs --features api,gpu,hf_hub --release -- --nocapture`
     #[tokio::test]
     async fn test_generate_code_network_rs() -> Result<()> {
         // Constants
@@ -596,7 +581,7 @@ pip install --no-cache-dir -r requirements.txt"#,
         let subject_name_o = "subject_name_o";
         let workspace_name = "apply_patch_s";
 
-        // Initialize the session
+        // Initialize the network
         let generate_code_network_builder =
             GenerateCodeNetworkBuilder::default().inner.take().unwrap();
 
@@ -624,7 +609,7 @@ pip install --no-cache-dir -r requirements.txt"#,
             generate_code_network_builder.extend(network_builder)?;
 
         let network_name = generate_code_network_builder.name.clone().unwrap();
-        let (network, session_messages) = generate_code_network_builder
+        let (network, network_messages) = generate_code_network_builder
             .with_runtime_env(
                 RuntimeEnv::get_builder()
                     .with_name(
@@ -784,132 +769,114 @@ apt install --assume-yes protobuf-compiler clang"#,
         );
 
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
-        // 1. Run the session
+        // 1. Run the network
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
-        let extended_diagnostic_subjects = extended_diagnostic_subjects();
-        let subject_names = extended_diagnostic_subjects
+        if cfg!(feature = "hf_hub") {
+            let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
+
+            assert_eq!(response.len(), 0);
+
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(
+                    AvailableInterfaceSubjects::AssistantMessages
+                        .to_string()
+                        .as_str(),
+                )
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 2);
+            let column = subject.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"assistant");
+            assert_eq!(column.get(1).unwrap(), &"assistant");
+            let column = subject.get_column_as_vec_str("content");
+            assert!(column.first().unwrap().contains("src/main.rs"));
+            assert!(column.first().unwrap().contains(
+                r#"    let batches = batches.into_iter()
+            .map(|batch| add_10_yrs_to_age(&batch).unwrap())
+            .collect::<Vec<_>>();"#
+            ));
+            assert!(column.get(1).unwrap().contains("src/main.rs"));
+            assert!(column.get(1).unwrap().contains(
+                r#"    let ages = batch
+            .column_by_name("age")
+            .unwrap()
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .unwrap()
             .iter()
-            .map(|s| s.as_str())
-            .chain([
-                "UserMessages",
-                "AssistantMessages",
-                "WorkspacePatch",
-                "aggregate_messages_generate_text_s",
-                subject_name_i,
-                subject_name_o,
-                workspace_name,
-            ])
-            .collect::<Vec<_>>();
-        write_diagnostic_subjects_to_csv(
-            &subject_names,
-            network_arc.runtime_env(),
-            network_arc.get_name(),
-        )
-        .await?;
+            .map(|s| s.unwrap_or_default() + 10)
+            .collect::<Vec<i64>>();"#
+            ));
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for t in column {
+                assert!(t > 0);
+            }
 
-        assert_eq!(response.len(), 0);
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: workspace_name.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(workspace_name)
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 6);
+            let column = subject.get_column_as_vec_str("path");
+            assert_eq!(column.get(5).unwrap(), &"src/main.rs");
+            let column = subject.get_column_as_vec_str("content");
+            assert!(
+                !column
+                    .get(5)
+                    .unwrap()
+                    .contains("/* MIDDLE CODE TO COMPLETE */")
+            );
+            assert!(column.get(5).unwrap().contains(
+                r#"    let batches = batches.into_iter()
+            .map(|batch| add_10_yrs_to_age(&batch).unwrap())
+            .collect::<Vec<_>>();"#
+            ));
+            assert!(column.get(5).unwrap().contains(
+                r#"    let ages = batch
+            .column_by_name("age")
+            .unwrap()
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .unwrap()
+            .iter()
+            .map(|s| s.unwrap_or_default() + 10)
+            .collect::<Vec<i64>>();"#
+            ));
 
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: subject_name_o.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(subject_name_o)
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("name");
+            assert_eq!(column, ["Alice", "Bob"]);
+            let column = subject.get_column_as_vec_primitive::<i64>("age")?;
+            assert_eq!(column, [40, 35]);
         }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name(
-                AvailableInterfaceSubjects::AssistantMessages
-                    .to_string()
-                    .as_str(),
-            )
-            .with_record_batches(batches)?
-            .build()?;
-        assert_eq!(subject.count_rows(), 2);
-        let column = subject.get_column_as_vec_str("role");
-        assert_eq!(column.first().unwrap(), &"assistant");
-        assert_eq!(column.get(1).unwrap(), &"assistant");
-        let column = subject.get_column_as_vec_str("content");
-        assert!(column.first().unwrap().contains("src/main.rs"));
-        assert!(column.first().unwrap().contains(
-            r#"    let batches = batches.into_iter()
-        .map(|batch| add_10_yrs_to_age(&batch).unwrap())
-        .collect::<Vec<_>>();"#
-        ));
-        assert!(column.get(1).unwrap().contains("src/main.rs"));
-        assert!(column.get(1).unwrap().contains(
-            r#"    let ages = batch
-        .column_by_name("age")
-        .unwrap()
-        .as_any()
-        .downcast_ref::<Int64Array>()
-        .unwrap()
-        .iter()
-        .map(|s| s.unwrap_or_default() + 10)
-        .collect::<Vec<i64>>();"#
-        ));
-        let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-        for t in column {
-            assert!(t > 0);
-        }
-
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: workspace_name.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name(workspace_name)
-            .with_record_batches(batches)?
-            .build()?;
-        assert_eq!(subject.count_rows(), 6);
-        let column = subject.get_column_as_vec_str("path");
-        assert_eq!(column.get(5).unwrap(), &"src/main.rs");
-        let column = subject.get_column_as_vec_str("content");
-        assert!(
-            !column
-                .get(5)
-                .unwrap()
-                .contains("/* MIDDLE CODE TO COMPLETE */")
-        );
-        assert!(column.get(5).unwrap().contains(
-            r#"    let batches = batches.into_iter()
-        .map(|batch| add_10_yrs_to_age(&batch).unwrap())
-        .collect::<Vec<_>>();"#
-        ));
-        assert!(column.get(5).unwrap().contains(
-            r#"    let ages = batch
-        .column_by_name("age")
-        .unwrap()
-        .as_any()
-        .downcast_ref::<Int64Array>()
-        .unwrap()
-        .iter()
-        .map(|s| s.unwrap_or_default() + 10)
-        .collect::<Vec<i64>>();"#
-        ));
-
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: subject_name_o.to_string(),
-        }
-        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name(subject_name_o)
-            .with_record_batches(batches)?
-            .build()?;
-        let column = subject.get_column_as_vec_str("name");
-        assert_eq!(column, ["Alice", "Bob"]);
-        let column = subject.get_column_as_vec_primitive::<i64>("age")?;
-        assert_eq!(column, [40, 35]);
 
         Ok(())
     }

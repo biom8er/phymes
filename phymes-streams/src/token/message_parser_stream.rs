@@ -13,8 +13,8 @@ use phymes_message::{
 };
 use phymes_ml::CandleChatConfig;
 use phymes_schemas::{
-    AvailableSchemaTrait, AvailableSubjects, DataFormat, ToolCall, create_bytes_record_batch,
-    create_chat_record_batch, create_route_bytes_record_batch,
+    AvailableInterfaceSubjects, AvailableSchemaTrait, AvailableSubjects, DataFormat, ToolCall,
+    create_bytes_record_batch, create_chat_record_batch, create_route_bytes_record_batch,
 };
 use phymes_subject::{
     BuildableTrait, BuilderTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
@@ -131,6 +131,22 @@ impl Stream for MessageParserStream {
             let content = message.get_column_as_vec_str("content").join("");
             event!(Level::DEBUG, "Extracted content: {}", content.as_str());
 
+            // Create the assistant message
+            let mut timestamp_vec = Vec::new();
+            let mut role_vec = Vec::new();
+            let mut content_vec = Vec::new();
+
+            // Assistant content
+            timestamp_vec.push(create_timestamp_micros());
+            role_vec.push(
+                message
+                    .get_column_as_vec_str("role")
+                    .first()
+                    .unwrap()
+                    .to_string(),
+            );
+            content_vec.push(content.to_string());
+
             // Extract out the function arguments
             // 1. try the OpenAI `ToolCall` schema and
             // 2. try the Candle `serde_json::Value` schema after parsing the raw content
@@ -195,6 +211,20 @@ impl Stream for MessageParserStream {
                             .to_vec();
                         values_vec.push(bytes);
                     }
+
+                    // Add the assistant message
+                    names_vec.push(AvailableInterfaceSubjects::AssistantMessages.to_string());
+                    publishers_vec.push("message_parser_processor".to_string());
+                    subjects_vec.push(AvailableInterfaceSubjects::AssistantMessages.to_string());
+                    formats_vec.push(DataFormat::Ipc.to_string());
+                    let batch = create_chat_record_batch(role_vec, content_vec, timestamp_vec)?;
+                    let bytes = Subject::get_builder()
+                        .with_name("message_parser_processor")
+                        .with_record_batches(vec![batch])?
+                        .build()?
+                        .to_ipc_stream()?;
+                    values_vec.push(bytes);
+
                     create_route_bytes_record_batch(
                         names_vec,
                         publishers_vec,
@@ -265,6 +295,23 @@ impl Stream for MessageParserStream {
                                     .to_vec();
                                 values_vec.push(bytes);
                             }
+
+                            // Add the assistant message
+                            names_vec
+                                .push(AvailableInterfaceSubjects::AssistantMessages.to_string());
+                            publishers_vec.push("message_parser_processor".to_string());
+                            subjects_vec
+                                .push(AvailableInterfaceSubjects::AssistantMessages.to_string());
+                            formats_vec.push(DataFormat::Ipc.to_string());
+                            let batch =
+                                create_chat_record_batch(role_vec, content_vec, timestamp_vec)?;
+                            let bytes = Subject::get_builder()
+                                .with_name("message_parser_processor")
+                                .with_record_batches(vec![batch])?
+                                .build()?
+                                .to_ipc_stream()?;
+                            values_vec.push(bytes);
+
                             create_route_bytes_record_batch(
                                 names_vec,
                                 publishers_vec,
@@ -278,27 +325,16 @@ impl Stream for MessageParserStream {
                             event!(Level::ERROR, "Unparsable content: {}", e.to_string());
                             self.schema = message.get_schema();
 
-                            // and append error message for next try
-                            let mut timestamp_vec = Vec::new();
-                            let mut role_vec = Vec::new();
-                            let mut content_vec = Vec::new();
-
-                            // Assistant content
-                            timestamp_vec.push(create_timestamp_micros());
-                            role_vec.push(
-                                message
-                                    .get_column_as_vec_str("role")
-                                    .first()
-                                    .unwrap()
-                                    .to_string(),
-                            );
-                            content_vec.push(content.to_string());
-
-                            // // Mock user content
-                            // DM: accuracy of SLMs is such that many will not use the HITL template to respond
+                            // // Error content
                             // timestamp_vec.push(create_timestamp_micros());
-                            // role_vec.push("user".to_string());
-                            // content_vec.push(format!("Reformat your response to follow the tool schemas. If trying to respond to the user, use the human-in-the-loop tool."));
+                            // role_vec.push(
+                            //     message
+                            //         .get_column_as_vec_str("tool")
+                            //         .first()
+                            //         .unwrap()
+                            //         .to_string(),
+                            // );
+                            // content_vec.push(e.to_string());
                             create_chat_record_batch(role_vec, content_vec, timestamp_vec)?
                         }
                     }

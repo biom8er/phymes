@@ -64,7 +64,7 @@ pub fn make_object_store_paths_record_batch(
 /// Pipeline stream to `extend` the subject in object storage
 pub fn extend_subject(
     runtime_env: &Arc<RuntimeEnv>,
-    session_name: &str,
+    network_name: &str,
     sn: &str,
     new: Vec<RecordBatch>,
     step: u32,
@@ -75,7 +75,7 @@ pub fn extend_subject(
     let locations = Subject::get_builder()
         .with_name(ln)
         .with_record_batches(make_object_store_paths_record_batch(
-            session_name,
+            network_name,
             sn,
             step,
             publisher,
@@ -294,15 +294,15 @@ pub fn extend_subject(
     Ok(stream)
 }
 
-/// Pipeline stream to `clear` the subject data from object storage (optionally limiting to jsut the last partition)
+/// Pipeline stream to `clear` the subject data from object storage (optionally limiting to just the last partition)
 pub fn clear_subject(
     runtime_env: &Arc<RuntimeEnv>,
-    session_name: &str,
+    network_name: &str,
     sn: &str,
     last: bool,
 ) -> Result<SendableRecordBatchStream> {
     // 1. List the locations
-    let stream = list_subject(runtime_env, session_name, sn, last)?;
+    let stream = list_subject(runtime_env, network_name, sn, last)?;
 
     // 2. Delete the partitions at the locations listed
     let config = ObjectStoreConfig {
@@ -346,7 +346,7 @@ pub trait PublicationTrait {
         new: Vec<RecordBatch>,
         step: u32,
         publisher: &str,
-        session_name: &str,
+        network_name: &str,
     ) -> Result<Option<SendableRecordBatchStream>>;
 }
 
@@ -357,11 +357,11 @@ impl PublicationTrait for Publication {
         new: Vec<RecordBatch>,
         step: u32,
         publisher: &str,
-        session_name: &str,
+        network_name: &str,
     ) -> Result<Option<SendableRecordBatchStream>> {
         match self {
             Self::Extend { subject_name: sn } => {
-                let stream = extend_subject(runtime_env, session_name, sn, new, step, publisher)?;
+                let stream = extend_subject(runtime_env, network_name, sn, new, step, publisher)?;
                 Ok(Some(stream))
             }
             Publication::ExtendChunks {
@@ -390,7 +390,7 @@ impl PublicationTrait for Publication {
                 )?;
                 let stream = extend_subject(
                     runtime_env,
-                    session_name,
+                    network_name,
                     sn,
                     vec![new_first_row],
                     step,
@@ -444,15 +444,15 @@ impl PublicationTrait for Publication {
                     .collect();
                 let new_batches = new_batches_res?.into_iter().flatten().collect::<Vec<_>>();
                 let stream =
-                    extend_subject(runtime_env, session_name, sn, new_batches, step, publisher)?;
+                    extend_subject(runtime_env, network_name, sn, new_batches, step, publisher)?;
                 Ok(Some(stream))
             }
             Publication::Replace { subject_name: sn } => {
                 // Delete all RecordBatches
-                let clear = clear_subject(runtime_env, session_name, sn, false)?;
+                let clear = clear_subject(runtime_env, network_name, sn, false)?;
 
                 // Extend the subject with the new record batches
-                let stream = extend_subject(runtime_env, session_name, sn, new, step, publisher)?;
+                let stream = extend_subject(runtime_env, network_name, sn, new, step, publisher)?;
                 let stream = Box::pin(RecordBatchStreamAdapter::new(
                     Arc::clone(&stream.schema()),
                     clear.chain(stream),
@@ -461,10 +461,10 @@ impl PublicationTrait for Publication {
             }
             Publication::ReplaceLast { subject_name: sn } => {
                 // Delete the last RecordBatch
-                let clear = clear_subject(runtime_env, session_name, sn, true)?;
+                let clear = clear_subject(runtime_env, network_name, sn, true)?;
 
                 // Extend the subject with the new record batches
-                let stream = extend_subject(runtime_env, session_name, sn, new, step, publisher)?;
+                let stream = extend_subject(runtime_env, network_name, sn, new, step, publisher)?;
                 let stream = Box::pin(RecordBatchStreamAdapter::new(
                     Arc::clone(&stream.schema()),
                     clear.chain(stream),

@@ -29,7 +29,7 @@ pub struct Pivot {
     lhs_values: Vec<String>,
     agg_columns: Vec<String>,
     agg_operators: Vec<DataAggregatorOperator>,
-    default_values: Vec<String>,
+    cast_templates: Vec<String>,
     pvt_columns: Vec<String>,
 }
 
@@ -41,7 +41,7 @@ impl MappableTrait for Pivot {
 
 impl ToolTrait for Pivot {
     fn get_description(&self) -> String {
-        "Pivot on selected columns".to_string()
+        "Pivot Appache Arrow `RecordBatch`es from long to wide (spreadsheet-style pivot table) format".to_string()
     }
     fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
@@ -49,54 +49,62 @@ impl ToolTrait for Pivot {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
-                ..Default::default()
-            }),
-        );
-        properties.insert(
-            "rhs_name".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the right hand side table".to_string()),
-                ..Default::default()
-            }),
-        );
-        properties.insert(
-            "lhs_pk".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
                 description: Some(
-                    "The primary key column identifier for the left hand side table".to_string(),
+                    "The name of the left hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
                 ),
                 ..Default::default()
             }),
         );
         properties.insert(
-            "rhs_pk".to_string(),
+            "lhs_values".to_string(),
             Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
+                schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "The primary key column identifier for the right hand side table".to_string(),
+                    "The column names of the rows to group by for the left hand side message"
+                        .to_string(),
                 ),
                 ..Default::default()
             }),
         );
         properties.insert(
-            "lhs_fk".to_string(),
+            "agg_columns".to_string(),
             Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
+                schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "The foriegn key column identifier for the left hand side table".to_string(),
+                    "The column names to aggregate and fill the pivot table columns for the left hand side message".to_string(),
                 ),
                 ..Default::default()
             }),
         );
         properties.insert(
-            "rhs_fk".to_string(),
+            "agg_operators".to_string(),
             Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::String),
+                schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "The foriegn key column identifier for the right hand side table".to_string(),
+                    r#"The aggregation operators to apply to each agg_columns.
+Available aggregation operators include `Max`, `Min`, `Sum`, `Mean`, `Var`, `Count`, `Concat`, `ConcatSemicolonSeperator`, `List`, `Set`, `First`, and `Last`."#.to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "cast_templates".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    "The default values (formatted as a String and later cast to the appropriate data type) to use when missing values are encountered in the pvt_columns".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "pvt_columns".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    "The column names of the columns to group by for the left hand side message"
+                        .to_string(),
                 ),
                 ..Default::default()
             }),
@@ -109,9 +117,11 @@ impl ToolTrait for Pivot {
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
-                    "rhs_name".to_string(),
-                    "lhs_fk".to_string(),
-                    "rhs_fk".to_string(),
+                    "lhs_values".to_string(),
+                    "agg_columns".to_string(),
+                    "agg_operators".to_string(),
+                    "cast_templates".to_string(),
+                    "pvt_columns".to_string(),
                 ]),
             },
         };
@@ -137,8 +147,8 @@ impl DataOperatorTrait for Pivot {
             "Missing `agg_operators` for `{}`.",
             Self::get_static_name()
         ))?;
-        let default_values = config.default_values.clone().ok_or(anyhow!(
-            "Missing `default_values` for `{}`.",
+        let cast_templates = config.cast_templates.clone().ok_or(anyhow!(
+            "Missing `cast_templates` for `{}`.",
             Self::get_static_name()
         ))?;
         let pvt_columns = config.pvt_columns.clone().ok_or(anyhow!(
@@ -150,7 +160,7 @@ impl DataOperatorTrait for Pivot {
             lhs_values,
             agg_columns,
             agg_operators,
-            default_values,
+            cast_templates,
             pvt_columns,
         })
     }
@@ -170,8 +180,8 @@ impl DataOperatorTrait for Pivot {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        let default_values = self
-            .default_values
+        let cast_templates = self
+            .cast_templates
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
@@ -185,7 +195,7 @@ impl DataOperatorTrait for Pivot {
             lhs_args,
             &agg_columns,
             &self.agg_operators,
-            &default_values,
+            &cast_templates,
             &pvt_columns,
             device,
         )
@@ -195,7 +205,7 @@ impl DataOperatorTrait for Pivot {
 /// CPU only pivot operation to account for missing values
 fn pivot_missing_values(
     pvt_columns: &[&str],
-    default_values: &[&str],
+    cast_templates: &[&str],
     new_agg_columns: &[String],
     pvt_columns_table: &Subject,
     pvt_rows_table: &Subject,
@@ -272,7 +282,7 @@ fn pivot_missing_values(
             if !found {
                 // Add new columns to the row with default values
                 for (agg_column_name, agg_default_value) in
-                    new_agg_columns.iter().zip(default_values.iter())
+                    new_agg_columns.iter().zip(cast_templates.iter())
                 {
                     let new_column_name = format!("{column_name}-{agg_column_name}");
                     let data_type = pvt_values_table
@@ -411,7 +421,7 @@ fn pivot_values(
 /// * `lhs_args` - Slice of [RecordBatch]es
 /// * `agg_columns` - Slice of Strings for the columns to aggregate and fill the pivot table columns
 /// * `agg_operators` - Slice of [DataAggregatorOperator]s specifying the aggregator operator to apply to each lhs_value column
-/// * `default_values` - Slice of Strings representing the default value when missing values are encountered
+/// * `cast_templates` - Slice of Strings representing the default value when missing values are encountered
 /// * `pvt_columns` - Slice of Strings for the columns to group by
 /// * `device` - The compute device
 #[instrument(skip(
@@ -419,7 +429,7 @@ fn pivot_values(
     lhs_args,
     agg_columns,
     agg_operators,
-    default_values,
+    cast_templates,
     pvt_columns,
     device
 ))]
@@ -428,7 +438,7 @@ pub fn pivot(
     lhs_args: &[RecordBatch],
     agg_columns: &[&str],
     agg_operators: &[DataAggregatorOperator],
-    default_values: &[&str],
+    cast_templates: &[&str],
     pvt_columns: &[&str],
     device: &Device,
 ) -> Result<RecordBatch> {
@@ -495,7 +505,7 @@ pub fn pivot(
     } else {
         pivot_missing_values(
             pvt_columns,
-            default_values,
+            cast_templates,
             &new_agg_columns,
             &pvt_columns_table,
             &pvt_rows_table,

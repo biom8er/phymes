@@ -46,12 +46,12 @@ impl DataOperatorTrait for FromTracesToMessages {
     }
 }
 
-/// Custom function to convert `SessionTasks` and `Traces` to Sequence Diagram Messages
+/// Custom function to convert `NetworkTasks` and `Traces` to Sequence Diagram Messages
 ///
 /// # Notes
 ///
 /// * LHS is Traces
-/// * RHS is SessionTasks
+/// * RHS is NetworkTasks
 /// * Output schema is MermaidSequenceDiagramMessagesTemplate
 ///
 /// # Arguments
@@ -140,7 +140,7 @@ pub fn from_traces_to_messages(
         if tracer_event == "entered" {
             // Always record the trace
             if let Some(previous) = entered.take() {
-                // User -> session
+                // User -> network
                 let (s_name, o_name) = if parent_name.is_empty() {
                     let subject_name = "User".to_string();
                     let object_name = span_name.clone();
@@ -189,7 +189,7 @@ pub fn from_traces_to_messages(
                     timestamp_messages_vec.push(previous.7.to_owned());
                 }
 
-                // User -> session
+                // User -> network
                 let (s_name, o_name) = if parent_name.is_empty() {
                     let subject_name = "User".to_string();
                     let object_name = span_name.clone();
@@ -238,7 +238,7 @@ pub fn from_traces_to_messages(
             }
         } else if tracer_event == "exited" {
             if let Some(previous) = entered.take() {
-                // Session -> User
+                // Network -> User
                 if parent_name.is_empty() {
                     subject_name_vec.push(span_name.clone());
                     object_name_vec.push("User".to_string());
@@ -263,7 +263,7 @@ pub fn from_traces_to_messages(
                     timestamp,
                 ));
             } else if let Some(previous) = exited.take() {
-                // Session -> User
+                // Network -> User
                 if parent_name.is_empty() {
                     // Record the current exit
                     subject_name_vec.push(span_name.clone());
@@ -356,7 +356,7 @@ mod tests {
 
     #[test]
     fn test_from_traces_to_messages() -> Result<()> {
-        // Make the test traces which are based on chat session with two interactions
+        // Make the test traces which are based on chat network with two interactions
         let tracer_type = [
             "Messages", "Messages", "Messages", "Messages", "Messages", "Messages", "Messages",
             "Messages", "Messages", "Messages", "Messages", "Messages", "Messages", "Messages",
@@ -601,7 +601,7 @@ mod tests {
             "message_aggregator_task_2",
         ];
         let file = [
-            "phymes-subject/src/session/network_stream_step.rs",
+            "phymes-subject/src/network/network_stream_step.rs",
             "phymes-subject/src/task/task_trait.rs",
             "phymes-subject/src/task/task_trait.rs",
             "phymes-subject/src/task/task_trait.rs",
@@ -614,7 +614,7 @@ mod tests {
             "phymes-ml/src/candle_chat/chat_processor.rs",
             "phymes-ml/src/candle_chat/chat_processor.rs",
             "phymes-ml/src/candle_chat/chat_processor.rs",
-            "phymes-subject/src/session/network_stream_step.rs",
+            "phymes-subject/src/network/network_stream_step.rs",
             "phymes-subject/src/task/task_trait.rs",
             "phymes-subject/src/task/task_trait.rs",
             "phymes-subject/src/task/processor.rs",
@@ -627,7 +627,7 @@ mod tests {
             "phymes-ml/src/candle_chat/message_aggregator_processor.rs",
             "phymes-ml/src/candle_chat/message_aggregator_processor.rs",
             "phymes-ml/src/candle_chat/message_aggregator_processor.rs",
-            "phymes-subject/src/session/network_stream_step.rs",
+            "phymes-subject/src/network/network_stream_step.rs",
             "phymes-subject/src/task/task_trait.rs",
             "phymes-subject/src/task/task_trait.rs",
             "phymes-subject/src/task/task_trait.rs",
@@ -642,7 +642,7 @@ mod tests {
             "phymes-ml/src/candle_chat/chat_processor.rs",
             "phymes-ml/src/candle_chat/chat_processor.rs",
             "phymes-ml/src/candle_chat/chat_processor.rs",
-            "phymes-subject/src/session/network_stream_step.rs",
+            "phymes-subject/src/network/network_stream_step.rs",
             "phymes-subject/src/task/task_trait.rs",
             "phymes-subject/src/task/task_trait.rs",
             "phymes-subject/src/task/processor.rs",

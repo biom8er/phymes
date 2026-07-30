@@ -10,10 +10,10 @@ use phymes_diagnostics::{HashSet, create_timestamp_micros};
 use phymes_event::{AvailableSubscribeEvents, AvailableUpdateEvents, Publication, Subscription};
 use phymes_processor::{AvailableProcessors, ProcessorPlanBuilder};
 use phymes_schemas::{
-    AvailableSubjects, AvailableSubjectsTrait, create_session_mermaid_batch,
-    create_session_processors_batch, create_session_runtime_envs_batch,
-    create_session_subject_schemas_batch, create_session_tasks_batch,
-    create_session_tasks_run_log_batch, create_subjects_change_log_batch,
+    AvailableSubjects, AvailableSubjectsTrait, create_network_mermaid_batch,
+    create_network_processors_batch, create_network_runtime_envs_batch,
+    create_network_subject_schemas_batch, create_network_tasks_batch,
+    create_network_tasks_run_log_batch, create_subjects_change_log_batch,
     create_subjects_num_rows_batch, create_subjects_object_store_meta_batch, from_data_type_to_str,
     from_str_to_data_type,
 };
@@ -33,7 +33,7 @@ use crate::{
 
 /// Trait extension for [NetworkBuilderTrait] to enable exporting to and importing from tabular format
 pub trait NetworkBuilderTabularTrait {
-    /// Convert the session into tables
+    /// Convert the network into tables
     ///
     /// # Notes
     ///
@@ -98,7 +98,7 @@ pub trait NetworkBuilderTabularTrait {
 
     fn get_subjects_object_store_meta_as_subject_plan(&self) -> Result<SubjectPlan>;
 
-    /// Create the session from subjects
+    /// Create the network from subjects
     ///
     /// # Notes
     ///
@@ -120,7 +120,7 @@ pub trait NetworkBuilderTabularTrait {
     where
         Self: Sized;
 
-    /// Create empty subjects from `SessionSubjectSchemas`
+    /// Create empty subjects from `NetworkSubjectSchemas`
     fn with_subjects_as_subject_plans(self, subjects: &SubjectPlan) -> Result<Self>
     where
         Self: Sized;
@@ -158,12 +158,12 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
             tables.push(self.get_mermaid_js_as_subject_plan()?);
         }
         if include_errors {
-            tables.push(AvailableSubjects::SessionErrors.to_subject_plan(None, None)?);
+            tables.push(AvailableSubjects::NetworkErrors.to_subject_plan(None, None)?);
         }
         if include_diagnostics {
-            tables.push(AvailableSubjects::SessionMetrics.to_subject_plan(None, None)?);
-            tables.push(AvailableSubjects::SessionTraces.to_subject_plan(None, None)?);
-            tables.push(AvailableSubjects::SessionEvents.to_subject_plan(None, None)?);
+            tables.push(AvailableSubjects::NetworkMetrics.to_subject_plan(None, None)?);
+            tables.push(AvailableSubjects::NetworkTraces.to_subject_plan(None, None)?);
+            tables.push(AvailableSubjects::NetworkEvents.to_subject_plan(None, None)?);
         }
         // include_tasks_run_log is after include_subjects_change_log
         // so that the timestamp of all tasks is greater than the timestamp of all subjects
@@ -197,46 +197,46 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         // extract the schema
         for subject_plan in subject_plans {
             if subject_plan.get_name()
-                == AvailableSubjects::SessionSubjectSchemas
+                == AvailableSubjects::NetworkSubjectSchemas
                     .to_string()
                     .as_str()
                 && subjects.is_none()
             {
                 builder = builder.with_subjects_as_subject_plans(subject_plan)?;
             } else if subject_plan.get_name()
-                == AvailableSubjects::SessionTasks.to_string().as_str()
+                == AvailableSubjects::NetworkTasks.to_string().as_str()
             {
                 builder = builder.with_tasks_as_subject_plans(subject_plan)?;
             } else if subject_plan.get_name()
-                == AvailableSubjects::SessionProcessors.to_string().as_str()
+                == AvailableSubjects::NetworkProcessors.to_string().as_str()
             {
                 builder = builder.with_processors_as_subject_plans(subject_plan)?;
             } else if subject_plan.get_name()
-                == AvailableSubjects::SessionRuntimeEnvs.to_string().as_str()
+                == AvailableSubjects::NetworkRuntimeEnvs.to_string().as_str()
             {
                 builder = builder.with_runtime_envs_as_subject_plans(subject_plan)?;
-            } else if subject_plan.get_name() == AvailableSubjects::SessionMermaid.to_string().as_str()
+            } else if subject_plan.get_name() == AvailableSubjects::NetworkMermaid.to_string().as_str()
                 // Diagnostic tables
-                || subject_plan.get_name() == AvailableSubjects::SessionErrors.to_string().as_str()
-                || subject_plan.get_name() == AvailableSubjects::SessionTraces.to_string().as_str()
-                || subject_plan.get_name() == AvailableSubjects::SessionMetrics.to_string().as_str()
-                || subject_plan.get_name() == AvailableSubjects::SessionEvents.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::NetworkErrors.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::NetworkTraces.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::NetworkMetrics.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::NetworkEvents.to_string().as_str()
                 || subject_plan.get_name() == AvailableSubjects::MetricPivot.to_string().as_str()
                 // Subjects change log tables
                 || subject_plan.get_name() == AvailableSubjects::SubjectsNumRows.to_string().as_str()
                 || subject_plan.get_name() == AvailableSubjects::SubjectsChangeLog.to_string().as_str()
                 || subject_plan.get_name() == AvailableSubjects::SubjectsObjectStoreMeta.to_string().as_str()
                 // Tasks run log tables
-                || subject_plan.get_name() == AvailableSubjects::SessionTasksCheck.to_string().as_str()
-                || subject_plan.get_name() == AvailableSubjects::SessionTasksPublish.to_string().as_str()
-                || subject_plan.get_name() == AvailableSubjects::SessionTasksPublishAggregate.to_string().as_str()
-                || subject_plan.get_name() == AvailableSubjects::SessionTasksRunLog.to_string().as_str()
-                || subject_plan.get_name() == AvailableSubjects::SessionTasksSubscribe.to_string().as_str()
-                || subject_plan.get_name() == AvailableSubjects::SessionTasksSubscribeAggregate.to_string().as_str()
-                || subject_plan.get_name() == AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str()
-                // Session superstep tables
-                || subject_plan.get_name() == AvailableSubjects::SessionSupersteps.to_string().as_str()
-                || subject_plan.get_name() == AvailableSubjects::SessionSuperstepMax.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::NetworkTasksCheck.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::NetworkTasksPublish.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::NetworkTasksPublishAggregate.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::NetworkTasksRunLog.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::NetworkTasksSubscribe.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::NetworkTasksSubscribeAggregate.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::NetworkTasksSubscribePublish.to_string().as_str()
+                // Network superstep tables
+                || subject_plan.get_name() == AvailableSubjects::NetworkSupersteps.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::NetworkSuperstepMax.to_string().as_str()
             {
                 // These tables are created on the fly so we do not want to duplicate them.
                 // If the user wishes to continue already generated tables they can do so
@@ -266,11 +266,11 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         if self.subjects.is_none() {
             return Err(anyhow!("Add subjects before making the subject tables."));
         }
-        let session_name = if let Some(session_name) = self.name.as_ref() {
-            session_name
+        let network_name = if let Some(network_name) = self.name.as_ref() {
+            network_name
         } else {
             return Err(anyhow!(
-                "Add session name before making the subject tables."
+                "Add network name before making the subject tables."
             ));
         };
 
@@ -278,7 +278,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         let exclusion_set = self.subjects_to_exclude()?;
 
         // initialize the table columns
-        let mut session_names = Vec::<String>::new();
+        let mut network_names = Vec::<String>::new();
         let mut subject_names = Vec::<String>::new();
         let mut cols_names = Vec::<String>::new();
         let mut type_names = Vec::<String>::new();
@@ -298,7 +298,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
                 let fields = subject.subject().get_schema().fields().clone();
                 for field in fields.iter() {
                     let type_name = from_data_type_to_str(field.data_type());
-                    session_names.push(session_name.to_string());
+                    network_names.push(network_name.to_string());
                     subject_names.push(subject.get_name().to_string());
                     cols_names.push(field.name().to_string());
                     type_names.push(type_name);
@@ -307,8 +307,8 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         }
 
         // create the record batch
-        let batch = create_session_subject_schemas_batch(
-            session_names,
+        let batch = create_network_subject_schemas_batch(
+            network_names,
             subject_names,
             cols_names,
             type_names,
@@ -317,7 +317,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         // create the subject
         let subject = Subject::get_builder()
             .with_name(
-                AvailableSubjects::SessionSubjectSchemas
+                AvailableSubjects::NetworkSubjectSchemas
                     .to_string()
                     .as_str(),
             )
@@ -331,11 +331,11 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         if self.tasks.is_none() {
             return Err(anyhow!("Add task plans before making the tasks table."));
         }
-        let session_name = if let Some(session_name) = self.name.as_ref() {
-            session_name
+        let network_name = if let Some(network_name) = self.name.as_ref() {
+            network_name
         } else {
             return Err(anyhow!(
-                "Add session name before making the subject tables."
+                "Add network name before making the subject tables."
             ));
         };
 
@@ -343,7 +343,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
 
         // extract the tasks in order
         #[allow(clippy::type_complexity)]
-        let ((session_names, task_names), processor_names): (
+        let ((network_names, task_names), processor_names): (
             (Vec<String>, Vec<String>),
             Vec<String>,
         ) = self
@@ -357,7 +357,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
                     .iter()
                     .map(|p| {
                         (
-                            (session_name.to_string(), t.task_name.to_string()),
+                            (network_name.to_string(), t.task_name.to_string()),
                             p.to_string(),
                         )
                     })
@@ -366,11 +366,11 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
             .unzip();
 
         // create the record batch
-        let batch = create_session_tasks_batch(session_names, task_names, processor_names)?;
+        let batch = create_network_tasks_batch(network_names, task_names, processor_names)?;
 
         // create the table
         let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionTasks.to_string().as_str())
+            .with_name(AvailableSubjects::NetworkTasks.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
         SubjectPlan::get_builder().with_subject(subject).build()
@@ -382,11 +382,11 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
                 "Add processors before making the Mermaid Flowchart."
             ));
         }
-        let session_name = if let Some(session_name) = self.name.as_ref() {
-            session_name
+        let network_name = if let Some(network_name) = self.name.as_ref() {
+            network_name
         } else {
             return Err(anyhow!(
-                "Add session name before making the subject tables."
+                "Add network name before making the subject tables."
             ));
         };
 
@@ -396,7 +396,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
             (
                 (
                     (
-                        (((session_names, processor_names), processor_types), pub_sub_name),
+                        (((network_names, processor_names), processor_types), pub_sub_name),
                         pub_sub_table_names,
                     ),
                     is_sub,
@@ -422,7 +422,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
                                         (
                                             (
                                                 (
-                                                    session_name.to_string(),
+                                                    network_name.to_string(),
                                                     p.get_name().to_string(),
                                                 ),
                                                 p.get_type().to_string(),
@@ -450,7 +450,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
                                         (
                                             (
                                                 (
-                                                    session_name.to_string(),
+                                                    network_name.to_string(),
                                                     p.get_name().to_string(),
                                                 ),
                                                 p.get_type().to_string(),
@@ -472,8 +472,8 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
             .unzip();
 
         // create the record batch
-        let batch = create_session_processors_batch(
-            session_names,
+        let batch = create_network_processors_batch(
+            network_names,
             processor_names,
             processor_types,
             pub_sub_name,
@@ -485,7 +485,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
 
         // create the table
         let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionProcessors.to_string().as_str())
+            .with_name(AvailableSubjects::NetworkProcessors.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
         SubjectPlan::get_builder().with_subject(subject).build()
@@ -497,16 +497,16 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
                 "Add runtime environments before making the subject tables."
             ));
         }
-        let session_name = if let Some(session_name) = self.name.as_ref() {
-            session_name
+        let network_name = if let Some(network_name) = self.name.as_ref() {
+            network_name
         } else {
             return Err(anyhow!(
-                "Add session name before making the subject tables."
+                "Add network name before making the subject tables."
             ));
         };
 
         // create the record batch
-        let session_names = vec![session_name.to_string()];
+        let network_names = vec![network_name.to_string()];
         let runtime_env_names = vec![self.runtime_env.as_ref().unwrap().get_name().to_string()];
         let object_store_backend = vec![ObjectStorageBackend::InMemory.to_string()]; // DM: need to find a way to get the backend from the store...
         let object_store_bucket = vec![String::new()]; // DM: need to find a way to get the backend from the store...
@@ -531,8 +531,8 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         let max_time = vec![self.runtime_env.as_ref().unwrap().max_time as u32];
         let max_steps = vec![self.runtime_env.as_ref().unwrap().max_steps as u32];
         let max_tasks = vec![self.runtime_env.as_ref().unwrap().max_tasks as u32];
-        let batch = create_session_runtime_envs_batch(
-            session_names,
+        let batch = create_network_runtime_envs_batch(
+            network_names,
             runtime_env_names,
             object_store_backend,
             object_store_bucket,
@@ -547,7 +547,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
 
         // create the table
         let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionRuntimeEnvs.to_string().as_str())
+            .with_name(AvailableSubjects::NetworkRuntimeEnvs.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
         SubjectPlan::get_builder().with_subject(subject).build()
@@ -560,7 +560,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         let timestamp = create_timestamp_micros();
 
         // create the record batch
-        let batch = create_session_mermaid_batch(
+        let batch = create_network_mermaid_batch(
             vec![network_name],
             vec![flowchart_diagram],
             vec![er_diagram],
@@ -569,7 +569,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
 
         // create the table
         let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionMermaid.to_string().as_str())
+            .with_name(AvailableSubjects::NetworkMermaid.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
         SubjectPlan::get_builder().with_subject(subject).build()
@@ -581,11 +581,11 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
                 "Add task plans before making the tasks run log table."
             ));
         }
-        let session_name = if let Some(session_name) = self.name.as_ref() {
-            session_name
+        let network_name = if let Some(network_name) = self.name.as_ref() {
+            network_name
         } else {
             return Err(anyhow!(
-                "Add session name before making the tasks run log table."
+                "Add network name before making the tasks run log table."
             ));
         };
 
@@ -593,7 +593,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         let exclusion_set = self.tasks_to_exclude()?;
 
         // Create the table
-        let (((session_names, task_names), supersteps), timestamps) = self
+        let (((network_names, task_names), supersteps), timestamps) = self
             .tasks
             .as_ref()
             .unwrap()
@@ -604,7 +604,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
                 } else {
                     Some((
                         (
-                            (session_name.to_string(), task.task_name.to_string()),
+                            (network_name.to_string(), task.task_name.to_string()),
                             0_i64,
                         ),
                         create_timestamp_micros(),
@@ -613,9 +613,9 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
             })
             .unzip();
         let batch =
-            create_session_tasks_run_log_batch(session_names, task_names, supersteps, timestamps)?;
+            create_network_tasks_run_log_batch(network_names, task_names, supersteps, timestamps)?;
         let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+            .with_name(AvailableSubjects::NetworkTasksRunLog.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
         SubjectPlan::get_builder().with_subject(subject).build()
@@ -667,17 +667,17 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
                 "Add processor plans before making subjects change log table."
             ));
         }
-        let session_name = if let Some(session_name) = self.name.as_ref() {
-            session_name
+        let network_name = if let Some(network_name) = self.name.as_ref() {
+            network_name
         } else {
             return Err(anyhow!(
-                "Add session name before making the subjects change log table."
+                "Add network name before making the subjects change log table."
             ));
         };
 
         // Create the table
         let exclusion_set = self.tasks_to_exclude()?;
-        let ((((subject_names, task_names), session_names), num_rows), supersteps) = self
+        let ((((subject_names, task_names), network_names), num_rows), supersteps) = self
             .tasks
             .as_ref()
             .unwrap()
@@ -714,7 +714,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
                                                 table.get_name().to_string(),
                                                 task.task_name.to_string(),
                                             ),
-                                            session_name.to_string(),
+                                            network_name.to_string(),
                                         ),
                                         0_i64,
                                     ),
@@ -733,7 +733,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         let batch = create_subjects_change_log_batch(
             subject_names,
             task_names,
-            session_names,
+            network_names,
             num_rows,
             supersteps,
         )?;
@@ -767,11 +767,11 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
                 "Add runtime env before making subjects object store meta table."
             ));
         };
-        let session_name = if let Some(session_name) = self.name.as_ref() {
-            session_name
+        let network_name = if let Some(network_name) = self.name.as_ref() {
+            network_name
         } else {
             return Err(anyhow!(
-                "Add session name before making the subjects object store meta table."
+                "Add network name before making the subjects object store meta table."
             ));
         };
 
@@ -784,7 +784,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
                         (
                             (
                                 (
-                                    (((subject_names, task_names), session_names), num_rows),
+                                    (((subject_names, task_names), network_names), num_rows),
                                     supersteps,
                                 ),
                                 location,
@@ -843,7 +843,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
                                                                             .to_string(),
                                                                         task.task_name.to_string(),
                                                                     ),
-                                                                    session_name.to_string(),
+                                                                    network_name.to_string(),
                                                                 ),
                                                                 0_i64,
                                                             ),
@@ -874,7 +874,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         let batch = create_subjects_object_store_meta_batch(
             subject_names,
             task_names,
-            session_names,
+            network_names,
             num_rows,
             supersteps,
             location,
@@ -1171,8 +1171,8 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
     fn subjects_to_exclude(&self) -> Result<HashSet<String>> {
         // Exclude subjects from `NextTaskNetwork`
         let next_task_network = NextTaskNetwork::default();
-        let tables_publish_subscribe = if let Some(session_name) = self.name.as_ref() {
-            if session_name != next_task_network.network_name {
+        let tables_publish_subscribe = if let Some(network_name) = self.name.as_ref() {
+            if network_name != next_task_network.network_name {
                 NetworkBuilder::from_mermaid_flowchart(
                     next_task_network.as_mermaid_flowchart(),
                     false,
@@ -1198,8 +1198,8 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
 
         // Exclude subjects from `NextSuperstepNetwork`
         let next_superstep = NextSuperstepNetwork::default();
-        let tables_next_superstep = if let Some(session_name) = self.name.as_ref() {
-            if session_name != next_superstep.network_name {
+        let tables_next_superstep = if let Some(network_name) = self.name.as_ref() {
+            if network_name != next_superstep.network_name {
                 NetworkBuilder::from_mermaid_flowchart(
                     next_superstep.as_mermaid_flowchart(),
                     false,
@@ -1218,20 +1218,20 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
             Vec::new()
         };
 
-        // Exclude subjects from `SubjectsNumRowsSession`
-        let subjects_session = CountSubjectRowsNetwork::default();
-        let tables_subjects = if let Some(session_name) = self.name.as_ref() {
-            if session_name != subjects_session.network_name {
+        // Exclude subjects from `SubjectsNumRowsNetwork`
+        let subjects_network = CountSubjectRowsNetwork::default();
+        let tables_subjects = if let Some(network_name) = self.name.as_ref() {
+            if network_name != subjects_network.network_name {
                 NetworkBuilder::from_mermaid_flowchart(
-                    subjects_session.as_mermaid_flowchart(),
+                    subjects_network.as_mermaid_flowchart(),
                     false,
                 )?
                 .with_subjects_from_mermaid_erdiagram(
-                    subjects_session.as_mermaid_erdiagram(),
+                    subjects_network.as_mermaid_erdiagram(),
                     false,
                     false,
                 )?
-                .with_name(subjects_session.network_name)
+                .with_name(subjects_network.network_name)
                 .add_processor_subjects()?
                 .subjects
                 .unwrap()
@@ -1257,8 +1257,8 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
     fn tasks_to_exclude(&self) -> Result<HashSet<String>> {
         // Exclude subjects from `NextTaskNetwork`
         let next_task_network = NextTaskNetwork::default();
-        let tasks_publish_subscribe = if let Some(session_name) = self.name.as_ref() {
-            if session_name != next_task_network.network_name {
+        let tasks_publish_subscribe = if let Some(network_name) = self.name.as_ref() {
+            if network_name != next_task_network.network_name {
                 NetworkBuilder::from_mermaid_flowchart(
                     next_task_network.as_mermaid_flowchart(),
                     false,
@@ -1277,8 +1277,8 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
 
         // Exclude subjects from `NextSuperstepNetwork`
         let next_superstep = NextSuperstepNetwork::default();
-        let tasks_next_superstep = if let Some(session_name) = self.name.as_ref() {
-            if session_name != next_superstep.network_name {
+        let tasks_next_superstep = if let Some(network_name) = self.name.as_ref() {
+            if network_name != next_superstep.network_name {
                 NetworkBuilder::from_mermaid_flowchart(
                     next_superstep.as_mermaid_flowchart(),
                     false,
@@ -1295,12 +1295,12 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
             Vec::new()
         };
 
-        // Exclude subjects from `SubjectsNumRowsSession`
-        let subjects_session = CountSubjectRowsNetwork::default();
-        let tasks_subjects = if let Some(session_name) = self.name.as_ref() {
-            if session_name != subjects_session.network_name {
+        // Exclude subjects from `SubjectsNumRowsNetwork`
+        let subjects_network = CountSubjectRowsNetwork::default();
+        let tasks_subjects = if let Some(network_name) = self.name.as_ref() {
+            if network_name != subjects_network.network_name {
                 NetworkBuilder::from_mermaid_flowchart(
-                    subjects_session.as_mermaid_flowchart(),
+                    subjects_network.as_mermaid_flowchart(),
                     false,
                 )?
                 .tasks
@@ -1327,8 +1327,8 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
     fn processors_to_exclude(&self) -> Result<HashSet<String>> {
         // Exclude subjects from `NextTaskNetwork`
         let next_task_network = NextTaskNetwork::default();
-        let processors_task_session = if let Some(session_name) = self.name.as_ref() {
-            if session_name != next_task_network.network_name {
+        let processors_task_network = if let Some(network_name) = self.name.as_ref() {
+            if network_name != next_task_network.network_name {
                 NetworkBuilder::from_mermaid_flowchart(
                     next_task_network.as_mermaid_flowchart(),
                     false,
@@ -1347,8 +1347,8 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
 
         // Exclude subjects from `NextSuperstepNetwork`
         let next_superstep = NextSuperstepNetwork::default();
-        let processors_next_superstep = if let Some(session_name) = self.name.as_ref() {
-            if session_name != next_superstep.network_name {
+        let processors_next_superstep = if let Some(network_name) = self.name.as_ref() {
+            if network_name != next_superstep.network_name {
                 NetworkBuilder::from_mermaid_flowchart(
                     next_superstep.as_mermaid_flowchart(),
                     false,
@@ -1365,12 +1365,12 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
             Vec::new()
         };
 
-        // Exclude subjects from `SubjectsNumRowsSession`
-        let subjects_session = CountSubjectRowsNetwork::default();
-        let processors_subjects = if let Some(session_name) = self.name.as_ref() {
-            if session_name != subjects_session.network_name {
+        // Exclude subjects from `SubjectsNumRowsNetwork`
+        let subjects_network = CountSubjectRowsNetwork::default();
+        let processors_subjects = if let Some(network_name) = self.name.as_ref() {
+            if network_name != subjects_network.network_name {
                 NetworkBuilder::from_mermaid_flowchart(
-                    subjects_session.as_mermaid_flowchart(),
+                    subjects_network.as_mermaid_flowchart(),
                     false,
                 )?
                 .processors
@@ -1386,7 +1386,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         };
 
         // Wrap into a HashSet
-        let exclusion_set = processors_task_session
+        let exclusion_set = processors_task_network
             .into_iter()
             .chain(processors_next_superstep)
             .chain(processors_subjects)
@@ -1428,23 +1428,23 @@ mod tests {
         // Check the tables
         assert_eq!(
             tables.first().unwrap().get_name(),
-            AvailableSubjects::SessionMermaid.to_string().as_str()
+            AvailableSubjects::NetworkMermaid.to_string().as_str()
         );
         assert_eq!(
             tables.get(1).unwrap().get_name(),
-            AvailableSubjects::SessionErrors.to_string().as_str()
+            AvailableSubjects::NetworkErrors.to_string().as_str()
         );
         assert_eq!(
             tables.get(2).unwrap().get_name(),
-            AvailableSubjects::SessionMetrics.to_string().as_str()
+            AvailableSubjects::NetworkMetrics.to_string().as_str()
         );
         assert_eq!(
             tables.get(3).unwrap().get_name(),
-            AvailableSubjects::SessionTraces.to_string().as_str()
+            AvailableSubjects::NetworkTraces.to_string().as_str()
         );
         assert_eq!(
             tables.get(4).unwrap().get_name(),
-            AvailableSubjects::SessionEvents.to_string().as_str()
+            AvailableSubjects::NetworkEvents.to_string().as_str()
         );
         assert_eq!(
             tables.get(5).unwrap().get_name(),
@@ -1462,25 +1462,25 @@ mod tests {
         );
         assert_eq!(
             tables.get(8).unwrap().get_name(),
-            AvailableSubjects::SessionTasksRunLog.to_string().as_str()
+            AvailableSubjects::NetworkTasksRunLog.to_string().as_str()
         );
         assert_eq!(
             tables.get(9).unwrap().get_name(),
-            AvailableSubjects::SessionSubjectSchemas
+            AvailableSubjects::NetworkSubjectSchemas
                 .to_string()
                 .as_str()
         );
         assert_eq!(
             tables.get(10).unwrap().get_name(),
-            AvailableSubjects::SessionTasks.to_string().as_str()
+            AvailableSubjects::NetworkTasks.to_string().as_str()
         );
         assert_eq!(
             tables.get(11).unwrap().get_name(),
-            AvailableSubjects::SessionProcessors.to_string().as_str()
+            AvailableSubjects::NetworkProcessors.to_string().as_str()
         );
         assert_eq!(
             tables.get(12).unwrap().get_name(),
-            AvailableSubjects::SessionRuntimeEnvs.to_string().as_str()
+            AvailableSubjects::NetworkRuntimeEnvs.to_string().as_str()
         );
 
         // Test from tables
@@ -2081,7 +2081,7 @@ mod tests {
         //     .get_column_as_vec_str("subject_name")
         //     .into_iter()
         //     .collect::<HashSet<_>>();
-        // left: {"SessionTasksRunLog", "SessionEvents", "subjects_1", "config_2", "SessionMetrics", "SessionTraces", "SubjectsNumRows", "SubjectsChangeLog", "subjects_3", "SessionErrors", "subjects_2", "config_3", "config_1", "SessionMermaid"}
+        // left: {"NetworkTasksRunLog", "NetworkEvents", "subjects_1", "config_2", "NetworkMetrics", "NetworkTraces", "SubjectsNumRows", "SubjectsChangeLog", "subjects_3", "NetworkErrors", "subjects_2", "config_3", "config_1", "NetworkMermaid"}
         // right: {"config_2", "subjects_3", "subjects_1", "config_1", "subjects_2", "config_3"}
         // assert_eq!(tables_test_set, tables_set);
         assert_eq!(
@@ -2120,12 +2120,12 @@ mod tests {
                 .get(6)
                 .unwrap()
                 .subject()
-                .get_column_as_vec_str("session_name"),
+                .get_column_as_vec_str("network_name"),
             tables
                 .get(6)
                 .unwrap()
                 .subject()
-                .get_column_as_vec_str("session_name")
+                .get_column_as_vec_str("network_name")
         );
         assert_eq!(
             tables_test
@@ -2187,12 +2187,12 @@ mod tests {
                 .get(7)
                 .unwrap()
                 .subject()
-                .get_column_as_vec_str("session_name"),
+                .get_column_as_vec_str("network_name"),
             tables
                 .get(7)
                 .unwrap()
                 .subject()
-                .get_column_as_vec_str("session_name")
+                .get_column_as_vec_str("network_name")
         );
         assert_eq!(
             tables_test
@@ -2259,12 +2259,12 @@ mod tests {
                 .get(7)
                 .unwrap()
                 .subject()
-                .get_column_as_vec_str("session_name"),
+                .get_column_as_vec_str("network_name"),
             tables
                 .get(7)
                 .unwrap()
                 .subject()
-                .get_column_as_vec_str("session_name")
+                .get_column_as_vec_str("network_name")
         );
         assert_eq!(
             tables_test
@@ -2306,12 +2306,12 @@ mod tests {
                 .get(8)
                 .unwrap()
                 .subject()
-                .get_column_as_vec_str("session_name"),
+                .get_column_as_vec_str("network_name"),
             tables
                 .get(8)
                 .unwrap()
                 .subject()
-                .get_column_as_vec_str("session_name")
+                .get_column_as_vec_str("network_name")
         );
         assert_eq!(
             tables_test

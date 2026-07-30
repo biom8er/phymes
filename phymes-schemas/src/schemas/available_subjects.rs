@@ -1,5 +1,6 @@
 use crate::{
-    AvailableSchemaTrait, AvailableSubjectsTrait,
+    AvailableSchemaTrait, AvailableSubjectsTrait, PdfDocumentSubject, PdfGraphicsSubject,
+    PdfPageSubject, PdfTextSubject,
     chat::{create_route_bytes_fields, create_tools_fields, create_values_fields},
     core::{
         create_events_fields, create_join_user_inbox_networks_fields,
@@ -13,14 +14,14 @@ use crate::{
         create_mermaid_sequence_diagram_participants_template_fields,
         create_mermaid_visualization_fields, create_mermaid_xychart_template_fields,
         create_metrics_fields, create_metrics_mermaid_gantt_fields, create_metrics_pivot_fields,
-        create_metrics_pivot_norm_time_fields, create_session_mermaid_fields,
-        create_session_processors_fields, create_session_runtime_envs_fields,
-        create_session_subject_schemas_fields, create_session_superstep_max_fields,
-        create_session_supersteps_fields, create_session_tasks_check_fields,
-        create_session_tasks_fields, create_session_tasks_publish_aggregate_fields,
-        create_session_tasks_publish_fields, create_session_tasks_run_log_fields,
-        create_session_tasks_subscribe_aggregate_fields, create_session_tasks_subscribe_fields,
-        create_session_tasks_subscribe_publish_fields, create_subjects_change_log_fields,
+        create_metrics_pivot_norm_time_fields, create_network_mermaid_fields,
+        create_network_processors_fields, create_network_runtime_envs_fields,
+        create_network_subject_schemas_fields, create_network_superstep_max_fields,
+        create_network_supersteps_fields, create_network_tasks_check_fields,
+        create_network_tasks_fields, create_network_tasks_publish_aggregate_fields,
+        create_network_tasks_publish_fields, create_network_tasks_run_log_fields,
+        create_network_tasks_subscribe_aggregate_fields, create_network_tasks_subscribe_fields,
+        create_network_tasks_subscribe_publish_fields, create_subjects_change_log_fields,
         create_subjects_num_rows_fields, create_subjects_object_store_meta_fields,
         create_traces_fields, create_user_fields, create_user_inbox_fields,
         create_user_networks_fields,
@@ -59,6 +60,8 @@ pub fn create_schema_from_fields(f: &dyn Fn() -> Fields) -> SchemaRef {
 /// The available subject schmeas
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableSubjects {
+    #[value(name = "None")]
+    None,
     #[value(name = "Empty")]
     Empty,
     #[value(name = "Messages")]
@@ -108,34 +111,34 @@ pub enum AvailableSubjects {
     JoinUserInboxNetworks,
     #[value(name = "JoinUserInboxNetworksMermaid")]
     JoinUserInboxNetworksMermaid,
-    #[value(name = "SessionMermaid")]
-    SessionMermaid,
+    #[value(name = "NetworkMermaid")]
+    NetworkMermaid,
     #[value(name = "BuilderMermaid")]
     BuilderMermaid,
     #[value(name = "Errors")]
-    SessionErrors,
+    NetworkErrors,
     #[value(name = "Metrics")]
-    SessionMetrics,
+    NetworkMetrics,
     #[value(name = "MetricMermaidGantt")]
     MetricMermaidGantt,
     #[value(name = "Traces")]
-    SessionTraces,
+    NetworkTraces,
     #[value(name = "Events")]
-    SessionEvents,
+    NetworkEvents,
     #[value(name = "MetricPivot")]
     MetricPivot,
     #[value(name = "MetricPivotNormTime")]
     MetricPivotNormTime,
-    #[value(name = "SessionSubjectSchemas")]
-    SessionSubjectSchemas,
-    #[value(name = "SessionTasks")]
-    SessionTasks,
-    #[value(name = "SessionProcessors")]
-    SessionProcessors,
-    #[value(name = "SessionRuntimeEnvs")]
-    SessionRuntimeEnvs,
-    #[value(name = "SessionTasksRunLog")]
-    SessionTasksRunLog,
+    #[value(name = "NetworkSubjectSchemas")]
+    NetworkSubjectSchemas,
+    #[value(name = "NetworkTasks")]
+    NetworkTasks,
+    #[value(name = "NetworkProcessors")]
+    NetworkProcessors,
+    #[value(name = "NetworkRuntimeEnvs")]
+    NetworkRuntimeEnvs,
+    #[value(name = "NetworkTasksRunLog")]
+    NetworkTasksRunLog,
     #[value(name = "SubjectsNumRows")]
     SubjectsNumRows,
     #[value(name = "SubjectsChangeLog")]
@@ -182,22 +185,22 @@ pub enum AvailableSubjects {
     NTriples,
     #[value(name = "NQuads")]
     NQuads,
-    #[value(name = "SessionTasksCheck")]
-    SessionTasksCheck,
-    #[value(name = "SessionTasksSubscribe")]
-    SessionTasksSubscribe,
-    #[value(name = "SessionTasksPublish")]
-    SessionTasksPublish,
-    #[value(name = "SessionTasksSubscribeAggregate")]
-    SessionTasksSubscribeAggregate,
-    #[value(name = "SessionTasksPublishAggregate")]
-    SessionTasksPublishAggregate,
-    #[value(name = "SessionTasksSubscribePublish")]
-    SessionTasksSubscribePublish,
-    #[value(name = "SessionSupersteps")]
-    SessionSupersteps,
-    #[value(name = "SessionSuperstepMax")]
-    SessionSuperstepMax,
+    #[value(name = "NetworkTasksCheck")]
+    NetworkTasksCheck,
+    #[value(name = "NetworkTasksSubscribe")]
+    NetworkTasksSubscribe,
+    #[value(name = "NetworkTasksPublish")]
+    NetworkTasksPublish,
+    #[value(name = "NetworkTasksSubscribeAggregate")]
+    NetworkTasksSubscribeAggregate,
+    #[value(name = "NetworkTasksPublishAggregate")]
+    NetworkTasksPublishAggregate,
+    #[value(name = "NetworkTasksSubscribePublish")]
+    NetworkTasksSubscribePublish,
+    #[value(name = "NetworkSupersteps")]
+    NetworkSupersteps,
+    #[value(name = "NetworkSuperstepMax")]
+    NetworkSuperstepMax,
     #[value(name = "OpenAlexResponseWorks")]
     OpenAlexResponseWorks,
     #[value(name = "OpenAlexResponseAuthors")]
@@ -214,11 +217,20 @@ pub enum AvailableSubjects {
     OpenAlexResponsePublishers,
     #[value(name = "OpenAlexResponseSources")]
     OpenAlexResponseSources,
+    #[value(name = "PdfTextSubject")]
+    PdfTextSubject,
+    #[value(name = "PdfGraphicsSubject")]
+    PdfGraphicsSubject,
+    #[value(name = "PdfPageSubject")]
+    PdfPageSubject,
+    #[value(name = "PdfDocumentSubject")]
+    PdfDocumentSubject,
 }
 
 impl Display for AvailableSubjects {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            AvailableSubjects::None => write!(f, "None"),
             AvailableSubjects::Empty => write!(f, "Empty"),
             AvailableSubjects::Messages => write!(f, "Messages"),
             AvailableSubjects::Values => write!(f, "Values"),
@@ -247,20 +259,20 @@ impl Display for AvailableSubjects {
             AvailableSubjects::JoinUserInboxNetworksMermaid => {
                 write!(f, "JoinUserInboxNetworksMermaid")
             }
-            AvailableSubjects::SessionMermaid => write!(f, "SessionMermaid"),
+            AvailableSubjects::NetworkMermaid => write!(f, "NetworkMermaid"),
             AvailableSubjects::BuilderMermaid => write!(f, "BuilderMermaid"),
-            AvailableSubjects::SessionErrors => write!(f, "SessionErrors"),
-            AvailableSubjects::SessionMetrics => write!(f, "SessionMetrics"),
+            AvailableSubjects::NetworkErrors => write!(f, "NetworkErrors"),
+            AvailableSubjects::NetworkMetrics => write!(f, "NetworkMetrics"),
             AvailableSubjects::MetricMermaidGantt => write!(f, "MetricMermaidGantt"),
-            AvailableSubjects::SessionTraces => write!(f, "SessionTraces"),
-            AvailableSubjects::SessionEvents => write!(f, "SessionEvents"),
+            AvailableSubjects::NetworkTraces => write!(f, "NetworkTraces"),
+            AvailableSubjects::NetworkEvents => write!(f, "NetworkEvents"),
             AvailableSubjects::MetricPivot => write!(f, "MetricPivot"),
             AvailableSubjects::MetricPivotNormTime => write!(f, "MetricPivotNormTime"),
-            AvailableSubjects::SessionSubjectSchemas => write!(f, "SessionSubjectSchemas"),
-            AvailableSubjects::SessionTasks => write!(f, "SessionTasks"),
-            AvailableSubjects::SessionProcessors => write!(f, "SessionProcessors"),
-            AvailableSubjects::SessionRuntimeEnvs => write!(f, "SessionRuntimeEnvs"),
-            AvailableSubjects::SessionTasksRunLog => write!(f, "SessionTasksRunLog"),
+            AvailableSubjects::NetworkSubjectSchemas => write!(f, "NetworkSubjectSchemas"),
+            AvailableSubjects::NetworkTasks => write!(f, "NetworkTasks"),
+            AvailableSubjects::NetworkProcessors => write!(f, "NetworkProcessors"),
+            AvailableSubjects::NetworkRuntimeEnvs => write!(f, "NetworkRuntimeEnvs"),
+            AvailableSubjects::NetworkTasksRunLog => write!(f, "NetworkTasksRunLog"),
             AvailableSubjects::SubjectsNumRows => write!(f, "SubjectsNumRows"),
             AvailableSubjects::SubjectsChangeLog => write!(f, "SubjectsChangeLog"),
             AvailableSubjects::SubjectsObjectStoreMeta => write!(f, "SubjectsObjectStoreMeta"),
@@ -296,20 +308,20 @@ impl Display for AvailableSubjects {
             AvailableSubjects::ParseOwl => write!(f, "ParseOwl"),
             AvailableSubjects::NTriples => write!(f, "NTriples"),
             AvailableSubjects::NQuads => write!(f, "NQuads"),
-            AvailableSubjects::SessionTasksCheck => write!(f, "SessionTasksCheck"),
-            AvailableSubjects::SessionTasksSubscribe => write!(f, "SessionTasksSubscribe"),
-            AvailableSubjects::SessionTasksPublish => write!(f, "SessionTasksPublish"),
-            AvailableSubjects::SessionTasksSubscribeAggregate => {
-                write!(f, "SessionTasksSubscribeAggregate")
+            AvailableSubjects::NetworkTasksCheck => write!(f, "NetworkTasksCheck"),
+            AvailableSubjects::NetworkTasksSubscribe => write!(f, "NetworkTasksSubscribe"),
+            AvailableSubjects::NetworkTasksPublish => write!(f, "NetworkTasksPublish"),
+            AvailableSubjects::NetworkTasksSubscribeAggregate => {
+                write!(f, "NetworkTasksSubscribeAggregate")
             }
-            AvailableSubjects::SessionTasksPublishAggregate => {
-                write!(f, "SessionTasksPublishAggregate")
+            AvailableSubjects::NetworkTasksPublishAggregate => {
+                write!(f, "NetworkTasksPublishAggregate")
             }
-            AvailableSubjects::SessionTasksSubscribePublish => {
-                write!(f, "SessionTasksSubscribePublish")
+            AvailableSubjects::NetworkTasksSubscribePublish => {
+                write!(f, "NetworkTasksSubscribePublish")
             }
-            AvailableSubjects::SessionSupersteps => write!(f, "SessionSupersteps"),
-            AvailableSubjects::SessionSuperstepMax => write!(f, "SessionSuperstepMax"),
+            AvailableSubjects::NetworkSupersteps => write!(f, "NetworkSupersteps"),
+            AvailableSubjects::NetworkSuperstepMax => write!(f, "NetworkSuperstepMax"),
             AvailableSubjects::OpenAlexResponseWorks => write!(f, "OpenAlexResponseWorks"),
             AvailableSubjects::OpenAlexResponseAuthors => write!(f, "OpenAlexResponseAuthors"),
             AvailableSubjects::OpenAlexResponseInstitutions => {
@@ -322,6 +334,10 @@ impl Display for AvailableSubjects {
                 write!(f, "OpenAlexResponsePublishers")
             }
             AvailableSubjects::OpenAlexResponseSources => write!(f, "OpenAlexResponseSources"),
+            AvailableSubjects::PdfTextSubject => write!(f, "PdfTextSubject"),
+            AvailableSubjects::PdfGraphicsSubject => write!(f, "PdfGraphicsSubject"),
+            AvailableSubjects::PdfPageSubject => write!(f, "PdfPageSubject"),
+            AvailableSubjects::PdfDocumentSubject => write!(f, "PdfDocumentSubject"),
         }
     }
 }
@@ -356,7 +372,7 @@ impl AvailableSubjectsTrait for AvailableSubjects {
 impl AvailableSchemaTrait for AvailableSubjects {
     fn to_schema(&self) -> SchemaRef {
         match self {
-            AvailableSubjects::Empty => Arc::new(Schema::empty()),
+            AvailableSubjects::Empty | AvailableSubjects::None => Arc::new(Schema::empty()),
             AvailableSubjects::Messages => create_schema_from_fields(&create_chat_fields),
             AvailableSubjects::Values => create_schema_from_fields(&create_values_fields),
             AvailableSubjects::RouteBytes => create_schema_from_fields(&create_route_bytes_fields),
@@ -402,39 +418,39 @@ impl AvailableSchemaTrait for AvailableSubjects {
             AvailableSubjects::JoinUserInboxNetworksMermaid => {
                 create_schema_from_fields(&create_join_user_inbox_networks_mermaid_diagrams_fields)
             }
-            AvailableSubjects::SessionMermaid => {
-                create_schema_from_fields(&create_session_mermaid_fields)
+            AvailableSubjects::NetworkMermaid => {
+                create_schema_from_fields(&create_network_mermaid_fields)
             }
             AvailableSubjects::BuilderMermaid => {
-                create_schema_from_fields(&create_session_mermaid_fields)
+                create_schema_from_fields(&create_network_mermaid_fields)
             }
-            AvailableSubjects::SessionErrors => create_schema_from_fields(&create_chat_fields),
-            AvailableSubjects::SessionMetrics => create_schema_from_fields(&create_metrics_fields),
+            AvailableSubjects::NetworkErrors => create_schema_from_fields(&create_chat_fields),
+            AvailableSubjects::NetworkMetrics => create_schema_from_fields(&create_metrics_fields),
             AvailableSubjects::MetricMermaidGantt => {
                 create_schema_from_fields(&create_metrics_mermaid_gantt_fields)
             }
-            AvailableSubjects::SessionTraces => create_schema_from_fields(&create_traces_fields),
-            AvailableSubjects::SessionEvents => create_schema_from_fields(&create_events_fields),
+            AvailableSubjects::NetworkTraces => create_schema_from_fields(&create_traces_fields),
+            AvailableSubjects::NetworkEvents => create_schema_from_fields(&create_events_fields),
             AvailableSubjects::MetricPivot => {
                 create_schema_from_fields(&create_metrics_pivot_fields)
             }
             AvailableSubjects::MetricPivotNormTime => {
                 create_schema_from_fields(&create_metrics_pivot_norm_time_fields)
             }
-            AvailableSubjects::SessionSubjectSchemas => {
-                create_schema_from_fields(&create_session_subject_schemas_fields)
+            AvailableSubjects::NetworkSubjectSchemas => {
+                create_schema_from_fields(&create_network_subject_schemas_fields)
             }
-            AvailableSubjects::SessionTasks => {
-                create_schema_from_fields(&create_session_tasks_fields)
+            AvailableSubjects::NetworkTasks => {
+                create_schema_from_fields(&create_network_tasks_fields)
             }
-            AvailableSubjects::SessionProcessors => {
-                create_schema_from_fields(&create_session_processors_fields)
+            AvailableSubjects::NetworkProcessors => {
+                create_schema_from_fields(&create_network_processors_fields)
             }
-            AvailableSubjects::SessionRuntimeEnvs => {
-                create_schema_from_fields(&create_session_runtime_envs_fields)
+            AvailableSubjects::NetworkRuntimeEnvs => {
+                create_schema_from_fields(&create_network_runtime_envs_fields)
             }
-            AvailableSubjects::SessionTasksRunLog => {
-                create_schema_from_fields(&create_session_tasks_run_log_fields)
+            AvailableSubjects::NetworkTasksRunLog => {
+                create_schema_from_fields(&create_network_tasks_run_log_fields)
             }
             AvailableSubjects::SubjectsNumRows => {
                 create_schema_from_fields(&create_subjects_num_rows_fields)
@@ -481,7 +497,7 @@ impl AvailableSchemaTrait for AvailableSubjects {
             AvailableSubjects::AnalyticsTraces => create_schema_from_fields(&create_traces_fields),
             AvailableSubjects::AnalyticsEvents => create_schema_from_fields(&create_events_fields),
             AvailableSubjects::AnalyticsTasks => {
-                create_schema_from_fields(&create_session_tasks_fields)
+                create_schema_from_fields(&create_network_tasks_fields)
             }
             AvailableSubjects::MermaidERDiagramEntitiesTemplate => {
                 create_schema_from_fields(&create_mermaid_er_diagram_entities_template_fields)
@@ -493,29 +509,29 @@ impl AvailableSchemaTrait for AvailableSubjects {
             AvailableSubjects::ParseOwl => create_schema_from_fields(&create_parse_owl_fields),
             AvailableSubjects::NTriples => create_schema_from_fields(&create_n_triples_fields),
             AvailableSubjects::NQuads => create_schema_from_fields(&create_n_quads_fields),
-            AvailableSubjects::SessionTasksCheck => {
-                create_schema_from_fields(&create_session_tasks_check_fields)
+            AvailableSubjects::NetworkTasksCheck => {
+                create_schema_from_fields(&create_network_tasks_check_fields)
             }
-            AvailableSubjects::SessionTasksSubscribe => {
-                create_schema_from_fields(&create_session_tasks_subscribe_fields)
+            AvailableSubjects::NetworkTasksSubscribe => {
+                create_schema_from_fields(&create_network_tasks_subscribe_fields)
             }
-            AvailableSubjects::SessionTasksPublish => {
-                create_schema_from_fields(&create_session_tasks_publish_fields)
+            AvailableSubjects::NetworkTasksPublish => {
+                create_schema_from_fields(&create_network_tasks_publish_fields)
             }
-            AvailableSubjects::SessionTasksSubscribeAggregate => {
-                create_schema_from_fields(&create_session_tasks_subscribe_aggregate_fields)
+            AvailableSubjects::NetworkTasksSubscribeAggregate => {
+                create_schema_from_fields(&create_network_tasks_subscribe_aggregate_fields)
             }
-            AvailableSubjects::SessionTasksPublishAggregate => {
-                create_schema_from_fields(&create_session_tasks_publish_aggregate_fields)
+            AvailableSubjects::NetworkTasksPublishAggregate => {
+                create_schema_from_fields(&create_network_tasks_publish_aggregate_fields)
             }
-            AvailableSubjects::SessionTasksSubscribePublish => {
-                create_schema_from_fields(&create_session_tasks_subscribe_publish_fields)
+            AvailableSubjects::NetworkTasksSubscribePublish => {
+                create_schema_from_fields(&create_network_tasks_subscribe_publish_fields)
             }
-            AvailableSubjects::SessionSupersteps => {
-                create_schema_from_fields(&create_session_supersteps_fields)
+            AvailableSubjects::NetworkSupersteps => {
+                create_schema_from_fields(&create_network_supersteps_fields)
             }
-            AvailableSubjects::SessionSuperstepMax => {
-                create_schema_from_fields(&create_session_superstep_max_fields)
+            AvailableSubjects::NetworkSuperstepMax => {
+                create_schema_from_fields(&create_network_superstep_max_fields)
             }
             AvailableSubjects::OpenAlexResponseWorks => Arc::new(Schema::empty()),
             AvailableSubjects::OpenAlexResponseAuthors => Arc::new(Schema::empty()),
@@ -525,6 +541,18 @@ impl AvailableSchemaTrait for AvailableSubjects {
             AvailableSubjects::OpenAlexResponseFunders => Arc::new(Schema::empty()),
             AvailableSubjects::OpenAlexResponsePublishers => Arc::new(Schema::empty()),
             AvailableSubjects::OpenAlexResponseSources => Arc::new(Schema::empty()),
+            AvailableSubjects::PdfTextSubject => {
+                create_schema_from_fields(&PdfTextSubject::to_fields)
+            }
+            AvailableSubjects::PdfGraphicsSubject => {
+                create_schema_from_fields(&PdfGraphicsSubject::to_fields)
+            }
+            AvailableSubjects::PdfPageSubject => {
+                create_schema_from_fields(&PdfPageSubject::to_fields)
+            }
+            AvailableSubjects::PdfDocumentSubject => {
+                create_schema_from_fields(&PdfDocumentSubject::to_fields)
+            }
         }
     }
 }

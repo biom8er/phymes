@@ -284,6 +284,7 @@ impl DataConfigTrait for AvailableProcessors {
             }),
             Self::ExtractTabular => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
+                lhs_pk: Some("lhs_pk".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 encoding: Some(DataEncoding::default()),
                 format: Some(DataFormat::CsvDefault),
@@ -295,6 +296,7 @@ impl DataConfigTrait for AvailableProcessors {
             }),
             Self::ExtractXML => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
+                lhs_pk: Some("lhs_pk".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 format: Some(DataFormat::Owl),
                 schema: Some(AvailableSubjects::default()),
@@ -324,7 +326,7 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 agg_columns: Some(vec!["agg_columns".to_string()]),
                 agg_operators: Some(vec![DataAggregatorOperator::Sum]),
-                default_values: Some(vec!["0".to_string()]),
+                cast_templates: Some(vec!["0".to_string()]),
                 pvt_columns: Some(vec!["pvt_columns".to_string()]),
                 cpu: false,
                 operator: AvailableOperators::Pivot,
@@ -367,7 +369,7 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_pk: Some("path".to_string()),
                 rhs_pk: Some("filename".to_string()),
                 doc_patch: Some(serde_json::to_string(&[WorkspacePatchSubject {
-                    filename: "filename".to_string(),
+                    path: "filename".to_string(),
                     diff: "@@ content\n+new content\n".to_string(),
                     operator: "Update".to_string(),
                 }])?),
@@ -461,7 +463,7 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             Self::ToolCallProcessor => serde_json::to_vec(&ToolCallConfig {
-                subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+                subject_name: AvailableSubjects::NetworkTasksSubscribePublish.to_string(),
                 subject_names: vec!["processor_1".to_string()],
                 subscription_table_names: vec!["lhs_name".to_string()],
                 ..Default::default()

@@ -7,20 +7,21 @@ use phymes_diagnostics::HashMap;
 use phymes_event::{Publication, Subscription};
 use phymes_message::{IPCMessage, IPCMessageBuilder, MessageBuilderTrait, create_message_map};
 use phymes_network::{
-    AvailableNetworks, Network, NetworkBuilder, NetworkBuilderAppsTrait,
-    NetworkBuilderMermaidTrait, NetworkBuilderTrait, NetworkStream,
+    Network, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait,
+    NetworkBuilderTrait, NetworkStream,
 };
 use phymes_schemas::{
     AvailableSubjects, JoinUserInboxNetworksMermaidDiagrams, UserSubject,
-    create_session_mermaid_batch, create_user_inbox_batch, create_user_networks_batch,
+    create_network_mermaid_batch, create_user_inbox_batch, create_user_networks_batch,
 };
 use phymes_subject::{
     BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, Subject, SubjectBuilderTrait,
     SubjectTrait,
 };
 use phymes_task::SubscriptionTrait;
+use phymes_templates::AvailableNetworks;
 
-use crate::handlers::create_session_name;
+use crate::handlers::create_network_name;
 
 /// The user state
 ///
@@ -43,16 +44,16 @@ impl UserState {
         user_network_name: Option<&str>,
         runtime_env: &Arc<RuntimeEnv>,
     ) -> Result<Self> {
-        let session_name = user_network_name.unwrap_or("Users");
-        let (network_arc, session_messages) = AvailableNetworks::get_network_stream_state_by_name(
+        let network_name = user_network_name.unwrap_or("Users");
+        let (network_arc, network_messages) = AvailableNetworks::get_network_stream_state_by_name(
             "Users",
-            session_name,
+            network_name,
             runtime_env,
         )?;
 
-        // Write the session messages to the store
+        // Write the network messages to the store
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
         Ok(Self { users: network_arc })
     }
@@ -79,14 +80,14 @@ impl UserState {
             .build()?;
         let message_map = create_message_map(vec![message]);
 
-        // Run the tasks for the user session
+        // Run the tasks for the user network
         let network_stream = NetworkStream::new(message_map, self.users.clone());
         let _response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
         // Parse out the results
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::User.to_string() }
 			.subscribe_to_subject(self.users.runtime_env(), self.users.get_name())?
-			.ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` while getting the user by email.", 
+			.ok_or(anyhow!("Unable to get the subject `{}` from object storage for network `{}` while getting the user by email.", 
 				AvailableSubjects::User,
 				self.users.get_name()
 			))?
@@ -100,7 +101,7 @@ impl UserState {
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::JoinUserInboxNetworksMermaid.to_string() }
 			.subscribe_to_subject(self.users.runtime_env(), self.users.get_name())?
-			.ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` while getting the user by email.", 
+			.ok_or(anyhow!("Unable to get the subject `{}` from object storage for network `{}` while getting the user by email.", 
 				AvailableSubjects::JoinUserInboxNetworksMermaid,
 				self.users.get_name()
 			))?
@@ -135,7 +136,7 @@ impl UserState {
             .with_name(AvailableSubjects::UserNetworks.to_string().as_str())
             .build()?
             .to_ipc_stream()?;
-        let mermaid = create_session_mermaid_batch(
+        let mermaid = create_network_mermaid_batch(
             network_name.to_owned(),
             flowchart_diagram.to_owned(),
             er_diagram.to_owned(),
@@ -150,7 +151,7 @@ impl UserState {
         // Create the update message
         let user_networks_message = IPCMessageBuilder::new()
             .with_subject(AvailableSubjects::UserNetworks.to_string().as_str())
-            .with_publisher(&create_session_name(email, self.users.get_name()))
+            .with_publisher(&create_network_name(email, self.users.get_name()))
             .with_message(user_networks_bytes)
             .with_update(&Publication::Extend {
                 subject_name: AvailableSubjects::UserNetworks.to_string(),
@@ -159,7 +160,7 @@ impl UserState {
             .build()?;
         let mermaid_message = IPCMessageBuilder::new()
             .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
-            .with_publisher(&create_session_name(email, self.users.get_name()))
+            .with_publisher(&create_network_name(email, self.users.get_name()))
             .with_message(mermaid_bytes)
             .with_update(&Publication::Extend {
                 subject_name: AvailableSubjects::BuilderMermaid.to_string(),
@@ -168,7 +169,7 @@ impl UserState {
             .build()?;
         let message_map = create_message_map(vec![user_networks_message, mermaid_message]);
 
-        // Update the session state with the new message
+        // Update the network state with the new message
         let (changelog, meta, _errors) = self
             .users
             .update_subjects_from_messages(message_map, 0)
@@ -212,17 +213,17 @@ impl UserState {
 /// # Notes
 ///
 /// The server state is composed of two parts:
-/// 1. the session contexts which store the available sessions for each user
-/// 2. the user session names cache which store session context names per user
+/// 1. the network contexts which store the available networks for each user
+/// 2. the user network names cache which store network context names per user
 ///
 /// A default user "contact at biom8er dot com" is created upon initialization
 #[derive(Clone)]
 pub struct ServerState {
-    /// Session context
-    /// HashMap of sessions indexed by session name
-    ///   where the session name = session_name + user_name
+    /// Network context
+    /// HashMap of networks indexed by network name
+    ///   where the network name = network_name + user_name
     pub networks: Arc<RwLock<HashMap<String, Arc<Network>>>>,
-    /// Cache of user session_names indexed by user_name
+    /// Cache of user network_names indexed by user_name
     pub user_network_names: Arc<RwLock<HashMap<String, Vec<String>>>>,
 }
 
@@ -241,99 +242,101 @@ impl ServerState {
         }
     }
 
-    /// Create the sessions
+    /// Create the networks
     ///
     /// # Arguments
     ///
-    /// `user_networks` - &[JoinUserInboxNetworksMermaidDiagrams], session plans to create for the user
-    /// `make_networks` - makes the session contexts if true or just returns the session names if false
+    /// `user_networks` - &[JoinUserInboxNetworksMermaidDiagrams], network plans to create for the user
+    /// `make_networks` - makes the network contexts if true or just returns the network names if false
     ///
     /// # Returns
     ///
-    /// `Vec<String>` of created session_names
+    /// `Vec<String>` of created network_names
     pub async fn make_networks(
         &mut self,
         user_networks: &[JoinUserInboxNetworksMermaidDiagrams],
         make_networks: bool,
         runtime_env: &Arc<RuntimeEnv>,
     ) -> Result<Vec<String>> {
-        let mut session_names = Vec::new();
+        let mut network_names = Vec::new();
         for user_network in user_networks {
-            // Create the session name
-            let session_name = create_session_name(&user_network.email, &user_network.network_name);
+            // Create the network name
+            let network_name = create_network_name(&user_network.email, &user_network.network_name);
 
             if make_networks {
-                // Create the session stream state if it does not yet exist
+                // Create the network stream state if it does not yet exist
                 if self
                     .networks
                     .try_read()
                     .unwrap()
-                    .contains_key(&session_name)
+                    .contains_key(&network_name)
                 {
                     tracing::debug!(
-                        "Session_context {} already exists for session_name {}",
+                        "network {} already exists for network_name {}",
                         &user_network.network_name,
-                        &session_name
+                        &network_name
                     );
-                } else if AvailableNetworks::get_all_session_plan_names()
+                } else if AvailableNetworks::get_all_network_plan_names()
                     .contains(&user_network.network_name)
                 {
-                    // Prioritize the available session plans with initialized configs and other state
-                    let (network_arc, session_messages) =
+                    // Prioritize the available network plans with initialized configs and other state
+                    let (network_arc, network_messages) =
                         AvailableNetworks::get_network_stream_state_by_name(
                             &user_network.network_name,
-                            &session_name,
+                            &network_name,
                             runtime_env,
                         )?;
 
-                    // Write the session messages to the store
+                    // Write the network messages to the store
                     let _ = network_arc
-                        .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+                        .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
                         .await;
 
-                    // Add the session stream state to the state
+                    // Add the network stream state to the state
                     let _ = self
                         .networks
                         .try_write()
                         .unwrap()
-                        .insert(session_name.to_string(), network_arc);
+                        .insert(network_name.to_string(), network_arc);
                     tracing::debug!(
-                        "Creating network {} for session_name {} from AvailableNetworks",
+                        "Creating network {} for network_name {} from AvailableNetworks",
                         &user_network.network_name,
-                        &session_name
+                        &network_name
                     );
                 } else {
-                    // Build the session stream state with tables from Mermaid
-                    // and leave the upload of configs and other initial session state to another step
+                    // Build the network stream state with tables from Mermaid
+                    // and leave the upload of configs and other initial network state to another step
                     // DM: turn agent subject tests back on after refactoring BuilderNetwork
-                    let (network, session_messages) = NetworkBuilder::from_mermaid_flowchart(
+                    let (network, network_messages) = NetworkBuilder::from_mermaid_flowchart(
                         &user_network.flowchart_diagram,
                         false,
                     )?
-                    .with_name(&session_name)
+                    .with_name(&network_name)
                     .with_subjects_from_mermaid_erdiagram(&user_network.er_diagram, false, true)?
+                    .with_diagnostics(true)
                     .add_processor_subjects()?
                     .add_network_interface(None)?
-                    .with_diagnostics(true)
+                    .add_next_tasks()?
+                    .add_next_supersteps()?
                     .with_runtime_env(runtime_env.clone())
                     .build_with_tables()?;
                     let network_arc = Arc::new(network);
 
-                    // Write the session messages to the store
+                    // Write the network messages to the store
                     let _ = network_arc
-                        .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+                        .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
                         .await;
 
-                    // Add the session stream state to the state
+                    // Add the network stream state to the state
                     let _ = self
                         .networks
                         .try_write()
                         .unwrap()
-                        .insert(session_name.to_string(), network_arc);
+                        .insert(network_name.to_string(), network_arc);
                     tracing::debug!(
-                        "Creating network {} for session_name {} from mermaid diagrams.",
+                        "Creating network {} for network_name {} from mermaid diagrams.",
                         &user_network.network_name,
-                        &session_name
+                        &network_name
                     );
                 }
 
@@ -349,17 +352,17 @@ impl ServerState {
                         .unwrap()
                         .get_mut(&user_network.email)
                         .unwrap()
-                        .push(session_name.to_string());
+                        .push(network_name.to_string());
                 } else {
                     let _ = self.user_network_names.try_write().unwrap().insert(
                         user_network.email.to_string(),
-                        vec![session_name.to_string()],
+                        vec![network_name.to_string()],
                     );
                 }
             }
-            session_names.push(session_name);
+            network_names.push(network_name);
         }
-        Ok(session_names)
+        Ok(network_names)
     }
 }
 
@@ -367,7 +370,7 @@ impl ServerState {
 mod tests {
     use super::*;
     use phymes_diagnostics::HashSet;
-    use phymes_network::make_example_mermaid_table;
+    use phymes_templates::make_example_mermaid_table;
 
     #[cfg(not(target_family = "wasm"))]
     use phymes_subject::SubjectTrait;
@@ -397,6 +400,7 @@ mod tests {
             .with_name("UserNetworks")
             .with_record_batches(batches)?
             .build()?;
+        #[cfg(not(feature = "api"))]
         assert_eq!(
             subject.get_column_as_vec_str("email"),
             [
@@ -409,16 +413,75 @@ mod tests {
                 "user@biom8er.com"
             ]
         );
+        #[cfg(feature = "api")]
         assert_eq!(
-            subject.get_column_as_vec_str("network_name"),
+            subject.get_column_as_vec_str("email"),
             [
-                "Chat", "DocChat", "ToolChat", "Builder", "Chat", "DocChat", "ToolChat"
+                "contact@biom8er.com",
+                "contact@biom8er.com",
+                "contact@biom8er.com",
+                "contact@biom8er.com",
+                "contact@biom8er.com",
+                "user@biom8er.com",
+                "user@biom8er.com",
+                "user@biom8er.com",
+                "user@biom8er.com"
             ]
         );
+        #[cfg(not(feature = "api"))]
         assert_eq!(
             subject.get_column_as_vec_str("network_name"),
             [
-                "Chat", "DocChat", "ToolChat", "Builder", "Chat", "DocChat", "ToolChat"
+                "GenerateText",
+                "RAGTextPDF",
+                "TabularDataOps",
+                "Builder",
+                "GenerateText",
+                "RAGTextPDF",
+                "TabularDataOps"
+            ]
+        );
+        #[cfg(feature = "api")]
+        assert_eq!(
+            subject.get_column_as_vec_str("network_name"),
+            [
+                "GenerateText",
+                "RAGTextPDF",
+                "TabularDataOps",
+                "GenerateCode",
+                "Builder",
+                "GenerateText",
+                "RAGTextPDF",
+                "TabularDataOps",
+                "GenerateCode"
+            ]
+        );
+        #[cfg(not(feature = "api"))]
+        assert_eq!(
+            subject.get_column_as_vec_str("network_name"),
+            [
+                "GenerateText",
+                "RAGTextPDF",
+                "TabularDataOps",
+                "Builder",
+                "GenerateText",
+                "RAGTextPDF",
+                "TabularDataOps"
+            ]
+        );
+        #[cfg(feature = "api")]
+        assert_eq!(
+            subject.get_column_as_vec_str("network_name"),
+            [
+                "GenerateText",
+                "RAGTextPDF",
+                "TabularDataOps",
+                "GenerateCode",
+                "Builder",
+                "GenerateText",
+                "RAGTextPDF",
+                "TabularDataOps",
+                "GenerateCode"
             ]
         );
 
@@ -431,18 +494,34 @@ mod tests {
         let user = UserState::new(None, &runtime_env).await?;
         let (user_info, user_networks) = user.get_user_by_email("contact@biom8er.com").await?;
         assert_eq!(user_info.len(), 1);
+        #[cfg(not(feature = "api"))]
         assert_eq!(user_networks.len(), 4);
+        #[cfg(feature = "api")]
+        assert_eq!(user_networks.len(), 5);
         assert_eq!(user_info.first().unwrap().email, "contact@biom8er.com");
         assert_eq!(user_info.first().unwrap().first_name, "con");
         assert_eq!(user_info.first().unwrap().last_name, "tact");
         assert_eq!(user_networks.first().unwrap().email, "contact@biom8er.com");
         assert_eq!(user_networks.first().unwrap().network_name, "Builder");
         assert_eq!(user_networks.get(1).unwrap().email, "contact@biom8er.com");
-        assert_eq!(user_networks.get(1).unwrap().network_name, "Chat");
+        #[cfg(not(feature = "api"))]
+        assert_eq!(user_networks.get(1).unwrap().network_name, "GenerateText");
+        #[cfg(feature = "api")]
+        assert_eq!(user_networks.get(1).unwrap().network_name, "GenerateCode");
         assert_eq!(user_networks.get(2).unwrap().email, "contact@biom8er.com");
-        assert_eq!(user_networks.get(2).unwrap().network_name, "DocChat");
+        #[cfg(not(feature = "api"))]
+        assert_eq!(user_networks.get(2).unwrap().network_name, "RAGTextPDF");
+        #[cfg(feature = "api")]
+        assert_eq!(user_networks.get(2).unwrap().network_name, "GenerateText");
         assert_eq!(user_networks.get(3).unwrap().email, "contact@biom8er.com");
-        assert_eq!(user_networks.get(3).unwrap().network_name, "ToolChat");
+        #[cfg(not(feature = "api"))]
+        assert_eq!(user_networks.get(3).unwrap().network_name, "TabularDataOps");
+        #[cfg(feature = "api")]
+        assert_eq!(user_networks.get(3).unwrap().network_name, "RAGTextPDF");
+        #[cfg(feature = "api")]
+        assert_eq!(user_networks.get(4).unwrap().email, "contact@biom8er.com");
+        #[cfg(feature = "api")]
+        assert_eq!(user_networks.get(4).unwrap().network_name, "TabularDataOps");
 
         Ok(())
     }
@@ -453,19 +532,37 @@ mod tests {
         let user = UserState::new(None, &runtime_env).await?;
         let (_user_info, user_networks) = user.get_user_by_email("contact@biom8er.com").await?;
         let mut state = ServerState::new();
-        let session_names = state
+        let network_names = state
             .make_networks(&user_networks, true, &runtime_env)
             .await?;
+        #[cfg(not(feature = "api"))]
         assert_eq!(
-            session_names
+            network_names
                 .iter()
                 .map(|s| s.to_string())
                 .collect::<HashSet<_>>(),
             [
-                "contactbiom8ercomDocChat",
-                "contactbiom8ercomToolChat",
-                "contactbiom8ercomChat",
+                "contactbiom8ercomRAGTextPDF",
+                "contactbiom8ercomTabularDataOps",
+                "contactbiom8ercomGenerateText",
                 "contactbiom8ercomBuilder"
+            ]
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<HashSet<_>>()
+        );
+        #[cfg(feature = "api")]
+        assert_eq!(
+            network_names
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<HashSet<_>>(),
+            [
+                "contactbiom8ercomRAGTextPDF",
+                "contactbiom8ercomBuilder",
+                "contactbiom8ercomGenerateCode",
+                "contactbiom8ercomTabularDataOps",
+                "contactbiom8ercomGenerateText"
             ]
             .iter()
             .map(|s| s.to_string())
@@ -479,7 +576,7 @@ mod tests {
                 .keys()
                 .map(|s| s.to_owned())
                 .collect::<HashSet<_>>(),
-            session_names
+            network_names
                 .iter()
                 .map(|s| s.to_string())
                 .collect::<HashSet<_>>()

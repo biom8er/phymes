@@ -50,7 +50,7 @@ impl MappableTrait for Patch {
 
 impl ToolTrait for Patch {
     fn get_description(&self) -> String {
-        "Inject a table into a string template.".to_string()
+        "Patch a left hand side Appache Arrow `RecordBatch`es message with patches (diffs) from a right hand side message.".to_string()
     }
     fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
@@ -58,17 +58,70 @@ impl ToolTrait for Patch {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
+                description: Some(
+                    "The name of the left hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
+                ),
                 ..Default::default()
             }),
         );
         properties.insert(
-            "op_kwargs".to_string(),
+            "rhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some(
-                    "template, table_expression, and input_template in the form of a JSON object"
+                    "The name of the right hand side message (Apache Arrow `RecordBatch`es)"
                         .to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "lhs_pk".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some(
+                    "The primary key column for the left hand side message".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "rhs_pk".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some(
+                    "The primary key column for the right hand side message".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "lhs_values".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    "The name of the column(s) to apply the patches to for the left hand side message".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "rhs_values".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::Array),
+                description: Some(
+                    "The name of the columns to the patch (diff) for the right hand side message. The first name should identify the column of `diff`s. The second name should identify the column of `operator`s to apply the patch.".to_string(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "doc_patch".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some(
+                    "A JSON Value representing the patches to apply as an alternative to the rhs_name when no rhs_name is provided. Use `null` when there is no doc_patch.".to_string(),
                 ),
                 ..Default::default()
             }),
@@ -79,7 +132,15 @@ impl ToolTrait for Patch {
             parameters: FunctionParameters {
                 schema_type: JSONSchemaType::Object,
                 properties: Some(properties),
-                required: Some(vec!["lhs_name".to_string(), "op_kwargs".to_string()]),
+                required: Some(vec![
+                    "lhs_name".to_string(),
+                    "rhs_name".to_string(),
+                    "lhs_pk".to_string(),
+                    "rhs_pk".to_string(),
+                    "lhs_values".to_string(),
+                    "rhs_values".to_string(),
+                    "doc_patch".to_string(),
+                ]),
             },
         };
         let tool = Tool {
@@ -1053,7 +1114,7 @@ pub use todo::Todo"#,
             .zip(operations)
             .map(|((filename, diff), operator)| {
                 let patch = WorkspacePatchSubject {
-                    filename: filename.to_string(),
+                    path: filename.to_string(),
                     diff: diff.to_string(),
                     operator,
                 };
@@ -1072,7 +1133,7 @@ pub use todo::Todo"#,
             &["code"],
             &["diff", "operator"],
             "repo_path",
-            "filename",
+            "path",
             &doc_patch,
             &device,
         )?;

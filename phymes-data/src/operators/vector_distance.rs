@@ -38,7 +38,7 @@ impl MappableTrait for VectorDistance {
 
 impl ToolTrait for VectorDistance {
     fn get_description(&self) -> String {
-        "Compute the relative similarity score between two different lists of embedding vectors"
+        "Compute the bector distance between left and right embedding vectors wrapped in Apache Arrow `RecordBatch`es."
             .to_string()
     }
     fn to_json_tool_schema(&self) -> String {
@@ -47,7 +47,10 @@ impl ToolTrait for VectorDistance {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
+                description: Some(
+                    "The name of the left hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -55,7 +58,10 @@ impl ToolTrait for VectorDistance {
             "rhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the right hand side table".to_string()),
+                description: Some(
+                    "The name of the right hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
+                ),
                 ..Default::default()
             }),
         );
@@ -64,7 +70,7 @@ impl ToolTrait for VectorDistance {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some(
-                    "The primary key column identifier for the left hand side table".to_string(),
+                    "The primary key column for the left hand side message".to_string(),
                 ),
                 ..Default::default()
             }),
@@ -74,7 +80,7 @@ impl ToolTrait for VectorDistance {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
                 description: Some(
-                    "The primary key column identifier for the right hand side table".to_string(),
+                    "The primary key column for the right hand side message".to_string(),
                 ),
                 ..Default::default()
             }),
@@ -84,7 +90,7 @@ impl ToolTrait for VectorDistance {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "A list of value column identifiers for the left hand side table".to_string(),
+                    "The name of the column containing the embedding vector for the left hand side message".to_string(),
                 ),
                 ..Default::default()
             }),
@@ -94,7 +100,7 @@ impl ToolTrait for VectorDistance {
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "A list of value column identifiers for the right hand side table".to_string(),
+                    "The name of the column containing the embedding vector for the right hand side message".to_string(),
                 ),
                 ..Default::default()
             }),

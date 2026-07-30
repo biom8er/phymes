@@ -2,7 +2,9 @@ use std::collections::VecDeque;
 
 use phymes_data::{AvailableOperators, DataConfig, DataStreamManager};
 use phymes_event::{Publication, Subscription};
-use phymes_network::NetworkBuilder;
+use phymes_network::{
+    DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes, NetworkBuilder,
+};
 use phymes_processor::AvailableProcessors;
 use phymes_schemas::{AvailableInterfaceSubjects, AvailableSubjects, AvailableSubjectsTrait};
 use phymes_streams::LimitConfig;
@@ -11,9 +13,7 @@ use phymes_subject::{
     SubjectPlanBuilderTrait,
 };
 
-use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames};
-
-/// A session for extracting and chunking PDF documents
+/// A network for extracting and chunking PDF documents
 ///
 /// # Notes
 ///
@@ -72,23 +72,17 @@ impl Default for ExtractPDFNetworkBuilder {
                 .unwrap();
             // DM, todo: Change to AvailableSubject when possible
             let subject_routes = [
-                "PdfDocumentSubject",
-                "PdfPageSubject",
-                "PdfTextSubject",
-                "PdfGraphicsSubject",
+                AvailableSubjects::PdfDocumentSubject,
+                AvailableSubjects::PdfPageSubject,
+                AvailableSubjects::PdfTextSubject,
+                AvailableSubjects::PdfGraphicsSubject,
             ]
             .into_iter()
-            .map(|s| {
-                let subject = AvailableSubjects::Bytes.to_subject(Some(s), None).unwrap();
-                SubjectPlan::get_builder()
-                    .with_subject(subject)
-                    .build()
-                    .unwrap()
-            })
+            .map(|s| s.to_subject_plan(None, None).unwrap())
             .collect::<Vec<_>>();
             let builder = DynamicTaskNetworkBuilder {
                 network_name: network_name.to_string(),
-                is_dynamic: false,
+                dynamic_type: DynamicTaskNetworkTypes::Static,
                 processor: AvailableProcessors::ExtractPDF,
                 subscription_lhs: Subscription::OnUpdateDrainRecordBatches {
                     subject_name: subject_lhs.get_name().to_string(),
@@ -129,7 +123,7 @@ impl Default for ExtractPDFNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::CoalesceProcessor,
                     subscription_lhs: Subscription::OnUpdateAllRecordBatches {
                         subject_name: subject_name_lhs.to_string(),
@@ -176,7 +170,7 @@ impl Default for ExtractPDFNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::ChunkDocuments,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -236,7 +230,7 @@ impl Default for ExtractPDFNetworkBuilder {
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
                     network_name: task_name.to_string(),
-                    is_dynamic: false,
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
                         subject_name: tasks
@@ -299,10 +293,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_extract_pdf_network() -> Result<()> {
-        // Initialize the session
+        // Initialize the network
         let extract_pdf_network_builder = ExtractPDFNetworkBuilder::default().inner.take().unwrap();
         let network_name = extract_pdf_network_builder.name.clone().unwrap();
-        let (network, session_messages) = extract_pdf_network_builder
+        let (network, network_messages) = extract_pdf_network_builder
             .with_runtime_env(
                 RuntimeEnv::get_builder()
                     .with_name(
@@ -347,25 +341,37 @@ mod tests {
             .build()?;
         let message_map = create_message_map(vec![blob_message]);
         let _ = network_arc
-            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
         // Run the network
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
 
+        // let extended_diagnostic_subjects = extended_diagnostic_subjects();
+        // let subject_names = extended_diagnostic_subjects
+        //     .iter()
+        //     .map(|s| s.as_str())
+        //     .collect::<Vec<_>>();
+        // write_diagnostic_subjects_to_csv(
+        //     &subject_names,
+        //     network_arc.runtime_env(),
+        //     network_arc.get_name(),
+        // )
+        // .await?;
+
         assert_eq!(response.len(), 0);
 
         // Test supsersteps
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: "PdfDocumentSubject".to_string(),
+            subject_name: AvailableSubjects::PdfDocumentSubject.to_string(),
         }
         .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
         let subject = Subject::get_builder()
-            .with_name("PdfDocumentSubject")
+            .with_name(&AvailableSubjects::PdfDocumentSubject.to_string())
             .with_record_batches(batches)?
             .build()?;
         assert_eq!(subject.count_rows(), 1);
@@ -514,7 +520,7 @@ mod tests {
             .with_name(AvailableSubjects::Documents.to_string().as_str())
             .with_record_batches(batches)?
             .build()?;
-        assert_eq!(subject.count_rows(), 4);
+        assert_eq!(subject.count_rows(), 50);
         let column = subject.get_column_as_vec_str("chunk_id");
         assert_eq!(
             column.first().unwrap(),
@@ -522,7 +528,7 @@ mod tests {
         );
         assert_eq!(
             column.last().unwrap(),
-            &"WikiBioComponents4PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_0"
+            &"WikiBioComponents4PdfText { op: 4, bt: 0, tm: PdfTm { a: 1.0, b: 0.0, c: 0.0, d: 1.0, x: 0.0, y: 0.0 }, td: PdfTd { x: 0, y: 0 }, font: PdfFont { font_name: \"F1\", font_subtype: \"Courier\", base_font: \"Type1\" }, font_size: 48, text: \"\" }_7"
         );
         let column = subject.get_column_as_vec_str("document_id");
         assert_eq!(column.first().unwrap(), &"WikiBioComponents");

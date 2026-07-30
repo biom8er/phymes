@@ -1,7 +1,7 @@
 # Seesion Plan: Retrieval Augmented Generation (RAG) Agent
 ## Synopsis
 
-This tutorial describes how the [Document RAG Agent Session Plan](https://github.com/biom8er/phymes/blob/main/phymes-network/src/session_plans/document_rag_session.rs) uses the [phymes-agent](https://github.com/biom8er/phymes/blob/main/phymes-network/README.md) and [phymes-subject](https://github.com/biom8er/phymes/blob/main/phymes-subject/README.md) crates to build a tool calling agent.
+This tutorial describes how the [Document RAG Agent Network Plan](https://github.com/biom8er/phymes/blob/main/phymes-network/src/network_plans/document_rag_network.rs) uses the [phymes-agent](https://github.com/biom8er/phymes/blob/main/phymes-network/README.md) and [phymes-subject](https://github.com/biom8er/phymes/blob/main/phymes-subject/README.md) crates to build a tool calling agent.
 
 ## Tutorial
 
@@ -19,9 +19,9 @@ sequenceDiagram
     TGI ->> user: assistant_message
 ```
 
-The session is composed of 4 tasks: 1. the user, 2. Text embedding inference (TEI), 3. Retrieval, and 4. Text generation inference (TGI). 
+The network is composed of 4 tasks: 1. the user, 2. Text embedding inference (TEI), 3. Retrieval, and 4. Text generation inference (TGI). 
 
-The session starts when the user publishes documents (1), and a query (2 and 3) to the session.
+The network starts when the user publishes documents (1), and a query (2 and 3) to the network.
 
 ![documents](../assets/2025-07-05_phymes-app_docchat-documents_subjects.png)
 
@@ -29,7 +29,7 @@ The TEI task then chunks the documents, and embeds the chunks and query (4 and 5
 
 ![doc-rag-response](../assets/2025-07-05_phymes-app_docchat_messaging.png)
 
-The session ends when there are no further updates to the subjects. If the user publishes a follow-up message or uploads new documents, the session will pick-up where it left off.
+The network ends when there are no further updates to the subjects. If the user publishes a follow-up message or uploads new documents, the network will pick-up where it left off.
 
 ```mermaid
 flowchart TD
@@ -190,12 +190,12 @@ flowchart TD
 
 Under the hood, the states of the application are determined by the subjects that are subscribed to and published on by the User, TEI, Retrieval, and TGI tasks. Each task is composed of one or more processes that are chained together to execute the task. Each processor listens for changes on their subscribed subjects and publishes their results to subjects. Each task runs once the subscription criteria for all of its child processors are satisfied.
 
-At each superstep of the session, subscribed subjects are allocated to tasks, tasks are ran in parallel, and the subjects for which tasks publish on are updated sequentially.
+At each superstep of the network, subscribed subjects are allocated to tasks, tasks are ran in parallel, and the subjects for which tasks publish on are updated sequentially.
 
-While not shown in the flowchart above, each processor subscribes to a special subject usually called the config which specifies all of the parameters for the processor. And like any other subject, the config can also be updated dynamically during the execution of the session.
+While not shown in the flowchart above, each processor subscribes to a special subject usually called the config which specifies all of the parameters for the processor. And like any other subject, the config can also be updated dynamically during the execution of the network.
 
 The decision to chain multiple processors into a single task or to allocated each processor to its own task is up to the needs of the user. Chaining multple processors can be more performant and efficient because fewer subscription and publishing copies and updates, respectively are needed. However, allocating each processor to its own task is easier to debug since the output of each task can be easily verified. Also, any processor that requires an external API call has to be allocated to its own task as chaining of streams breaks the poll on the external API call.
 
 ## Next steps
 
-The [Document RAG Agent Session Plan](https://github.com/biom8er/phymes/blob/main/phymes-network/src/session_plans/document_rag_agent_session.rs) comes with a number of default configurations including the model, number of tokens to sample, temperature of sampling, etc. that can be modified by the user. The session plan can be used with embedded Candle models or OpenAI API endpoints for token services.
+The [Document RAG Agent Network Plan](https://github.com/biom8er/phymes/blob/main/phymes-network/src/network_plans/document_rag_agent_network.rs) comes with a number of default configurations including the model, number of tokens to sample, temperature of sampling, etc. that can be modified by the user. The network plan can be used with embedded Candle models or OpenAI API endpoints for token services.

@@ -229,8 +229,8 @@ impl AvailableSchemaTrait for AvailableInterfaceSubjects {
 }
 
 impl AvailableInterfaceSubjects {
-    /// Is the subject subscribed to by the session?
-    pub fn is_session_subscription(&self) -> bool {
+    /// Is the subject subscribed to by the network?
+    pub fn is_network_subscription(&self) -> bool {
         match self {
             Self::UserMessages
             | Self::UserQueries
@@ -253,8 +253,8 @@ impl AvailableInterfaceSubjects {
             | Self::AssistantObject => true,
         }
     }
-    /// Is the subject published to by the session?
-    pub fn is_session_publication(&self) -> bool {
+    /// Is the subject published to by the network?
+    pub fn is_network_publication(&self) -> bool {
         match self {
             Self::UserMessages
             | Self::UserQueries

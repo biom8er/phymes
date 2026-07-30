@@ -38,7 +38,7 @@ impl MappableTrait for PackTabular {
 
 impl ToolTrait for PackTabular {
     fn get_description(&self) -> String {
-        "Pack tabular data in either CSV or JSON format from Bytes".to_string()
+        "Pack Apache Arrow `RecordBatch`es into a bytes stream".to_string()
     }
     fn to_json_tool_schema(&self) -> String {
         let mut properties = HashMap::new();
@@ -46,25 +46,60 @@ impl ToolTrait for PackTabular {
             "lhs_name".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("The name of the left hand side table".to_string()),
-                ..Default::default()
-            }),
-        );
-        properties.insert(
-            "lhs_values".to_string(),
-            Box::new(JSONSchemaDefine {
-                schema_type: Some(JSONSchemaType::Array),
                 description: Some(
-                    "A list of value column identifiers for the left hand side table".to_string(),
+                    "The name of the left hand side message (Apache Arrow `RecordBatch`es)"
+                        .to_string(),
                 ),
                 ..Default::default()
             }),
         );
         properties.insert(
-            "op_kwargs".to_string(),
+            "encoding".to_string(),
             Box::new(JSONSchemaDefine {
                 schema_type: Some(JSONSchemaType::String),
-                description: Some("DataSummaryFormat object as a String".to_string()),
+                description: Some("The resulting tabular data encoding".to_string()),
+                enum_values: Some(
+                    ["Deflate", "Zlib", "Gz", "None"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "format".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The resulting tabular data format".to_string()),
+                enum_values: Some(
+                    ["CsvDefault", "JsonDefault", "JsonSchema", "Ipc"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "schema".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The resulting tabular data schema".to_string()),
+                enum_values: Some(
+                    ["Messages", "Attachments", "ObjectStore"]
+                        .into_iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                ),
+                ..Default::default()
+            }),
+        );
+        properties.insert(
+            "doc_name".to_string(),
+            Box::new(JSONSchemaDefine {
+                schema_type: Some(JSONSchemaType::String),
+                description: Some("The name of the resulting document".to_string()),
                 ..Default::default()
             }),
         );
@@ -76,8 +111,10 @@ impl ToolTrait for PackTabular {
                 properties: Some(properties),
                 required: Some(vec![
                     "lhs_name".to_string(),
-                    "lhs_values".to_string(),
-                    "op_kwargs".to_string(),
+                    "encoding".to_string(),
+                    "format".to_string(),
+                    "schema".to_string(),
+                    "doc_name".to_string(),
                 ]),
             },
         };

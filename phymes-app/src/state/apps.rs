@@ -23,12 +23,12 @@ pub static RUNTIME_ENV: std::sync::LazyLock<Arc<RuntimeEnv>> = std::sync::LazyLo
 pub static ACTIVE_SESSION_NAME: GlobalSignal<String> = Signal::global(String::new);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SyncCurrentActiveSessionState {
+pub struct SyncCurrentActiveNetworkState {
     pub name: String,
 }
 
-pub async fn sync_current_active_session_state(
-    mut rx: UnboundedReceiver<SyncCurrentActiveSessionState>,
+pub async fn sync_current_active_network_state(
+    mut rx: UnboundedReceiver<SyncCurrentActiveNetworkState>,
 ) {
     while let Some(updated_state) = rx.next().await {
         (*ACTIVE_SESSION_NAME.write()).clear();
@@ -43,8 +43,8 @@ pub struct MermaidJsObject {
     pub error: Option<String>,
 }
 
-/// Filter in mermaid diagrams by session name
-pub fn filter_in_mermaid_diagrams_by_session_name(
+/// Filter in mermaid diagrams by network name
+pub fn filter_in_mermaid_diagrams_by_network_name(
     active_network_names: &str,
     builder_network_names: &[&str],
     builder_flowchart_diagram: &[&str],
@@ -84,8 +84,8 @@ pub fn filter_in_mermaid_diagrams_by_session_name(
     (network_name, flowchart_diagram, er_diagram, timestamp)
 }
 
-/// Filter out mermaid diagrams by session name
-pub fn filter_out_mermaid_diagrams_by_session_name(
+/// Filter out mermaid diagrams by network name
+pub fn filter_out_mermaid_diagrams_by_network_name(
     active_network_names: &str,
     builder_network_names: &[&str],
     builder_flowchart_diagram: &[&str],
