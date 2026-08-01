@@ -90,10 +90,11 @@ impl ProcessorTrait for OpenAIChatProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
-    use phymes_subject::{ChatBuilderTraitExt, Publication, SubjectBuilder};
-
-    use crate::AvailableOpenAIAssets;
+    use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder};
+    use phymes_event::Publication;
+    use phymes_ml::{AvailableOpenAIAssets, CandleChatConfig};
+    use phymes_streams::ChatBuilderTraitExt;
+    use phymes_subject::{SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
 
     #[tokio::test]
     async fn test_openai_chat_processor() -> Result<()> {

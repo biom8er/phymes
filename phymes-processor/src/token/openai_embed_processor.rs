@@ -80,24 +80,20 @@ impl ProcessorTrait for OpenAIEmbedProcessor {
     }
 }
 
+#[cfg(all(not(feature = "candle"), feature = "api"))]
 #[cfg(test)]
 mod tests {
-    #[allow(unused_imports)]
-    use arrow::array::{ArrayRef, FixedSizeListArray, Float32Array, StringArray};
-    #[allow(unused_imports)]
-    use futures::TryStreamExt;
-    #[allow(unused_imports)]
-    use phymes_event::Publication;
-
-    #[allow(unused_imports)]
     use super::*;
 
-    #[cfg(not(feature = "candle"))]
+    use arrow::array::{ArrayRef, FixedSizeListArray, Float32Array, RecordBatch, StringArray};
+    use futures::TryStreamExt;
+    use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
+    use phymes_event::Publication;
+    use phymes_ml::{AvailableOpenAIAssets, CandleEmbedConfig};
+    use phymes_subject::{Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+
     #[tokio::test]
     async fn test_openai_embed_processor() -> Result<()> {
-        use phymes_diagnostics::{Diagnostics, SpanBuilder};
-
-        use crate::AvailableOpenAIAssets;
 
         let config = CandleEmbedConfig {
             documents: "text".to_string(),
