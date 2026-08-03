@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::subscribe::{
     AllSubjectNamesSubscribe, AllSubjectSchemasSubscribe, AlwaysSubscribe,
-    AnySubjectSchemaSubscribe, AnySubscribeNameSubscribe, ChatContentSubscribe,
+    AnySubjectSchemaSubscribe, AnySubscribeNameSubscribe, TextGenerationSubscribe,
     SubscribeEventTrait,
 };
 
@@ -24,8 +24,8 @@ pub enum AvailableSubscribeEvents {
     AnySubjectSchemaSubscribe,
     #[value(name = "AllSubjectSchemasSubscribe")]
     AllSubjectSchemasSubscribe,
-    #[value(name = "ChatContentSubscribe")]
-    ChatContentSubscribe,
+    #[value(name = "TextGenerationSubscribe")]
+    TextGenerationSubscribe,
 }
 
 impl AvailableSubscribeEvents {
@@ -36,7 +36,7 @@ impl AvailableSubscribeEvents {
             Self::AllSubjectNamesSubscribe => AllSubjectNamesSubscribe::new_box(),
             Self::AnySubjectSchemaSubscribe => AnySubjectSchemaSubscribe::new_box(),
             Self::AllSubjectSchemasSubscribe => AllSubjectSchemasSubscribe::new_box(),
-            Self::ChatContentSubscribe => ChatContentSubscribe::new_box(),
+            Self::TextGenerationSubscribe => TextGenerationSubscribe::new_box(),
         }
     }
     /// Convert a [String] to a [SubscribeEventTrait]
@@ -52,8 +52,8 @@ impl AvailableSubscribeEvents {
             AvailableSubscribeEvents::AnySubjectNameSubscribe
         } else if policy.contains(AlwaysSubscribe::get_static_name()) {
             AvailableSubscribeEvents::AlwaysSubscribe
-        } else if policy.contains(ChatContentSubscribe::get_static_name()) {
-            AvailableSubscribeEvents::ChatContentSubscribe
+        } else if policy.contains(TextGenerationSubscribe::get_static_name()) {
+            AvailableSubscribeEvents::TextGenerationSubscribe
         } else {
             return Err(anyhow!("Subscribe policy {policy} was not recognized."));
         };
@@ -77,7 +77,7 @@ impl Display for AvailableSubscribeEvents {
             Self::AllSubjectSchemasSubscribe => {
                 write!(f, "{}", AllSubjectSchemasSubscribe::get_static_name())
             }
-            Self::ChatContentSubscribe => write!(f, "{}", ChatContentSubscribe::get_static_name()),
+            Self::TextGenerationSubscribe => write!(f, "{}", TextGenerationSubscribe::get_static_name()),
         }
     }
 }

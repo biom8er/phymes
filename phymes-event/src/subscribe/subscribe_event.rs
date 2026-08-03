@@ -58,7 +58,7 @@ impl MappableTrait for AlwaysSubscribe {
     }
 }
 
-/// Subscribe when any matching table name has been updated
+/// Subscribe when any matching subject name has been updated
 #[derive(Default, Debug, Clone)]
 pub struct AnySubscribeNameSubscribe;
 
@@ -97,7 +97,7 @@ impl MappableTrait for AnySubscribeNameSubscribe {
     }
 }
 
-/// Subscribe when all matching table names has been updated
+/// Subscribe when all matching subject names has been updated
 #[derive(Default, Debug, Clone)]
 pub struct AllSubjectNamesSubscribe;
 
@@ -133,7 +133,7 @@ impl MappableTrait for AllSubjectNamesSubscribe {
     }
 }
 
-/// Subscribe when any matching table schema has been updated
+/// Subscribe when any matching subject schema has been updated
 #[derive(Default, Debug, Clone)]
 pub struct AnySubjectSchemaSubscribe;
 
@@ -179,7 +179,7 @@ impl MappableTrait for AnySubjectSchemaSubscribe {
     }
 }
 
-/// Subscribe when all matching table schemas has been updated
+/// Subscribe when all matching subject schemas has been updated
 #[derive(Default, Debug, Clone)]
 pub struct AllSubjectSchemasSubscribe;
 
@@ -225,28 +225,28 @@ impl MappableTrait for AllSubjectSchemasSubscribe {
 
 /// Custom subscription to pull in all of the relevant content for the chat
 #[derive(Default, Debug, Clone)]
-pub struct ChatContentSubscribe {
-    user_message_table_name: String,
-    tool_message_table_name: String,
-    error_message_table_name: String,
+pub struct TextGenerationSubscribe {
+    user_message_subject_name: String,
+    tool_message_subject_name: String,
+    error_message_subject_name: String,
 }
 
 #[allow(dead_code)]
-impl ChatContentSubscribe {
-    pub fn new_box_with_table_names(
-        user_message_table_name: &str,
-        tool_message_table_name: &str,
-        error_message_table_name: &str,
+impl TextGenerationSubscribe {
+    pub fn new_box_with_subject_names(
+        user_message_subject_name: &str,
+        tool_message_subject_name: &str,
+        error_message_subject_name: &str,
     ) -> Box<dyn SubscribeEventTrait> {
         Box::new(Self {
-            user_message_table_name: user_message_table_name.to_string(),
-            tool_message_table_name: tool_message_table_name.to_string(),
-            error_message_table_name: error_message_table_name.to_string(),
+            user_message_subject_name: user_message_subject_name.to_string(),
+            tool_message_subject_name: tool_message_subject_name.to_string(),
+            error_message_subject_name: error_message_subject_name.to_string(),
         })
     }
 }
 
-impl SubscribeEventTrait for ChatContentSubscribe {
+impl SubscribeEventTrait for TextGenerationSubscribe {
     fn check_subscriptions(
         &self,
         _subscriptions: &[Subscription],
@@ -254,34 +254,34 @@ impl SubscribeEventTrait for ChatContentSubscribe {
         _schemas: &HashMap<String, SchemaRef>,
     ) -> bool {
         // DM: always subscribe to user messages when there are no tool or error messages
-        let user = if updates.contains_key(&self.user_message_table_name)
-            && !updates.contains_key(&self.tool_message_table_name)
-            && !updates.contains_key(&self.error_message_table_name)
+        let user = if updates.contains_key(&self.user_message_subject_name)
+            && !updates.contains_key(&self.tool_message_subject_name)
+            && !updates.contains_key(&self.error_message_subject_name)
         {
             true
         } else {
-            *updates.get(&self.user_message_table_name).unwrap_or(&false)
+            *updates.get(&self.user_message_subject_name).unwrap_or(&false)
         };
 
         // DM: default to false to prevent unwanted subscriptions
-        let tool = updates.get(&self.tool_message_table_name).unwrap_or(&false);
+        let tool = updates.get(&self.tool_message_subject_name).unwrap_or(&false);
         let error = updates
-            .get(&self.error_message_table_name)
+            .get(&self.error_message_subject_name)
             .unwrap_or(&false);
 
         // DM: assume the config and assistant messages are "other" which are always subscribed too
-        let config = !updates.contains_key(&self.user_message_table_name)
-            && !updates.contains_key(&self.tool_message_table_name)
-            && !updates.contains_key(&self.error_message_table_name);
+        let config = !updates.contains_key(&self.user_message_subject_name)
+            && !updates.contains_key(&self.tool_message_subject_name)
+            && !updates.contains_key(&self.error_message_subject_name);
         *tool || user || *error || config
     }
     fn new_box() -> Box<dyn SubscribeEventTrait> {
         Box::new(Self {
-            // DM: dangerous as the strings needs to stay syncronized with the actual table names
+            // DM: dangerous as the strings needs to stay syncronized with the actual subject names
             // in `AvailableinterfaceSubjects` and `AvailableinterfaceSubjects`
-            user_message_table_name: "UserMessages".to_string(),
-            tool_message_table_name: "ToolMessages".to_string(),
-            error_message_table_name: "NetworkErrors".to_string(),
+            user_message_subject_name: "UserMessages".to_string(),
+            tool_message_subject_name: "ToolMessages".to_string(),
+            error_message_subject_name: "NetworkErrors".to_string(),
         })
     }
     fn clone_boxed(&self) -> Box<dyn SubscribeEventTrait> {
@@ -289,9 +289,67 @@ impl SubscribeEventTrait for ChatContentSubscribe {
     }
 }
 
-impl MappableTrait for ChatContentSubscribe {
+impl MappableTrait for TextGenerationSubscribe {
     fn get_name(&self) -> &str {
-        "ChatContentSubscribe"
+        "TextGenerationSubscribe"
+    }
+}
+
+/// Custom subscription to pull in all of the relevant content for retrieval
+#[derive(Default, Debug, Clone)]
+pub struct TextRetrievalSubscribe {
+    query_embeddings_subject_name: String,
+    document_embeddings_subject_name: String,
+    document_embeddings_updated: bool,
+}
+
+#[allow(dead_code)]
+impl TextRetrievalSubscribe {
+    pub fn new_box_with_subject_names(
+        query_embeddings_subject_name: &str,
+        document_embeddings_subject_name: &str,
+    ) -> Box<dyn SubscribeEventTrait> {
+        Box::new(Self {
+            query_embeddings_subject_name: query_embeddings_subject_name.to_string(),
+            document_embeddings_subject_name: document_embeddings_subject_name.to_string(),
+            document_embeddings_updated: false,
+        })
+    }
+}
+
+impl SubscribeEventTrait for TextRetrievalSubscribe {
+    fn check_subscriptions(
+        &self,
+        _subscriptions: &[Subscription],
+        updates: &HashMap<String, bool>,
+        _schemas: &HashMap<String, SchemaRef>,
+    ) -> bool {
+        // DM: Subscribe when both query and document embeddings have been updated
+        let query = *updates.get(&self.query_embeddings_subject_name).unwrap_or(&false);
+        let document = *updates.get(&self.document_embeddings_subject_name).unwrap_or(&false) || self.document_embeddings_updated;
+        if updates.get(&self.document_embeddings_subject_name).unwrap_or(&false) {
+            self.document_embeddings_updated = true;
+        }
+
+        query && document
+    }
+    fn new_box() -> Box<dyn SubscribeEventTrait> {
+        Box::new(Self {
+            // DM: dangerous as the strings needs to stay syncronized with the actual subject names
+            // in `AvailableinterfaceSubjects` and `AvailableinterfaceSubjects`
+            query_embeddings_subject_name: "DocumentEmbeddings".to_string(),
+            document_embeddings_subject_name: "QueryEmbeddings".to_string(),
+            document_embeddings_updated: false,
+        })
+    }
+    fn clone_boxed(&self) -> Box<dyn SubscribeEventTrait> {
+        Box::new(self.clone())
+    }
+}
+
+impl MappableTrait for TextRetrievalSubscribe {
+    fn get_name(&self) -> &str {
+        "TextRetrievalSubscribe"
     }
 }
 
@@ -319,8 +377,8 @@ pub(crate) mod test_subscribe_policy {
     }
 
     #[allow(dead_code)]
-    pub fn make_test_subscriptions(use_table_name: bool) -> Vec<Subscription> {
-        if use_table_name {
+    pub fn make_test_subscriptions(use_subject_name: bool) -> Vec<Subscription> {
+        if use_subject_name {
             vec![
                 Subscription::OnUpdateLastRecordBatch {
                     subject_name: "t1".to_string(),
@@ -375,7 +433,7 @@ mod tests {
     }
 
     #[test]
-    fn test_any_tablename_subscribe() {
+    fn test_any_subjectname_subscribe() {
         let schemas = test_subscribe_policy::make_test_subject_schemas();
         let subscriptions = test_subscribe_policy::make_test_subscriptions(true);
         let updates = test_subscribe_policy::make_test_updates(true);
@@ -386,7 +444,7 @@ mod tests {
     }
 
     #[test]
-    fn test_all_tablename_subscribe() {
+    fn test_all_subjectname_subscribe() {
         let schemas = test_subscribe_policy::make_test_subject_schemas();
         let subscriptions = test_subscribe_policy::make_test_subscriptions(true);
         let updates = test_subscribe_policy::make_test_updates(true);

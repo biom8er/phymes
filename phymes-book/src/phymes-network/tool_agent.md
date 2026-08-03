@@ -134,7 +134,7 @@ flowchart TD
 	HumanInTheLoop-subscribe@{shape: diamond, label: All}
 	Sort-subscribe@{shape: diamond, label: All}
 	chat_processor_1-subscribe@{shape: diamond, label: All}
-	message_aggregator_processor_1-subscribe@{shape: diamond, label: ChatContentSubscribe}
+	message_aggregator_processor_1-subscribe@{shape: diamond, label: TextGenerationSubscribe}
 	message_aggregator_processor_2-subscribe@{shape: diamond, label: Any}
 	message_parser_processor_1-subscribe@{shape: diamond, label: All}
 	network_1-subscribe@{shape: diamond, label: All}

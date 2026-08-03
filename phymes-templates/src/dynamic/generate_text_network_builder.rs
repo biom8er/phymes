@@ -195,7 +195,7 @@ impl<'a> GenerateTextNetworkBuilder<'a> {
         let subscribe_policy = if self.tool_message_required {
             "Any"
         } else {
-            "ChatContentSubscribe"
+            "TextGenerationSubscribe"
         };
         format!(
             r#"flowchart TD

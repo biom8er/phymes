@@ -7,5 +7,5 @@ pub use subscribe_event::SubscribeEventTrait;
 pub(crate) use subscribe_event::test_subscribe_policy;
 pub(crate) use subscribe_event::{
     AllSubjectNamesSubscribe, AllSubjectSchemasSubscribe, AlwaysSubscribe,
-    AnySubjectSchemaSubscribe, AnySubscribeNameSubscribe, ChatContentSubscribe,
+    AnySubjectSchemaSubscribe, AnySubscribeNameSubscribe, TextGenerationSubscribe,
 };
