@@ -1,6 +1,5 @@
 mod app;
 mod composites;
-mod diagnostics;
 mod dynamic;
 mod pipelines;
 
@@ -13,9 +12,6 @@ pub use composites::{GenerateCodeNetworkBuilder, OpenAlexNetworkBuilder};
 pub use composites::{
     RetrievalAugmentedGenerationPDFNetworkBuilder, RetrieveTextPDFNetworkBuilder,
     TabularDataOperatorNetworkBuilder,
-};
-pub use diagnostics::{
-    default_diagnostic_subjects, extended_diagnostic_subjects, write_diagnostic_subjects_to_csv,
 };
 pub use dynamic::{
     DiffWorkspaceNetworkBuilderDynamicWOSubject, DiffWorkspaceNetworkBuilderStaticWSubject,

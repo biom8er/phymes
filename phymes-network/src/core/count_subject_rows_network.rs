@@ -84,7 +84,7 @@ mod tests {
     use phymes_subject::{
         BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
     };
-    use phymes_task::{SubscriptionTrait, test_task};
+    use phymes_task::{SubscriptionTrait, extended_diagnostic_subjects, test_task, write_diagnostic_subjects_to_csv};
 
     use crate::{
         NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
@@ -93,7 +93,7 @@ mod tests {
 
     use super::*;
 
-    #[tokio::test(flavor = "current_thread")]
+    #[tokio::test]
     async fn test_count_subject_rows_network() -> Result<()> {
         // Initialize the network
         let subjects_network = CountSubjectRowsNetwork::default();
@@ -173,6 +173,22 @@ mod tests {
         // Run the network
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
+
+        let extended_diagnostic_subjects = extended_diagnostic_subjects();
+        let subject_names = extended_diagnostic_subjects
+            .iter()
+            .map(|s| s.as_str())
+            .chain([
+                "SubjectsNumRows",
+                "state_1",
+            ])
+            .collect::<Vec<_>>();
+        write_diagnostic_subjects_to_csv(
+            &subject_names,
+            network_arc.runtime_env(),
+            network_arc.get_name(),
+        )
+        .await?;
 
         assert_eq!(response.len(), 0);
 

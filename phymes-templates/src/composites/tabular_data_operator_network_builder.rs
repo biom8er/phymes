@@ -290,9 +290,7 @@ mod tests {
         BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvBuilderTrait, Subject,
         SubjectBuilderTrait, SubjectTrait, test_subject,
     };
-    use phymes_task::SubscriptionTrait;
-
-    use crate::{extended_diagnostic_subjects, write_diagnostic_subjects_to_csv};
+    use phymes_task::{extended_diagnostic_subjects, write_diagnostic_subjects_to_csv, SubscriptionTrait};
 
     use super::*;
 

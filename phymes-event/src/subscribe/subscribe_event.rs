@@ -13,6 +13,9 @@ pub trait SubscribeEventTrait: MappableTrait + Debug + Send + Sync {
     /// * `subscriptions` - Slice of `Subscription`s for the processors
     /// * `updates` - `HashMap` of subscription subject names and if they were updated
     /// * `schemas` - `HashMap` of the subject schemas
+    /// 
+    /// # Todo
+    /// * `counts` - `HashMap` of row counts
     fn check_subscriptions(
         &self,
         subscriptions: &[Subscription],
@@ -296,11 +299,11 @@ impl MappableTrait for TextGenerationSubscribe {
 }
 
 /// Custom subscription to pull in all of the relevant content for retrieval
+/// DM, WIP: missing count rows map to trigger when documents are there
 #[derive(Default, Debug, Clone)]
 pub struct TextRetrievalSubscribe {
     query_embeddings_subject_name: String,
     document_embeddings_subject_name: String,
-    document_embeddings_updated: bool,
 }
 
 #[allow(dead_code)]
@@ -312,7 +315,6 @@ impl TextRetrievalSubscribe {
         Box::new(Self {
             query_embeddings_subject_name: query_embeddings_subject_name.to_string(),
             document_embeddings_subject_name: document_embeddings_subject_name.to_string(),
-            document_embeddings_updated: false,
         })
     }
 }
@@ -326,10 +328,7 @@ impl SubscribeEventTrait for TextRetrievalSubscribe {
     ) -> bool {
         // DM: Subscribe when both query and document embeddings have been updated
         let query = *updates.get(&self.query_embeddings_subject_name).unwrap_or(&false);
-        let document = *updates.get(&self.document_embeddings_subject_name).unwrap_or(&false) || self.document_embeddings_updated;
-        if updates.get(&self.document_embeddings_subject_name).unwrap_or(&false) {
-            self.document_embeddings_updated = true;
-        }
+        let document = *updates.get(&self.document_embeddings_subject_name).unwrap_or(&false);
 
         query && document
     }
@@ -339,7 +338,6 @@ impl SubscribeEventTrait for TextRetrievalSubscribe {
             // in `AvailableinterfaceSubjects` and `AvailableinterfaceSubjects`
             query_embeddings_subject_name: "DocumentEmbeddings".to_string(),
             document_embeddings_subject_name: "QueryEmbeddings".to_string(),
-            document_embeddings_updated: false,
         })
     }
     fn clone_boxed(&self) -> Box<dyn SubscribeEventTrait> {

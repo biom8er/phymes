@@ -8,7 +8,7 @@ use phymes_schemas::AvailableSubjects;
 use phymes_subject::{
     BuildableTrait, BuilderTrait, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectTrait,
 };
-use phymes_task::SubscriptionTrait;
+use crate::SubscriptionTrait;
 
 /// Default diagnostic subjects for Errors, Events, Traces, and Metrics
 pub fn default_diagnostic_subjects() -> Vec<String> {
@@ -26,6 +26,7 @@ pub fn extended_diagnostic_subjects() -> Vec<String> {
     let extension = vec![
         AvailableSubjects::NetworkTasksRunLog.to_string(),
         AvailableSubjects::SubjectsChangeLog.to_string(),
+        AvailableSubjects::SubjectsObjectStoreMeta.to_string(),
     ];
     subjects.extend(extension);
     subjects
