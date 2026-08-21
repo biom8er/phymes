@@ -1,73 +1,153 @@
-/// Count the number of rows for each subject
-pub struct CountSubjectRowsNetwork<'a> {
-    /// Network
-    pub network_name: &'a str,
+use std::collections::VecDeque;
+
+use phymes_data::{AvailableOperators, DataAggregatorOperator, DataConfig, DataStreamManager};
+use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
+use phymes_processor::AvailableProcessors;
+use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait};
+use phymes_subject::{
+    BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
+    SubjectPlanBuilderTrait,
+};
+use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes, NetworkBuilder};
+
+pub struct CountSubjectRowsNetworkBuilder {
+    pub inner: Option<NetworkBuilder>,
 }
 
-impl Default for CountSubjectRowsNetwork<'_> {
+impl Default for CountSubjectRowsNetworkBuilder {
     fn default() -> Self {
-        CountSubjectRowsNetwork {
-            network_name: "count_subject_rows_network",
+        // Count subject rows task
+        let network_builder = {
+            let task_name = "count_subject_rows";
+            let mut tasks = VecDeque::new();
+            {
+                let network_name = "group_by_num_rows_subjects_object_store_meta";
+                let config = DataConfig {
+                    lhs_name: Some(AvailableSubjects::SubjectsObjectStoreMeta.to_string()),
+                    lhs_values: Some(vec![
+                        "subject_name".to_string(),
+                        "task_name".to_string(),
+                        "network_name".to_string(),
+                        "superstep".to_string()]),
+                    agg_columns: Some(vec!["num_rows".to_string()]),
+                    agg_operators: Some(vec![DataAggregatorOperator::Sum]),
+                    cpu: false,
+                    operator: AvailableOperators::GroupBy,
+                    lhs_stream: DataStreamManager::Accumulate,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: network_name.to_string(),
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
+                    processor: AvailableProcessors::GroupBy,
+                    subscription_lhs: Subscription::OnUpdateAllRecordBatches {
+                        subject_name: AvailableSubjects::SubjectsObjectStoreMeta.to_string(),
+                    },
+                    publication: Publication::Replace {
+                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
+                    },
+                    subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);
+            }
+            {
+                let network_name = "select_num_rows_subjects_object_store_meta";
+                let cols = [
+                    "subject_name",
+                    "num_rows-Sum",
+                ];
+                let schema_cols = [
+                    "subject_name",
+                    "num_rows",
+                ];
+                let config = DataConfig {
+                    lhs_name: Some(
+                        tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
+                    ),
+                    lhs_values: Some(
+                        cols
+                            .iter()
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>(),
+                    ),
+                    as_columns: Some(
+                        schema_cols
+                            .iter()
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>(),
+                    ),
+                    cpu: false,
+                    operator: AvailableOperators::Select,
+                    lhs_stream: DataStreamManager::Stream,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let subject_out = AvailableSubjects::SubjectsNumRows
+                    .to_subject_plan(None, None)
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: network_name.to_string(),
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
+                    processor: AvailableProcessors::Select,
+                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
+                        subject_name: tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
+                    },
+                    subscription_rhs: None,
+                    publication: Publication::Replace {
+                        subject_name: subject_out.get_name().to_string(),
+                    },
+                    subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
+                    subject_out: Some(subject_out),
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);
+            }
+            let mut network_builder = tasks.pop_front().unwrap().build_dynamic();
+            while let Some(task) = tasks.pop_front() {
+                network_builder = network_builder.extend(task.build_dynamic()).unwrap();
+            }
+            network_builder
+        };
+
+        Self {
+            inner: Some(network_builder.with_name("count_subject_rows")),
         }
-    }
-}
-
-impl<'a> CountSubjectRowsNetwork<'a> {
-    pub fn as_mermaid_flowchart(&self) -> &str {
-        r#"flowchart TD
-    CountSubjectRowsNetwork_runtime_env-rt@{shape: subproc, label: CountSubjectRowsNetwork_runtime_env}
-
-	subgraph group_by_subject_change_log_delta_t
-		SubjectsChangeLog-subject-.->|AllRecordBatches|group_by_subject_change_log_delta_p-subscribe
-		group_by_subject_change_log_delta_p-subscribe-->group_by_subject_change_log_delta_p-processor
-		group_by_subject_change_log_delta_p-processor-->group_by_subject_change_log_delta_p-publish
-		group_by_subject_change_log_delta_p-publish-->|Replace|group_by_subject_change_log_delta_t-subject
-		group_by_subject_change_log_delta_t-subject-->|AllRecordBatches|select_subject_change_log_delta_p-subscribe
-		select_subject_change_log_delta_p-subscribe-->select_subject_change_log_delta_p-processor
-		select_subject_change_log_delta_p-processor-->select_subject_change_log_delta_p-publish
-		select_subject_change_log_delta_p-publish-->|Replace|SubjectsNumRows-subject
-	end
-	CountSubjectRowsNetwork_runtime_env-rt-->group_by_subject_change_log_delta_t
-	SubjectsChangeLog-subject@{shape: doc, label: SubjectsChangeLog}
-	group_by_subject_change_log_delta_p-subscribe@{shape: diamond, label: All}
-	group_by_subject_change_log_delta_p-processor@{shape: rect, label: GroupBy}
-	group_by_subject_change_log_delta_p-publish@{shape: fork}
-	group_by_subject_change_log_delta_t-subject@{shape: doc, label: group_by_subject_change_log_delta_t}
-	select_subject_change_log_delta_p-subscribe@{shape: diamond, label: All}
-	select_subject_change_log_delta_p-processor@{shape: rect, label: Select}
-	select_subject_change_log_delta_p-publish@{shape: fork}
-	SubjectsNumRows-subject@{shape: doc, label: SubjectsNumRows}"#
-    }
-    pub fn as_mermaid_erdiagram(&self) -> &str {
-        r#"erDiagram
-    SubjectsChangeLog["SubjectsChangeLog"] {
-        Utf8 subject_name
-        Utf8 task_name
-        Utf8 network_name
-        Int64 num_rows
-        Int64 superstep
-    }
-    group_by_subject_change_log_delta_p["group_by_subject_change_log_delta_p"] {
-        List-Utf8 agg_columns "['num_rows']"
-        List-Utf8 agg_operators "['Sum']"
-        Boolean cpu "false"
-        Utf8 lhs_name "SubjectsChangeLog"
-        List-Utf8 lhs_values "['subject_name']"
-        Utf8 operator "GroupBy"
-        Utf8 lhs_stream "Accumulate"
-    }
-    select_subject_change_log_delta_p["select_subject_change_log_delta_p"] {
-        List-Utf8 as_columns "['','num_rows']"
-        Boolean cpu "false"
-        Utf8 lhs_name "group_by_subject_change_log_delta_t"
-        List-Utf8 lhs_values "['subject_name','num_rows-Sum']"
-        Utf8 operator "Select"
-        Utf8 lhs_stream "Accumulate"
-    }
-    SubjectsNumRows["SubjectsNumRows"] {
-        Utf8 subject_name
-        Int64 num_rows
-    }"#
     }
 }
 
@@ -82,34 +162,34 @@ mod tests {
     use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
     use phymes_schemas::AvailableSubjects;
     use phymes_subject::{
-        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
+        BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnvBuilder, Subject, SubjectBuilderTrait, SubjectTrait,
     };
     use phymes_task::{SubscriptionTrait, extended_diagnostic_subjects, test_task, write_diagnostic_subjects_to_csv};
 
-    use crate::{
-        NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
-        NetworkStream, test_network_builder,
-    };
+    use crate::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream, test_network_builder};
 
     use super::*;
 
     #[tokio::test]
     async fn test_count_subject_rows_network() -> Result<()> {
         // Initialize the network
-        let subjects_network = CountSubjectRowsNetwork::default();
-        let (network, network_messages) =
-            NetworkBuilder::from_mermaid_flowchart(subjects_network.as_mermaid_flowchart(), false)?
-                .with_subjects_from_mermaid_erdiagram(
-                    subjects_network.as_mermaid_erdiagram(),
-                    false,
-                    true,
-                )?
-                .with_name(subjects_network.network_name)
-                .with_diagnostics(true)
-                .add_processor_subjects()?
-                .add_next_tasks()?
-                .add_next_supersteps()?
-                .build_with_tables()?;
+        let subjects_network_builder = CountSubjectRowsNetworkBuilder::default().inner.take().unwrap();
+        let network_name = subjects_network_builder.name.clone().unwrap();
+        let (network, network_messages) = subjects_network_builder
+            .with_runtime_env(
+                RuntimeEnvBuilder::default()
+                    .with_name(
+                        DynamicTaskNetworkNames::RuntimeEnv(&network_name)
+                            .to_string()
+                            .as_str(),
+                    )
+                    .build_arc()?,
+            )
+            .with_diagnostics(true)
+            .add_processor_subjects()?
+            .add_next_tasks()?
+            .add_next_supersteps()?
+            .build_with_tables()?;
         let network_arc = Arc::new(network);
 
         // Make the test network data
@@ -161,7 +241,7 @@ mod tests {
                 .with_update(&Publication::Extend {
                     subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
                 })
-                .with_publisher(subjects_network.network_name)
+                .with_publisher(&network_name)
                 .make_name()?
                 .build()?;
             create_message_map(vec![subjects_change_log_message])
