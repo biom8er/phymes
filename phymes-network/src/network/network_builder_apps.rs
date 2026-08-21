@@ -25,7 +25,7 @@ use phymes_task::{TaskMap, TaskPlan};
 use crate::{
     Network, NetworkBuilder, NetworkBuilderMermaidTrait, NetworkBuilderTabularTrait,
     NetworkBuilderTrait,
-    core::{CountSubjectRowsNetwork, NextSuperstepNetwork, NextTaskNetwork},
+    core::{CountSubjectRowsNetworkBuilder, NextSuperstepNetwork, NextTaskNetwork},
 };
 
 type NetworkInput = (
@@ -93,7 +93,7 @@ pub trait NetworkBuilderAppsTrait {
     /// Add tasks that automatically update the number of subject rows
     ///
     /// # Notes
-    /// * See [CountSubjectRowsNetwork] for stand alone network and testing
+    /// * See [CountSubjectRowsNetworkBuilder] for stand alone network and testing
     fn add_subjects_num_rows(self) -> Result<Self>
     where
         Self: Sized;
@@ -1135,16 +1135,7 @@ impl NetworkBuilderAppsTrait for NetworkBuilder {
         Self: Sized,
     {
         // Initialize the subjects num rows network
-        let subjects_network = CountSubjectRowsNetwork::default();
-        let other_builder =
-            NetworkBuilder::from_mermaid_flowchart(subjects_network.as_mermaid_flowchart(), false)?
-                .with_subjects_from_mermaid_erdiagram(
-                    subjects_network.as_mermaid_erdiagram(),
-                    false,
-                    true,
-                )?
-                .with_name(subjects_network.network_name)
-                .add_processor_subjects()?;
+        let other_builder = CountSubjectRowsNetworkBuilder::default().inner.take().unwrap().add_processor_subjects()?;
 
         // Extend the current network context builder
         self.extend(other_builder)

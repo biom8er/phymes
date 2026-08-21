@@ -28,7 +28,7 @@ use serde_json::{Map, Value};
 
 use crate::{
     NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
-    core::{CountSubjectRowsNetwork, NextSuperstepNetwork, NextTaskNetwork},
+    core::{CountSubjectRowsNetworkBuilder, NextSuperstepNetwork, NextTaskNetwork},
 };
 
 /// Trait extension for [NetworkBuilderTrait] to enable exporting to and importing from tabular format
@@ -1219,20 +1219,11 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         };
 
         // Exclude subjects from `SubjectsNumRowsNetwork`
-        let subjects_network = CountSubjectRowsNetwork::default();
+        let subjects_network_builder = CountSubjectRowsNetworkBuilder::default().inner.take().unwrap();
+        let subjects_network_name = subjects_network_builder.name.clone().unwrap();
         let tables_subjects = if let Some(network_name) = self.name.as_ref() {
-            if network_name != subjects_network.network_name {
-                NetworkBuilder::from_mermaid_flowchart(
-                    subjects_network.as_mermaid_flowchart(),
-                    false,
-                )?
-                .with_subjects_from_mermaid_erdiagram(
-                    subjects_network.as_mermaid_erdiagram(),
-                    false,
-                    false,
-                )?
-                .with_name(subjects_network.network_name)
-                .add_processor_subjects()?
+            if network_name != &subjects_network_name {
+                subjects_network_builder.add_processor_subjects()?
                 .subjects
                 .unwrap()
                 .into_iter()
@@ -1296,14 +1287,11 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         };
 
         // Exclude subjects from `SubjectsNumRowsNetwork`
-        let subjects_network = CountSubjectRowsNetwork::default();
+        let subjects_network_builder = CountSubjectRowsNetworkBuilder::default().inner.take().unwrap();
+        let subjects_network_name = subjects_network_builder.name.clone().unwrap();
         let tasks_subjects = if let Some(network_name) = self.name.as_ref() {
-            if network_name != subjects_network.network_name {
-                NetworkBuilder::from_mermaid_flowchart(
-                    subjects_network.as_mermaid_flowchart(),
-                    false,
-                )?
-                .tasks
+            if network_name != &subjects_network_name {
+                subjects_network_builder.tasks
                 .unwrap()
                 .into_iter()
                 .map(|t| t.task_name)
@@ -1366,13 +1354,11 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         };
 
         // Exclude subjects from `SubjectsNumRowsNetwork`
-        let subjects_network = CountSubjectRowsNetwork::default();
+        let subjects_network_builder = CountSubjectRowsNetworkBuilder::default().inner.take().unwrap();
+        let subjects_network_name = subjects_network_builder.name.clone().unwrap();
         let processors_subjects = if let Some(network_name) = self.name.as_ref() {
-            if network_name != subjects_network.network_name {
-                NetworkBuilder::from_mermaid_flowchart(
-                    subjects_network.as_mermaid_flowchart(),
-                    false,
-                )?
+            if network_name != &subjects_network_name {
+                subjects_network_builder
                 .processors
                 .unwrap()
                 .into_iter()

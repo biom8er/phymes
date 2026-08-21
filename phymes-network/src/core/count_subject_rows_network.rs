@@ -10,6 +10,10 @@ use phymes_subject::{
 };
 use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes, NetworkBuilder};
 
+/// Network builder to count the number of rows per subject
+/// 
+/// # Notes
+/// * Currently, only tracks the most recent number of rows written to the object store
 pub struct CountSubjectRowsNetworkBuilder {
     pub inner: Option<NetworkBuilder>,
 }
@@ -21,14 +25,15 @@ impl Default for CountSubjectRowsNetworkBuilder {
             let task_name = "count_subject_rows";
             let mut tasks = VecDeque::new();
             {
-                let network_name = "group_by_num_rows_subjects_object_store_meta";
+                let network_name = "group_by_subjects_object_store_meta";
                 let config = DataConfig {
                     lhs_name: Some(AvailableSubjects::SubjectsObjectStoreMeta.to_string()),
                     lhs_values: Some(vec![
                         "subject_name".to_string(),
                         "task_name".to_string(),
                         "network_name".to_string(),
-                        "superstep".to_string()]),
+                        "superstep".to_string()
+                    ]),
                     agg_columns: Some(vec!["num_rows".to_string()]),
                     agg_operators: Some(vec![DataAggregatorOperator::Sum]),
                     cpu: false,
@@ -48,7 +53,7 @@ impl Default for CountSubjectRowsNetworkBuilder {
                     .build()
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
-                    network_name: network_name.to_string(),
+                    network_name: task_name.to_string(),
                     dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::GroupBy,
                     subscription_lhs: Subscription::OnUpdateAllRecordBatches {
@@ -64,10 +69,64 @@ impl Default for CountSubjectRowsNetworkBuilder {
                 tasks.push_back(builder);
             }
             {
+                let network_name = "group_by_num_rows_subjects_object_store_meta";
+                let config = DataConfig {
+                    lhs_name: Some(
+                        tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),),
+                    lhs_values: Some(vec![
+                        "subject_name".to_string(),
+                    ]),
+                    agg_columns: Some(vec!["num_rows-Sum".to_string()]),
+                    agg_operators: Some(vec![DataAggregatorOperator::Last]),
+                    cpu: false,
+                    operator: AvailableOperators::GroupBy,
+                    lhs_stream: DataStreamManager::Accumulate,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config).unwrap();
+                let subject = SubjectBuilder::new()
+                    .with_name(&DynamicTaskNetworkNames::Processor(network_name).to_string())
+                    .with_json(&config_json, 1)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                let subject_processor = SubjectPlan::get_builder()
+                    .with_subject(subject)
+                    .build()
+                    .unwrap();
+                let builder = DynamicTaskNetworkBuilder {
+                    network_name: task_name.to_string(),
+                    dynamic_type: DynamicTaskNetworkTypes::Static,
+                    processor: AvailableProcessors::GroupBy,
+                    subscription_lhs: Subscription::AlwaysAllRecordBatches {
+                        subject_name: tasks
+                            .iter()
+                            .last()
+                            .unwrap()
+                            .publication
+                            .subject_name()
+                            .to_string(),
+                    },
+                    publication: Publication::Replace {
+                        subject_name: DynamicTaskNetworkNames::Subject(network_name).to_string(),
+                    },
+                    subscribe: AvailableSubscribeEvents::AllSubjectNamesSubscribe,
+                    subject_processor,
+                    ..Default::default()
+                };
+                tasks.push_back(builder);
+            }
+            {
                 let network_name = "select_num_rows_subjects_object_store_meta";
                 let cols = [
                     "subject_name",
-                    "num_rows-Sum",
+                    "num_rows-Sum-Last",
                 ];
                 let schema_cols = [
                     "subject_name",
@@ -115,7 +174,7 @@ impl Default for CountSubjectRowsNetworkBuilder {
                     .to_subject_plan(None, None)
                     .unwrap();
                 let builder = DynamicTaskNetworkBuilder {
-                    network_name: network_name.to_string(),
+                    network_name: task_name.to_string(),
                     dynamic_type: DynamicTaskNetworkTypes::Static,
                     processor: AvailableProcessors::Select,
                     subscription_lhs: Subscription::AlwaysAllRecordBatches {
@@ -146,7 +205,7 @@ impl Default for CountSubjectRowsNetworkBuilder {
         };
 
         Self {
-            inner: Some(network_builder.with_name("count_subject_rows")),
+            inner: Some(network_builder.with_name("count_subject_rows_network")),
         }
     }
 }
@@ -223,23 +282,23 @@ mod tests {
 
             // Extract out the subjects for the test
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
+                subject_name: AvailableSubjects::SubjectsObjectStoreMeta.to_string(),
             }
             .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
             let subject = Subject::get_builder()
-                .with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .with_name(AvailableSubjects::SubjectsObjectStoreMeta.to_string().as_str())
                 .with_record_batches(batches)
                 .unwrap()
                 .build()
                 .unwrap();
             let subjects_change_log_message = IPCMessage::get_builder()
                 .with_message(subject.to_ipc_stream()?)
-                .with_subject(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .with_subject(AvailableSubjects::SubjectsObjectStoreMeta.to_string().as_str())
                 .with_update(&Publication::Extend {
-                    subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
+                    subject_name: AvailableSubjects::SubjectsObjectStoreMeta.to_string(),
                 })
                 .with_publisher(&network_name)
                 .make_name()?
@@ -290,20 +349,11 @@ mod tests {
         assert_eq!(
             column,
             [
-                "NetworkTasksRunLog",
-                "SubjectsChangeLog",
-                "SubjectsNumRows",
-                "group_by_subject_change_log_delta_p",
-                "group_by_subject_change_log_delta_t",
-                "processor_1",
-                "processor_2",
-                "processor_3",
-                "select_subject_change_log_delta_p",
-                "state_1"
+                "NetworkTasksRunLog", "SubjectsNumRows", "SubjectsObjectStoreMeta", "group_by_num_rows_subjects_object_store_meta_p", "group_by_num_rows_subjects_object_store_meta_s", "group_by_subjects_object_store_meta_p", "group_by_subjects_object_store_meta_s", "processor_1", "processor_2", "processor_3", "select_num_rows_subjects_object_store_meta_p", "state_1"            
             ]
         );
         let column = subject.get_column_as_vec_primitive::<i64>("num_rows")?;
-        assert_eq!(column, [3, 9, 0, 0, 0, 0, 0, 0, 0, 33]);
+        assert_eq!(column, [2, 0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 63]);
 
         Ok(())
     }

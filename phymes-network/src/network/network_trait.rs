@@ -609,7 +609,7 @@ impl Network {
         // let mut subject_names = Vec::new();
         // let mut num_rows = Vec::new();
 
-        // // DM: migrate to using `CountSubjectRowsNetwork`
+        // // DM: migrate to using `CountSubjectRowsNetworkBuilder`
         // // // Sort the hashmap
         // // let mut sorted_map = self.subjects.iter().collect::<Vec<_>>();
         // // sorted_map.sort_by(|a, b| a.0.cmp(b.0));
@@ -696,7 +696,11 @@ impl Network {
                 match SubjectBuilder::new_from_ipc_stream(&message.get_message_own()) {
                     Ok(builder) => {
                         let subject = builder.with_name(subject_name.as_str()).build().unwrap();
-                        let num_rows = subject.count_rows(); // DM: not used currently...
+                        let num_rows = subject.count_rows();
+                        let num_rows_per_batch = subject.get_record_batches()
+                            .iter()
+                            .map(|batch| batch.num_rows())
+                            .collect::<Vec<_>>();
 
                         // Check for a mismatch in the schema and intercept any errors
                         if schema.ne(&subject.get_schema())
@@ -765,6 +769,7 @@ impl Network {
                                 .build()
                                 .unwrap();
                             let n_rows = metadata_subject.count_rows();
+                            assert_eq!(n_rows, num_rows_per_batch.len());
                             store_meta_subject_names.extend(
                                 (0..n_rows)
                                     .map(|_| subject_name.clone())
@@ -778,7 +783,7 @@ impl Network {
                                     .collect::<Vec<_>>(),
                             );
                             store_meta_num_rows
-                                .extend((0..n_rows).map(|_| num_rows as i64).collect::<Vec<_>>());
+                                .extend(num_rows_per_batch.into_iter().map(|n| n as i64).collect::<Vec<_>>());
                             store_meta_supersteps
                                 .extend((0..n_rows).map(|_| step as i64).collect::<Vec<_>>());
                             store_meta_location.extend(
