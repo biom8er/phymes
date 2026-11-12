@@ -253,9 +253,6 @@ pub async fn network_get_subjects(
                 }
             };
 
-            // Update the row counts just in case...
-            let _ = network_arc.update_subject_num_rows().await;
-
             // Read the subject
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: payload.get_subject().to_string(),

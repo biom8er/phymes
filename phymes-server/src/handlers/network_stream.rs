@@ -174,9 +174,6 @@ pub async fn network_stream(
                         .collect::<Vec<_>>();
                     let response = Bytes::from(serde_json::to_string(&response).unwrap());
 
-                    // Update the row counts
-                    let _ = network_arc.update_subject_num_rows().await;
-
                     // Send the stream
                     Body::from(response).into_response()
                 }
@@ -235,9 +232,6 @@ pub async fn network_stream(
                             .to_ipc_stream()
                             .unwrap()
                     };
-
-                    // Update the row counts
-                    let _ = network_arc.update_subject_num_rows().await;
 
                     // Send the stream
                     Body::from(response).into_response()

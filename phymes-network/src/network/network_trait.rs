@@ -604,43 +604,6 @@ impl Network {
         Ok(current_superstep)
     }
 
-    /// Update the row counts for the subjects
-    pub async fn update_subject_num_rows(&self) -> Result<()> {
-        // let mut subject_names = Vec::new();
-        // let mut num_rows = Vec::new();
-
-        // // DM: migrate to using `CountSubjectRowsNetworkBuilder`
-        // // // Sort the hashmap
-        // // let mut sorted_map = self.subjects.iter().collect::<Vec<_>>();
-        // // sorted_map.sort_by(|a, b| a.0.cmp(b.0));
-        // // for (_name, state) in sorted_map.iter() {
-        // //     let name = state.read().get_name().to_string();
-        // //     let num_row = state.read().count_rows() as i64;
-        // //     subject_names.push(name.clone());
-        // //     num_rows.push(num_row);
-        // // }
-
-        // // create the record batch
-        // let batch = create_subjects_num_rows_batch(subject_names, num_rows)?;
-
-        // // create the table
-        // let subject_num_rows = Subject::get_builder()
-        //     .with_name(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-        //     .with_record_batches(vec![batch])?
-        //     .build()?;
-
-        // // Add the subjects num rows table to the state or update
-        // let step = self.current_superstep().await?;
-        // let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
-        //     .publish_to_subject(self.runtime_env(), subject_num_rows.get_record_batches_own(), step)?
-        //     .ok_or(anyhow!("Unable to put the subject `{}` into object storage for network `{}` while updating the subject number rows.",
-        //         AvailableSubjects::NetworkMetrics,
-        //         self.get_name()))?
-        //     .try_collect()
-        //     .await?;
-        Ok(())
-    }
-
     /// Find the table by matching schemas
     pub fn get_subject_name_by_schema(&self, schema: &SchemaRef) -> Option<&str> {
         let mut sorted_map = self.subjects.iter().collect::<Vec<_>>();
@@ -932,7 +895,6 @@ impl BuildableTrait for Network {
 
 #[cfg(test)]
 mod tests {
-    use arrow::array::Int64Array;
     use phymes_message::IPCMessage;
     use phymes_schemas::{
         AvailableSchemaTrait, create_network_tasks_subscribe_aggregate_batch,
@@ -958,57 +920,6 @@ mod tests {
         let schema = test_subject::make_test_subject_schema(2)?;
         let name = network.get_subject_name_by_schema(&schema);
         assert!(name.is_none());
-        Ok(())
-    }
-
-    #[ignore = "refactoring `update_subject_num_rows` to work with object store."]
-    #[tokio::test]
-    async fn test_network_update_subject_num_rows_subject() -> Result<()> {
-        let (network, _messages) =
-            test_network_builder::make_test_network_builder_parallel("network_1", 25)?.build()?;
-        network.update_subject_num_rows().await?;
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
-        }
-        .subscribe_to_subject(network.runtime_env(), "network_1")?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-            .with_record_batches(batches)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        assert_eq!(
-            subject.get_column_as_vec_str("subject_name"),
-            [
-                "processor_1",
-                "processor_2",
-                "processor_3",
-                "state_1",
-                "state_2",
-                "state_3",
-            ]
-        );
-        let num_rows = subject
-            .get_record_batches()
-            .iter()
-            .flat_map(|batch| {
-                batch
-                    .column_by_name("num_rows")
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<Int64Array>()
-                    .unwrap()
-                    .iter()
-                    .map(|s| s.unwrap_or_default() as usize)
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(num_rows, [1, 1, 1, 12, 12, 12]);
-
         Ok(())
     }
 
@@ -1107,7 +1018,7 @@ mod tests {
             .as_ref()
             .unwrap()
             .get_column_as_vec_primitive::<i64>("num_rows")?;
-        assert_eq!(col, [12, 12, 12]);
+        assert_eq!(col, [4, 4, 4]);
         let col = meta.as_ref().unwrap().get_column_as_vec_str("location");
         let col = col
             .into_iter()

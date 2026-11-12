@@ -241,6 +241,8 @@ impl AvailableNetworks {
             .unwrap()
             .add_next_supersteps()
             .unwrap()
+            .add_subjects_num_rows()
+            .unwrap()
             .build_with_tables()
             .unwrap();
         (Arc::new(network), message)

@@ -317,6 +317,7 @@ mod tests {
             .add_processor_subjects()?
             .add_next_tasks()?
             .add_next_supersteps()?
+            .add_subjects_num_rows()?
             .build_with_tables()?;
         let network_arc = Arc::new(network);
 

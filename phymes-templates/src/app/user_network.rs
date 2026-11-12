@@ -320,6 +320,7 @@ pub(crate) mod user_network_inner {
             .with_diagnostics(true)
             .add_next_tasks()?
             .add_next_supersteps()?
+            .add_subjects_num_rows()?
             .build_with_tables()?;
         let network_arc = Arc::new(network);
 

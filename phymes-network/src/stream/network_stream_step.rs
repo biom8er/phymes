@@ -1677,6 +1677,7 @@ mod tests {
             .with_diagnostics(true)
             .add_next_tasks()?
             .add_next_supersteps()?
+            .add_subjects_num_rows()?
             .build_with_tables()?;
 
         // Run the network context
