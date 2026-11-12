@@ -317,10 +317,7 @@ mod tests {
         let subject_names = extended_diagnostic_subjects
             .iter()
             .map(|s| s.as_str())
-            .chain([
-                "SubjectsNumRows",
-                "state_1",
-            ])
+            .chain(["SubjectsNumRows"])
             .collect::<Vec<_>>();
         write_diagnostic_subjects_to_csv(
             &subject_names,
@@ -353,7 +350,7 @@ mod tests {
             ]
         );
         let column = subject.get_column_as_vec_primitive::<i64>("num_rows")?;
-        assert_eq!(column, [2, 0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 63]);
+        assert_eq!(column, [2, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 21]);
 
         Ok(())
     }

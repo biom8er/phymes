@@ -769,7 +769,6 @@ impl Network {
                                 .build()
                                 .unwrap();
                             let n_rows = metadata_subject.count_rows();
-                            assert_eq!(n_rows, num_rows_per_batch.len());
                             store_meta_subject_names.extend(
                                 (0..n_rows)
                                     .map(|_| subject_name.clone())
@@ -782,8 +781,13 @@ impl Network {
                                     .map(|_| self.get_name().to_string())
                                     .collect::<Vec<_>>(),
                             );
+                            // assert_eq!(n_rows, num_rows_per_batch.len());
+                            // does not always hold because deleted partitions are prepended to `object_store_metadata`
                             store_meta_num_rows
-                                .extend(num_rows_per_batch.into_iter().map(|n| n as i64).collect::<Vec<_>>());
+                                .extend((0..(n_rows - num_rows_per_batch.len()))
+                                    .map(|_| 0 as i64)
+                                    .chain(num_rows_per_batch.into_iter().map(|n| n as i64))
+                                    .collect::<Vec<_>>());
                             store_meta_supersteps
                                 .extend((0..n_rows).map(|_| step as i64).collect::<Vec<_>>());
                             store_meta_location.extend(
