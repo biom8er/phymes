@@ -118,6 +118,7 @@ mod tests {
                 .add_network_interface(Some(&["state_1"]))?
                 .add_next_tasks()?
                 .add_next_supersteps()?
+                .add_subjects_num_rows()?
                 .build_with_tables()?;
         let network_arc = Arc::new(network);
         let _ = network_arc
@@ -208,7 +209,7 @@ mod tests {
         .unwrap()
         .try_collect()
         .await?;
-        assert_eq!(subscriptions.len(), 3); // DM, Check!(): changed from 5
+        assert_eq!(subscriptions.len(), 3);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
         }
@@ -216,7 +217,7 @@ mod tests {
         .unwrap()
         .try_collect()
         .await?;
-        assert_eq!(subscriptions.len(), 5); // DM, Check!(): changed from 8
+        assert_eq!(subscriptions.len(), 5);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
         }
@@ -225,6 +226,14 @@ mod tests {
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SubjectsObjectStoreMeta.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), "network_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert_eq!(subscriptions.len(), 5);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::NetworkMetrics.to_string(),
         }
