@@ -932,7 +932,6 @@ mod tests {
         .with_runtime_env(runtime_env)
         .add_processor_subjects()?
         .add_next_supersteps()?
-        .add_subjects_num_rows()?
         .build_with_tables()?;
         let network_arc = Arc::new(network);
 
@@ -1445,78 +1444,77 @@ mod tests {
 
         assert_eq!(response.len(), 0);
 
-        // DM: `NetworkTasksSubscribePublish` is cleared during the call to `tasks_subscribe_publish` by `count_subject_rows`
-        // // Test supserstep 3
-        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-        //     subject_name: AvailableSubjects::NetworkTasksSubscribePublish.to_string(),
-        // }
-        // .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-        // .unwrap()
-        // .try_collect()
-        // .await?;
-        // let subject = Subject::get_builder()
-        //     .with_name(
-        //         AvailableSubjects::NetworkTasksSubscribePublish
-        //             .to_string()
-        //             .as_str(),
-        //     )
-        //     .with_record_batches(batches)?
-        //     .build()?;
-        // let column = subject.get_column_as_vec_str("network_name");
-        // assert_eq!(column, ["network_1", "network_1", "network_1", "network_1"]);
-        // let column = subject.get_column_as_vec_str("processor_name");
-        // assert_eq!(
-        //     column,
-        //     ["network_1", "processor_1", "processor_2", "processor_3"]
-        // );
-        // let column = subject.get_column_as_vec_str("processor_type");
-        // assert_eq!(
-        //     column,
-        //     [
-        //         "ProcessorEcho",
-        //         "ProcessorMock",
-        //         "ProcessorMock",
-        //         "ProcessorMock",
-        //     ]
-        // );
-        // let column =
-        //     subject.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
-        // let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-        // assert_eq!(
-        //     flattened,
-        //     [
-        //         "OnUpdateLastRecordBatch",
-        //         "AlwaysAllRecordBatches",
-        //         "OnUpdateAllRecordBatches",
-        //         "AlwaysAllRecordBatches",
-        //         "OnUpdateAllRecordBatches",
-        //         "AlwaysAllRecordBatches",
-        //         "OnUpdateAllRecordBatches",
-        //     ]
-        // );
-        // let column = subject
-        //     .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
-        // let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-        // assert_eq!(
-        //     flattened,
-        //     [
-        //         "state_1",
-        //         "processor_1",
-        //         "state_1",
-        //         "processor_2",
-        //         "state_1",
-        //         "processor_3",
-        //         "state_1",
-        //     ]
-        // );
-        // let column =
-        //     subject.get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
-        // let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-        // assert_eq!(flattened, ["Extend", "Extend", "Extend", "Extend"]);
-        // let column = subject
-        //     .get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
-        // let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-        // assert_eq!(flattened, ["state_1", "state_1", "state_1", "state_1"]);
+        // Test supserstep 3
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::NetworkTasksSubscribePublish.to_string(),
+        }
+        .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(
+                AvailableSubjects::NetworkTasksSubscribePublish
+                    .to_string()
+                    .as_str(),
+            )
+            .with_record_batches(batches)?
+            .build()?;
+        let column = subject.get_column_as_vec_str("network_name");
+        assert_eq!(column, ["network_1", "network_1", "network_1", "network_1"]);
+        let column = subject.get_column_as_vec_str("processor_name");
+        assert_eq!(
+            column,
+            ["network_1", "processor_1", "processor_2", "processor_3"]
+        );
+        let column = subject.get_column_as_vec_str("processor_type");
+        assert_eq!(
+            column,
+            [
+                "ProcessorEcho",
+                "ProcessorMock",
+                "ProcessorMock",
+                "ProcessorMock",
+            ]
+        );
+        let column =
+            subject.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
+        let flattened = column.into_iter().flatten().collect::<Vec<_>>();
+        assert_eq!(
+            flattened,
+            [
+                "OnUpdateLastRecordBatch",
+                "AlwaysAllRecordBatches",
+                "OnUpdateAllRecordBatches",
+                "AlwaysAllRecordBatches",
+                "OnUpdateAllRecordBatches",
+                "AlwaysAllRecordBatches",
+                "OnUpdateAllRecordBatches",
+            ]
+        );
+        let column = subject
+            .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
+        let flattened = column.into_iter().flatten().collect::<Vec<_>>();
+        assert_eq!(
+            flattened,
+            [
+                "state_1",
+                "processor_1",
+                "state_1",
+                "processor_2",
+                "state_1",
+                "processor_3",
+                "state_1",
+            ]
+        );
+        let column =
+            subject.get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
+        let flattened = column.into_iter().flatten().collect::<Vec<_>>();
+        assert_eq!(flattened, ["Extend", "Extend", "Extend", "Extend"]);
+        let column = subject
+            .get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
+        let flattened = column.into_iter().flatten().collect::<Vec<_>>();
+        assert_eq!(flattened, ["state_1", "state_1", "state_1", "state_1"]);
 
         Ok(())
     }

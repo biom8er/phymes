@@ -417,6 +417,8 @@ pub trait NetworkStreamStepTrait {
     }
 
     /// Count the subject rows using the [CountSubjectRowsNetworkBuilder] pre-compiled tasks
+    /// # Notes
+    /// If `add_subjects_num_rows` was not added to the session, the default behavior is to skip without panic
     fn count_subject_rows(network: &Arc<Network>) -> impl std::future::Future<Output = Result<()>> + Send {
         async move {
             let task_messages = CountSubjectRowsNetworkBuilder::default()
@@ -465,16 +467,11 @@ pub trait NetworkStreamStepTrait {
             event!(Level::INFO, "Superstep for task {}", &task_name);
 
             // Clone the task
-            let task = network
-                .tasks()
-                .get(task_name)
-                .unwrap_or_else(|| {
-                    panic!(
-                        "Missing task `{task_name}` in network `{}`.",
-                        network.get_name()
-                    )
-                })
-                .clone();
+            let task = match network.tasks().get(task_name){
+                Some(task) => Arc::clone(task),
+                None => return Err(anyhow!("Missing task `{task_name}` in network `{}`.",
+                        network.get_name()))
+            };
 
             // Create the diagnostics for the task
             let diagnostic_builder = if let (Some(diagnostics_vec), Some(span)) =
