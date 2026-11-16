@@ -220,18 +220,6 @@ pub fn subjects_interface_view() -> Element {
                 match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
-                        let subject_names_str = table
-                            .get_column_as_vec_nonprimitive::<String>("subject_name")
-                            .unwrap()
-                            .join(",");
-                        let subject_num_rows_str = table
-                            .get_column_as_vec_primitive::<i64>("num_rows")
-                            .unwrap()
-                            .into_iter()
-                            .map(|n| format!("{n}"))
-                            .collect::<Vec<_>>()
-                            .join(",");
-                        tracing::debug!("{subject_names_str}\n{subject_num_rows_str}");
                         subject_names.set(
                             table
                                 .get_column_as_vec_nonprimitive::<String>("subject_name")

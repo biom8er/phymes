@@ -26,6 +26,7 @@ pub fn extended_diagnostic_subjects() -> Vec<String> {
     let extension = vec![
         AvailableSubjects::NetworkTasksRunLog.to_string(),
         AvailableSubjects::SubjectsChangeLog.to_string(),
+        AvailableSubjects::SubjectsNumRows.to_string(),
         AvailableSubjects::SubjectsObjectStoreMeta.to_string(),
     ];
     subjects.extend(extension);

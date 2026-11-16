@@ -23,8 +23,7 @@ use tokio::task::JoinSet;
 use tracing::{Level, event};
 
 use crate::{
-    Network,
-    core::{NextSuperstepNetwork, NextTaskNetwork},
+    Network, core::{CountSubjectRowsNetworkBuilder, NextSuperstepNetwork, NextTaskNetwork, PreCompiledNetworkTrait},
 };
 
 /// Traits for running a static or dynamic [NetworkStream] step
@@ -267,7 +266,7 @@ pub trait NetworkStreamStepTrait {
                     .build()?,
             ]);
 
-            // Update the tasks run log
+            // Update the tasks run log with the current tasks that just ran
             let (changelog, meta, errors) =
                 network.update_subjects_from_messages(messages, step).await;
             if let Some(table) = errors {
@@ -275,7 +274,7 @@ pub trait NetworkStreamStepTrait {
                 return Err(anyhow!(error));
             }
 
-            // Update the subjects change log
+            // Update the subjects change log with the current tasks that just ran
             let mut messages = Vec::new();
             if let Some(subject) = changelog {
                 let message = IPCMessageBuilder::new()
@@ -414,6 +413,27 @@ pub trait NetworkStreamStepTrait {
                     HashMap::<(String, String), ProcessorSubjectsMap>::new()
                 }
             }
+        }
+    }
+
+    /// Count the subject rows using the [CountSubjectRowsNetworkBuilder] pre-compiled tasks
+    fn count_subject_rows(network: &Arc<Network>) -> impl std::future::Future<Output = Result<()>> + Send {
+        async move {
+            let task_messages = CountSubjectRowsNetworkBuilder::default()
+                .as_task_messages()
+                .unwrap_or_else(|_err| {
+                    panic!("Missing pre-compiled tasks for `CountSubjectRowsNetworkBuilder`.")
+                });
+            for messages in task_messages.into_iter() {
+                let _ =  NetworkStreamStepMinimal::run_superstep(Arc::clone(network), messages)
+                    .await
+                    .unwrap_or_else(|err| {
+                        panic!(
+                            "Error `{err}` running pre-compiled tasks for `CountSubjectRowsNetworkBuilder`."
+                        )
+                    });
+            }
+            Ok(())
         }
     }
 
@@ -648,6 +668,9 @@ impl NetworkStreamStepTrait for NetworkStreamStep {
             if let (Some(diagnostics_vec), Some(trace)) = (diagnostics_vec, trace) {
                 Self::exit_span(&network, &user_batches, diagnostics_vec, trace, step).await?;
             }
+
+            // Count the number of rows for each subject
+            Self::count_subject_rows(&network).await?;
 
             Ok(Some(user_batches))
         }

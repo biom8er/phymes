@@ -2,13 +2,13 @@ use std::collections::VecDeque;
 
 use phymes_data::{AvailableOperators, DataAggregatorOperator, DataConfig, DataStreamManager};
 use phymes_event::{AvailableSubscribeEvents, Publication, Subscription};
+use phymes_message::{IPCMessage, MessageBuilderTrait, create_message_map};
 use phymes_processor::AvailableProcessors;
-use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait};
+use phymes_schemas::{AvailableSubjects, AvailableSubjectsTrait, create_network_tasks_subscribe_publish_batch};
 use phymes_subject::{
-    BuildableTrait, BuilderTrait, MappableTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
-    SubjectPlanBuilderTrait,
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait,
 };
-use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes, NetworkBuilder};
+use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetworkTypes, NetworkBuilder, core::PreCompiledNetworkTrait};
 
 /// Network builder to count the number of rows per subject
 /// 
@@ -16,6 +16,7 @@ use crate::{DynamicTaskNetworkBuilder, DynamicTaskNetworkNames, DynamicTaskNetwo
 /// * Currently, only tracks the most recent number of rows written to the object store
 pub struct CountSubjectRowsNetworkBuilder {
     pub inner: Option<NetworkBuilder>,
+    pub network_name: Option<String>,
 }
 
 impl Default for CountSubjectRowsNetworkBuilder {
@@ -204,9 +205,112 @@ impl Default for CountSubjectRowsNetworkBuilder {
             network_builder
         };
 
+        let network_name = "count_subject_rows_network";
         Self {
-            inner: Some(network_builder.with_name("count_subject_rows_network")),
+            inner: Some(network_builder.with_name(network_name)),
+            network_name: Some(network_name.to_string())
         }
+    }
+}
+
+impl PreCompiledNetworkTrait for CountSubjectRowsNetworkBuilder {
+    fn as_task_messages(&self) -> anyhow::Result<Vec<phymes_message::IPCMessageMap>> {
+        // 1. Message to trigger the first superstep
+        let task_names = vec![
+                "count_subject_rows_t",
+                "count_subject_rows_t",
+                "count_subject_rows_t",
+            ]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let processor_names = vec![
+                "group_by_subjects_object_store_meta_p",
+                "group_by_num_rows_subjects_object_store_meta_p",
+                "select_num_rows_subjects_object_store_meta_p"
+            ]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let processor_types = vec![
+                "GroupBy",
+                "GroupBy",
+                "Select",
+            ]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let subscription_names = vec![
+                vec!["OnUpdateAllRecordBatches", "AlwaysAllRecordBatches"],
+                vec!["AlwaysAllRecordBatches", "AlwaysAllRecordBatches"],
+                vec!["AlwaysAllRecordBatches", "AlwaysAllRecordBatches"],
+            ]
+            .into_iter()
+            .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        let subscription_table_names = vec![
+                vec!["SubjectsObjectStoreMeta", "group_by_subjects_object_store_meta_p"],
+                vec!["group_by_subjects_object_store_meta_s", "group_by_num_rows_subjects_object_store_meta_p"],
+                vec!["group_by_num_rows_subjects_object_store_meta_s", "select_num_rows_subjects_object_store_meta_p"],
+            ]
+            .into_iter()
+            .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        let publication_names = vec![
+                vec!["Replace"],
+                vec!["Replace"],
+                vec!["Replace"],
+            ]
+            .into_iter()
+            .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        let publication_table_names = vec![
+                vec!["group_by_subjects_object_store_meta_s"],
+                vec!["group_by_num_rows_subjects_object_store_meta_s"],
+                vec!["SubjectsNumRows"],
+            ]
+            .into_iter()
+            .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        let network_names = task_names
+            .iter()
+            .map(|_| self.network_name.clone().unwrap_or("count_subject_rows_network".to_string()))
+            .collect::<Vec<_>>();
+
+        let batch = create_network_tasks_subscribe_publish_batch(
+            network_names,
+            task_names,
+            processor_names,
+            processor_types,
+            subscription_names,
+            subscription_table_names,
+            publication_names,
+            publication_table_names,
+        )?;
+        let subject = Subject::get_builder()
+            .with_name(
+                AvailableSubjects::NetworkTasksSubscribePublish
+                    .to_string()
+                    .as_str(),
+            )
+            .with_record_batches(vec![batch])?
+            .build()?;
+        let tasks_publish_subscribe_message = IPCMessage::get_builder()
+            .with_message(subject.to_ipc_stream()?)
+            .with_subject(
+                AvailableSubjects::NetworkTasksSubscribePublish
+                    .to_string()
+                    .as_str(),
+            )
+            .with_update(&Publication::Replace {
+                subject_name: AvailableSubjects::NetworkTasksSubscribePublish.to_string(),
+            })
+            .with_publisher(self.network_name.clone().unwrap_or("count_subject_rows_network".to_string()).as_str())
+            .make_name()?
+            .build()?;
+        let messages_1 = create_message_map(vec![tasks_publish_subscribe_message]);
+
+        Ok(vec![messages_1])
     }
 }
 
@@ -223,7 +327,7 @@ mod tests {
     use phymes_subject::{
         BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnvBuilder, Subject, SubjectBuilderTrait, SubjectTrait,
     };
-    use phymes_task::{SubscriptionTrait, extended_diagnostic_subjects, test_task, write_diagnostic_subjects_to_csv};
+    use phymes_task::{SubscriptionTrait, test_task};
 
     use crate::{NetworkBuilderAppsTrait, NetworkBuilderTrait, NetworkStream, test_network_builder};
 
@@ -252,7 +356,7 @@ mod tests {
         let network_arc = Arc::new(network);
 
         // Make the test network data
-        let message_map = {
+        let mut message_map = {
             // Make the test sequential network
             let (network, network_messages) =
                 test_network_builder::make_test_network_builder_sequential("network_1", 2)?
@@ -309,22 +413,16 @@ mod tests {
             .update_subjects_from_messages(network_messages.unwrap_or_default(), 0)
             .await;
 
+        let mut tasks_publish_subscribe_messages = CountSubjectRowsNetworkBuilder::default()
+            .as_task_messages()?
+            .into_iter()
+            .rev()
+            .collect::<Vec<_>>();
+
         // Run the network
+        message_map.extend(tasks_publish_subscribe_messages.pop().unwrap());
         let network_stream = NetworkStream::new(message_map, Arc::clone(&network_arc));
         let response: Vec<HashMap<String, IPCMessage>> = network_stream.try_collect().await?;
-
-        let extended_diagnostic_subjects = extended_diagnostic_subjects();
-        let subject_names = extended_diagnostic_subjects
-            .iter()
-            .map(|s| s.as_str())
-            .chain(["SubjectsNumRows"])
-            .collect::<Vec<_>>();
-        write_diagnostic_subjects_to_csv(
-            &subject_names,
-            network_arc.runtime_env(),
-            network_arc.get_name(),
-        )
-        .await?;
 
         assert_eq!(response.len(), 0);
 

@@ -1240,7 +1240,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         let exclusion_set = tables_publish_subscribe
             .into_iter()
             .chain(tables_next_superstep)
-            // .chain(tables_subjects)
+            .chain(tables_subjects)
             .collect::<HashSet<_>>();
         Ok(exclusion_set)
     }
@@ -1307,7 +1307,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         let exclusion_set = tasks_publish_subscribe
             .into_iter()
             .chain(tasks_next_superstep)
-            // .chain(tasks_subjects)
+            .chain(tasks_subjects)
             .collect::<HashSet<_>>();
         Ok(exclusion_set)
     }
@@ -1375,7 +1375,7 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
         let exclusion_set = processors_task_network
             .into_iter()
             .chain(processors_next_superstep)
-            // .chain(processors_subjects)
+            .chain(processors_subjects)
             .collect::<HashSet<_>>();
         Ok(exclusion_set)
     }

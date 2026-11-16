@@ -617,7 +617,7 @@ impl Network {
     }
 
     /// Update the state from the published messages
-    ///   and return a table of subject change logs and any errors
+    ///   and return a table of subject changelogs and any errors
     pub async fn update_subjects_from_messages(
         &self,
         messages: IPCMessageMap,
@@ -784,7 +784,7 @@ impl Network {
                                     .unwrap(),
                             );
 
-                            // Record the subject change log information
+                            // Record the subject changelog information
                             change_log_subject_names.push(subject_name);
                             change_log_task_names.push(publisher);
                             change_log_network_names.push(self.get_name().to_string());
@@ -809,8 +809,21 @@ impl Network {
             }
         }
 
-        // Prepare the change log subject
+        // Prepare the changelog subject
         let change_log = if !change_log_subject_names.is_empty() {
+
+            // Ignore updating `SubjectsChangeLog` to keep "self" out of the `SubjectsChangeLog`
+            // but add in the `SubjectsObjectStoreMeta` changelog information
+            if !store_meta_subject_names.is_empty() {
+                change_log_subject_names.push(AvailableSubjects::SubjectsObjectStoreMeta.to_string());
+                change_log_task_names.push(self.get_name().to_string());
+                change_log_network_names.push(self.get_name().to_string());
+                let num_rows = store_meta_subject_names.len();
+                change_log_num_rows.push(num_rows as i64);
+                change_log_supersteps.push(step as i64);
+            }
+
+            // Create `SubjectsChangeLog` batch
             let batch = create_subjects_change_log_batch(
                 change_log_subject_names,
                 change_log_task_names,

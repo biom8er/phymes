@@ -384,7 +384,7 @@ mod tests {
 
     use super::*;
 
-    #[tokio::test(flavor = "current_thread")]
+    #[tokio::test]
     async fn test_generate_text_network_no_tools() -> Result<()> {
         // Initialize the network
         let generate_text_network = GenerateTextNetworkBuilder::default();
@@ -402,6 +402,7 @@ mod tests {
         .with_diagnostics(true)
         .add_next_tasks()?
         .add_next_supersteps()?
+        .add_subjects_num_rows()?
         .build_with_tables()?;
         let network_arc = Arc::new(network);
 
@@ -435,111 +436,109 @@ mod tests {
 
             assert_eq!(response.len(), 0);
 
-            {
-                // Test supsersteps
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                }
-                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
-                let subject = Subject::get_builder()
-                    .with_name(
-                        AvailableInterfaceSubjects::AssistantMessages
-                            .to_string()
-                            .as_str(),
-                    )
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert_eq!(subject.count_rows(), 1);
-                let column = subject.get_column_as_vec_str("role");
-                assert_eq!(column.first().unwrap(), &"assistant");
-                let column = subject.get_column_as_vec_str("content");
-                let assistant_content = column.first().unwrap();
-                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-                for t in column {
-                    assert!(t > 0);
-                }
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
-                }
-                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
-                assert_eq!(batches.len(), 0);
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
-                }
-                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
-                let subject = Subject::get_builder()
-                    .with_name(
-                        AvailableInterfaceSubjects::AggregatedMessages
-                            .to_string()
-                            .as_str(),
-                    )
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert_eq!(subject.count_rows(), 2);
-                let column = subject.get_column_as_vec_str("role");
-                assert_eq!(column.first().unwrap(), &"user");
-                assert_eq!(column.last().unwrap(), &"assistant");
-                let column = subject.get_column_as_vec_str("content");
-                assert_eq!(
-                    column.first().unwrap(),
-                    &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
-                );
-                assert_eq!(column.last().unwrap(), assistant_content);
-                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-                for t in column {
-                    assert!(t > 0);
-                }
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: "aggregate_messages_generate_text_s".to_string(),
-                }
-                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
-                let subject = Subject::get_builder()
-                    .with_name("aggregate_messages_generate_text_s")
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert_eq!(subject.count_rows(), 1);
-                let column = subject.get_column_as_vec_str("role");
-                assert_eq!(column.first().unwrap(), &"user");
-                let column = subject.get_column_as_vec_str("content");
-                assert_eq!(
-                    column.first().unwrap(),
-                    &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
-                );
-                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-                for t in column {
-                    assert!(t > 0);
-                }
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                    subject_name: "generate_text_inference_s".to_string(),
-                }
-                .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
-                let subject = Subject::get_builder()
-                    .with_name("generate_text_inference_s")
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert!(subject.count_rows() > 1);
-                let column = subject.get_column_as_vec_str("role");
-                assert_eq!(column.first().unwrap(), &"assistant");
-                assert_eq!(column.last().unwrap(), &"assistant");
-                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-                for t in column {
-                    assert!(t > 0);
-                }
+            // Test supsersteps
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(
+                    AvailableInterfaceSubjects::AssistantMessages
+                        .to_string()
+                        .as_str(),
+                )
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 1);
+            let column = subject.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"assistant");
+            let column = subject.get_column_as_vec_str("content");
+            let assistant_content = column.first().unwrap();
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for t in column {
+                assert!(t > 0);
+            }
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            assert_eq!(batches.len(), 0);
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name(
+                    AvailableInterfaceSubjects::AggregatedMessages
+                        .to_string()
+                        .as_str(),
+                )
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 2);
+            let column = subject.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"user");
+            assert_eq!(column.last().unwrap(), &"assistant");
+            let column = subject.get_column_as_vec_str("content");
+            assert_eq!(
+                column.first().unwrap(),
+                &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
+            );
+            assert_eq!(column.last().unwrap(), assistant_content);
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for t in column {
+                assert!(t > 0);
+            }
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "aggregate_messages_generate_text_s".to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("aggregate_messages_generate_text_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 1);
+            let column = subject.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"user");
+            let column = subject.get_column_as_vec_str("content");
+            assert_eq!(
+                column.first().unwrap(),
+                &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
+            );
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for t in column {
+                assert!(t > 0);
+            }
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: "generate_text_inference_s".to_string(),
+            }
+            .subscribe_to_subject(network_arc.runtime_env(), network_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            let subject = Subject::get_builder()
+                .with_name("generate_text_inference_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert!(subject.count_rows() > 1);
+            let column = subject.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"assistant");
+            assert_eq!(column.last().unwrap(), &"assistant");
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for t in column {
+                assert!(t > 0);
             }
         }
         Ok(())

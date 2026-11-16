@@ -5,6 +5,8 @@ use phymes_message::{IPCMessage, IPCMessageMap, MessageBuilderTrait, create_mess
 use phymes_schemas::{AvailableSubjects, create_network_tasks_subscribe_publish_batch};
 use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 
+use crate::core::PreCompiledNetworkTrait;
+
 /// A network for determining the next superstep task publications and subscriptions
 pub struct NextTaskNetwork<'a> {
     /// Network
@@ -19,15 +21,13 @@ impl Default for NextTaskNetwork<'_> {
     }
 }
 
-impl<'a> NextTaskNetwork<'a> {
-    /// Return the pre-compiled task subscriptions and publications as messages
-    ///
+impl PreCompiledNetworkTrait for NextTaskNetwork<'_> {
     /// # Notes
     /// * Messages 1, 2, and 4 trigger SuperSteps
     /// * Message 3 is empty and is meant to trigger `tasks_subscribe` method of [Network]
     ///
     /// [Network]: crate::Network
-    pub fn as_task_messages(&self) -> Result<Vec<IPCMessageMap>> {
+    fn as_task_messages(&self) -> Result<Vec<IPCMessageMap>> {
         // 1. Message to trigger the first superstep
         let task_names = vec![
             "group_by_tasks_run_log_superstep_t",
@@ -427,7 +427,9 @@ impl<'a> NextTaskNetwork<'a> {
 
         Ok(vec![messages_1, messages_2, messages_none, messages_3])
     }
+}
 
+impl<'a> NextTaskNetwork<'a> {
     /// Return the Mermaid.js flowchart representation of the network
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD

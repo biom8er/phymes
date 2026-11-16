@@ -4,6 +4,8 @@ use phymes_message::{IPCMessage, IPCMessageMap, MessageBuilderTrait, create_mess
 use phymes_schemas::{AvailableSubjects, create_network_tasks_subscribe_publish_batch};
 use phymes_subject::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait, SubjectTrait};
 
+use crate::core::PreCompiledNetworkTrait;
+
 /// A network for determining the next superstep task publications and subscriptions
 pub struct NextSuperstepNetwork<'a> {
     /// Network
@@ -18,9 +20,8 @@ impl Default for NextSuperstepNetwork<'_> {
     }
 }
 
-impl<'a> NextSuperstepNetwork<'a> {
-    /// Return the pre-compiled task subscriptions and publications as messages
-    pub fn as_task_messages(&self) -> Result<Vec<IPCMessageMap>> {
+impl PreCompiledNetworkTrait for NextSuperstepNetwork<'_> {
+    fn as_task_messages(&self) -> Result<Vec<IPCMessageMap>> {
         // 1. Message to trigger the first superstep
         let task_names = vec!["max_superstep_t"]
             .into_iter()
@@ -91,7 +92,9 @@ impl<'a> NextSuperstepNetwork<'a> {
 
         Ok(vec![messages_1])
     }
+}
 
+impl<'a> NextSuperstepNetwork<'a> {
     /// Return the Mermaid.js flowchart representation of the network
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
@@ -154,7 +157,7 @@ mod tests {
 
     use super::*;
 
-    #[tokio::test(flavor = "current_thread")]
+    #[tokio::test]
     async fn test_next_superstep_network() -> Result<()> {
         // Initialize the network
         let next_superstep_network = NextSuperstepNetwork::default();
