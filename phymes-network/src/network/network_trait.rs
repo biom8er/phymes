@@ -997,27 +997,27 @@ mod tests {
         assert!(errors.is_none());
 
         // check the updates
-        assert_eq!(changelog.as_ref().unwrap().count_rows(), 1);
+        assert_eq!(changelog.as_ref().unwrap().count_rows(), 2);
         let col = changelog
             .as_ref()
             .unwrap()
             .get_column_as_vec_str("subject_name");
-        assert_eq!(col, ["state_1"]);
+        assert_eq!(col, ["state_1", "SubjectsObjectStoreMeta"]);
         let col = changelog
             .as_ref()
             .unwrap()
             .get_column_as_vec_str("task_name");
-        assert_eq!(col, ["network_1"]);
+        assert_eq!(col, ["network_1", "network_1"]);
         let col = changelog
             .as_ref()
             .unwrap()
             .get_column_as_vec_str("network_name");
-        assert_eq!(col, ["network_1"]);
+        assert_eq!(col, ["network_1", "network_1"]);
         let col = changelog
             .as_ref()
             .unwrap()
             .get_column_as_vec_primitive::<i64>("num_rows")?;
-        assert_eq!(col, [12]);
+        assert_eq!(col, [12, 3]);
 
         // check the object store metadata
         assert_eq!(meta.as_ref().unwrap().count_rows(), 3);

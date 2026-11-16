@@ -226,7 +226,7 @@ mod tests {
         .try_collect()
         .await?;
         assert_eq!(subscriptions.len(), 1);
-        assert_eq!(subscriptions.iter().map(|batch| batch.num_rows()).sum::<usize>(), 11);
+        assert_eq!(subscriptions.iter().map(|batch| batch.num_rows()).sum::<usize>(), 5);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsObjectStoreMeta.to_string(),
         }

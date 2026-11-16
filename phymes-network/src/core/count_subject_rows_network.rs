@@ -364,6 +364,7 @@ mod tests {
                     .add_network_interface(Some(&["state_1"]))?
                     .add_next_tasks()?
                     .add_next_supersteps()?
+                    .add_subjects_num_rows()?
                     .build_with_tables()?;
 
             // Mimic a network run for 1 steps
@@ -444,11 +445,11 @@ mod tests {
         assert_eq!(
             column,
             [
-                "NetworkTasksRunLog", "SubjectsNumRows", "SubjectsObjectStoreMeta", "group_by_num_rows_subjects_object_store_meta_p", "group_by_num_rows_subjects_object_store_meta_s", "group_by_subjects_object_store_meta_p", "group_by_subjects_object_store_meta_s", "processor_1", "processor_2", "processor_3", "select_num_rows_subjects_object_store_meta_p", "state_1"            
+                "NetworkTasksRunLog", "NetworkTasksSubscribePublish", "SubjectsNumRows", "SubjectsObjectStoreMeta", "group_by_num_rows_subjects_object_store_meta_p", "group_by_num_rows_subjects_object_store_meta_s", "group_by_subjects_object_store_meta_p", "group_by_subjects_object_store_meta_s", "processor_1", "processor_2", "processor_3", "select_num_rows_subjects_object_store_meta_p", "state_1"           
             ]
         );
         let column = subject.get_column_as_vec_primitive::<i64>("num_rows")?;
-        assert_eq!(column, [2, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 21]);
+        assert_eq!(column, [2, 3, 13, 16, 0, 0, 0, 0, 0, 0, 0, 0, 21]);
 
         Ok(())
     }
