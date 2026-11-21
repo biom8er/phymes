@@ -212,7 +212,7 @@ mod tests {
         let column = subject.get_column_as_vec_str("network_name");
         assert_eq!(column, ["next_superstep_network"]);
         let column = subject.get_column_as_vec_primitive::<u32>("superstep-Max")?;
-        assert_eq!(column, [2]); // Should be one without the forced execution of network step network tasks
+        assert_eq!(column, [3]); // Should be one without the forced execution of network step network tasks
 
         // Make the test network data
         let network_names = ["network_1", "network_1", "network_1", "network_1"]

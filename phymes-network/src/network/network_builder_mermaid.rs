@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    InvokeTaskNetworkBuilder, Network, NetworkBuilder, NetworkBuilderAppsTrait,
-    NetworkBuilderTabularTrait, NetworkBuilderTrait, TaskResponseNetworkBuilder,
+    InvokeTaskNetworkBuilder, Network, NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderTabularTrait, NetworkBuilderTrait, TaskResponseNetworkBuilder, core::CountSubjectRowsNetworkBuilder,
 };
 use anyhow::{Result, anyhow};
 use arrow::{
@@ -85,6 +84,15 @@ pub trait NetworkBuilderMermaidTrait {
     ) -> Result<Self>
     where
         Self: Sized;
+
+    /// Tasks to exclude from the mermaid diagrams
+    fn tasks_to_exclude_mermaid(&self) -> Result<HashSet<String>>;
+
+    /// Processors to exclude from the mermaid diagrams
+    fn processors_to_exclude_mermaid(&self) -> Result<HashSet<String>>;
+
+    /// Subjects to exclude from the mermaid diagrams
+    fn subjects_to_exclude_mermaid(&self) -> Result<HashSet<String>>;
 }
 
 impl NetworkBuilderMermaidTrait for NetworkBuilder {
@@ -122,9 +130,9 @@ impl NetworkBuilderMermaidTrait for NetworkBuilder {
         let network_name = self.name.as_ref().unwrap().to_string();
 
         // Exclusions
-        let mut tasks_exclude = self.tasks_to_exclude()?;
-        let mut processors_exclude = self.processors_to_exclude()?;
-        let mut subjects_exclude = self.subjects_to_exclude()?;
+        let mut tasks_exclude = self.tasks_to_exclude_mermaid()?;
+        let mut processors_exclude = self.processors_to_exclude_mermaid()?;
+        let mut subjects_exclude = self.subjects_to_exclude_mermaid()?;
 
         let invoke_task_network = InvokeTaskNetworkBuilder::default();
         let tasks = if let Some(network_name) = self.name.as_ref() {
@@ -381,7 +389,7 @@ flowchart TD"#,
         }
 
         // Exclusions
-        let mut subjects_exclude = self.subjects_to_exclude()?;
+        let mut subjects_exclude = self.subjects_to_exclude_mermaid()?;
 
         // Exclusions from InvokeTaskNetworkBuilder
         let invoke_task_network = InvokeTaskNetworkBuilder::default();
@@ -1450,6 +1458,78 @@ flowchart TD"#,
             .map(|s| s.build().unwrap())
             .collect::<Vec<_>>();
         Ok(self.with_subjects(subjects))
+    }
+    
+    fn tasks_to_exclude_mermaid(&self) -> Result<HashSet<String>> {
+        let mut exclusion_set = self.tasks_to_exclude()?;
+
+        // Exclude subjects from `SubjectsNumRowsNetwork`
+        let subjects_network_builder = CountSubjectRowsNetworkBuilder::default().inner.take().unwrap();
+        let subjects_network_name = subjects_network_builder.name.clone().unwrap();
+        let tasks_subjects = if let Some(network_name) = self.name.as_ref() {
+            if network_name != &subjects_network_name {
+                subjects_network_builder.tasks
+                .unwrap()
+                .into_iter()
+                .map(|t| t.task_name)
+                .collect::<HashSet<_>>()
+            } else {
+                HashSet::new()
+            }
+        } else {
+            HashSet::new()
+        };
+        exclusion_set.extend(tasks_subjects);
+        Ok(exclusion_set)
+    }
+    
+    fn processors_to_exclude_mermaid(&self) -> Result<HashSet<String>> {
+        let mut exclusion_set = self.processors_to_exclude()?;
+
+        // Exclude subjects from `SubjectsNumRowsNetwork`
+        let subjects_network_builder = CountSubjectRowsNetworkBuilder::default().inner.take().unwrap();
+        let subjects_network_name = subjects_network_builder.name.clone().unwrap();
+        let processors_subjects = if let Some(network_name) = self.name.as_ref() {
+            if network_name != &subjects_network_name {
+                subjects_network_builder
+                .processors
+                .unwrap()
+                .into_iter()
+                .map(|t| t.get_name().to_string())
+                .collect::<HashSet<_>>()
+            } else {
+                HashSet::new()
+            }
+        } else {
+            HashSet::new()
+        };
+        exclusion_set.extend(processors_subjects);
+        Ok(exclusion_set)
+    }
+    
+    fn subjects_to_exclude_mermaid(&self) -> Result<HashSet<String>> {
+        let mut exclusion_set = self.subjects_to_exclude()?;
+
+        // Exclude subjects from `SubjectsNumRowsNetwork`
+        let subjects_network_builder = CountSubjectRowsNetworkBuilder::default().inner.take().unwrap();
+        let subjects_network_name = subjects_network_builder.name.clone().unwrap();
+        let tables_subjects = if let Some(network_name) = self.name.as_ref() {
+            if network_name != &subjects_network_name {
+                subjects_network_builder.add_processor_subjects()?
+                .subjects
+                .unwrap()
+                .into_iter()
+                .map(|t| t.get_name().to_string())
+                .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+
+        exclusion_set.extend(tables_subjects);
+        Ok(exclusion_set)
     }
 }
 

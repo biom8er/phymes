@@ -449,7 +449,7 @@ mod tests {
             ]
         );
         let column = subject.get_column_as_vec_primitive::<i64>("num_rows")?;
-        assert_eq!(column, [2, 3, 13, 16, 0, 0, 0, 0, 0, 0, 0, 0, 21]);
+        assert_eq!(column, [3, 3, 12, 25, 0, 0, 0, 0, 0, 0, 0, 0, 21]);
 
         Ok(())
     }

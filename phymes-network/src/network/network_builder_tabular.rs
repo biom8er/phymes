@@ -28,7 +28,7 @@ use serde_json::{Map, Value};
 
 use crate::{
     NetworkBuilder, NetworkBuilderAppsTrait, NetworkBuilderMermaidTrait, NetworkBuilderTrait,
-    core::{CountSubjectRowsNetworkBuilder, NextSuperstepNetwork, NextTaskNetwork},
+    core::{NextSuperstepNetwork, NextTaskNetwork},
 };
 
 /// Trait extension for [NetworkBuilderTrait] to enable exporting to and importing from tabular format
@@ -1218,29 +1218,10 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
             Vec::new()
         };
 
-        // Exclude subjects from `SubjectsNumRowsNetwork`
-        let subjects_network_builder = CountSubjectRowsNetworkBuilder::default().inner.take().unwrap();
-        let subjects_network_name = subjects_network_builder.name.clone().unwrap();
-        let tables_subjects = if let Some(network_name) = self.name.as_ref() {
-            if network_name != &subjects_network_name {
-                subjects_network_builder.add_processor_subjects()?
-                .subjects
-                .unwrap()
-                .into_iter()
-                .map(|t| t.get_name().to_string())
-                .collect::<Vec<_>>()
-            } else {
-                Vec::new()
-            }
-        } else {
-            Vec::new()
-        };
-
         // Wrap into a HashSet
         let exclusion_set = tables_publish_subscribe
             .into_iter()
             .chain(tables_next_superstep)
-            .chain(tables_subjects)
             .collect::<HashSet<_>>();
         Ok(exclusion_set)
     }
@@ -1286,28 +1267,10 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
             Vec::new()
         };
 
-        // Exclude subjects from `SubjectsNumRowsNetwork`
-        let subjects_network_builder = CountSubjectRowsNetworkBuilder::default().inner.take().unwrap();
-        let subjects_network_name = subjects_network_builder.name.clone().unwrap();
-        let tasks_subjects = if let Some(network_name) = self.name.as_ref() {
-            if network_name != &subjects_network_name {
-                subjects_network_builder.tasks
-                .unwrap()
-                .into_iter()
-                .map(|t| t.task_name)
-                .collect::<Vec<_>>()
-            } else {
-                Vec::new()
-            }
-        } else {
-            Vec::new()
-        };
-
         // Wrap into a HashSet
         let exclusion_set = tasks_publish_subscribe
             .into_iter()
             .chain(tasks_next_superstep)
-            .chain(tasks_subjects)
             .collect::<HashSet<_>>();
         Ok(exclusion_set)
     }
@@ -1353,29 +1316,10 @@ impl NetworkBuilderTabularTrait for NetworkBuilder {
             Vec::new()
         };
 
-        // Exclude subjects from `SubjectsNumRowsNetwork`
-        let subjects_network_builder = CountSubjectRowsNetworkBuilder::default().inner.take().unwrap();
-        let subjects_network_name = subjects_network_builder.name.clone().unwrap();
-        let processors_subjects = if let Some(network_name) = self.name.as_ref() {
-            if network_name != &subjects_network_name {
-                subjects_network_builder
-                .processors
-                .unwrap()
-                .into_iter()
-                .map(|t| t.get_name().to_string())
-                .collect::<Vec<_>>()
-            } else {
-                Vec::new()
-            }
-        } else {
-            Vec::new()
-        };
-
         // Wrap into a HashSet
         let exclusion_set = processors_task_network
             .into_iter()
             .chain(processors_next_superstep)
-            .chain(processors_subjects)
             .collect::<HashSet<_>>();
         Ok(exclusion_set)
     }

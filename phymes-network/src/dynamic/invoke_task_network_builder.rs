@@ -470,190 +470,56 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network"
+                    "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network"
                 ]
             );
             let column = subject.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
                 [
-                    "group_by_processors_subscriptions_p",
-                    "group_by_processors_subscriptions_p",
-                    "group_by_processors_subscriptions_p",
-                    "select_processors_subscriptions_aggregated_p",
-                    "select_processors_subscriptions_aggregated_p",
-                    "group_by_processors_publications_p",
-                    "group_by_processors_publications_p",
-                    "group_by_processors_publications_p",
-                    "select_processors_publications_aggregated_p",
-                    "select_processors_publications_aggregated_p",
-                    "join_processors_subscriptions_publications_aggregated_p",
-                    "join_processors_subscriptions_publications_aggregated_p",
-                    "join_processors_subscriptions_publications_aggregated_p",
-                    "join_tasks_processors_subscriptions_publications_aggregated_p",
-                    "join_tasks_processors_subscriptions_publications_aggregated_p",
-                    "join_tasks_processors_subscriptions_publications_aggregated_p",
-                    "select_tasks_processors_subscriptions_publications_aggregated_p",
-                    "select_tasks_processors_subscriptions_publications_aggregated_p",
-                    "echo_processor_p",
-                    "echo_processor_p",
-                    "call_processor_p",
-                    "call_processor_p",
-                    "call_processor_p"
+                    "group_by_processors_subscriptions_p", "group_by_processors_subscriptions_p", "group_by_processors_subscriptions_p", "select_processors_subscriptions_aggregated_p", "select_processors_subscriptions_aggregated_p", "group_by_processors_publications_p", "group_by_processors_publications_p", "group_by_processors_publications_p", "select_processors_publications_aggregated_p", "select_processors_publications_aggregated_p", "join_processors_subscriptions_publications_aggregated_p", "join_processors_subscriptions_publications_aggregated_p", "join_processors_subscriptions_publications_aggregated_p", "join_tasks_processors_subscriptions_publications_aggregated_p", "join_tasks_processors_subscriptions_publications_aggregated_p", "join_tasks_processors_subscriptions_publications_aggregated_p", "select_tasks_processors_subscriptions_publications_aggregated_p", "select_tasks_processors_subscriptions_publications_aggregated_p", "echo_processor_p", "echo_processor_p", "call_processor_p", "call_processor_p", "call_processor_p", "group_by_subjects_object_store_meta_p", "group_by_subjects_object_store_meta_p", "group_by_num_rows_subjects_object_store_meta_p", "group_by_num_rows_subjects_object_store_meta_p", "select_num_rows_subjects_object_store_meta_p", "select_num_rows_subjects_object_store_meta_p"
                 ]
             );
             let column = subject.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
                 [
-                    "GroupBy",
-                    "GroupBy",
-                    "GroupBy",
-                    "Select",
-                    "Select",
-                    "GroupBy",
-                    "GroupBy",
-                    "GroupBy",
-                    "Select",
-                    "Select",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Select",
-                    "Select",
-                    "ProcessorEcho",
-                    "ProcessorEcho",
-                    "ToolCallProcessor",
-                    "ToolCallProcessor",
-                    "ToolCallProcessor"
+                    "GroupBy", "GroupBy", "GroupBy", "Select", "Select", "GroupBy", "GroupBy", "GroupBy", "Select", "Select", "Join", "Join", "Join", "Join", "Join", "Join", "Select", "Select", "ProcessorEcho", "ProcessorEcho", "ToolCallProcessor", "ToolCallProcessor", "ToolCallProcessor", "GroupBy", "GroupBy", "GroupBy", "GroupBy", "Select", "Select"
                 ]
             );
             let column = subject.get_column_as_vec_str("publication_subscription_name");
             assert_eq!(
                 column,
                 [
-                    "OnUpdateEmpty",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateEmpty",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateAllRecordBatches",
-                    "OnUpdateAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateLastRecordBatch",
-                    "AlwaysAllRecordBatches"
+                    "OnUpdateEmpty", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "OnUpdateEmpty", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "OnUpdateAllRecordBatches", "OnUpdateAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "OnUpdateAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "OnUpdateLastRecordBatch", "AlwaysAllRecordBatches", "OnUpdateAllRecordBatches", "AlwaysLastRecordBatch", "AlwaysAllRecordBatches", "AlwaysLastRecordBatch", "AlwaysAllRecordBatches", "AlwaysLastRecordBatch"
                 ]
             );
             let column = subject.get_column_as_vec_str("publication_subscription_table_name");
             assert_eq!(
                 column,
                 [
-                    "Bytes",
-                    "select_processors_subscriptions_s",
-                    "group_by_processors_subscriptions_p",
-                    "group_by_processors_subscriptions_s",
-                    "select_processors_subscriptions_aggregated_p",
-                    "Bytes",
-                    "select_processors_publications_s",
-                    "group_by_processors_publications_p",
-                    "group_by_processors_publications_s",
-                    "select_processors_publications_aggregated_p",
-                    "select_processors_subscriptions_aggregated_s",
-                    "select_processors_publications_aggregated_s",
-                    "join_processors_subscriptions_publications_aggregated_p",
-                    "join_processors_subscriptions_publications_aggregated_s",
-                    "NetworkTasks",
-                    "join_tasks_processors_subscriptions_publications_aggregated_p",
-                    "join_tasks_processors_subscriptions_publications_aggregated_s",
-                    "select_tasks_processors_subscriptions_publications_aggregated_p",
-                    "select_tasks_processors_subscriptions_publications_aggregated_s",
-                    "echo_processor_p",
-                    "select_tasks_processors_subscriptions_publications_aggregated_s",
-                    "Bytes",
-                    "call_processor_p"
+                    "Bytes", "select_processors_subscriptions_s", "group_by_processors_subscriptions_p", "group_by_processors_subscriptions_s", "select_processors_subscriptions_aggregated_p", "Bytes", "select_processors_publications_s", "group_by_processors_publications_p", "group_by_processors_publications_s", "select_processors_publications_aggregated_p", "select_processors_subscriptions_aggregated_s", "select_processors_publications_aggregated_s", "join_processors_subscriptions_publications_aggregated_p", "join_processors_subscriptions_publications_aggregated_s", "NetworkTasks", "join_tasks_processors_subscriptions_publications_aggregated_p", "join_tasks_processors_subscriptions_publications_aggregated_s", "select_tasks_processors_subscriptions_publications_aggregated_p", "select_tasks_processors_subscriptions_publications_aggregated_s", "echo_processor_p", "select_tasks_processors_subscriptions_publications_aggregated_s", "Bytes", "call_processor_p", "SubjectsObjectStoreMeta", "group_by_subjects_object_store_meta_p", "group_by_subjects_object_store_meta_s", "group_by_num_rows_subjects_object_store_meta_p", "group_by_num_rows_subjects_object_store_meta_s", "select_num_rows_subjects_object_store_meta_p"
                 ]
             );
             let column = subject.get_column_as_vec_str("subscribe_type");
             assert_eq!(
                 column,
                 [
-                    "Any", "Any", "Any", "All", "All", "Any", "Any", "Any", "All", "All", "All",
-                    "All", "All", "All", "All", "All", "All", "All", "All", "All", "Any", "Any",
-                    "Any"
+                    "Any", "Any", "Any", "All", "All", "Any", "Any", "Any", "All", "All", "All", "All", "All", "All", "All", "All", "All", "All", "All", "All", "Any", "Any", "Any", "All", "All", "All", "All", "All", "All"
                 ]
             );
             let column = subject.get_column_as_vec_str("update_type");
             assert_eq!(
                 column,
                 [
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate",
-                    "SubjectChangedSinceLastRunUpdate"
+                    "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate", "SubjectChangedSinceLastRunUpdate"
                 ]
             );
             let column = subject.get_column_as_vec_primitive::<u8>("is_subscription")?;
             assert_eq!(
                 column,
                 [
-                    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+                    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
                 ]
             );
 
@@ -672,30 +538,14 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network",
-                    "invoke_task_network"
+                    "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network", "invoke_task_network"
                 ]
             );
             let column = subject.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
                 [
-                    "group_by_processors_subscriptions_p",
-                    "select_processors_subscriptions_aggregated_p",
-                    "group_by_processors_publications_p",
-                    "select_processors_publications_aggregated_p",
-                    "join_processors_subscriptions_publications_aggregated_p",
-                    "join_tasks_processors_subscriptions_publications_aggregated_p",
-                    "select_tasks_processors_subscriptions_publications_aggregated_p",
-                    "echo_processor_p",
-                    "call_processor_p"
+                    "group_by_processors_subscriptions_p", "select_processors_subscriptions_aggregated_p", "group_by_processors_publications_p", "select_processors_publications_aggregated_p", "join_processors_subscriptions_publications_aggregated_p", "join_tasks_processors_subscriptions_publications_aggregated_p", "select_tasks_processors_subscriptions_publications_aggregated_p", "echo_processor_p", "call_processor_p", "group_by_subjects_object_store_meta_p", "group_by_num_rows_subjects_object_store_meta_p", "select_num_rows_subjects_object_store_meta_p"
                 ]
             );
             let column = subject.get_column_as_vec_str("processor_type");
@@ -710,7 +560,7 @@ mod tests {
                     "Join",
                     "Select",
                     "ProcessorEcho",
-                    "ToolCallProcessor"
+                    "ToolCallProcessor", "GroupBy", "GroupBy", "Select"
                 ]
             );
             let column = subject.get_column_as_vec_str("publication_subscription_name");
@@ -718,29 +568,21 @@ mod tests {
                 column,
                 [
                     "Replace", "Replace", "Replace", "Replace", "Replace", "Replace", "Replace",
-                    "Extend", "Extend"
+                    "Extend", "Extend", "Replace", "Replace", "Replace"
                 ]
             );
             let column = subject.get_column_as_vec_str("publication_subscription_table_name");
             assert_eq!(
                 column,
                 [
-                    "group_by_processors_subscriptions_s",
-                    "select_processors_subscriptions_aggregated_s",
-                    "group_by_processors_publications_s",
-                    "select_processors_publications_aggregated_s",
-                    "join_processors_subscriptions_publications_aggregated_s",
-                    "join_tasks_processors_subscriptions_publications_aggregated_s",
-                    "select_tasks_processors_subscriptions_publications_aggregated_s",
-                    "select_tasks_processors_subscriptions_publications_aggregated_s",
-                    "NetworkTasksSubscribePublish"
+                    "group_by_processors_subscriptions_s", "select_processors_subscriptions_aggregated_s", "group_by_processors_publications_s", "select_processors_publications_aggregated_s", "join_processors_subscriptions_publications_aggregated_s", "join_tasks_processors_subscriptions_publications_aggregated_s", "select_tasks_processors_subscriptions_publications_aggregated_s", "select_tasks_processors_subscriptions_publications_aggregated_s", "NetworkTasksSubscribePublish", "group_by_subjects_object_store_meta_s", "group_by_num_rows_subjects_object_store_meta_s", "SubjectsNumRows"
                 ]
             );
             let column = subject.get_column_as_vec_str("subscribe_type");
             assert_eq!(
                 column,
                 [
-                    "Any", "All", "Any", "All", "All", "All", "All", "All", "Any"
+                    "Any", "All", "Any", "All", "All", "All", "All", "All", "Any", "All", "All", "All"
                 ]
             );
             let column = subject.get_column_as_vec_str("update_type");
@@ -755,11 +597,14 @@ mod tests {
                     "SubjectChangedSinceLastRunUpdate",
                     "SubjectChangedSinceLastRunUpdate",
                     "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
                     "SubjectChangedSinceLastRunUpdate"
                 ]
             );
             let column = subject.get_column_as_vec_primitive::<u8>("is_subscription")?;
-            assert_eq!(column, [0, 0, 0, 0, 0, 0, 0, 0, 0]);
+            assert_eq!(column, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: "select_processors_subscriptions_aggregated_s".to_string(),
@@ -784,6 +629,9 @@ mod tests {
                     "invoke_task_network",
                     "invoke_task_network",
                     "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
                     "invoke_task_network"
                 ]
             );
@@ -791,30 +639,14 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "call_processor_p",
-                    "echo_processor_p",
-                    "group_by_processors_publications_p",
-                    "group_by_processors_subscriptions_p",
-                    "join_processors_subscriptions_publications_aggregated_p",
-                    "join_tasks_processors_subscriptions_publications_aggregated_p",
-                    "select_processors_publications_aggregated_p",
-                    "select_processors_subscriptions_aggregated_p",
-                    "select_tasks_processors_subscriptions_publications_aggregated_p"
+                    "call_processor_p", "echo_processor_p", "group_by_num_rows_subjects_object_store_meta_p", "group_by_processors_publications_p", "group_by_processors_subscriptions_p", "group_by_subjects_object_store_meta_p", "join_processors_subscriptions_publications_aggregated_p", "join_tasks_processors_subscriptions_publications_aggregated_p", "select_num_rows_subjects_object_store_meta_p", "select_processors_publications_aggregated_p", "select_processors_subscriptions_aggregated_p", "select_tasks_processors_subscriptions_publications_aggregated_p"
                 ]
             );
             let column = subject.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
                 [
-                    "ToolCallProcessor",
-                    "ProcessorEcho",
-                    "GroupBy",
-                    "GroupBy",
-                    "Join",
-                    "Join",
-                    "Select",
-                    "Select",
-                    "Select"
+                    "ToolCallProcessor", "ProcessorEcho", "GroupBy", "GroupBy", "GroupBy", "GroupBy", "Join", "Join", "Select", "Select", "Select", "Select"
                 ]
             );
             let column =
@@ -823,29 +655,7 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateLastRecordBatch",
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateEmpty",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateEmpty",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateAllRecordBatches",
-                    "OnUpdateAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches"
+                    "AlwaysAllRecordBatches", "OnUpdateLastRecordBatch", "AlwaysAllRecordBatches", "OnUpdateAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysLastRecordBatch", "OnUpdateEmpty", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "OnUpdateEmpty", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "OnUpdateAllRecordBatches", "AlwaysLastRecordBatch", "OnUpdateAllRecordBatches", "OnUpdateAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysLastRecordBatch", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches"
                 ]
             );
             let column = subject
@@ -854,29 +664,7 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
-                    "select_tasks_processors_subscriptions_publications_aggregated_s",
-                    "Bytes",
-                    "call_processor_p",
-                    "select_tasks_processors_subscriptions_publications_aggregated_s",
-                    "echo_processor_p",
-                    "Bytes",
-                    "select_processors_publications_s",
-                    "group_by_processors_publications_p",
-                    "Bytes",
-                    "select_processors_subscriptions_s",
-                    "group_by_processors_subscriptions_p",
-                    "select_processors_subscriptions_aggregated_s",
-                    "select_processors_publications_aggregated_s",
-                    "join_processors_subscriptions_publications_aggregated_p",
-                    "join_processors_subscriptions_publications_aggregated_s",
-                    "NetworkTasks",
-                    "join_tasks_processors_subscriptions_publications_aggregated_p",
-                    "group_by_processors_publications_s",
-                    "select_processors_publications_aggregated_p",
-                    "group_by_processors_subscriptions_s",
-                    "select_processors_subscriptions_aggregated_p",
-                    "join_tasks_processors_subscriptions_publications_aggregated_s",
-                    "select_tasks_processors_subscriptions_publications_aggregated_p"
+                    "select_tasks_processors_subscriptions_publications_aggregated_s", "Bytes", "call_processor_p", "select_tasks_processors_subscriptions_publications_aggregated_s", "echo_processor_p", "group_by_subjects_object_store_meta_s", "group_by_num_rows_subjects_object_store_meta_p", "Bytes", "select_processors_publications_s", "group_by_processors_publications_p", "Bytes", "select_processors_subscriptions_s", "group_by_processors_subscriptions_p", "SubjectsObjectStoreMeta", "group_by_subjects_object_store_meta_p", "select_processors_subscriptions_aggregated_s", "select_processors_publications_aggregated_s", "join_processors_subscriptions_publications_aggregated_p", "join_processors_subscriptions_publications_aggregated_s", "NetworkTasks", "join_tasks_processors_subscriptions_publications_aggregated_p", "group_by_num_rows_subjects_object_store_meta_s", "select_num_rows_subjects_object_store_meta_p", "group_by_processors_publications_s", "select_processors_publications_aggregated_p", "group_by_processors_subscriptions_s", "select_processors_subscriptions_aggregated_p", "join_tasks_processors_subscriptions_publications_aggregated_s", "select_tasks_processors_subscriptions_publications_aggregated_p"
                 ]
             );
 
@@ -903,6 +691,9 @@ mod tests {
                     "invoke_task_network",
                     "invoke_task_network",
                     "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
                     "invoke_task_network"
                 ]
             );
@@ -910,30 +701,14 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "call_processor_p",
-                    "echo_processor_p",
-                    "group_by_processors_publications_p",
-                    "group_by_processors_subscriptions_p",
-                    "join_processors_subscriptions_publications_aggregated_p",
-                    "join_tasks_processors_subscriptions_publications_aggregated_p",
-                    "select_processors_publications_aggregated_p",
-                    "select_processors_subscriptions_aggregated_p",
-                    "select_tasks_processors_subscriptions_publications_aggregated_p"
+                    "call_processor_p", "echo_processor_p", "group_by_num_rows_subjects_object_store_meta_p", "group_by_processors_publications_p", "group_by_processors_subscriptions_p", "group_by_subjects_object_store_meta_p", "join_processors_subscriptions_publications_aggregated_p", "join_tasks_processors_subscriptions_publications_aggregated_p", "select_num_rows_subjects_object_store_meta_p", "select_processors_publications_aggregated_p", "select_processors_subscriptions_aggregated_p", "select_tasks_processors_subscriptions_publications_aggregated_p"
                 ]
             );
             let column = subject.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
                 [
-                    "ToolCallProcessor",
-                    "ProcessorEcho",
-                    "GroupBy",
-                    "GroupBy",
-                    "Join",
-                    "Join",
-                    "Select",
-                    "Select",
-                    "Select"
+                    "ToolCallProcessor", "ProcessorEcho", "GroupBy", "GroupBy", "GroupBy", "GroupBy", "Join", "Join", "Select", "Select", "Select", "Select"
                 ]
             );
             let column =
@@ -942,8 +717,7 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
-                    "Extend", "Extend", "Replace", "Replace", "Replace", "Replace", "Replace",
-                    "Replace", "Replace"
+                    "Extend", "Extend", "Replace", "Replace", "Replace", "Replace", "Replace", "Replace", "Replace", "Replace", "Replace", "Replace"
                 ]
             );
             let column = subject
@@ -952,15 +726,7 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
-                    "NetworkTasksSubscribePublish",
-                    "select_tasks_processors_subscriptions_publications_aggregated_s",
-                    "group_by_processors_publications_s",
-                    "group_by_processors_subscriptions_s",
-                    "join_processors_subscriptions_publications_aggregated_s",
-                    "join_tasks_processors_subscriptions_publications_aggregated_s",
-                    "select_processors_publications_aggregated_s",
-                    "select_processors_subscriptions_aggregated_s",
-                    "select_tasks_processors_subscriptions_publications_aggregated_s"
+                    "NetworkTasksSubscribePublish", "select_tasks_processors_subscriptions_publications_aggregated_s", "group_by_num_rows_subjects_object_store_meta_s", "group_by_processors_publications_s", "group_by_processors_subscriptions_s", "group_by_subjects_object_store_meta_s", "join_processors_subscriptions_publications_aggregated_s", "join_tasks_processors_subscriptions_publications_aggregated_s", "SubjectsNumRows", "select_processors_publications_aggregated_s", "select_processors_subscriptions_aggregated_s", "select_tasks_processors_subscriptions_publications_aggregated_s"
                 ]
             );
 
@@ -988,6 +754,9 @@ mod tests {
                     "invoke_task_network",
                     "invoke_task_network",
                     "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
+                    "invoke_task_network",
                     "invoke_task_network"
                 ]
             );
@@ -995,45 +764,22 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "call_processor_t",
-                    "call_processor_t",
-                    "group_by_processors_publications_t",
-                    "group_by_processors_subscriptions_t",
-                    "join_tasks_processors_subscriptions_publications_aggregated_t",
-                    "join_tasks_processors_subscriptions_publications_aggregated_t",
-                    "group_by_processors_publications_t",
-                    "group_by_processors_subscriptions_t",
-                    "join_tasks_processors_subscriptions_publications_aggregated_t"
+                    "call_processor_t", "call_processor_t", "count_subject_rows_t", "group_by_processors_publications_t", "group_by_processors_subscriptions_t", "count_subject_rows_t", "join_tasks_processors_subscriptions_publications_aggregated_t", "join_tasks_processors_subscriptions_publications_aggregated_t", "count_subject_rows_t", "group_by_processors_publications_t", "group_by_processors_subscriptions_t", "join_tasks_processors_subscriptions_publications_aggregated_t"
                 ]
             );
             let column = subject.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
                 [
-                    "call_processor_p",
-                    "echo_processor_p",
-                    "group_by_processors_publications_p",
-                    "group_by_processors_subscriptions_p",
-                    "join_processors_subscriptions_publications_aggregated_p",
-                    "join_tasks_processors_subscriptions_publications_aggregated_p",
-                    "select_processors_publications_aggregated_p",
-                    "select_processors_subscriptions_aggregated_p",
-                    "select_tasks_processors_subscriptions_publications_aggregated_p"
+                    "call_processor_p", "echo_processor_p", "group_by_num_rows_subjects_object_store_meta_p", "group_by_processors_publications_p", "group_by_processors_subscriptions_p", "group_by_subjects_object_store_meta_p", "join_processors_subscriptions_publications_aggregated_p", "join_tasks_processors_subscriptions_publications_aggregated_p", "select_num_rows_subjects_object_store_meta_p", "select_processors_publications_aggregated_p", "select_processors_subscriptions_aggregated_p", "select_tasks_processors_subscriptions_publications_aggregated_p"
+
                 ]
             );
             let column = subject.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
                 [
-                    "ToolCallProcessor",
-                    "ProcessorEcho",
-                    "GroupBy",
-                    "GroupBy",
-                    "Join",
-                    "Join",
-                    "Select",
-                    "Select",
-                    "Select"
+                    "ToolCallProcessor", "ProcessorEcho", "GroupBy", "GroupBy", "GroupBy", "GroupBy", "Join", "Join", "Select", "Select", "Select", "Select"
                 ]
             );
             let column =
@@ -1042,29 +788,7 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateLastRecordBatch",
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateEmpty",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateEmpty",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "OnUpdateAllRecordBatches",
-                    "OnUpdateAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches",
-                    "AlwaysAllRecordBatches"
+                    "AlwaysAllRecordBatches", "OnUpdateLastRecordBatch", "AlwaysAllRecordBatches", "OnUpdateAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysLastRecordBatch", "OnUpdateEmpty", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "OnUpdateEmpty", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "OnUpdateAllRecordBatches", "AlwaysLastRecordBatch", "OnUpdateAllRecordBatches", "OnUpdateAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysLastRecordBatch", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches"
                 ]
             );
             let column = subject
@@ -1073,29 +797,7 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
-                    "select_tasks_processors_subscriptions_publications_aggregated_s",
-                    "Bytes",
-                    "call_processor_p",
-                    "select_tasks_processors_subscriptions_publications_aggregated_s",
-                    "echo_processor_p",
-                    "Bytes",
-                    "select_processors_publications_s",
-                    "group_by_processors_publications_p",
-                    "Bytes",
-                    "select_processors_subscriptions_s",
-                    "group_by_processors_subscriptions_p",
-                    "select_processors_subscriptions_aggregated_s",
-                    "select_processors_publications_aggregated_s",
-                    "join_processors_subscriptions_publications_aggregated_p",
-                    "join_processors_subscriptions_publications_aggregated_s",
-                    "NetworkTasks",
-                    "join_tasks_processors_subscriptions_publications_aggregated_p",
-                    "group_by_processors_publications_s",
-                    "select_processors_publications_aggregated_p",
-                    "group_by_processors_subscriptions_s",
-                    "select_processors_subscriptions_aggregated_p",
-                    "join_tasks_processors_subscriptions_publications_aggregated_s",
-                    "select_tasks_processors_subscriptions_publications_aggregated_p"
+                    "select_tasks_processors_subscriptions_publications_aggregated_s", "Bytes", "call_processor_p", "select_tasks_processors_subscriptions_publications_aggregated_s", "echo_processor_p", "group_by_subjects_object_store_meta_s", "group_by_num_rows_subjects_object_store_meta_p", "Bytes", "select_processors_publications_s", "group_by_processors_publications_p", "Bytes", "select_processors_subscriptions_s", "group_by_processors_subscriptions_p", "SubjectsObjectStoreMeta", "group_by_subjects_object_store_meta_p", "select_processors_subscriptions_aggregated_s", "select_processors_publications_aggregated_s", "join_processors_subscriptions_publications_aggregated_p", "join_processors_subscriptions_publications_aggregated_s", "NetworkTasks", "join_tasks_processors_subscriptions_publications_aggregated_p", "group_by_num_rows_subjects_object_store_meta_s", "select_num_rows_subjects_object_store_meta_p", "group_by_processors_publications_s", "select_processors_publications_aggregated_p", "group_by_processors_subscriptions_s", "select_processors_subscriptions_aggregated_p", "join_tasks_processors_subscriptions_publications_aggregated_s", "select_tasks_processors_subscriptions_publications_aggregated_p"
                 ]
             );
             let column =
@@ -1104,8 +806,7 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
-                    "Extend", "Extend", "Replace", "Replace", "Replace", "Replace", "Replace",
-                    "Replace", "Replace"
+                    "Extend", "Extend", "Replace", "Replace", "Replace", "Replace", "Replace", "Replace", "Replace", "Replace", "Replace", "Replace"
                 ]
             );
             let column = subject
@@ -1114,15 +815,7 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
-                    "NetworkTasksSubscribePublish",
-                    "select_tasks_processors_subscriptions_publications_aggregated_s",
-                    "group_by_processors_publications_s",
-                    "group_by_processors_subscriptions_s",
-                    "join_processors_subscriptions_publications_aggregated_s",
-                    "join_tasks_processors_subscriptions_publications_aggregated_s",
-                    "select_processors_publications_aggregated_s",
-                    "select_processors_subscriptions_aggregated_s",
-                    "select_tasks_processors_subscriptions_publications_aggregated_s"
+                    "NetworkTasksSubscribePublish", "select_tasks_processors_subscriptions_publications_aggregated_s", "group_by_num_rows_subjects_object_store_meta_s", "group_by_processors_publications_s", "group_by_processors_subscriptions_s", "group_by_subjects_object_store_meta_s", "join_processors_subscriptions_publications_aggregated_s", "join_tasks_processors_subscriptions_publications_aggregated_s", "SubjectsNumRows", "select_processors_publications_aggregated_s", "select_processors_subscriptions_aggregated_s", "select_tasks_processors_subscriptions_publications_aggregated_s"
                 ]
             );
 
