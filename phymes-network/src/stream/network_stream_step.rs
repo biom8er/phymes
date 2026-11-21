@@ -417,8 +417,6 @@ pub trait NetworkStreamStepTrait {
     }
 
     /// Count the subject rows using the [CountSubjectRowsNetworkBuilder] pre-compiled tasks
-    /// # Notes
-    /// If `add_subjects_num_rows` was not added to the session, the default behavior is to skip without panic
     fn count_subject_rows(network: &Arc<Network>) -> impl std::future::Future<Output = Result<()>> + Send {
         async move {
             let task_messages = CountSubjectRowsNetworkBuilder::default()
@@ -427,13 +425,10 @@ pub trait NetworkStreamStepTrait {
                     panic!("Missing pre-compiled tasks for `CountSubjectRowsNetworkBuilder`.")
                 });
             for messages in task_messages.into_iter() {
-                let _ =  NetworkStreamStepMinimal::run_superstep(Arc::clone(network), messages)
-                    .await
-                    .unwrap_or_else(|err| {
-                        panic!(
-                            "Error `{err}` running pre-compiled tasks for `CountSubjectRowsNetworkBuilder`."
-                        )
-                    });
+                match NetworkStreamStepMinimal::run_superstep(Arc::clone(network), messages).await {
+                    Ok(_) => (),
+                    Err(err) => return Err(anyhow!("Error `{err}` running pre-compiled tasks for `CountSubjectRowsNetworkBuilder`.")),
+                }
             }
             Ok(())
         }
@@ -667,7 +662,7 @@ impl NetworkStreamStepTrait for NetworkStreamStep {
             }
 
             // Count the number of rows for each subject
-            Self::count_subject_rows(&network).await?;
+            let _ = Self::count_subject_rows(&network).await; // DM: Ignore any errors
 
             Ok(Some(user_batches))
         }

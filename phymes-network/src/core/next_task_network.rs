@@ -1444,6 +1444,7 @@ mod tests {
 
         assert_eq!(response.len(), 0);
 
+        // DM: call to `count_subject_rows` resets `NetworkTasksSubscribePublish`
         // Test supserstep 3
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::NetworkTasksSubscribePublish.to_string(),

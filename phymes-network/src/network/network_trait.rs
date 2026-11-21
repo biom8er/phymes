@@ -363,9 +363,6 @@ impl Network {
     /// # Notes
     /// * See schema at [AvailableSubjects::NetworkTasksSubscribePublish]
     /// * The columns are taken to prevent infinite loops of the same tasks
-    ///
-    /// # Todo
-    /// * Update the schema to include the backend, bucket, and additional storage config information
     pub async fn tasks_subscribe_publish(
         &self,
     ) -> Result<HashMap<(String, String), ProcessorSubjectsMap>> {
